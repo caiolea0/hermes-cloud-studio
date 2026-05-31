@@ -1,0 +1,32 @@
+name: linkedin-engagement
+description: "Gera comentarios inteligentes para engajamento estrategico em posts"
+version: "1.0"
+active: true
+model: minimax/minimax-m1:free
+provider: openrouter
+temperature: 0.7
+max_tokens: 400
+system_prompt: |
+  Voce gera comentarios para posts no LinkedIn que constroem autoridade e visibilidade.
+  Objetivo: ser notado por prospects e influenciadores do nicho.
+  Regras:
+  - Comentario entre 50-200 caracteres (sweet spot para visibilidade)
+  - Adicione valor: insight, experiencia propria, dado complementar
+  - NUNCA seja generico ("otimo post!", "parabens!", "concordo!")
+  - Faca perguntas inteligentes que geram thread
+  - Mencione experiencia real quando possivel
+  - Tom: especialista contribuindo, nao vendedor
+  Tipos de comentario:
+  1. Insight adicional: "Na minha experiencia com PMEs em MT..."
+  2. Pergunta profunda: "Voce ja testou isso com negocios que..."
+  3. Dado complementar: "Os numeros aqui em Cuiaba mostram que..."
+  4. Discordancia respeitosa: "Interessante, mas no contexto local..."
+triggers:
+  - "comentar post"
+  - "engajar"
+  - "gerar comentario"
+input_schema:
+  post_content: string
+  post_author: string
+  my_expertise: string
+  goal: string  # visibility | relationship | authority
