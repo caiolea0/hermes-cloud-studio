@@ -232,9 +232,17 @@
                 <svg><use href="#i-check-square"/></svg>
                 <span class="nav-label">Fila do Dia</span>
             </div>
-            <div class="nav-item" data-page="trends" onclick="navigate('trends')">
-                <svg><use href="#i-trending-up"/></svg>
-                <span class="nav-label">Inteligencia</span>
+            <div class="nav-item" data-page="skills" onclick="navigate('skills')">
+                <svg><use href="#i-zap"/></svg>
+                <span class="nav-label">Skills</span>
+            </div>
+            <div class="nav-item" data-page="memory" onclick="navigate('memory')">
+                <svg><use href="#i-database"/></svg>
+                <span class="nav-label">Memoria</span>
+            </div>
+            <div class="nav-item" data-page="missions" onclick="navigate('missions')">
+                <svg><use href="#i-calendar"/></svg>
+                <span class="nav-label">Missoes</span>
             </div>
             <div class="nav-item" data-page="claude" onclick="navigate('claude')">
                 <svg><use href="#i-code"/></svg>
@@ -952,206 +960,109 @@
             </div>
 
             <!-- ========================== PAGE: TRENDS ========================== -->
-            <div class="page" id="page-trends">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-                    <!-- O que Postar Hoje -->
-                    <div class="card">
-                        <div class="card-header">
-                            <div style="display:flex;align-items:center;gap:8px">
-                                <svg style="width:18px;height:18px;stroke:var(--lime)"><use href="#i-lightbulb"/></svg>
-                                <span class="card-title">O que Postar Hoje</span>
-                            </div>
-                            <button class="btn btn-ghost btn-sm" onclick="refreshTrendSuggestions()"><svg><use href="#i-refresh"/></svg></button>
-                        </div>
-                        <div id="trends-today" style="display:flex;flex-direction:column;gap:12px">
-                            <div class="suggestion-card">
-                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                                    <svg style="width:16px;height:16px;stroke:var(--amber)"><use href="#i-fire"/></svg>
-                                    <span style="font-size:12px;font-weight:600">Destaque de Caso de Sucesso</span>
-                                </div>
-                                <p style="font-size:12px;color:var(--text-2);line-height:1.5">Compartilhe um antes/depois de um cliente com resultados reais. Mostre metricas concretas de ROI e crescimento.</p>
-                                <div style="display:flex;gap:6px;margin-top:8px"><span class="badge badge-lime">Alto Impacto</span><span class="badge badge-ghost">Stories + Feed</span></div>
-                            </div>
-                            <div class="suggestion-card">
-                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                                    <svg style="width:16px;height:16px;stroke:var(--blue)"><use href="#i-lightbulb"/></svg>
-                                    <span style="font-size:12px;font-weight:600">Dica Rapida de Marketing</span>
-                                </div>
-                                <p style="font-size:12px;color:var(--text-2);line-height:1.5">Post educativo: 3 erros que negocios locais cometem no Google Meu Negocio. Conteudo com alto engajamento e salvamento.</p>
-                                <div style="display:flex;gap:6px;margin-top:8px"><span class="badge badge-blue">Educacional</span><span class="badge badge-ghost">Carrossel</span></div>
-                            </div>
-                            <div class="suggestion-card">
-                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                                    <svg style="width:16px;height:16px;stroke:var(--pink)"><use href="#i-target"/></svg>
-                                    <span style="font-size:12px;font-weight:600">Enquete Interativa</span>
-                                </div>
-                                <p style="font-size:12px;color:var(--text-2);line-height:1.5">Enquete nos stories: "Seu negocio tem site?" - puxa gatilho de venda e qualifica leads passivos.</p>
-                                <div style="display:flex;gap:6px;margin-top:8px"><span class="badge badge-pink">Interativo</span><span class="badge badge-ghost">Stories</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Ideias de Conteudo -->
-                    <div class="card">
-                        <div class="card-header">
-                            <div style="display:flex;align-items:center;gap:8px">
-                                <svg style="width:18px;height:18px;stroke:var(--accent-l)"><use href="#i-edit"/></svg>
-                                <span class="card-title">Ideias de Conteudo</span>
-                            </div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:10px" id="trends-ideas">
-                            <div style="display:flex;gap:12px;align-items:flex-start;padding:8px;border-radius:var(--r-sm);background:var(--s3)">
-                                <span style="font-size:18px;font-weight:800;color:var(--accent-l);min-width:28px">01</span>
-                                <div><span style="font-size:12px;font-weight:600">5 Sinais que seu negocio precisa de um site</span><br><span style="font-size:11px;color:var(--text-2)">Listicle educativo com CTA</span><div style="margin-top:4px"><span class="badge badge-ghost">B2B</span> <span class="badge badge-ghost">Educacional</span></div></div>
-                            </div>
-                            <div style="display:flex;gap:12px;align-items:flex-start;padding:8px;border-radius:var(--r-sm);background:var(--s3)">
-                                <span style="font-size:18px;font-weight:800;color:var(--accent-l);min-width:28px">02</span>
-                                <div><span style="font-size:12px;font-weight:600">Como o Google Maps pode triplicar seus clientes</span><br><span style="font-size:11px;color:var(--text-2)">Tutorial passo a passo com screenshots</span><div style="margin-top:4px"><span class="badge badge-ghost">Tutorial</span> <span class="badge badge-ghost">GMB</span></div></div>
-                            </div>
-                            <div style="display:flex;gap:12px;align-items:flex-start;padding:8px;border-radius:var(--r-sm);background:var(--s3)">
-                                <span style="font-size:18px;font-weight:800;color:var(--accent-l);min-width:28px">03</span>
-                                <div><span style="font-size:12px;font-weight:600">Comparativo: Negocio com site vs sem site</span><br><span style="font-size:11px;color:var(--text-2)">Infografico com dados reais</span><div style="margin-top:4px"><span class="badge badge-ghost">Dados</span> <span class="badge badge-ghost">Infografico</span></div></div>
-                            </div>
-                            <div style="display:flex;gap:12px;align-items:flex-start;padding:8px;border-radius:var(--r-sm);background:var(--s3)">
-                                <span style="font-size:18px;font-weight:800;color:var(--accent-l);min-width:28px">04</span>
-                                <div><span style="font-size:12px;font-weight:600">Depoimento de cliente: do zero ao primeiro lead online</span><br><span style="font-size:11px;color:var(--text-2)">Video curto de 60s com legenda</span><div style="margin-top:4px"><span class="badge badge-ghost">Social Proof</span> <span class="badge badge-ghost">Reels</span></div></div>
-                            </div>
-                            <div style="display:flex;gap:12px;align-items:flex-start;padding:8px;border-radius:var(--r-sm);background:var(--s3)">
-                                <span style="font-size:18px;font-weight:800;color:var(--accent-l);min-width:28px">05</span>
-                                <div><span style="font-size:12px;font-weight:600">Quanto custa NAO ter presenca digital?</span><br><span style="font-size:11px;color:var(--text-2)">Post provocativo com calculadora de oportunidade perdida</span><div style="margin-top:4px"><span class="badge badge-ghost">Provocativo</span> <span class="badge badge-ghost">Feed</span></div></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-                    <!-- Topicos em Alta -->
-                    <div class="card">
-                        <div class="card-header">
-                            <div style="display:flex;align-items:center;gap:8px">
-                                <svg style="width:18px;height:18px;stroke:var(--red)"><use href="#i-fire"/></svg>
-                                <span class="card-title">Topicos em Alta</span>
-                            </div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:8px" id="trends-hot">
-                            <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s3);border-radius:var(--r-sm)">
-                                <svg style="width:16px;height:16px;stroke:var(--red)"><use href="#i-trending-up"/></svg>
-                                <span style="font-size:12px;font-weight:600;flex:1">Marketing Digital para Negocios Locais</span>
-                                <span class="badge badge-red">Trending</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s3);border-radius:var(--r-sm)">
-                                <svg style="width:16px;height:16px;stroke:var(--amber)"><use href="#i-trending-up"/></svg>
-                                <span style="font-size:12px;font-weight:600;flex:1">Google Meu Negocio Otimizacao</span>
-                                <span class="badge badge-amber">Quente</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s3);border-radius:var(--r-sm)">
-                                <svg style="width:16px;height:16px;stroke:var(--amber)"><use href="#i-trending-up"/></svg>
-                                <span style="font-size:12px;font-weight:600;flex:1">Inteligencia Artificial para PMEs</span>
-                                <span class="badge badge-amber">Quente</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s3);border-radius:var(--r-sm)">
-                                <svg style="width:16px;height:16px;stroke:var(--green)"><use href="#i-trending-up"/></svg>
-                                <span style="font-size:12px;font-weight:600;flex:1">Automacao de WhatsApp Business</span>
-                                <span class="badge badge-green">Subindo</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s3);border-radius:var(--r-sm)">
-                                <svg style="width:16px;height:16px;stroke:var(--green)"><use href="#i-trending-up"/></svg>
-                                <span style="font-size:12px;font-weight:600;flex:1">SEO Local em 2026</span>
-                                <span class="badge badge-green">Subindo</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Insights de Mercado -->
-                    <div class="card">
-                        <div class="card-header">
-                            <div style="display:flex;align-items:center;gap:8px">
-                                <svg style="width:18px;height:18px;stroke:var(--green)"><use href="#i-eye"/></svg>
-                                <span class="card-title">Insights de Mercado</span>
-                            </div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:10px" id="trends-insights">
-                            <div style="padding:12px;border-left:3px solid var(--lime);background:var(--s3);border-radius:0 var(--r-sm) var(--r-sm) 0">
-                                <div style="font-size:12px;font-weight:600;margin-bottom:4px">70% dos negocios locais nao tem site</div>
-                                <div style="font-size:11px;color:var(--text-2)">Oportunidade massiva: a maioria dos concorrentes nem aparece online. Primeiro a agir, primeiro a ganhar.</div>
-                            </div>
-                            <div style="padding:12px;border-left:3px solid var(--blue);background:var(--s3);border-radius:0 var(--r-sm) var(--r-sm) 0">
-                                <div style="font-size:12px;font-weight:600;margin-bottom:4px">Google Maps domina busca local</div>
-                                <div style="font-size:11px;color:var(--text-2)">Negocios com perfil otimizado recebem 7x mais cliques. Oferecer otimizacao de GMB como upsell.</div>
-                            </div>
-                            <div style="padding:12px;border-left:3px solid var(--accent-l);background:var(--s3);border-radius:0 var(--r-sm) var(--r-sm) 0">
-                                <div style="font-size:12px;font-weight:600;margin-bottom:4px">WhatsApp Business e o canal #1</div>
-                                <div style="font-size:11px;color:var(--text-2)">Abordagem via WhatsApp tem 3x mais resposta que email frio. Priorizar este canal para outreach.</div>
-                            </div>
-                            <div style="padding:12px;border-left:3px solid var(--amber);background:var(--s3);border-radius:0 var(--r-sm) var(--r-sm) 0">
-                                <div style="font-size:12px;font-weight:600;margin-bottom:4px">Restaurantes sao o nicho mais responsivo</div>
-                                <div style="font-size:11px;color:var(--text-2)">Taxa de conversao 2.5x maior entre restaurantes e bares. Focar campanhas nesta vertical.</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Calendario de Conteudo -->
-                <div class="card">
+            <!-- ========================== PAGE: SKILLS ========================== -->
+            <div class="page" id="page-skills">
+                <div class="card" style="margin-bottom:16px">
                     <div class="card-header">
                         <div style="display:flex;align-items:center;gap:8px">
-                            <svg style="width:18px;height:18px;stroke:var(--accent-l)"><use href="#i-calendar"/></svg>
-                            <span class="card-title">Calendario da Semana</span>
+                            <svg style="width:18px;height:18px;stroke:var(--lime)"><use href="#i-zap"/></svg>
+                            <span class="card-title">Hermes Agent Skills</span>
+                        </div>
+                        <button class="btn btn-ghost btn-sm" onclick="loadSkills()"><svg><use href="#i-refresh"/></svg> Recarregar</button>
+                    </div>
+                    <div id="skills-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px">
+                        <div class="empty-state"><svg><use href="#i-zap"/></svg><span>Carregando skills...</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================== PAGE: MEMORY ========================== -->
+            <div class="page" id="page-memory">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                    <div class="card">
+                        <div class="card-header">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <svg style="width:18px;height:18px;stroke:var(--accent-l)"><use href="#i-database"/></svg>
+                                <span class="card-title">Facts & Knowledge</span>
+                            </div>
+                            <button class="btn btn-ghost btn-sm" onclick="loadMemory()"><svg><use href="#i-refresh"/></svg></button>
+                        </div>
+                        <div id="memory-facts" style="display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto">
+                            <div class="empty-state"><svg><use href="#i-database"/></svg><span>Carregando memoria...</span></div>
+                        </div>
+                        <div style="margin-top:12px;display:flex;gap:8px">
+                            <input type="text" id="memory-new-fact" placeholder="Adicionar novo fato..." style="flex:1;padding:8px 12px;background:var(--s3);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size:12px">
+                            <button class="btn btn-primary btn-sm" onclick="addMemoryItem('fact',document.getElementById('memory-new-fact').value)"><svg><use href="#i-plus"/></svg></button>
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px" id="trends-calendar">
-                        <div style="text-align:center">
-                            <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Seg</div>
-                            <div style="padding:10px;background:var(--s3);border-radius:var(--r-sm);min-height:80px">
-                                <div style="font-size:11px;font-weight:600;margin-bottom:4px">Caso de Sucesso</div>
-                                <span class="badge badge-lime" style="font-size:9px">Feed</span>
+                    <div class="card">
+                        <div class="card-header">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <svg style="width:18px;height:18px;stroke:var(--green)"><use href="#i-user"/></svg>
+                                <span class="card-title">Preferences & Patterns</span>
                             </div>
                         </div>
-                        <div style="text-align:center">
-                            <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Ter</div>
-                            <div style="padding:10px;background:var(--s3);border-radius:var(--r-sm);min-height:80px">
-                                <div style="font-size:11px;font-weight:600;margin-bottom:4px">Dica Rapida</div>
-                                <span class="badge badge-blue" style="font-size:9px">Carrossel</span>
-                            </div>
-                        </div>
-                        <div style="text-align:center">
-                            <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Qua</div>
-                            <div style="padding:10px;background:var(--s3);border-radius:var(--r-sm);min-height:80px">
-                                <div style="font-size:11px;font-weight:600;margin-bottom:4px">Bastidores</div>
-                                <span class="badge badge-pink" style="font-size:9px">Stories</span>
-                            </div>
-                        </div>
-                        <div style="text-align:center">
-                            <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Qui</div>
-                            <div style="padding:10px;background:var(--s3);border-radius:var(--r-sm);min-height:80px">
-                                <div style="font-size:11px;font-weight:600;margin-bottom:4px">Enquete</div>
-                                <span class="badge badge-amber" style="font-size:9px">Stories</span>
-                            </div>
-                        </div>
-                        <div style="text-align:center">
-                            <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Sex</div>
-                            <div style="padding:10px;background:var(--s3);border-radius:var(--r-sm);min-height:80px">
-                                <div style="font-size:11px;font-weight:600;margin-bottom:4px">Tutorial</div>
-                                <span class="badge badge-green" style="font-size:9px">Reels</span>
-                            </div>
-                        </div>
-                        <div style="text-align:center">
-                            <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Sab</div>
-                            <div style="padding:10px;background:var(--s3);border-radius:var(--r-sm);min-height:80px">
-                                <div style="font-size:11px;font-weight:600;margin-bottom:4px">Meme/Humor</div>
-                                <span class="badge badge-accent" style="font-size:9px">Feed</span>
-                            </div>
-                        </div>
-                        <div style="text-align:center">
-                            <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Dom</div>
-                            <div style="padding:10px;background:var(--s3);border-radius:var(--r-sm);min-height:80px">
-                                <div style="font-size:11px;font-weight:600;margin-bottom:4px">Motivacional</div>
-                                <span class="badge badge-accent" style="font-size:9px">Stories</span>
-                            </div>
+                        <div id="memory-preferences" style="display:flex;flex-direction:column;gap:8px;max-height:500px;overflow-y:auto">
+                            <div class="empty-state"><svg><use href="#i-user"/></svg><span>Nenhuma preferencia salva</span></div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- ========================== PAGE: MISSIONS ========================== -->
+            <div class="page" id="page-missions">
+                <div class="card" style="margin-bottom:16px">
+                    <div class="card-header">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <svg style="width:18px;height:18px;stroke:var(--accent-l)"><use href="#i-calendar"/></svg>
+                            <span class="card-title">Missoes da Semana</span>
+                            <span id="missions-count" style="font-size:11px;color:var(--text-3)"></span>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="openMissionModal()"><svg><use href="#i-plus"/></svg> Nova Missao</button>
+                    </div>
+                    <div id="missions-calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:10px;min-height:300px">
+                    </div>
+                </div>
+
+                <!-- Mission Create Modal -->
+                <div class="modal-overlay" id="mission-modal">
+                    <div class="modal" style="width:520px">
+                        <div class="modal-header">
+                            <h3>Nova Missao</h3>
+                            <button class="btn-icon" onclick="closeMissionModal()"><svg><use href="#i-x"/></svg></button>
+                        </div>
+                        <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+                            <div class="input-wrap"><svg><use href="#i-edit"/></svg><input type="text" id="mission-name" placeholder="Nome da missao"></div>
+                            <div class="input-wrap"><svg><use href="#i-layers"/></svg>
+                                <select id="mission-type">
+                                    <option value="linkedin_viewer">LinkedIn Viewer</option>
+                                    <option value="scraper">Scraper</option>
+                                    <option value="audit">Auditoria</option>
+                                    <option value="outreach">Outreach</option>
+                                </select>
+                            </div>
+                            <div class="input-wrap"><svg><use href="#i-clock"/></svg><input type="time" id="mission-time" value="02:00"></div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap" id="mission-days">
+                                <button class="btn btn-ghost btn-sm mission-day" data-day="seg" onclick="this.classList.toggle('active')">Seg</button>
+                                <button class="btn btn-ghost btn-sm mission-day" data-day="ter" onclick="this.classList.toggle('active')">Ter</button>
+                                <button class="btn btn-ghost btn-sm mission-day" data-day="qua" onclick="this.classList.toggle('active')">Qua</button>
+                                <button class="btn btn-ghost btn-sm mission-day" data-day="qui" onclick="this.classList.toggle('active')">Qui</button>
+                                <button class="btn btn-ghost btn-sm mission-day" data-day="sex" onclick="this.classList.toggle('active')">Sex</button>
+                                <button class="btn btn-ghost btn-sm mission-day" data-day="sab" onclick="this.classList.toggle('active')">Sab</button>
+                                <button class="btn btn-ghost btn-sm mission-day" data-day="dom" onclick="this.classList.toggle('active')">Dom</button>
+                            </div>
+                            <div class="input-wrap"><svg><use href="#i-edit"/></svg><input type="text" id="mission-desc" placeholder="Descricao (opcional)"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-ghost" onclick="closeMissionModal()">Cancelar</button>
+                            <button class="btn btn-primary" onclick="createMission()"><svg><use href="#i-check"/></svg> Criar Missao</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
 
             <!-- ========================== PAGE: CLAUDE CODE ========================== -->
             <div class="page" id="page-claude">

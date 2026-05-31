@@ -232,7 +232,9 @@ function navigate(page) {
         audit: 'Auditoria Digital',
         pipeline: 'Pipeline',
         tasks: 'Fila do Dia',
-        trends: 'Central de Inteligencia',
+        skills: 'Hermes Skills',
+        memory: 'Memoria do Agente',
+        missions: 'Missoes da Semana',
         claude: 'AI Terminal'
     };
     document.getElementById('topbar-title').textContent = titles[page] || page;
@@ -259,6 +261,12 @@ function navigate(page) {
         loadPipeline();
     } else if (page === 'tasks') {
         loadWorkQueue();
+    } else if (page === 'skills') {
+        loadSkills();
+    } else if (page === 'memory') {
+        loadMemory();
+    } else if (page === 'missions') {
+        loadMissions();
     } else if (page === 'claude') {
         renderClaudeHistory();
     }
@@ -2415,6 +2423,56 @@ function refreshTrendSuggestions() {
 /* ============================================================
    CLAUDE CODE PAGE
    ============================================================ */
+function renderMarkdownTerminal(text) {
+    let html = '';
+    let inCodeBlock = false;
+    let codeLines = [];
+    let codeLang = '';
+    const lines = text.split('\n');
+    for (const line of lines) {
+        if (line.startsWith('```')) {
+            if (inCodeBlock) {
+                html += `<div class="log-line" style="background:var(--s3);border-radius:var(--r-sm);padding:8px 12px;margin:4px 0;font-family:monospace;font-size:11px;white-space:pre-wrap;border-left:3px solid var(--lime)">${codeLines.map(l => escapeHtml(l)).join('\n')}</div>`;
+                codeLines = [];
+                inCodeBlock = false;
+            } else {
+                inCodeBlock = true;
+                codeLang = line.slice(3).trim();
+            }
+            continue;
+        }
+        if (inCodeBlock) { codeLines.push(line); continue; }
+        // Headers
+        if (line.startsWith('### ')) {
+            html += `<div class="log-line" style="color:var(--accent-l);font-weight:700;font-size:12px;margin-top:6px">${escapeHtml(line.slice(4))}</div>`;
+        } else if (line.startsWith('## ')) {
+            html += `<div class="log-line" style="color:var(--lime);font-weight:700;font-size:13px;margin-top:8px">${escapeHtml(line.slice(3))}</div>`;
+        } else if (line.startsWith('# ')) {
+            html += `<div class="log-line" style="color:var(--lime);font-weight:800;font-size:14px;margin-top:8px">${escapeHtml(line.slice(2))}</div>`;
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+            html += `<div class="log-line" style="padding-left:12px"><span style="color:var(--lime);margin-right:6px">•</span>${formatInline(line.slice(2))}</div>`;
+        } else if (/^\d+\.\s/.test(line)) {
+            const m = line.match(/^(\d+)\.\s(.*)$/);
+            html += `<div class="log-line" style="padding-left:12px"><span style="color:var(--accent-l);margin-right:6px;font-weight:700">${m[1]}.</span>${formatInline(m[2])}</div>`;
+        } else if (line.trim() === '') {
+            html += `<div class="log-line" style="height:4px"></div>`;
+        } else {
+            html += `<div class="log-line">${formatInline(line)}</div>`;
+        }
+    }
+    if (inCodeBlock && codeLines.length) {
+        html += `<div class="log-line" style="background:var(--s3);border-radius:var(--r-sm);padding:8px 12px;margin:4px 0;font-family:monospace;font-size:11px;white-space:pre-wrap;border-left:3px solid var(--lime)">${codeLines.map(l => escapeHtml(l)).join('\n')}</div>`;
+    }
+    return html;
+}
+
+function formatInline(text) {
+    return escapeHtml(text)
+        .replace(/`([^`]+)`/g, '<code style="background:var(--s3);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--lime)">$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--text);font-weight:700">$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em style="color:var(--text-2)">$1</em>');
+}
+
 async function sendClaudeCommand() {
     const input = document.getElementById('claude-input');
     const cmd = input.value.trim();
@@ -2431,17 +2489,18 @@ async function sendClaudeCommand() {
     renderClaudeHistory();
 
     try {
-        output.innerHTML += `<div class="log-line" style="color:var(--text-3)"><span class="log-time">${now()}</span>Processando via Agent Zero...</div>`;
+        output.innerHTML += `<div class="log-line typing-indicator" style="color:var(--text-3)"><span class="log-time">${now()}</span><span class="typing-dots">Processando</span></div>`;
         output.scrollTop = output.scrollHeight;
         const result = await api('/api/claude/execute', { method: 'POST', body: JSON.stringify({ command: cmd, context: 'terminal' }) });
+        output.querySelector('.typing-indicator')?.remove();
         const provider = result.provider || 'unknown';
         const providerLabel = provider === 'agent_zero' ? 'Agent Zero' : provider === 'claude_cli' ? 'Claude CLI' : provider;
+        const providerColor = provider === 'agent_zero' ? 'var(--accent-l)' : 'var(--lime)';
         const text = result.output || result.result || JSON.stringify(result, null, 2);
-        output.innerHTML += `<div class="log-line" style="color:var(--text-3)"><span class="log-time">${now()}</span>[${providerLabel}]</div>`;
-        text.split('\n').forEach(line => {
-            output.innerHTML += `<div class="log-line"><span class="log-time">${now()}</span>${escapeHtml(line)}</div>`;
-        });
+        output.innerHTML += `<div class="log-line" style="color:var(--text-3)"><span class="log-time">${now()}</span><span style="background:${providerColor};color:var(--bg);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600">${providerLabel}</span></div>`;
+        output.innerHTML += renderMarkdownTerminal(text);
     } catch (e) {
+        output.querySelector('.typing-indicator')?.remove();
         output.innerHTML += `<div class="log-line" style="color:var(--red)"><span class="log-time">${now()}</span>ERRO: ${escapeHtml(e.message)}</div>`;
     }
     output.scrollTop = output.scrollHeight;
@@ -2496,10 +2555,44 @@ function saveConfig() {
 }
 
 /* ============================================================
+   WEBSOCKET
+   ============================================================ */
+let ws = null;
+
+function connectWS() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = localStorage.getItem('hermes_api')?.replace(/^https?:\/\//, '').replace(/\/+$/, '') || location.host;
+    ws = new WebSocket(`${protocol}//${host}/ws`);
+    ws.onmessage = (e) => {
+        try {
+            const event = JSON.parse(e.data);
+            handleWSEvent(event);
+        } catch (err) {}
+    };
+    ws.onclose = () => { ws = null; setTimeout(connectWS, 3000); };
+    ws.onerror = () => { ws?.close(); };
+}
+
+function handleWSEvent(event) {
+    if (event.type === 'sync') {
+        if (currentPage === 'dashboard') loadDashboard();
+    } else if (event.type === 'pipeline_progress') {
+        if (currentPage === 'pipeline') loadPipeline();
+        if (currentPage === 'dashboard') refreshScraperStatus();
+    } else if (event.type === 'audit_done') {
+        if (currentPage === 'audit') loadAuditPage();
+        toast('Auditoria concluida!', 'success');
+    } else if (event.type === 'scraper_update') {
+        if (currentPage === 'dashboard') refreshScraperStatus();
+    }
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 function init() {
     checkAuth();
+    connectWS();
 }
 
 window.addEventListener('hashchange', () => {
@@ -2514,5 +2607,180 @@ document.addEventListener('keydown', (e) => {
         closeTaskModal();
     }
 });
+
+/* ============================================================
+   SKILLS
+   ============================================================ */
+async function loadSkills() {
+    const grid = document.getElementById('skills-grid');
+    try {
+        const data = await api('/api/hermes/skills');
+        if (!data || !data.length) {
+            grid.innerHTML = '<div class="empty-state"><svg><use href="#i-zap"/></svg><span>Nenhuma skill encontrada. VM offline?</span></div>';
+            return;
+        }
+        grid.innerHTML = data.map(s => `
+            <div class="card" style="padding:14px;border:1px solid ${s.active ? 'var(--lime)' : 'var(--border)'}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                    <div>
+                        <div style="font-size:13px;font-weight:700;color:var(--text)">${s.name}</div>
+                        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${s.description || ''}</div>
+                    </div>
+                    <label class="toggle-switch" style="cursor:pointer">
+                        <input type="checkbox" ${s.active ? 'checked' : ''} onchange="toggleSkill('${s.name}', this.checked)" style="display:none">
+                        <span style="width:36px;height:20px;border-radius:10px;background:${s.active ? 'var(--lime)' : 'var(--s3)'};display:block;position:relative;transition:background 0.2s">
+                            <span style="width:16px;height:16px;border-radius:50%;background:var(--bg);position:absolute;top:2px;${s.active ? 'right:2px' : 'left:2px'};transition:all 0.2s"></span>
+                        </span>
+                    </label>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <span class="badge badge-ghost">${s.model || 'N/A'}</span>
+                    <span class="badge badge-ghost">${s.provider || 'N/A'}</span>
+                    ${s.triggers ? s.triggers.slice(0,2).map(t => `<span class="badge badge-lime">${t}</span>`).join('') : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        grid.innerHTML = '<div class="empty-state"><svg><use href="#i-zap"/></svg><span>Erro ao carregar skills</span></div>';
+    }
+}
+
+async function toggleSkill(name, active) {
+    try {
+        await api(`/api/hermes/skills/${name}`, { method: 'PATCH', body: JSON.stringify({ active }) });
+        toast(`Skill ${name} ${active ? 'ativada' : 'desativada'}`, 'success');
+        loadSkills();
+    } catch (e) {
+        toast('Erro ao alterar skill', 'error');
+    }
+}
+
+/* ============================================================
+   MEMORY
+   ============================================================ */
+async function loadMemory() {
+    const factsEl = document.getElementById('memory-facts');
+    const prefsEl = document.getElementById('memory-preferences');
+    try {
+        const data = await api('/api/hermes/memory');
+        if (!data) {
+            factsEl.innerHTML = '<div class="empty-state"><svg><use href="#i-database"/></svg><span>Sem conexao com memoria</span></div>';
+            return;
+        }
+        const facts = (data.facts || []);
+        const prefs = (data.preferences || []);
+        const patterns = (data.patterns || []);
+
+        factsEl.innerHTML = facts.length ? facts.map(f => `
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--s3);border-radius:var(--r-sm)">
+                <span style="flex:1;font-size:12px;color:var(--text)">${f.content}</span>
+                <button class="btn-icon" onclick="deleteMemoryItem('${f.id}')" style="opacity:0.5"><svg style="width:14px;height:14px"><use href="#i-x"/></svg></button>
+            </div>
+        `).join('') : '<div class="empty-state"><svg><use href="#i-database"/></svg><span>Nenhum fato salvo</span></div>';
+
+        prefsEl.innerHTML = [...prefs, ...patterns].length ? [...prefs, ...patterns].map(p => `
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--s3);border-radius:var(--r-sm)">
+                <span class="badge ${p.type === 'preference' ? 'badge-blue' : 'badge-accent'}" style="font-size:9px">${p.type || 'pattern'}</span>
+                <span style="flex:1;font-size:12px;color:var(--text)">${p.content}</span>
+                <button class="btn-icon" onclick="deleteMemoryItem('${p.id}')" style="opacity:0.5"><svg style="width:14px;height:14px"><use href="#i-x"/></svg></button>
+            </div>
+        `).join('') : '<div class="empty-state"><svg><use href="#i-user"/></svg><span>Nenhuma preferencia salva</span></div>';
+    } catch (e) {
+        factsEl.innerHTML = '<div class="empty-state"><svg><use href="#i-database"/></svg><span>Erro ao carregar memoria</span></div>';
+    }
+}
+
+async function addMemoryItem(type, content) {
+    if (!content || !content.trim()) { toast('Digite o conteudo', 'error'); return; }
+    try {
+        await api('/api/hermes/memory', { method: 'POST', body: JSON.stringify({ type, content: content.trim() }) });
+        document.getElementById('memory-new-fact').value = '';
+        toast('Item adicionado', 'success');
+        loadMemory();
+    } catch (e) {
+        toast('Erro ao adicionar', 'error');
+    }
+}
+
+async function deleteMemoryItem(id) {
+    try {
+        await api(`/api/hermes/memory/${id}`, { method: 'DELETE' });
+        toast('Item removido', 'success');
+        loadMemory();
+    } catch (e) {
+        toast('Erro ao remover', 'error');
+    }
+}
+
+/* ============================================================
+   MISSIONS
+   ============================================================ */
+async function loadMissions() {
+    const cal = document.getElementById('missions-calendar');
+    const countEl = document.getElementById('missions-count');
+    try {
+        const pipelines = await api('/api/pipelines');
+        const scheduled = (pipelines || []).filter(p => p.schedule_config);
+        countEl.textContent = `(${scheduled.length} agendadas)`;
+
+        const days = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'];
+        const dayNames = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
+        const typeColors = { linkedin_viewer: 'badge-blue', scraper: 'badge-lime', audit: 'badge-amber', outreach: 'badge-pink' };
+
+        cal.innerHTML = days.map((d, i) => {
+            const dayMissions = scheduled.filter(p => (p.schedule_config.days || []).includes(d));
+            return `
+                <div style="min-height:200px">
+                    <div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${dayNames[i]}</div>
+                    ${dayMissions.length ? dayMissions.map(m => `
+                        <div style="padding:8px;background:var(--s3);border-radius:var(--r-sm);margin-bottom:6px;border-left:3px solid var(--accent-l)">
+                            <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:4px">${m.name || m.type}</div>
+                            <span class="${typeColors[m.type] || 'badge-ghost'} badge" style="font-size:9px">${m.type}</span>
+                            ${m.schedule_config.time ? `<span style="font-size:9px;color:var(--text-3);margin-left:4px">${m.schedule_config.time}</span>` : ''}
+                        </div>
+                    `).join('') : '<div style="font-size:10px;color:var(--text-3);text-align:center;padding:20px 0">—</div>'}
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        cal.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><svg><use href="#i-calendar"/></svg><span>Erro ao carregar missoes</span></div>';
+    }
+}
+
+function openMissionModal() {
+    document.getElementById('mission-modal').classList.add('active');
+}
+
+function closeMissionModal() {
+    document.getElementById('mission-modal').classList.remove('active');
+}
+
+async function createMission() {
+    const name = document.getElementById('mission-name').value.trim();
+    const type = document.getElementById('mission-type').value;
+    const time = document.getElementById('mission-time').value;
+    const desc = document.getElementById('mission-desc').value.trim();
+    const activeDays = [...document.querySelectorAll('.mission-day.active')].map(b => b.dataset.day);
+
+    if (!name) { toast('Nome obrigatorio', 'error'); return; }
+    if (!activeDays.length) { toast('Selecione pelo menos um dia', 'error'); return; }
+
+    try {
+        await api('/api/pipelines', {
+            method: 'POST',
+            body: JSON.stringify({
+                name,
+                type,
+                description: desc,
+                schedule_config: { days: activeDays, time, active: true }
+            })
+        });
+        toast('Missao criada!', 'success');
+        closeMissionModal();
+        loadMissions();
+    } catch (e) {
+        toast('Erro ao criar missao', 'error');
+    }
+}
 
 init();

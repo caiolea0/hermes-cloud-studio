@@ -28,6 +28,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 load_dotenv(Path(__file__).parent / ".env")
@@ -355,7 +356,9 @@ async def sync_from_vm():
         total_p = len(vm_prospects)
         total_a = len(vm_activities)
         logger.info("Sync OK — %d prospects (%d new), %d activities (%d new)", total_p, synced_p, total_a, synced_a)
-        return {"ok": True, "prospects": total_p, "new_prospects": synced_p, "activities": total_a, "new_activities": synced_a}
+        result = {"ok": True, "prospects": total_p, "new_prospects": synced_p, "activities": total_a, "new_activities": synced_a}
+        await ws_manager.broadcast({"type": "sync", "data": result})
+        return result
 
     except Exception as e:
         logger.error("Sync DB error: %s", e)
@@ -393,6 +396,45 @@ app.add_middleware(
 
 
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR)), name="dashboard-static")
+
+
+# ============================================================
+# WEBSOCKET MANAGER
+# ============================================================
+
+class WSManager:
+    def __init__(self):
+        self.connections: list[WebSocket] = []
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.connections.append(ws)
+
+    def disconnect(self, ws: WebSocket):
+        if ws in self.connections:
+            self.connections.remove(ws)
+
+    async def broadcast(self, event: dict):
+        for ws in self.connections[:]:
+            try:
+                await ws.send_json(event)
+            except Exception:
+                self.connections.remove(ws)
+
+
+ws_manager = WSManager()
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
+    except Exception:
+        ws_manager.disconnect(websocket)
 
 
 @app.middleware("http")
@@ -1997,6 +2039,90 @@ async def trigger_sync():
     """Manually trigger a sync from VM."""
     result = await sync_from_vm()
     return result
+
+
+# ============================================================
+# SKILLS (proxy to VM API)
+# ============================================================
+
+@app.get("/api/hermes/skills")
+async def get_skills():
+    """List all Hermes Agent skills from VM."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{VM_API_URL}/api/hermes/skills")
+            if r.status_code == 200:
+                return r.json()
+    except Exception:
+        pass
+    return []
+
+
+@app.patch("/api/hermes/skills/{name}")
+async def toggle_skill(name: str, body: dict):
+    """Toggle skill active state on VM."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.patch(f"{VM_API_URL}/api/hermes/skills/{name}", json=body)
+            if r.status_code == 200:
+                return r.json()
+            return {"error": "VM returned " + str(r.status_code)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ============================================================
+# MEMORY (proxy to AgentMemory or VM)
+# ============================================================
+
+MEMORY_API_URL = os.environ.get("AGENTMEMORY_URL", "http://localhost:3111")
+
+
+@app.get("/api/hermes/memory")
+async def get_memory():
+    """Get memory items from AgentMemory service."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{MEMORY_API_URL}/api/memory", params={"limit": 50})
+            if r.status_code == 200:
+                items = r.json() if isinstance(r.json(), list) else r.json().get("items", [])
+                facts = [i for i in items if i.get("type") in ("fact", "bug", "workflow", "architecture")]
+                prefs = [i for i in items if i.get("type") == "preference"]
+                patterns = [i for i in items if i.get("type") == "pattern"]
+                return {"facts": facts, "preferences": prefs, "patterns": patterns}
+    except Exception:
+        pass
+    return {"facts": [], "preferences": [], "patterns": []}
+
+
+@app.post("/api/hermes/memory")
+async def create_memory(body: dict):
+    """Create a new memory item."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(f"{MEMORY_API_URL}/api/memory", json={
+                "type": body.get("type", "fact"),
+                "content": body.get("content", ""),
+                "concepts": body.get("concepts", []),
+            })
+            if r.status_code in (200, 201):
+                return r.json()
+    except Exception as e:
+        return {"error": str(e)}
+    return {"error": "Failed to create memory item"}
+
+
+@app.delete("/api/hermes/memory/{item_id}")
+async def delete_memory(item_id: str):
+    """Delete a memory item."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.delete(f"{MEMORY_API_URL}/api/memory/{item_id}")
+            if r.status_code in (200, 204):
+                return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+    return {"error": "Failed to delete memory item"}
 
 
 if __name__ == "__main__":

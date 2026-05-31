@@ -1092,6 +1092,10 @@ select option { background: var(--s2); color: var(--text); }
 }
 
 /* Fade-in for dynamically loaded content */
+@keyframes typing-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+.typing-dots::after { content: '...'; animation: typing-pulse 1.2s infinite; }
+.mission-day.active { background: var(--accent-l) !important; color: var(--bg) !important; font-weight: 700; }
+
 @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fade-in-scale { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
 .animate-in { animation: fade-in 0.3s var(--ease) both; }
