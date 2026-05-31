@@ -1717,8 +1717,7 @@ async def _execute_linkedin_viewer(exec_id: int, targets: dict, prompt: str, add
             proxy_password=os.environ.get("LINKEDIN_PROXY_PASS", None),
             headless=True,
         )
-        li_config._LinkedInConfig__dict__ = li_config.__dict__
-        li_config.__dict__["_targets"] = {"roles": roles, "location": location, "max_profiles": max_profiles}
+        li_config.targets = {"roles": roles, "location": location, "max_profiles": max_profiles}
 
         viewer = LinkedInViewer(li_config)
         viewer.set_log_callback(lambda msg, **kw: add_log(msg, **kw))
@@ -1794,7 +1793,7 @@ async def _execute_linkedin_viewer(exec_id: int, targets: dict, prompt: str, add
             company = random.choice(companies)
             city = random.choice(cities)
             profiles.append({
-                "name": name,
+                "name": f"[SIM] {name}",
                 "title": title,
                 "company": company,
                 "city": city,
@@ -1802,6 +1801,7 @@ async def _execute_linkedin_viewer(exec_id: int, targets: dict, prompt: str, add
                 "url": f"https://linkedin.com/in/{slug}",
                 "visited": True,
                 "visited_at": datetime.now(timezone.utc).isoformat(),
+                "simulated": True,
             })
 
             if (i + 1) % 25 == 0:
@@ -1820,6 +1820,7 @@ async def _execute_linkedin_viewer(exec_id: int, targets: dict, prompt: str, add
 
         result_data = {
             "type": "linkedin_viewer",
+            "simulated": True,
             "profiles_visited": num_profiles,
             "profiles_found": num_profiles + random.randint(50, 200),
             "by_role": by_role,

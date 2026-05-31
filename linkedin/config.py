@@ -52,7 +52,7 @@ class LinkedInConfig:
     user_data_dir: Optional[str] = None     # persistent browser profile
     viewport_width: int = 1366
     viewport_height: int = 768
-    timezone: str = "America/Sao_Paulo"
+    timezone: str = "America/Cuiaba"
     locale: str = "pt-BR"
     geolocation: Optional[dict] = None      # {"latitude": -23.55, "longitude": -46.63}
 
@@ -61,6 +61,9 @@ class LinkedInConfig:
     typing_speed: float = 1.0               # multiplier (1.0 = ~120ms avg between keys)
     scroll_naturally: bool = True
     simulate_reading: bool = True
+
+    # --- Targets (set by pipeline executor) ---
+    targets: Optional[dict] = None          # {"roles": [...], "location": "...", "max_profiles": N}
 
     # --- Session ---
     session_file: Optional[str] = None      # path to saved auth state
@@ -88,4 +91,4 @@ class LinkedInConfig:
             safe_name = self.account_email.replace("@", "_at_").replace(".", "_") or "default"
             self.session_file = str(SESSION_DIR / f"{safe_name}.json")
         if not self.geolocation:
-            self.geolocation = {"latitude": -23.5505, "longitude": -46.6333}
+            self.geolocation = {"latitude": -15.601, "longitude": -56.0974}
