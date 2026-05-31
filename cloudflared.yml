@@ -1,0 +1,11 @@
+tunnel: hermes-studio
+credentials-file: ~/.cloudflared/hermes-studio.json
+
+ingress:
+  - hostname: hermes.caioleo.com
+    service: http://localhost:8500
+    originRequest:
+      noTLSVerify: true
+  - hostname: hermes-ws.caioleo.com
+    service: ws://localhost:8500
+  - service: http_status:404
