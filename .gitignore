@@ -33,11 +33,9 @@ higgsfield_output/
 # Node
 node_modules/
 
-# Tauri build
-app/src-tauri/target/
-app/src-tauri/gen/
-app/src-tauri/Cargo.lock
-app/node_modules/
+# Tauri/App build
+app/
+
 
 # OS
 .DS_Store
