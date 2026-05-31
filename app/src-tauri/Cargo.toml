@@ -1,0 +1,21 @@
+[package]
+name = "hermes"
+version = "1.0.0"
+description = "Hermes Command Center"
+authors = ["cleao"]
+edition = "2021"
+
+[lib]
+name = "hermes_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-opener = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["process", "net", "io-util", "time", "rt"] }

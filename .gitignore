@@ -1,0 +1,57 @@
+# Environment & Secrets
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.spec
+venv/
+.venv/
+
+# SQLite databases
+*.db
+*.db-wal
+*.db-shm
+hermes_local.db
+
+# Logs
+*.log
+server_err.log
+hermes_desktop.log
+
+# Runtime caches
+photo_cache/
+linkedin_data/
+higgsfield_output/
+
+# Node
+node_modules/
+
+# Tauri build
+app/src-tauri/target/
+app/src-tauri/gen/
+app/src-tauri/Cargo.lock
+app/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Executables
+*.exe
+
+# MCP config (may contain secrets)
+.mcp.json
