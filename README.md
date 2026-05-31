@@ -6,9 +6,11 @@
   <p align="center">
     <img src="https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white" alt="Python">
     <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white" alt="FastAPI">
-    <img src="https://img.shields.io/badge/SQLite-WAL-003B57?logo=sqlite&logoColor=white" alt="SQLite">
-    <img src="https://img.shields.io/badge/Playwright-stealth-2EAD33?logo=playwright&logoColor=white" alt="Playwright">
     <img src="https://img.shields.io/badge/Tauri-2.0-FFC131?logo=tauri&logoColor=white" alt="Tauri">
+    <img src="https://img.shields.io/badge/Rust-1.93-DEA584?logo=rust&logoColor=white" alt="Rust">
+    <img src="https://img.shields.io/badge/SQLite-WAL-003B57?logo=sqlite&logoColor=white" alt="SQLite">
+    <img src="https://img.shields.io/badge/WebSocket-realtime-4353FF?logo=websocket&logoColor=white" alt="WebSocket">
+    <img src="https://img.shields.io/badge/Playwright-stealth-2EAD33?logo=playwright&logoColor=white" alt="Playwright">
     <img src="https://img.shields.io/badge/license-private-red" alt="License">
   </p>
 </p>
@@ -17,124 +19,111 @@
 
 ## Overview
 
-Hermes Cloud Studio is a full-stack autonomous prospecting system that discovers local businesses, audits their digital presence, scores opportunities, and generates personalized outreach messages — all running 24/7 with minimal human intervention.
+Hermes Cloud Studio is a full-stack autonomous prospecting system that discovers local businesses, audits their digital presence, scores opportunities, and generates personalized outreach — all running 24/7 with minimal human intervention.
 
-Built for a freelance designer and digital strategist based in Cuiaba, MT, Brazil, it automates the entire B2B sales pipeline: from finding businesses on Google Maps to sending personalized WhatsApp/email proposals.
+Built for a freelance designer and digital strategist based in Cuiaba, MT, Brazil. Automates the entire B2B sales pipeline: from finding businesses on Google Maps to sending personalized WhatsApp/email proposals via AI-generated content.
+
+### Key Capabilities
+
+- **Discovery**: Automated Google Maps scraping across 111 categories x 16 cities
+- **Audit**: Website health, social presence, SEO scoring (0-100)
+- **Outreach**: AI-generated personalized proposals per category
+- **LinkedIn**: Stealth automation with anti-detection and warm-up
+- **Skills**: 6 LinkedIn AI skills (post generation, engagement, research)
+- **Real-time**: WebSocket push updates to dashboard
+- **Desktop**: Native Windows app via Tauri 2.0 with auto-restart
+- **Mobile**: Telegram bridge + Cloudflare tunnel for remote access
 
 ---
 
 ## Architecture
 
 ```
-+----- WINDOWS PC (Dashboard + Orchestrator) ---------------------+
-|                                                                  |
-|  Hermes Desktop App (pywebview + pystray)                       |
-|  +-- System Tray Icon (green/yellow/red status)                 |
-|  +-- SOCKS5 Proxy (127.0.0.1:1081)                             |
-|  +-- SSH Tunnel (reverse forward to VM)                         |
-|  +-- Dashboard Server (FastAPI :8500)                           |
-|      +-- Sync Loop (pulls VM data every 60s)                   |
-|      +-- Local SQLite (hermes_local.db)                        |
-|      +-- Photo Cache (proxy + local storage)                   |
-|      +-- AI Integration (Agent Zero + Claude CLI fallback)     |
-|                                                                  |
-|  Dashboard Frontend (vanilla HTML/CSS/JS)                       |
-|  +-- Prospect cards (photo, score, stage, actions)              |
-|  +-- Task board (Kanban: pending > running > completed)         |
-|  +-- Activity feed (timeline)                                   |
-|  +-- Pipeline builder (create + execute automation flows)       |
-|  +-- Scraper controls (start/stop, logs, history)               |
-|  +-- Stats dashboard (by stage, city, category, trends)         |
-|  +-- Work queue (prioritized daily actions)                     |
-|                                                                  |
-+------------------------------------------------------------------+
-              | SSH + Proxy |         | HTTP API |
-+------ GCP VM (24/7 Execution Engine) ---------------------------+
-|                                                                  |
-|  Hermes API Bridge (FastAPI :8420)                              |
-|  +-- /api/prospects (CRUD, filtering, scoring)                  |
-|  +-- /api/tasks (dispatch to AI agents)                         |
-|  +-- /api/activities (event log)                                |
-|  +-- /api/scraper/{status,start,stop,history}                   |
-|  +-- /api/audit/{start,status,prospect}                         |
-|  +-- /api/hermes/{status,skills}                                |
-|  +-- /api/stats (pipeline metrics)                              |
-|                                                                  |
-|  Discovery Scrapers                                              |
-|  +-- night_scraper.py (Google Places API, 111 categories)       |
-|  +-- gosom_scraper.py (Docker-based free alternative)           |
-|  +-- 16 cities in Mato Grosso state                             |
-|                                                                  |
-|  Hermes Agent v0.14.0 (Autonomous AI Agent)                     |
-|  +-- 85+ skills out-of-box                                      |
-|  +-- OpenRouter (free tier, model rotation)                     |
-|  +-- Ollama local fallback (qwen3:14b, phi4-mini)               |
-|  +-- Telegram gateway for approvals                             |
-|  +-- Persistent memory system                                   |
-|                                                                  |
-+------------------------------------------------------------------+
-              |              |              |
-+------ EXTERNAL SERVICES ----------------------------------------+
-|                                                                  |
-|  LinkedIn (Patchright anti-detection)                           |
-|  +-- 11 stealth JS patches (webdriver, canvas, WebGL, RTC)     |
-|  +-- Human behavior simulation (Bezier mouse, typing, scroll)  |
-|  +-- Rate limiter with 14-day warm-up                           |
-|  +-- Session persistence + profile reuse                        |
-|                                                                  |
-|  Google Maps/Places API (business discovery)                    |
-|  Telegram Bot (status, approvals, reports)                      |
-|  Gmail SMTP (pipeline reports)                                  |
-|  OpenRouter (free LLM tier: Nemotron, DeepSeek, Gemma)          |
-|                                                                  |
-+------------------------------------------------------------------+
+┌───── WINDOWS PC (Dashboard + Orchestrator) ─────────────────────┐
+│                                                                   │
+│  Hermes Desktop (Tauri 2.0 / Rust)                               │
+│  ├── System Tray (status: ok/recovering/cooldown)                │
+│  ├── Health Monitor (10s checks, 3-restart limit, 60s cooldown)  │
+│  ├── SOCKS5 Proxy (127.0.0.1:1081, invisible)                   │
+│  ├── SSH Tunnel (reverse forward to VM, auto-reconnect)          │
+│  └── Dashboard Server (FastAPI :8500, no terminal window)        │
+│                                                                   │
+│  Dashboard Server (server.py — FastAPI)                           │
+│  ├── 44+ REST endpoints                                          │
+│  ├── WebSocket /ws (real-time events)                            │
+│  ├── Sync Loop (pulls VM data every 60s)                         │
+│  ├── Auth Middleware (X-Hermes-Token)                            │
+│  ├── Skills Proxy (GET/PATCH /api/hermes/skills)                 │
+│  ├── Memory CRUD (GET/POST/DELETE /api/hermes/memory)            │
+│  ├── Pipeline Engine (template + execute + schedule)             │
+│  └── Static Files (/dashboard/ mount)                            │
+│                                                                   │
+│  Dashboard Frontend (vanilla HTML/CSS/JS — modular)              │
+│  ├── page-dashboard — Stats, Hermes Live, Activities, Scraper    │
+│  ├── page-prospects — Filtered table, bulk actions, side panel   │
+│  ├── page-proposals — Outreach cards grid                        │
+│  ├── page-audit — Batch audit workflow                           │
+│  ├── page-pipeline — Pipeline builder + command center           │
+│  ├── page-tasks — Work queue (prioritized daily)                 │
+│  ├── page-skills — Hermes Agent skills (toggle, model info)      │
+│  ├── page-memory — Facts, preferences, patterns (CRUD)           │
+│  ├── page-missions — Weekly mission calendar + scheduler         │
+│  └── page-claude — AI terminal (markdown rendering)              │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+                │ SSH + Proxy │           │ HTTP API │
+┌───── GCP VM (24/7 Execution Engine) ────────────────────────────┐
+│                                                                   │
+│  Hermes API (FastAPI :8420)                                      │
+│  ├── /api/prospects (CRUD, filtering, scoring)                   │
+│  ├── /api/tasks (dispatch to AI agents)                          │
+│  ├── /api/activities (event log)                                 │
+│  ├── /api/scraper/{status,start,stop,history}                    │
+│  ├── /api/audit/{start,status,prospect}                          │
+│  ├── /api/hermes/skills (YAML-based, toggleable)                 │
+│  ├── /api/pipeline/execute (multi-step flows)                    │
+│  └── /api/stats (pipeline metrics)                               │
+│                                                                   │
+│  Discovery Scrapers                                               │
+│  ├── gosom_scraper.py (Docker, Google Maps, free)                │
+│  ├── night_scraper.py (Google Places API, premium)               │
+│  └── 16 cities in Mato Grosso state                              │
+│                                                                   │
+│  Hermes Agent (Gateway Mode)                                     │
+│  ├── 6 LinkedIn AI Skills (OpenRouter + Ollama)                  │
+│  ├── Model Rotation (round_robin_by_task)                        │
+│  ├── AgentMemory (persistent knowledge)                          │
+│  └── Ollama: qwen3:8b, qwen3:14b, phi4-mini, gemma3:4b          │
+│                                                                   │
+│  Infrastructure                                                   │
+│  ├── 96GB disk, 16GB RAM, 4 vCPU                                │
+│  ├── Docker (gosom scraper)                                      │
+│  └── Telegram Bot (alerts, monitoring)                            │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+                │              │              │
+┌───── EXTERNAL SERVICES ─────────────────────────────────────────┐
+│                                                                   │
+│  LinkedIn (Patchright stealth)                                   │
+│  ├── 11 anti-detection patches (webdriver, canvas, WebGL, RTC)   │
+│  ├── Human simulation (Bezier mouse, typing, scroll momentum)    │
+│  ├── Rate limiter + 14-day warm-up                               │
+│  └── Session persistence + residential proxy                      │
+│                                                                   │
+│  OpenRouter (free LLM tier)                                      │
+│  ├── deepseek/deepseek-chat:free (generation, analysis)          │
+│  ├── nvidia/llama-3.1-nemotron-70b-instruct:free (planning)      │
+│  ├── minimax/minimax-m1:free (engagement, short content)          │
+│  └── Fallback chain with model rotation                           │
+│                                                                   │
+│  Other                                                            │
+│  ├── Telegram Bot API (mobile command bridge)                    │
+│  ├── Cloudflare Tunnel (HTTPS access via hermes.caioleo.com)     │
+│  ├── Google Maps/Places API (business discovery)                 │
+│  └── AgentMemory MCP (cross-session knowledge)                   │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## Features
-
-### Discovery & Scraping
-- Automated Google Maps scraping (111 business categories x 16 cities)
-- Dual scraper engine: Google Places API + Docker-based gosom (free)
-- Auto-deduplication by name, phone, and place_id
-- Resume capability with checkpoint files
-- Photo extraction and local caching
-
-### Digital Audit
-- Website health check (SSL, mobile viewport, response time)
-- Social media discovery (Instagram, Facebook handle guessing)
-- Google rating and review analysis
-- Opportunity scoring (0-100) based on digital presence gaps
-- Category-aware scoring (restaurants, clinics, salons score higher)
-
-### Outreach Generation
-- Personalized WhatsApp messages by category and audit results
-- Professional email templates with dynamic service recommendations
-- 8 service types mapped to 19 business categories
-- Template + AI hybrid generation (local templates + Claude refinement)
-
-### LinkedIn Automation
-- Patchright/Playwright stealth browser with 11 anti-detection patches
-- Human behavior simulation (Bezier mouse curves, typing patterns, scroll momentum)
-- Rate limiter with SQLite persistence and 14-day warm-up ramp
-- Profile viewer with search, visit, and data extraction
-- Session persistence across restarts
-
-### Dashboard
-- Dark mode glassmorphism UI (Higgsfield-inspired)
-- Prospect card grid with photo, rating, score, stage
-- Pipeline builder with template system
-- Scraper control panel with real-time logs
-- Work queue with prioritized daily actions
-- Activity timeline with filtering
-
-### Desktop App
-- Native Windows app via pywebview + pystray
-- System tray icon with color-coded status
-- Built-in SOCKS5 proxy with authentication
-- SSH tunnel with auto-reconnect watchdog
-- One-click launch for entire stack
 
 ---
 
@@ -142,56 +131,96 @@ Built for a freelance designer and digital strategist based in Cuiaba, MT, Brazi
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Frontend** | Vanilla HTML/CSS/JS | Dashboard UI |
-| **Desktop** | pywebview + pystray | Native window + system tray |
-| **PC Backend** | FastAPI (Python) | Local API, sync, photo proxy |
-| **VM Backend** | FastAPI (Python) | CRUD API, scraper control |
-| **Database** | SQLite (WAL mode) | Prospects, tasks, activities |
-| **Scraping** | Google Places API, gosom Docker | Business discovery |
-| **Browser Automation** | Patchright/Playwright | LinkedIn stealth |
-| **AI Agent** | Hermes Agent v0.14.0 | Autonomous task execution |
-| **LLM (Cloud)** | OpenRouter free tier | Nemotron, DeepSeek, Gemma |
-| **LLM (Local)** | Ollama | qwen3:14b, phi4-mini |
-| **Communication** | Telegram Bot API | Approvals, alerts |
-| **Infrastructure** | GCP e2-standard-4 | 24/7 VM (4 vCPU, 16GB RAM) |
+| **Desktop** | Tauri 2.0 (Rust) | Native .exe, tray icon, process manager |
+| **Frontend** | Vanilla HTML/CSS/JS | 10-page dashboard, dark glassmorphism UI |
+| **PC Backend** | FastAPI + WebSocket | 44 endpoints, sync, auth, real-time |
+| **VM Backend** | FastAPI | CRUD API, scraper control, skills |
+| **Database** | SQLite (WAL mode) | Prospects, tasks, activities, rate limits |
+| **Scraping** | gosom (Docker) + Places API | Business discovery |
+| **Browser** | Patchright/Playwright | LinkedIn stealth automation |
+| **AI Skills** | YAML definitions | 6 LinkedIn automation skills |
+| **LLM Cloud** | OpenRouter (free) | DeepSeek, Nemotron, Minimax |
+| **LLM Local** | Ollama | qwen3:8b/14b, phi4-mini |
+| **Mobile** | Telegram Bot + Claude CLI | Remote command execution |
+| **Tunnel** | Cloudflare | HTTPS access from anywhere |
+| **Infrastructure** | GCP e2-standard-4 | 24/7 VM (4 vCPU, 16GB RAM, 96GB) |
 
 ---
 
-## Quick Start
+## Features
 
-### Prerequisites
-- Python 3.11+
-- Windows 10/11 (for desktop app)
-- SSH key configured for VM access
+### Tauri Desktop App
 
-### Installation
+The desktop app launches all services invisibly (no terminal windows) and manages their lifecycle:
 
-```bash
-# Clone the repository
-git clone https://github.com/caiolea0/hermes-cloud-studio.git
-cd hermes-cloud-studio
+- **Auto-restart with safety**: Each service gets max 3 restart attempts per 60s window
+- **Cooldown protection**: After 3 failures, enters 60s cooldown (prevents infinite loops)
+- **Health monitoring**: Background thread checks every 10s via port probing
+- **Tray status**: Tooltip shows real-time health (ok/recovering/cooldown per service)
+- **Window management**: Hidden until server ready, auto-focuses on launch
+- **Clean shutdown**: Kills all child processes on exit
 
-# Install dependencies
-pip install fastapi uvicorn httpx python-dotenv pystray pywebview Pillow
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your credentials
+```
+Hermes.bat → hermes.exe → spawns:
+  ├── python server.py     (port 8500, CREATE_NO_WINDOW)
+  ├── python socks5_proxy  (port 1081, invisible)
+  └── ssh tunnel           (reverse forward, invisible)
 ```
 
-### Running
+### Dashboard (10 Pages)
 
-```bash
-# Option 1: Dashboard server only
-python server.py
+| Page | Function |
+|------|----------|
+| **Dashboard** | Live stats, Hermes Agent status, activities feed, scraper panel |
+| **Prospects** | Filterable table with bulk actions, detail side panel |
+| **Proposals** | Outreach message cards with category-based generation |
+| **Audit** | Batch digital audit workflow (website, social, SEO) |
+| **Pipeline** | Template builder + command center for automation flows |
+| **Tasks** | Prioritized work queue with status tracking |
+| **Skills** | Agent skill cards with model/provider info, active toggle |
+| **Memory** | Facts, preferences, patterns — full CRUD |
+| **Missions** | Weekly calendar scheduler for recurring pipelines |
+| **Claude** | AI terminal with markdown rendering + provider badges |
 
-# Option 2: Full desktop app (proxy + tunnel + server + webview)
-python hermes_desktop.py
+### WebSocket Real-Time
+
+```javascript
+// Auto-reconnect WebSocket client
+ws = new WebSocket('ws://localhost:8500/ws');
+// Events: sync, pipeline_progress, audit_done, scraper_update
 ```
 
-- Dashboard: http://localhost:8500
-- API Docs: http://localhost:8500/docs
-- VM API: http://YOUR_VM_IP:8420/docs
+No polling required for live updates. Fallback to 30s/10s polling if WS disconnects.
+
+### LinkedIn AI Skills
+
+6 YAML-defined skills deployed to VM, each with dedicated model:
+
+| Skill | Model | Use Case |
+|-------|-------|----------|
+| `linkedin-post-generator` | deepseek-chat:free | Content creation (1300 char posts) |
+| `linkedin-profile-researcher` | qwen3:8b (local) | Prospect analysis, ice-breakers |
+| `linkedin-connection-sender` | deepseek-chat:free | 300-char invite notes |
+| `linkedin-engagement` | minimax-m1:free | Strategic comments on posts |
+| `linkedin-trend-monitor` | deepseek-chat:free | Trending topics + content gaps |
+| `weekly-mission-planner` | nemotron-70b:free | Weekly activity optimization |
+
+### LinkedIn Anti-Detection
+
+- **Patchright** (Playwright fork): patches `Runtime.enable` CDP leak
+- **11 stealth patches**: webdriver, canvas fingerprint, WebGL, navigator.plugins, WebRTC, timezone, language
+- **Human behavior**: Bezier curve mouse movements, variable typing speed, natural scroll momentum
+- **Rate limiting**: SQLite-tracked daily/weekly caps with 14-day warm-up ramp
+- **Residential proxy**: SOCKS5 via SSH tunnel, Brazil geo-located
+
+### Telegram Bridge
+
+```bash
+python telegram_bridge.py
+# /start - Info
+# /status - Server/VM health check
+# Any text → forwarded to Claude CLI → response back
+```
 
 ---
 
@@ -199,98 +228,221 @@ python hermes_desktop.py
 
 ```
 hermes-cloud-studio/
-+-- server.py                  # PC: FastAPI dashboard backend (:8500)
-+-- hermes_desktop.py          # PC: Desktop app (tray + proxy + tunnel)
-+-- hermes_api_v2.py           # VM: API bridge (:8420)
-+-- night_scraper.py           # VM: Google Places scraper
-+-- gosom_scraper.py           # VM: Docker-based free scraper
-+-- dashboard/
-|   +-- index.html             # Dashboard frontend
-+-- linkedin/
-|   +-- config.py              # Rate limits, proxy, browser config
-|   +-- viewer.py              # Profile visitor with search + extraction
-|   +-- stealth.py             # 11 anti-detection JS patches
-|   +-- human.py               # Mouse, typing, scroll simulation
-|   +-- limiter.py             # Rate limiter with warm-up tracking
-+-- scripts/
-|   +-- pipeline.py            # Master orchestrator
-|   +-- web_audit.py           # Website audit engine
-|   +-- outreach_generator.py  # Message generation by category
-|   +-- google_maps_scraper.py # Legacy scraper
-+-- app/                       # Tauri desktop app scaffold
-+-- docs/
-|   +-- HERMES-PROJECT-CONTEXT.md  # Full project specification
-+-- .env.example               # Environment template
-+-- .gitignore
+├── server.py                    # PC: FastAPI backend (44 endpoints, WS, auth)
+├── hermes_api_v2.py             # VM: API bridge (:8420)
+├── hermes_desktop.py            # Legacy: PyInstaller desktop (deprecated)
+├── telegram_bridge.py           # Telegram ↔ Claude CLI bridge
+├── socks5_proxy.py              # Authenticated SOCKS5 proxy
+├── gosom_scraper.py             # Docker-based Google Maps scraper
+├── night_scraper.py             # Google Places API scraper
+├── cloudflared.yml              # Cloudflare tunnel config
+├── Hermes.bat                   # Quick launcher (finds .exe)
+│
+├── app/                         # Tauri 2.0 desktop app
+│   ├── package.json             # @tauri-apps/cli v2
+│   ├── src/                     # Minimal frontend assets
+│   └── src-tauri/
+│       ├── Cargo.toml           # Rust deps (tauri, tokio, serde)
+│       ├── tauri.conf.json      # Window config, always loads from disk
+│       ├── icons/               # App icons (PNG, ICO, ICNS)
+│       └── src/
+│           ├── main.rs          # Entry point
+│           └── lib.rs           # Core: health loop, process mgmt, tray
+│
+├── dashboard/                   # Modular frontend
+│   ├── index.html               # 10-page SPA (nav, pages, modals)
+│   ├── styles.css               # Design tokens, components, animations
+│   └── app.js                   # All logic (navigate, API, WebSocket)
+│
+├── linkedin/                    # Anti-detection automation
+│   ├── config.py                # Rate limits, proxy, warm-up config
+│   ├── viewer.py                # Profile visitor + data extraction
+│   ├── stealth.py               # 11 JS anti-detection patches
+│   ├── human.py                 # Mouse, typing, scroll simulation
+│   ├── limiter.py               # Rate limiter with SQLite persistence
+│   └── requirements.txt         # patchright, playwright-stealth
+│
+├── skills/                      # Hermes Agent skill definitions
+│   ├── linkedin-post-generator.yaml
+│   ├── linkedin-profile-researcher.yaml
+│   ├── linkedin-connection-sender.yaml
+│   ├── linkedin-engagement.yaml
+│   ├── linkedin-trend-monitor.yaml
+│   └── weekly-mission-planner.yaml
+│
+├── scripts/                     # Automation scripts
+│   ├── pipeline.py              # Master orchestrator
+│   ├── web_audit.py             # Website audit engine
+│   └── outreach_generator.py    # Category-based message generation
+│
+└── docs/                        # Documentation
+    └── HERMES-PROJECT-CONTEXT.md
 ```
 
 ---
 
-## Pipeline Stages
+## Quick Start
 
+### Prerequisites
+
+- Python 3.11+
+- Rust 1.70+ (for Tauri build)
+- Node.js 18+ (for Tauri CLI)
+- Windows 10/11
+- SSH key configured for VM access
+
+### Installation
+
+```bash
+git clone https://github.com/caiolea0/hermes-cloud-studio.git
+cd hermes-cloud-studio
+
+# Python deps
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your credentials (VM_HOST, tokens, etc.)
 ```
-Discovery          Qualification         Audit              Outreach
-+-----------+     +-------------+     +-----------+     +-------------+
-| Google    |     | Dedup by    |     | Website   |     | WhatsApp    |
-| Maps scan | --> | name+phone  | --> | SSL/mobile| --> | message     |
-| 16 cities |     | Score 0-100 |     | Social    |     | Email       |
-| 111 cats  |     | Categorize  |     | Rating    |     | Personalized|
-+-----------+     +-------------+     +-----------+     +-------------+
-     |                  |                   |                  |
-     v                  v                   v                  v
-  discovered        qualified            audited           outreach
-  (raw data)       (scored+dedup)    (audit summary)    (ready to send)
+
+### Running
+
+```bash
+# Option 1: Dashboard server only
+python server.py
+# → http://localhost:8500
+
+# Option 2: Tauri desktop app (recommended)
+Hermes.bat
+# → Launches all services invisibly, opens dashboard window
+
+# Option 3: Build Tauri from source
+cd app && npm run tauri build
+# → app/src-tauri/target/release/hermes.exe
+```
+
+### Development
+
+```bash
+# Dev mode (hot reload via server.py serving from disk)
+cd app && npm run tauri dev
+
+# The frontend always loads from http://localhost:8500
+# Edit dashboard/*.js|*.css|*.html → refresh to see changes
 ```
 
 ---
 
-## Model Rotation Strategy
+## API Reference
 
-| Task Type | Model | Provider | Reason |
-|-----------|-------|----------|--------|
-| Posts, personalized messages | deepseek/deepseek-v4-flash:free | OpenRouter | Best writing quality |
-| Comments, quick summaries | minimax/minimax-m2.5:free | OpenRouter | Saves DeepSeek quota |
-| Image/screenshot analysis | google/gemma-4-31b-it:free | OpenRouter | Only free vision model |
-| Profile classification | qwen3:8b | Ollama local | Unlimited, fast |
-| General fallback | qwen3:14b | Ollama local | When cloud limits hit |
-| Default chat | nvidia/nemotron-3-super-120b-a12b:free | OpenRouter | Good balance |
+### Dashboard Server (PC :8500)
 
-Free tier limits: 20 req/min, 200 req/day per model. With rotation across 3+ models: ~600+ req/day effective.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/prospects` | List prospects (filterable) |
+| POST | `/api/prospects` | Create prospect |
+| PATCH | `/api/prospects/:id` | Update prospect |
+| DELETE | `/api/prospects/:id` | Delete prospect |
+| GET | `/api/prospects/stats` | Aggregated statistics |
+| POST | `/api/audit/start` | Start batch audit |
+| GET | `/api/audit/status` | Audit progress |
+| GET | `/api/pipelines` | List pipeline templates |
+| POST | `/api/pipelines` | Create pipeline (with schedule) |
+| POST | `/api/pipelines/:id/execute` | Execute pipeline |
+| GET | `/api/hermes/skills` | List agent skills |
+| PATCH | `/api/hermes/skills/:name` | Toggle skill active state |
+| GET | `/api/hermes/memory` | Get memory items |
+| POST | `/api/hermes/memory` | Create memory item |
+| DELETE | `/api/hermes/memory/:id` | Delete memory item |
+| GET | `/api/hermes/status` | System health check |
+| POST | `/api/claude/execute` | Execute AI command |
+| WS | `/ws` | Real-time event stream |
 
----
+### VM API (:8420)
 
-## Security
-
-- All credentials stored in `.env` (gitignored)
-- SSH tunnel with `StrictHostKeyChecking=accept-new`
-- SOCKS5 proxy with username/password authentication
-- LinkedIn anti-detection with 11 browser stealth patches
-- Rate limiting with warm-up to avoid account flags
-- Token-based API authentication
-
----
-
-## Roadmap
-
-- [x] Google Maps discovery (night_scraper + gosom_scraper)
-- [x] Web audit engine (SSL, mobile, speed, social)
-- [x] Outreach message generation (WhatsApp + email)
-- [x] LinkedIn stealth browser (Patchright + human simulation)
-- [x] Dashboard with prospect management
-- [x] Desktop app with system tray
-- [x] VM API bridge with sync
-- [x] Pipeline builder and executor
-- [ ] Dashboard authentication
-- [ ] WebSocket real-time updates
-- [ ] LinkedIn Agent skills (post, research, connect, engage)
-- [ ] Telegram-Claude Code bridge
-- [ ] Cloudflare Tunnel for mobile access
-- [ ] Weekly mission planner
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/prospects` | All prospects (paginated) |
+| GET | `/api/activities` | Activity log |
+| GET | `/api/dashboard` | Dashboard stats |
+| POST | `/api/scraper/start` | Start discovery scraper |
+| POST | `/api/scraper/stop` | Stop scraper |
+| GET | `/api/scraper/status` | Scraper state + logs |
+| POST | `/api/audit/start` | Trigger audit batch |
+| GET | `/api/hermes/skills` | List skills from YAML |
+| PATCH | `/api/hermes/skills/:name` | Toggle skill |
 
 ---
 
-## Author
+## Configuration
 
-**Caio Leao** — Designer & Digital Strategist
-- Cuiaba, MT, Brazil
-- [cleao.mkt@gmail.com](mailto:cleao.mkt@gmail.com)
+### Environment Variables (.env)
+
+```env
+# VM Connection
+VM_HOST=136.115.74.69
+VM_USER=hermes-gcp
+HERMES_VM_API=http://136.115.74.69:8420
+
+# Authentication
+HERMES_TOKEN=your-secret-token
+
+# Services
+AGENT_ZERO_URL=http://136.115.74.69:50080
+AGENTMEMORY_URL=http://localhost:3111
+
+# Telegram (optional)
+TELEGRAM_BOT_TOKEN=your-bot-token
+TELEGRAM_CHAT_ID=your-chat-id
+```
+
+### LinkedIn Config (linkedin/config.py)
+
+```python
+@dataclass
+class LinkedInConfig:
+    daily_profile_views: int = 70        # free account safe limit
+    daily_connection_requests: int = 30
+    warmup_days: int = 14                # gradual ramp-up period
+    min_action_delay: float = 3.0        # seconds between actions
+    page_dwell_max: float = 45.0         # max time on profile
+    timezone: str = "America/Cuiaba"
+    locale: str = "pt-BR"
+```
+
+---
+
+## Security Notes
+
+- Auth token required on all `/api/*` endpoints
+- LinkedIn automation uses residential proxy + stealth patches
+- Rate limiting prevents account bans (conservative defaults)
+- Warm-up system ramps gradually over 14 days
+- No credentials stored in repo (all via .env)
+- Desktop app kills all processes on exit (no orphan processes)
+
+---
+
+## Commit History
+
+| Commit | Description |
+|--------|-------------|
+| `feat(tauri)` | Desktop app with health loop, auto-restart, tray |
+| `feat(dashboard)` | Skills, Memory, Missions panels + WebSocket + Claude markdown |
+| `feat(skills)` | 6 LinkedIn AI skill YAML definitions |
+| `feat(integrations)` | Telegram bridge + Cloudflare tunnel |
+| `feat(auth)` | Token-based authentication |
+| `refactor(dashboard)` | Modularized from 278KB monolith to CSS/JS/HTML |
+| `feat(vm-api)` | Audit, outreach, pipeline, skills endpoints |
+
+---
+
+## License
+
+Private repository. All rights reserved.
+
+---
+
+<p align="center">
+  <sub>Built with FastAPI, Tauri, and a lot of automation by <a href="https://github.com/caiolea0">@caiolea0</a></sub>
+</p>
