@@ -5,19 +5,21 @@
   "identifier": "com.hermes.commandcenter",
   "build": {
     "devUrl": "http://localhost:8500",
-    "frontendDist": "../src"
+    "frontendDist": "http://localhost:8500"
   },
   "app": {
     "withGlobalTauri": true,
     "windows": [
       {
         "title": "Hermes Command Center",
+        "url": "http://localhost:8500",
         "width": 1400,
         "height": 900,
         "minWidth": 900,
         "minHeight": 600,
         "center": true,
-        "decorations": true
+        "decorations": true,
+        "visible": false
       }
     ],
     "security": {

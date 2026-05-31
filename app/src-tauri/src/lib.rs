@@ -3,26 +3,110 @@ use std::net::TcpStream;
 use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
-    Manager, State,
+    AppHandle, Manager, State,
 };
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // State
-// ---------------------------------------------------------------------------
+// ===========================================================================
+
+struct RestartTracker {
+    attempts: u32,
+    timestamps: Vec<Instant>,
+    last_healthy: Option<Instant>,
+    in_cooldown: bool,
+    cooldown_until: Option<Instant>,
+}
+
+impl RestartTracker {
+    fn new() -> Self {
+        Self {
+            attempts: 0,
+            timestamps: Vec::new(),
+            last_healthy: None,
+            in_cooldown: false,
+            cooldown_until: None,
+        }
+    }
+
+    /// Returns true if restart is allowed
+    fn can_restart(&mut self) -> bool {
+        let now = Instant::now();
+
+        // Check cooldown
+        if self.in_cooldown {
+            if let Some(until) = self.cooldown_until {
+                if now >= until {
+                    self.in_cooldown = false;
+                    self.cooldown_until = None;
+                    self.attempts = 0;
+                    self.timestamps.clear();
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        // Purge timestamps older than 60s
+        self.timestamps.retain(|t| now.duration_since(*t) < Duration::from_secs(60));
+
+        if self.timestamps.len() >= 3 {
+            // Too many restarts in 60s window — enter cooldown
+            self.in_cooldown = true;
+            self.cooldown_until = Some(now + Duration::from_secs(60));
+            return false;
+        }
+
+        self.timestamps.push(now);
+        self.attempts += 1;
+        true
+    }
+
+    /// Call when service is confirmed healthy
+    fn mark_healthy(&mut self) {
+        let now = Instant::now();
+        if let Some(last) = self.last_healthy {
+            // If healthy for 30s+, reset tracker
+            if now.duration_since(last) >= Duration::from_secs(30) {
+                self.attempts = 0;
+                self.timestamps.clear();
+            }
+        }
+        self.last_healthy = Some(now);
+    }
+
+    fn status_text(&self) -> &'static str {
+        if self.in_cooldown {
+            "cooldown"
+        } else if self.attempts > 0 {
+            "recovering"
+        } else {
+            "ok"
+        }
+    }
+}
+
 struct AppServices {
     server_proc: Mutex<Option<Child>>,
     proxy_proc: Mutex<Option<Child>>,
     tunnel_proc: Mutex<Option<Child>>,
     project_dir: Mutex<PathBuf>,
+    server_tracker: Mutex<RestartTracker>,
+    proxy_tracker: Mutex<RestartTracker>,
+    tunnel_tracker: Mutex<RestartTracker>,
+    shutdown: Mutex<bool>,
 }
 
 #[derive(Serialize, Clone)]
@@ -30,13 +114,19 @@ struct ServiceStatus {
     server: bool,
     proxy: bool,
     tunnel: bool,
+    server_status: String,
+    proxy_status: String,
+    tunnel_status: String,
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // Helpers
-// ---------------------------------------------------------------------------
+// ===========================================================================
+
 fn is_port_open(port: u16) -> bool {
-    TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok()
+    TcpStream::connect(format!("127.0.0.1:{}", port))
+        .map(|_| true)
+        .unwrap_or(false)
 }
 
 fn is_process_alive(proc: &Mutex<Option<Child>>) -> bool {
@@ -49,12 +139,10 @@ fn is_process_alive(proc: &Mutex<Option<Child>>) -> bool {
 
 fn project_dir() -> PathBuf {
     let exe = std::env::current_exe().unwrap_or_default();
-    // In dev: src-tauri/target/debug/hermes.exe -> go up to app, then up to hermes-vm
-    // In prod: installed next to hermes-vm or configured
     let mut dir = exe.parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
 
     // Walk up until we find server.py
-    for _ in 0..6 {
+    for _ in 0..8 {
         if dir.join("server.py").exists() {
             return dir;
         }
@@ -69,155 +157,265 @@ fn project_dir() -> PathBuf {
     PathBuf::from(r"D:\dev-projects\main\hermes-cloud-studio")
 }
 
-// ---------------------------------------------------------------------------
-// Commands
-// ---------------------------------------------------------------------------
-#[tauri::command]
-fn get_status(services: State<AppServices>) -> ServiceStatus {
-    let server = is_port_open(8500);
-    let proxy = is_port_open(1081);
-    let tunnel_alive = is_process_alive(&services.tunnel_proc);
-    ServiceStatus {
-        server,
-        proxy,
-        tunnel: tunnel_alive && proxy,
+#[cfg(windows)]
+fn spawn_hidden(cmd: &str, args: &[&str], cwd: Option<&PathBuf>) -> Result<Child, String> {
+    let mut command = Command::new(cmd);
+    command.args(args);
+    command.creation_flags(CREATE_NO_WINDOW);
+    command.stdout(std::process::Stdio::null());
+    command.stderr(std::process::Stdio::null());
+    if let Some(d) = cwd {
+        command.current_dir(d);
     }
+    command.spawn().map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-fn start_server(services: State<AppServices>) -> Result<String, String> {
+#[cfg(not(windows))]
+fn spawn_hidden(cmd: &str, args: &[&str], cwd: Option<&PathBuf>) -> Result<Child, String> {
+    let mut command = Command::new(cmd);
+    command.args(args);
+    command.stdout(std::process::Stdio::null());
+    command.stderr(std::process::Stdio::null());
+    if let Some(d) = cwd {
+        command.current_dir(d);
+    }
+    command.spawn().map_err(|e| e.to_string())
+}
+
+// ===========================================================================
+// Service Launchers
+// ===========================================================================
+
+fn launch_server(services: &AppServices) -> Result<(), String> {
     if is_port_open(8500) {
-        return Ok("already running".into());
+        return Ok(());
     }
     let dir = services.project_dir.lock().unwrap().clone();
     let server_py = dir.join("server.py");
     if !server_py.exists() {
         return Err(format!("server.py not found in {:?}", dir));
     }
-    let child = Command::new("python")
-        .arg(server_py.to_str().unwrap())
-        .current_dir(&dir)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::fs::File::create(dir.join("server_err.log")).map_err(|e| e.to_string())?)
-        .spawn()
-        .map_err(|e| e.to_string())?;
 
+    let child = spawn_hidden(
+        "python",
+        &[server_py.to_str().unwrap()],
+        Some(&dir),
+    )?;
     *services.server_proc.lock().unwrap() = Some(child);
-    Ok("started".into())
+    Ok(())
 }
 
-#[tauri::command]
-fn start_proxy(services: State<AppServices>) -> Result<String, String> {
+fn launch_proxy(services: &AppServices) -> Result<(), String> {
     if is_port_open(1081) {
-        return Ok("already running".into());
+        return Ok(());
     }
     let dir = services.project_dir.lock().unwrap().clone();
     let proxy_py = dir.join("socks5_proxy.py");
     if !proxy_py.exists() {
-        return Err("socks5_proxy.py not found".into());
+        return Ok(()); // proxy is optional
     }
-    let child = Command::new("python")
-        .args([proxy_py.to_str().unwrap(), "1081"])
-        .creation_flags(CREATE_NO_WINDOW) // CREATE_NO_WINDOW
-        .spawn()
-        .map_err(|e| e.to_string())?;
-
+    let child = spawn_hidden(
+        "python",
+        &[proxy_py.to_str().unwrap(), "1081"],
+        Some(&dir),
+    )?;
     *services.proxy_proc.lock().unwrap() = Some(child);
-    Ok("started".into())
+    Ok(())
 }
 
-#[tauri::command]
-fn start_tunnel(services: State<AppServices>) -> Result<String, String> {
+fn launch_tunnel(services: &AppServices) -> Result<(), String> {
     if is_process_alive(&services.tunnel_proc) {
-        return Ok("already running".into());
+        return Ok(());
     }
-    let child = Command::new("ssh")
-        .args([
+    let child = spawn_hidden(
+        "ssh",
+        &[
             "-o", "StrictHostKeyChecking=no",
             "-o", "ServerAliveInterval=30",
             "-o", "ServerAliveCountMax=3",
             "-R", "127.0.0.1:1081:127.0.0.1:1081",
             "-N", "hermes-gcp@136.115.74.69",
-        ])
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()
-        .map_err(|e| e.to_string())?;
-
+        ],
+        None,
+    )?;
     *services.tunnel_proc.lock().unwrap() = Some(child);
+    Ok(())
+}
+
+// ===========================================================================
+// Health Check Loop
+// ===========================================================================
+
+fn spawn_health_loop(app_handle: AppHandle) {
+    std::thread::spawn(move || {
+        // Wait initial 5s for services to settle
+        std::thread::sleep(Duration::from_secs(5));
+
+        loop {
+            std::thread::sleep(Duration::from_secs(10));
+
+            let services = app_handle.state::<AppServices>();
+
+            // Check if app is shutting down
+            if *services.shutdown.lock().unwrap() {
+                break;
+            }
+
+            // --- Server health ---
+            if is_port_open(8500) {
+                services.server_tracker.lock().unwrap().mark_healthy();
+            } else {
+                let mut tracker = services.server_tracker.lock().unwrap();
+                if tracker.can_restart() {
+                    drop(tracker); // release lock before launching
+                    let _ = launch_server(services.inner());
+                }
+            }
+
+            // --- Proxy health ---
+            if is_port_open(1081) {
+                services.proxy_tracker.lock().unwrap().mark_healthy();
+            } else {
+                let mut tracker = services.proxy_tracker.lock().unwrap();
+                if tracker.can_restart() {
+                    drop(tracker);
+                    let _ = launch_proxy(services.inner());
+                }
+            }
+
+            // --- Tunnel health ---
+            if is_process_alive(&services.tunnel_proc) {
+                services.tunnel_tracker.lock().unwrap().mark_healthy();
+            } else {
+                let mut tracker = services.tunnel_tracker.lock().unwrap();
+                if tracker.can_restart() {
+                    drop(tracker);
+                    let _ = launch_tunnel(services.inner());
+                }
+            }
+
+            // Update tray tooltip with status
+            let s_status = services.server_tracker.lock().unwrap().status_text();
+            let p_status = services.proxy_tracker.lock().unwrap().status_text();
+            let t_status = services.tunnel_tracker.lock().unwrap().status_text();
+
+            let tooltip = format!(
+                "Hermes | Server: {} | Proxy: {} | Tunnel: {}",
+                s_status, p_status, t_status
+            );
+            if let Some(tray) = app_handle.tray_by_id("main-tray") {
+                let _ = tray.set_tooltip(Some(&tooltip));
+            }
+        }
+    });
+}
+
+/// Wait for server port with timeout, then show window
+fn wait_and_show_window(app_handle: AppHandle) {
+    std::thread::spawn(move || {
+        let max_wait = Duration::from_secs(15);
+        let start = Instant::now();
+        let interval = Duration::from_millis(500);
+
+        while start.elapsed() < max_wait {
+            if is_port_open(8500) {
+                // Small extra delay for server to be fully ready
+                std::thread::sleep(Duration::from_millis(500));
+                if let Some(w) = app_handle.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+                return;
+            }
+            std::thread::sleep(interval);
+        }
+
+        // Timeout: show window anyway (will show error/loading in browser)
+        if let Some(w) = app_handle.get_webview_window("main") {
+            let _ = w.show();
+            let _ = w.set_focus();
+        }
+    });
+}
+
+// ===========================================================================
+// Tauri Commands
+// ===========================================================================
+
+#[tauri::command]
+fn get_status(services: State<AppServices>) -> ServiceStatus {
+    ServiceStatus {
+        server: is_port_open(8500),
+        proxy: is_port_open(1081),
+        tunnel: is_process_alive(&services.tunnel_proc),
+        server_status: services.server_tracker.lock().unwrap().status_text().to_string(),
+        proxy_status: services.proxy_tracker.lock().unwrap().status_text().to_string(),
+        tunnel_status: services.tunnel_tracker.lock().unwrap().status_text().to_string(),
+    }
+}
+
+#[tauri::command]
+fn start_server(services: State<AppServices>) -> Result<String, String> {
+    launch_server(&services)?;
     Ok("started".into())
 }
 
-fn do_stop_tunnel(services: &AppServices) {
-    let mut proc = services.tunnel_proc.lock().unwrap();
-    if let Some(ref mut child) = *proc {
-        let _ = child.kill();
-        let _ = child.wait();
-    }
-    *proc = None;
+#[tauri::command]
+fn start_proxy(services: State<AppServices>) -> Result<String, String> {
+    launch_proxy(&services)?;
+    Ok("started".into())
+}
+
+#[tauri::command]
+fn start_tunnel(services: State<AppServices>) -> Result<String, String> {
+    launch_tunnel(&services)?;
+    Ok("started".into())
 }
 
 #[tauri::command]
 fn stop_tunnel(services: State<AppServices>) -> String {
-    do_stop_tunnel(&services);
+    do_stop_proc(&services.tunnel_proc);
     "stopped".into()
 }
 
 #[tauri::command]
 fn toggle_tunnel(services: State<AppServices>) -> Result<ServiceStatus, String> {
-    let alive = is_process_alive(&services.tunnel_proc);
-    if alive {
-        do_stop_tunnel(&services);
+    if is_process_alive(&services.tunnel_proc) {
+        do_stop_proc(&services.tunnel_proc);
     } else {
-        // start proxy if not running
-        if !is_port_open(1081) {
-            let dir = services.project_dir.lock().unwrap().clone();
-            let proxy_py = dir.join("socks5_proxy.py");
-            if proxy_py.exists() {
-                if let Ok(child) = Command::new("python")
-                    .args([proxy_py.to_str().unwrap(), "1081"])
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .spawn()
-                {
-                    *services.proxy_proc.lock().unwrap() = Some(child);
-                }
-            }
-            std::thread::sleep(std::time::Duration::from_secs(1));
-        }
-        // start tunnel
-        if let Ok(child) = Command::new("ssh")
-            .args([
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "ServerAliveInterval=30",
-                "-o", "ServerAliveCountMax=3",
-                "-R", "127.0.0.1:1081:127.0.0.1:1081",
-                "-N", "hermes-gcp@136.115.74.69",
-            ])
-            .creation_flags(CREATE_NO_WINDOW)
-            .spawn()
-        {
-            *services.tunnel_proc.lock().unwrap() = Some(child);
-        }
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        // Ensure proxy is running first
+        let _ = launch_proxy(&services);
+        std::thread::sleep(Duration::from_secs(1));
+        launch_tunnel(&services)?;
+        std::thread::sleep(Duration::from_secs(2));
     }
-    Ok(ServiceStatus {
-        server: is_port_open(8500),
-        proxy: is_port_open(1081),
-        tunnel: is_process_alive(&services.tunnel_proc),
-    })
+    Ok(get_status(services))
 }
 
-// ---------------------------------------------------------------------------
+fn do_stop_proc(proc: &Mutex<Option<Child>>) {
+    let mut guard = proc.lock().unwrap();
+    if let Some(ref mut child) = *guard {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+    *guard = None;
+}
+
+// ===========================================================================
 // Tray
-// ---------------------------------------------------------------------------
+// ===========================================================================
+
 fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let show = MenuItemBuilder::with_id("show", "Abrir Dashboard").build(app)?;
     let toggle = MenuItemBuilder::with_id("toggle_tunnel", "Ligar/Desligar Tunnel").build(app)?;
+    let restart_all = MenuItemBuilder::with_id("restart_all", "Reiniciar Servicos").build(app)?;
     let quit = MenuItemBuilder::with_id("quit", "Sair").build(app)?;
 
     let menu = MenuBuilder::new(app)
         .item(&show)
         .separator()
         .item(&toggle)
+        .item(&restart_all)
         .separator()
         .item(&quit)
         .build()?;
@@ -225,7 +423,7 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let icon_bytes: &[u8] = include_bytes!("../icons/32x32.png");
     let icon = Image::from_bytes(icon_bytes)?;
 
-    let _tray = TrayIconBuilder::new()
+    let _tray = TrayIconBuilder::with_id("main-tray")
         .icon(icon)
         .tooltip("Hermes Command Center")
         .menu(&menu)
@@ -238,33 +436,36 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             }
             "toggle_tunnel" => {
                 let services = app.state::<AppServices>();
-                let alive = is_process_alive(&services.tunnel_proc);
-                if alive {
-                    do_stop_tunnel(&services);
+                if is_process_alive(&services.tunnel_proc) {
+                    do_stop_proc(&services.tunnel_proc);
                 } else {
-                    let _ = Command::new("ssh")
-                        .args([
-                            "-o", "StrictHostKeyChecking=no",
-                            "-o", "ServerAliveInterval=30",
-                            "-R", "127.0.0.1:1081:127.0.0.1:1081",
-                            "-N", "hermes-gcp@136.115.74.69",
-                        ])
-                        .creation_flags(CREATE_NO_WINDOW)
-                        .spawn()
-                        .map(|child| {
-                            *services.tunnel_proc.lock().unwrap() = Some(child);
-                        });
+                    let _ = launch_proxy(services.inner());
+                    std::thread::sleep(Duration::from_secs(1));
+                    let _ = launch_tunnel(services.inner());
                 }
+            }
+            "restart_all" => {
+                let services = app.state::<AppServices>();
+                // Kill existing
+                do_stop_proc(&services.server_proc);
+                do_stop_proc(&services.proxy_proc);
+                do_stop_proc(&services.tunnel_proc);
+                // Reset trackers
+                *services.server_tracker.lock().unwrap() = RestartTracker::new();
+                *services.proxy_tracker.lock().unwrap() = RestartTracker::new();
+                *services.tunnel_tracker.lock().unwrap() = RestartTracker::new();
+                // Relaunch
+                std::thread::sleep(Duration::from_secs(1));
+                let _ = launch_server(services.inner());
+                let _ = launch_proxy(services.inner());
+                let _ = launch_tunnel(services.inner());
             }
             "quit" => {
                 let services = app.state::<AppServices>();
-                do_stop_tunnel(&services);
-                if let Some(ref mut c) = *services.server_proc.lock().unwrap() {
-                    let _ = c.kill();
-                }
-                if let Some(ref mut c) = *services.proxy_proc.lock().unwrap() {
-                    let _ = c.kill();
-                }
+                *services.shutdown.lock().unwrap() = true;
+                do_stop_proc(&services.server_proc);
+                do_stop_proc(&services.proxy_proc);
+                do_stop_proc(&services.tunnel_proc);
                 app.exit(0);
             }
             _ => {}
@@ -274,9 +475,10 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // Entry
-// ---------------------------------------------------------------------------
+// ===========================================================================
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let dir = project_dir();
@@ -286,6 +488,10 @@ pub fn run() {
         proxy_proc: Mutex::new(None),
         tunnel_proc: Mutex::new(None),
         project_dir: Mutex::new(dir),
+        server_tracker: Mutex::new(RestartTracker::new()),
+        proxy_tracker: Mutex::new(RestartTracker::new()),
+        tunnel_tracker: Mutex::new(RestartTracker::new()),
+        shutdown: Mutex::new(false),
     };
 
     tauri::Builder::default()
@@ -303,58 +509,20 @@ pub fn run() {
         .setup(|app| {
             let svc = app.state::<AppServices>();
 
-            // Start server
-            if !is_port_open(8500) {
-                let dir = svc.project_dir.lock().unwrap().clone();
-                let server_py = dir.join("server.py");
-                if server_py.exists() {
-                    if let Ok(child) = Command::new("python")
-                        .arg(server_py.to_str().unwrap())
-                        .current_dir(&dir)
-                        .stdout(std::process::Stdio::null())
-                        .stderr(std::fs::File::create(dir.join("server_err.log")).unwrap_or_else(|_| {
-                            std::fs::File::create(std::env::temp_dir().join("hermes_err.log")).unwrap()
-                        }))
-                        .spawn()
-                    {
-                        *svc.server_proc.lock().unwrap() = Some(child);
-                    }
-                }
-                std::thread::sleep(std::time::Duration::from_secs(2));
-            }
+            // Launch all services (invisible, no console)
+            let _ = launch_server(svc.inner());
+            let _ = launch_proxy(svc.inner());
+            let _ = launch_tunnel(svc.inner());
 
-            // Start proxy
-            if !is_port_open(1081) {
-                let dir = svc.project_dir.lock().unwrap().clone();
-                let proxy_py = dir.join("socks5_proxy.py");
-                if proxy_py.exists() {
-                    if let Ok(child) = Command::new("python")
-                        .args([proxy_py.to_str().unwrap(), "1081"])
-                        .creation_flags(CREATE_NO_WINDOW)
-                        .spawn()
-                    {
-                        *svc.proxy_proc.lock().unwrap() = Some(child);
-                    }
-                }
-                std::thread::sleep(std::time::Duration::from_secs(1));
-            }
-
-            // Start tunnel
-            if let Ok(child) = Command::new("ssh")
-                .args([
-                    "-o", "StrictHostKeyChecking=no",
-                    "-o", "ServerAliveInterval=30",
-                    "-o", "ServerAliveCountMax=3",
-                    "-R", "127.0.0.1:1081:127.0.0.1:1081",
-                    "-N", "hermes-gcp@136.115.74.69",
-                ])
-                .creation_flags(CREATE_NO_WINDOW)
-                .spawn()
-            {
-                *svc.tunnel_proc.lock().unwrap() = Some(child);
-            }
-
+            // Setup tray icon
             setup_tray(app)?;
+
+            // Spawn health monitor thread
+            spawn_health_loop(app.handle().clone());
+
+            // Wait for server, then show window
+            wait_and_show_window(app.handle().clone());
+
             Ok(())
         })
         .run(tauri::generate_context!())
