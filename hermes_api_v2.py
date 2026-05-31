@@ -16,11 +16,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List
 
-from fastapi import FastAPI, HTTPException, Query
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+load_dotenv()
 HERMES_HOME = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
+VM_AUTH_TOKEN = os.environ.get("HERMES_VM_AUTH_TOKEN", "")
 DB_PATH = HERMES_HOME / "data" / "command_center.db"
 DATA_DIR = HERMES_HOME / "data"
 
@@ -143,6 +147,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    if not VM_AUTH_TOKEN:
+        return await call_next(request)
+    if request.url.path.startswith("/api/"):
+        token = request.headers.get("X-Hermes-Token", "")
+        if token != VM_AUTH_TOKEN:
+            return JSONResponse(status_code=401, content={"detail": "Token invalido"})
+    return await call_next(request)
 
 
 # --- Models ---

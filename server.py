@@ -24,9 +24,9 @@ from typing import Optional, List
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
 load_dotenv(Path(__file__).parent / ".env")
@@ -42,6 +42,7 @@ AGENT_ZERO_URL = os.environ.get("AGENT_ZERO_URL", "http://localhost:50080")
 AGENT_ZERO_API_KEY = os.environ.get("AGENT_ZERO_API_KEY", "")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_PLACES_API_KEY", "")
 SYNC_INTERVAL = int(os.environ.get("HERMES_SYNC_INTERVAL", "60"))
+AUTH_TOKEN = os.environ.get("HERMES_AUTH_TOKEN", "")
 
 # Persistent Agent Zero context for Hermes conversations
 _agent_zero_context_id: Optional[str] = None
@@ -388,6 +389,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    if not AUTH_TOKEN:
+        return await call_next(request)
+    path = request.url.path
+    if path.startswith("/api/"):
+        token = request.headers.get("X-Hermes-Token", "")
+        if token != AUTH_TOKEN:
+            return JSONResponse(status_code=401, content={"detail": "Token invalido"})
+    return await call_next(request)
 
 
 # --- Models ---

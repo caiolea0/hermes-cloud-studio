@@ -3137,9 +3137,14 @@ async function api(path, options = {}) {
     const url = VM_API + path;
     const token = localStorage.getItem('hermes_token') || '';
     const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token) headers['X-Hermes-Token'] = token;
     try {
         const resp = await fetch(url, { ...options, headers: { ...headers, ...(options.headers || {}) } });
+        if (resp.status === 401) {
+            localStorage.removeItem('hermes_token');
+            showLoginScreen();
+            throw new Error('Token invalido — faca login novamente');
+        }
         if (!resp.ok) {
             const txt = await resp.text().catch(() => '');
             throw new Error(`HTTP ${resp.status}: ${txt}`);
@@ -3150,6 +3155,68 @@ async function api(path, options = {}) {
     } catch (err) {
         console.error('API error:', path, err);
         throw err;
+    }
+}
+
+function showLoginScreen() {
+    const existing = document.getElementById('login-overlay');
+    if (existing) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'login-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div style="background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:40px;width:380px;text-align:center;">
+            <div style="font-size:32px;margin-bottom:8px;">H</div>
+            <h2 style="font-size:18px;font-weight:600;margin-bottom:4px;">Hermes Command Center</h2>
+            <p style="color:var(--text-2);font-size:12px;margin-bottom:24px;">Insira o token de acesso</p>
+            <input id="login-token" type="password" placeholder="Token de acesso"
+                style="width:100%;padding:10px 14px;background:var(--s3);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size:13px;margin-bottom:16px;">
+            <button id="login-btn" style="width:100%;padding:10px;background:var(--accent);color:white;border-radius:var(--r-sm);font-weight:600;font-size:13px;cursor:pointer;">
+                Entrar
+            </button>
+            <p id="login-error" style="color:var(--red);font-size:11px;margin-top:12px;display:none;"></p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    const input = document.getElementById('login-token');
+    const btn = document.getElementById('login-btn');
+    const errEl = document.getElementById('login-error');
+    async function tryLogin() {
+        const token = input.value.trim();
+        if (!token) { errEl.textContent = 'Token obrigatorio'; errEl.style.display = 'block'; return; }
+        try {
+            const resp = await fetch(VM_API + '/api/dashboard', { headers: { 'X-Hermes-Token': token } });
+            if (resp.ok) {
+                localStorage.setItem('hermes_token', token);
+                overlay.remove();
+                loadDashboard();
+            } else {
+                errEl.textContent = 'Token invalido';
+                errEl.style.display = 'block';
+            }
+        } catch (e) {
+            errEl.textContent = 'Erro de conexao';
+            errEl.style.display = 'block';
+        }
+    }
+    btn.addEventListener('click', tryLogin);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+    input.focus();
+}
+
+function checkAuth() {
+    const token = localStorage.getItem('hermes_token') || '';
+    const startPage = () => {
+        const hash = window.location.hash.replace('#', '') || 'dashboard';
+        navigate(hash);
+    };
+    if (!token) {
+        fetch(VM_API + '/api/dashboard').then(r => {
+            if (r.status === 401) showLoginScreen();
+            else startPage();
+        }).catch(() => startPage());
+    } else {
+        startPage();
     }
 }
 
@@ -5458,8 +5525,7 @@ function saveConfig() {
    INIT
    ============================================================ */
 function init() {
-    const hash = window.location.hash.replace('#', '') || 'dashboard';
-    navigate(hash);
+    checkAuth();
 }
 
 window.addEventListener('hashchange', () => {
