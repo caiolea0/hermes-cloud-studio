@@ -208,7 +208,11 @@
             <span class="logo-text">Hermes</span>
         </div>
         <nav class="sidebar-nav">
-            <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+            <div class="nav-item active" data-page="control" onclick="navigate('control')">
+                <svg><use href="#i-target"/></svg>
+                <span class="nav-label">Control</span>
+            </div>
+            <div class="nav-item" data-page="dashboard" onclick="navigate('dashboard')">
                 <svg><use href="#i-grid"/></svg>
                 <span class="nav-label">Dashboard</span>
             </div>
@@ -288,8 +292,121 @@
         <!-- CONTENT -->
         <main class="content" id="content">
 
+            <!-- ========================== PAGE: MISSION CONTROL ========================== -->
+            <div class="page active" id="page-control">
+                <!-- Real-Time Metrics Bar -->
+                <div class="control-metrics-bar" id="metrics-bar">
+                    <div class="metrics-status">
+                        <span class="daemon-badge" id="daemon-badge">⚪ OFFLINE</span>
+                    </div>
+                    <div class="metrics-counters" id="metrics-counters">
+                        <div class="metric-item"><span class="metric-num" id="m-sent">0</span><span class="metric-label">sent</span></div>
+                        <div class="metric-item"><span class="metric-num" id="m-opened">0</span><span class="metric-label">opened</span></div>
+                        <div class="metric-item"><span class="metric-num" id="m-replied">0</span><span class="metric-label">replied</span></div>
+                        <div class="metric-item"><span class="metric-num" id="m-meetings">0</span><span class="metric-label">meetings</span></div>
+                    </div>
+                    <div class="metrics-energy">
+                        <span class="energy-label">Energy</span>
+                        <div class="energy-bar"><div class="energy-fill" id="energy-fill" style="width:100%"></div></div>
+                        <span class="energy-pct" id="energy-pct">100%</span>
+                    </div>
+                </div>
+
+                <!-- Main Control Grid -->
+                <div class="control-grid">
+                    <!-- Left: Hermes Avatar + Activity Orbit -->
+                    <div class="control-left">
+                        <!-- Hermes Avatar State -->
+                        <div class="card hermes-avatar-card" id="avatar-card">
+                            <div class="avatar-visual" id="avatar-visual">
+                                <div class="avatar-ring" id="avatar-ring"></div>
+                                <div class="avatar-icon" id="avatar-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--lime)" stroke-width="2">
+                                        <path d="M12 2L2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="avatar-info">
+                                <div class="avatar-state" id="avatar-state">IDLE</div>
+                                <div class="avatar-detail" id="avatar-detail">Aguardando proxima acao</div>
+                                <div class="avatar-next" id="avatar-next"></div>
+                            </div>
+                        </div>
+
+                        <!-- Activity Orbit Canvas -->
+                        <div class="card orbit-card">
+                            <div class="card-header"><h3>Activity Orbit</h3></div>
+                            <canvas id="orbit-canvas" width="400" height="400"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Center: Channel Health + Timeline -->
+                    <div class="control-center">
+                        <!-- Channel Health Cards -->
+                        <div class="channel-cards" id="channel-cards">
+                            <div class="channel-card" data-channel="email" id="ch-email">
+                                <div class="ch-header"><span class="ch-icon">📧</span><span class="ch-name">Email</span></div>
+                                <div class="ch-progress"><div class="ch-bar"><div class="ch-fill" id="ch-email-fill" style="width:0%"></div></div><span class="ch-ratio" id="ch-email-ratio">0/75</span></div>
+                                <div class="ch-sparkline" id="ch-email-spark"></div>
+                                <div class="ch-footer"><span class="ch-health" id="ch-email-health">●●●●●</span><span class="ch-last" id="ch-email-last">—</span></div>
+                            </div>
+                            <div class="channel-card" data-channel="linkedin" id="ch-linkedin">
+                                <div class="ch-header"><span class="ch-icon">💼</span><span class="ch-name">LinkedIn</span></div>
+                                <div class="ch-progress"><div class="ch-bar"><div class="ch-fill" id="ch-linkedin-fill" style="width:0%"></div></div><span class="ch-ratio" id="ch-linkedin-ratio">0/70</span></div>
+                                <div class="ch-sparkline" id="ch-linkedin-spark"></div>
+                                <div class="ch-footer"><span class="ch-health" id="ch-linkedin-health">●●●●●</span><span class="ch-last" id="ch-linkedin-last">—</span></div>
+                            </div>
+                            <div class="channel-card" data-channel="whatsapp" id="ch-whatsapp">
+                                <div class="ch-header"><span class="ch-icon">💬</span><span class="ch-name">WhatsApp</span></div>
+                                <div class="ch-progress"><div class="ch-bar"><div class="ch-fill" id="ch-whatsapp-fill" style="width:0%"></div></div><span class="ch-ratio" id="ch-whatsapp-ratio">0/25</span></div>
+                                <div class="ch-sparkline" id="ch-whatsapp-spark"></div>
+                                <div class="ch-footer"><span class="ch-health" id="ch-whatsapp-health">●●●●●</span><span class="ch-last" id="ch-whatsapp-last">—</span></div>
+                            </div>
+                            <div class="channel-card" data-channel="instagram" id="ch-instagram">
+                                <div class="ch-header"><span class="ch-icon">📸</span><span class="ch-name">Instagram</span></div>
+                                <div class="ch-progress"><div class="ch-bar"><div class="ch-fill" id="ch-instagram-fill" style="width:0%"></div></div><span class="ch-ratio" id="ch-instagram-ratio">0/50</span></div>
+                                <div class="ch-sparkline" id="ch-instagram-spark"></div>
+                                <div class="ch-footer"><span class="ch-health" id="ch-instagram-health">●●●●●</span><span class="ch-last" id="ch-instagram-last">—</span></div>
+                            </div>
+                        </div>
+
+                        <!-- 24h Timeline -->
+                        <div class="card timeline-card">
+                            <div class="card-header"><h3>Timeline 24h</h3><span class="card-subtitle" id="timeline-date"></span></div>
+                            <div class="timeline-bar" id="timeline-bar"></div>
+                            <div class="timeline-labels">
+                                <span>00</span><span>04</span><span>08</span><span>12</span><span>16</span><span>20</span><span>24</span>
+                            </div>
+                        </div>
+
+                        <!-- Daemon Decisions -->
+                        <div class="card decisions-card">
+                            <div class="card-header"><h3>Decisoes do Hermes</h3></div>
+                            <div class="decisions-list" id="decisions-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Live Feed -->
+                    <div class="control-right">
+                        <div class="card feed-card">
+                            <div class="card-header">
+                                <h3>Live Feed</h3>
+                                <span class="live-dot" id="feed-live-dot"></span>
+                            </div>
+                            <div class="feed-filters">
+                                <button class="feed-filter active" data-filter="all" onclick="filterFeed('all')">All</button>
+                                <button class="feed-filter" data-filter="outreach" onclick="filterFeed('outreach')">Outreach</button>
+                                <button class="feed-filter" data-filter="reply" onclick="filterFeed('reply')">Replies</button>
+                                <button class="feed-filter" data-filter="discovery" onclick="filterFeed('discovery')">Discovery</button>
+                            </div>
+                            <div class="feed-list" id="feed-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- ========================== PAGE: DASHBOARD ========================== -->
-            <div class="page active" id="page-dashboard">
+            <div class="page" id="page-dashboard">
                 <!-- Stats Row -->
                 <div class="grid-stats" id="dash-stats">
                     <div class="stat-card">

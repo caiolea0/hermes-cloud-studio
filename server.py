@@ -175,6 +175,44 @@ def init_db():
 
         CREATE INDEX IF NOT EXISTS idx_pipeline_exec_template ON pipeline_executions(template_id);
         CREATE INDEX IF NOT EXISTS idx_pipeline_exec_status ON pipeline_executions(status);
+
+        CREATE TABLE IF NOT EXISTS daemon_state (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            state TEXT NOT NULL DEFAULT 'idle',
+            current_task_type TEXT,
+            current_task_detail TEXT,
+            energy REAL DEFAULT 1.0,
+            started_at TIMESTAMP,
+            last_heartbeat TIMESTAMP,
+            stats_today TEXT,
+            stats_week TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS daemon_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            level TEXT NOT NULL DEFAULT 'info',
+            category TEXT NOT NULL DEFAULT 'system',
+            message TEXT NOT NULL,
+            metadata TEXT,
+            visual_event TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS daemon_decisions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            action TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            context TEXT,
+            result TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_daemon_log_ts ON daemon_log(timestamp DESC);
+        CREATE INDEX IF NOT EXISTS idx_daemon_log_cat ON daemon_log(category);
+        CREATE INDEX IF NOT EXISTS idx_daemon_decisions_ts ON daemon_decisions(timestamp DESC);
+
+        INSERT OR IGNORE INTO daemon_state (id, state, started_at, last_heartbeat)
+        VALUES (1, 'idle', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
     """)
     conn.commit()
 
@@ -2123,6 +2161,151 @@ async def delete_memory(item_id: str):
     except Exception as e:
         return {"error": str(e)}
     return {"error": "Failed to delete memory item"}
+
+
+# ─── Daemon API ───────────────────────────────────────────────────
+
+@app.get("/api/daemon/state")
+async def get_daemon_state():
+    """Get current daemon state, energy, channels, stats."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM daemon_state WHERE id = 1").fetchone()
+    conn.close()
+    if not row:
+        return {"state": "offline", "energy": 0, "stats_today": {}, "channels": {}}
+    return {
+        "state": row["state"],
+        "current_task_type": row["current_task_type"],
+        "current_task_detail": row["current_task_detail"],
+        "energy": row["energy"],
+        "last_heartbeat": row["last_heartbeat"],
+        "stats_today": json.loads(row["stats_today"]) if row["stats_today"] else {},
+        "stats_week": json.loads(row["stats_week"]) if row["stats_week"] else {},
+    }
+
+
+@app.post("/api/daemon/pause")
+async def pause_daemon(minutes: int = Query(default=60)):
+    """Pause daemon for N minutes."""
+    # Signal daemon via flag in DB
+    conn = get_db()
+    conn.execute("UPDATE daemon_state SET state = 'paused' WHERE id = 1")
+    conn.commit()
+    conn.close()
+    await ws_manager.broadcast({"type": "daemon_state", "state": "paused", "detail": f"Paused for {minutes}m"})
+    return {"ok": True, "paused_for": minutes}
+
+
+@app.post("/api/daemon/resume")
+async def resume_daemon():
+    """Resume daemon from pause."""
+    conn = get_db()
+    conn.execute("UPDATE daemon_state SET state = 'idle' WHERE id = 1")
+    conn.commit()
+    conn.close()
+    await ws_manager.broadcast({"type": "daemon_state", "state": "idle", "detail": "Resumed"})
+    return {"ok": True}
+
+
+@app.get("/api/daemon/log")
+async def get_daemon_log(limit: int = Query(default=50), category: Optional[str] = None):
+    """Get daemon activity log for live feed."""
+    conn = get_db()
+    if category:
+        rows = conn.execute(
+            "SELECT * FROM daemon_log WHERE category = ? ORDER BY timestamp DESC LIMIT ?",
+            (category, limit)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM daemon_log ORDER BY timestamp DESC LIMIT ?", (limit,)
+        ).fetchall()
+    conn.close()
+    return [
+        {
+            "id": r["id"],
+            "timestamp": r["timestamp"],
+            "level": r["level"],
+            "category": r["category"],
+            "message": r["message"],
+            "metadata": json.loads(r["metadata"]) if r["metadata"] else None,
+            "visual_event": json.loads(r["visual_event"]) if r["visual_event"] else None,
+        }
+        for r in rows
+    ]
+
+
+@app.get("/api/daemon/decisions")
+async def get_daemon_decisions(limit: int = Query(default=20)):
+    """Get recent AI decisions with reasoning."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM daemon_decisions ORDER BY timestamp DESC LIMIT ?", (limit,)
+    ).fetchall()
+    conn.close()
+    return [
+        {
+            "id": r["id"],
+            "timestamp": r["timestamp"],
+            "action": r["action"],
+            "reason": r["reason"],
+            "context": json.loads(r["context"]) if r["context"] else None,
+        }
+        for r in rows
+    ]
+
+
+@app.get("/api/daemon/channels")
+async def get_daemon_channels():
+    """Get channel states for health cards."""
+    # Read from daemon_state or return defaults
+    conn = get_db()
+    row = conn.execute("SELECT stats_today FROM daemon_state WHERE id = 1").fetchone()
+    conn.close()
+    # Default channel states (daemon updates these when running)
+    return {
+        "linkedin": {"daily_used": 0, "daily_limit": 70, "health": 1.0, "warmup_day": 14, "warmup_complete": True, "is_active": True},
+        "email": {"daily_used": 0, "daily_limit": 75, "health": 1.0, "warmup_day": 0, "warmup_complete": False, "is_active": True},
+        "whatsapp": {"daily_used": 0, "daily_limit": 25, "health": 1.0, "warmup_day": 0, "warmup_complete": False, "is_active": False},
+        "instagram": {"daily_used": 0, "daily_limit": 50, "health": 1.0, "warmup_day": 0, "warmup_complete": False, "is_active": False},
+    }
+
+
+@app.get("/api/daemon/timeline")
+async def get_daemon_timeline():
+    """Get 24h activity timeline for visual bar."""
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT
+            strftime('%H', timestamp) as hour,
+            category,
+            COUNT(*) as count
+        FROM daemon_log
+        WHERE date(timestamp) = date('now')
+        GROUP BY hour, category
+        ORDER BY hour
+    """).fetchall()
+    conn.close()
+
+    # Build 24h timeline
+    timeline = {}
+    for h in range(24):
+        timeline[str(h).zfill(2)] = {"categories": {}, "total": 0}
+    for r in rows:
+        h = r["hour"]
+        if h in timeline:
+            timeline[h]["categories"][r["category"]] = r["count"]
+            timeline[h]["total"] += r["count"]
+
+    return timeline
+
+
+@app.post("/api/daemon/broadcast")
+async def daemon_broadcast(request: Request):
+    """Internal endpoint for daemon to broadcast events to connected WebSocket clients."""
+    body = await request.json()
+    await ws_manager.broadcast(body)
+    return {"ok": True}
 
 
 if __name__ == "__main__":

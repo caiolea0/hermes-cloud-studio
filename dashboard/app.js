@@ -181,7 +181,7 @@ function showLoginScreen() {
 function checkAuth() {
     const token = localStorage.getItem('hermes_token') || '';
     const startPage = () => {
-        const hash = window.location.hash.replace('#', '') || 'dashboard';
+        const hash = window.location.hash.replace('#', '') || 'control';
         navigate(hash);
     };
     if (!token) {
@@ -226,6 +226,7 @@ function navigate(page) {
     if (navEl) navEl.classList.add('active');
 
     const titles = {
+        control: 'Mission Control',
         dashboard: 'Dashboard',
         prospects: 'Prospects',
         proposals: 'Centro de Propostas',
@@ -244,7 +245,9 @@ function navigate(page) {
     clearInterval(scraperInterval);
     if (auditPollingInterval) { clearInterval(auditPollingInterval); auditPollingInterval = null; }
 
-    if (page === 'dashboard') {
+    if (page === 'control') {
+        loadMissionControl();
+    } else if (page === 'dashboard') {
         loadDashboard();
         dashboardInterval = setInterval(loadDashboard, 30000);
         refreshScraperStatus();
@@ -2585,6 +2588,25 @@ function handleWSEvent(event) {
     } else if (event.type === 'scraper_update') {
         if (currentPage === 'dashboard') refreshScraperStatus();
     }
+
+    // Mission Control visual handlers
+    if (currentPage === 'control') {
+        if (event.type === 'daemon_state') updateDaemonState(event);
+        if (event.type === 'activity') {
+            addFeedItem(event);
+            if (window._orbit) window._orbit.addEvent(event);
+            updateTimelineBlock(event);
+        }
+        if (event.type === 'channel_update') updateChannelCard(event);
+        if (event.type === 'reply_received') {
+            addFeedItem(event, true);
+            if (window._orbit) window._orbit.flash(event.prospect_id || 0, '#00ff88');
+        }
+        if (event.type === 'decision') addDecisionItem(event);
+        if (event.type === 'alert') {
+            addFeedItem({...event, category: 'system', action: event.message}, event.level === 'error');
+        }
+    }
 }
 
 /* ============================================================
@@ -2596,7 +2618,7 @@ function init() {
 }
 
 window.addEventListener('hashchange', () => {
-    const hash = window.location.hash.replace('#', '') || 'dashboard';
+    const hash = window.location.hash.replace('#', '') || 'control';
     if (hash !== currentPage) navigate(hash);
 });
 
@@ -2781,6 +2803,381 @@ async function createMission() {
     } catch (e) {
         toast('Erro ao criar missao', 'error');
     }
+}
+
+/* ============================================================
+   MISSION CONTROL
+   ============================================================ */
+let _feedFilter = 'all';
+let _controlInterval = null;
+
+async function loadMissionControl() {
+    if (_controlInterval) clearInterval(_controlInterval);
+    await Promise.all([
+        loadDaemonState(),
+        loadDaemonChannels(),
+        loadDaemonTimeline(),
+        loadDaemonDecisions(),
+        loadDaemonFeed(),
+    ]);
+    initOrbitCanvas();
+    _controlInterval = setInterval(loadDaemonState, 10000);
+}
+
+async function loadDaemonState() {
+    try {
+        const data = await api('/api/daemon/state');
+        if (!data) return;
+
+        // Update badge
+        const badge = document.getElementById('daemon-badge');
+        const stateMap = {
+            idle: { text: '🟢 ONLINE', cls: 'online' },
+            working: { text: '⚡ WORKING', cls: 'working' },
+            paused: { text: '⏸ PAUSED', cls: 'paused' },
+            error: { text: '🔴 ERROR', cls: 'error' },
+            sleeping: { text: '😴 SLEEPING', cls: '' },
+            cooldown: { text: '⏳ COOLDOWN', cls: 'paused' },
+            offline: { text: '⚪ OFFLINE', cls: '' },
+        };
+        const s = stateMap[data.state] || stateMap.offline;
+        badge.textContent = s.text;
+        badge.className = 'daemon-badge ' + s.cls;
+
+        // Update counters
+        const stats = data.stats_today || {};
+        updateCounter('m-sent', stats.contacted || 0);
+        updateCounter('m-opened', stats.enriched || 0);
+        updateCounter('m-replied', stats.replied || 0);
+        updateCounter('m-meetings', stats.meetings || 0);
+
+        // Update energy
+        const energy = data.energy || 0;
+        const energyFill = document.getElementById('energy-fill');
+        const energyPct = document.getElementById('energy-pct');
+        energyFill.style.width = `${energy * 100}%`;
+        energyFill.className = 'energy-fill' + (energy < 0.3 ? ' low' : '');
+        energyPct.textContent = `${Math.round(energy * 100)}%`;
+
+        // Update avatar
+        updateHermesAvatar(data);
+
+    } catch (e) {
+        document.getElementById('daemon-badge').textContent = '⚪ OFFLINE';
+        document.getElementById('daemon-badge').className = 'daemon-badge';
+    }
+}
+
+function updateCounter(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const old = parseInt(el.textContent) || 0;
+    if (value !== old) {
+        el.textContent = value;
+        el.classList.add('bump');
+        setTimeout(() => el.classList.remove('bump'), 300);
+    }
+}
+
+function updateHermesAvatar(data) {
+    const stateEl = document.getElementById('avatar-state');
+    const detailEl = document.getElementById('avatar-detail');
+    const ring = document.getElementById('avatar-ring');
+
+    const state = data.state || data.current_task_type || 'idle';
+    const stateLabels = {
+        idle: 'IDLE',
+        working: 'WORKING',
+        paused: 'PAUSED',
+        error: 'ERROR',
+        sleeping: 'SLEEPING',
+        cooldown: 'COOLDOWN',
+    };
+
+    stateEl.textContent = stateLabels[state] || state.toUpperCase();
+    detailEl.textContent = data.current_task_detail || data.detail || 'Aguardando proxima acao';
+
+    // Ring animation
+    ring.className = 'avatar-ring';
+    if (state === 'working') ring.classList.add('sending');
+    else if (state === 'error') ring.classList.add('error');
+    else if (state === 'idle' || state === 'online') ring.classList.add('active');
+}
+
+function updateDaemonState(event) {
+    loadDaemonState();
+}
+
+async function loadDaemonChannels() {
+    try {
+        const data = await api('/api/daemon/channels');
+        if (!data) return;
+        for (const [name, ch] of Object.entries(data)) {
+            updateChannelCard({ channel: name, ...ch });
+        }
+    } catch (e) {}
+}
+
+function updateChannelCard(event) {
+    const ch = event.channel;
+    const fill = document.getElementById(`ch-${ch}-fill`);
+    const ratio = document.getElementById(`ch-${ch}-ratio`);
+    const health = document.getElementById(`ch-${ch}-health`);
+    const card = document.getElementById(`ch-${ch}`);
+    if (!fill) return;
+
+    const used = event.daily_used || 0;
+    const limit = event.daily_limit || 50;
+    const pct = Math.min((used / limit) * 100, 100);
+
+    fill.style.width = `${pct}%`;
+    fill.className = 'ch-fill' + (pct > 80 ? ' danger' : pct > 60 ? ' warning' : '');
+    ratio.textContent = `${used}/${limit}`;
+
+    // Health dots
+    const h = event.health || 1;
+    const dots = Math.round(h * 5);
+    health.innerHTML = Array.from({length: 5}, (_, i) =>
+        `<span class="${i < dots ? 'dot-on' : 'dot-off'}">●</span>`
+    ).join('');
+
+    // Active/disabled state
+    if (card) {
+        card.classList.toggle('disabled', !event.is_active);
+    }
+}
+
+async function loadDaemonTimeline() {
+    try {
+        const data = await api('/api/daemon/timeline');
+        if (!data) return;
+        const bar = document.getElementById('timeline-bar');
+        const now = new Date().getHours();
+
+        bar.innerHTML = Array.from({length: 24}, (_, h) => {
+            const hourStr = String(h).zfill ? String(h).padStart(2, '0') : h.toString().padStart(2, '0');
+            const hourData = data[hourStr] || { categories: {}, total: 0 };
+            const total = hourData.total || 0;
+            const height = Math.min(total * 3, 40) || 4;
+
+            // Determine dominant category
+            let cat = 'idle';
+            let maxCount = 0;
+            for (const [c, count] of Object.entries(hourData.categories || {})) {
+                if (count > maxCount) { maxCount = count; cat = c; }
+            }
+
+            return `<div class="timeline-block ${cat}${h === now ? ' current' : ''}" style="height:${height}px" title="${hourStr}:00 — ${total} events (${cat})"></div>`;
+        }).join('');
+
+        document.getElementById('timeline-date').textContent = new Date().toLocaleDateString('pt-BR');
+    } catch (e) {}
+}
+
+function updateTimelineBlock(event) {
+    const hour = new Date().getHours();
+    const bar = document.getElementById('timeline-bar');
+    if (!bar) return;
+    const blocks = bar.children;
+    if (blocks[hour]) {
+        const current = parseInt(blocks[hour].style.height) || 4;
+        blocks[hour].style.height = Math.min(current + 3, 40) + 'px';
+        blocks[hour].className = `timeline-block ${event.category || 'outreach'} current`;
+    }
+}
+
+async function loadDaemonDecisions() {
+    try {
+        const data = await api('/api/daemon/decisions');
+        if (!data || !data.length) {
+            document.getElementById('decisions-list').innerHTML = '<div style="font-size:11px;color:var(--text-3);padding:12px;text-align:center">Nenhuma decisao registrada</div>';
+            return;
+        }
+        document.getElementById('decisions-list').innerHTML = data.slice(0, 10).map(d => {
+            const icons = { handle_reply: '💬', execute_sequence_step: '📨', enrich_batch: '🔍', discovery_scrape: '🌐', batch_audit: '📋', recalculate_scores: '📊', weekly_report: '📄' };
+            const icon = icons[d.action] || '⚡';
+            const time = d.timestamp ? new Date(d.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
+            return `<div class="decision-item"><span class="decision-icon">${icon}</span><span class="decision-text">${d.reason}</span><span class="decision-time">${time}</span></div>`;
+        }).join('');
+    } catch (e) {}
+}
+
+function addDecisionItem(event) {
+    const list = document.getElementById('decisions-list');
+    if (!list) return;
+    const icons = { handle_reply: '💬', execute_sequence_step: '📨', enrich_batch: '🔍', discovery_scrape: '🌐', batch_audit: '📋', send_proposal: '📑' };
+    const icon = icons[event.action] || '⚡';
+    const time = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    const item = document.createElement('div');
+    item.className = 'decision-item';
+    item.innerHTML = `<span class="decision-icon">${icon}</span><span class="decision-text">${event.reason}</span><span class="decision-time">${time}</span>`;
+    list.prepend(item);
+    // Keep max 10
+    while (list.children.length > 10) list.removeChild(list.lastChild);
+}
+
+async function loadDaemonFeed() {
+    try {
+        const data = await api('/api/daemon/log?limit=30');
+        if (!data || !data.length) {
+            document.getElementById('feed-list').innerHTML = '<div style="font-size:11px;color:var(--text-3);padding:20px;text-align:center">Nenhum evento registrado</div>';
+            return;
+        }
+        document.getElementById('feed-list').innerHTML = data
+            .filter(e => _feedFilter === 'all' || e.category === _feedFilter)
+            .slice(0, 20)
+            .map(e => renderFeedItem(e))
+            .join('');
+    } catch (e) {}
+}
+
+function renderFeedItem(event) {
+    const catIcons = { outreach: '📨', reply: '💬', discovery: '🔍', enrichment: '🔎', audit: '📋', scoring: '📊', system: '⚙️', error: '⚠️' };
+    const icon = catIcons[event.category] || '⚡';
+    const time = event.timestamp ? new Date(event.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
+    const cat = event.category || 'system';
+    const title = event.action || event.message || '';
+    const detail = event.metadata?.prospect_name || event.metadata?.channel || '';
+    const highlight = event.level === 'error' ? ' error' : (event.category === 'reply' ? ' highlight' : '');
+
+    return `<div class="feed-item ${cat}${highlight}">
+        <div class="feed-item-header"><span class="feed-item-icon">${icon}</span><span class="feed-item-time">${time}</span></div>
+        <div class="feed-item-title">${title}</div>
+        ${detail ? `<div class="feed-item-detail">${detail}</div>` : ''}
+        ${event.metadata?.intent ? `<span class="feed-item-badge">${event.metadata.intent}</span>` : ''}
+    </div>`;
+}
+
+function addFeedItem(event, highlight = false) {
+    const list = document.getElementById('feed-list');
+    if (!list) return;
+    if (_feedFilter !== 'all' && event.category !== _feedFilter) return;
+
+    const item = document.createElement('div');
+    item.innerHTML = renderFeedItem({...event, level: highlight ? 'highlight' : event.level});
+    const feedItem = item.firstElementChild;
+    list.prepend(feedItem);
+
+    // Keep max 30 items
+    while (list.children.length > 30) list.removeChild(list.lastChild);
+}
+
+function filterFeed(filter) {
+    _feedFilter = filter;
+    document.querySelectorAll('.feed-filter').forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
+    loadDaemonFeed();
+}
+
+/* --- Activity Orbit (Canvas) --- */
+function initOrbitCanvas() {
+    const canvas = document.getElementById('orbit-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width = canvas.offsetWidth * 2;
+    const H = canvas.height = canvas.offsetHeight * 2;
+    ctx.scale(2, 2);
+    const w = W / 2, h = H / 2;
+    const cx = w / 2, cy = h / 2;
+
+    const dots = [];
+    const flashes = [];
+    const beams = [];
+
+    window._orbit = {
+        addEvent(event) {
+            if (event.action === 'message_sent' || event.type === 'activity') {
+                // Add beam from center to random position on inner ring
+                const angle = Math.random() * Math.PI * 2;
+                const r = 60 + Math.random() * 20;
+                beams.push({ x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r, life: 1.0, color: '#d1fe17' });
+            }
+            if (event.action === 'prospect_discovered' || event.category === 'discovery') {
+                const angle = Math.random() * Math.PI * 2;
+                dots.push({ angle, ring: 2, color: '#666', life: 1.0, r: 3 });
+            }
+        },
+        flash(id, color) {
+            const angle = Math.random() * Math.PI * 2;
+            flashes.push({ angle, color, life: 1.0 });
+        }
+    };
+
+    // Seed some initial dots
+    for (let i = 0; i < 30; i++) {
+        dots.push({ angle: Math.random() * Math.PI * 2, ring: Math.floor(Math.random() * 3), color: ['#7c3aed', '#34d399', '#60a5fa', '#fbbf24'][Math.floor(Math.random()*4)], life: 1, r: 2 + Math.random() * 2 });
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, w, h);
+
+        // Draw rings
+        [40, 70, 100].forEach((r, i) => {
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255,255,255,${0.05 + i * 0.02})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+
+        // Draw center (Hermes)
+        ctx.beginPath();
+        ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(209,254,23,0.1)';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(209,254,23,0.5)';
+        ctx.fill();
+
+        // Draw dots (orbiting slowly)
+        const time = Date.now() / 5000;
+        dots.forEach(dot => {
+            const ringR = [40, 70, 100][dot.ring] || 70;
+            const speed = [0.3, 0.2, 0.1][dot.ring] || 0.1;
+            const x = cx + Math.cos(dot.angle + time * speed) * ringR;
+            const y = cy + Math.sin(dot.angle + time * speed) * ringR;
+            ctx.beginPath();
+            ctx.arc(x, y, dot.r, 0, Math.PI * 2);
+            ctx.fillStyle = dot.color;
+            ctx.globalAlpha = dot.ring === 2 ? 0.4 : 0.8;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        });
+
+        // Draw beams (fade out)
+        for (let i = beams.length - 1; i >= 0; i--) {
+            const beam = beams[i];
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(beam.x, beam.y);
+            ctx.strokeStyle = beam.color;
+            ctx.globalAlpha = beam.life;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            beam.life -= 0.02;
+            if (beam.life <= 0) beams.splice(i, 1);
+        }
+
+        // Draw flashes
+        for (let i = flashes.length - 1; i >= 0; i--) {
+            const f = flashes[i];
+            const r = 70;
+            const x = cx + Math.cos(f.angle) * r;
+            const y = cy + Math.sin(f.angle) * r;
+            ctx.beginPath();
+            ctx.arc(x, y, 8 * f.life, 0, Math.PI * 2);
+            ctx.fillStyle = f.color;
+            ctx.globalAlpha = f.life;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            f.life -= 0.03;
+            if (f.life <= 0) flashes.splice(i, 1);
+        }
+
+        requestAnimationFrame(render);
+    }
+    render();
 }
 
 init();
