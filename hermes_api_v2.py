@@ -41,7 +41,7 @@ _background_tasks: set = set()
 
 def spawn(coro) -> asyncio.Task:
     """Cria asyncio.Task com referência forte para evitar coleta pelo GC."""
-    task = spawn(coro)
+    task = asyncio.create_task(coro)
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
     return task
@@ -126,6 +126,18 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_prospects_score ON prospects(score DESC);
         CREATE INDEX IF NOT EXISTS idx_activities_type ON activities(type);
         CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+
+        CREATE TABLE IF NOT EXISTS campaign_runs (
+            run_id TEXT PRIMARY KEY,
+            campaign_id INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            started_at REAL NOT NULL,
+            last_heartbeat REAL,
+            pid INTEGER,
+            metadata_json TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_campaign_runs_status ON campaign_runs(status);
+        CREATE INDEX IF NOT EXISTS idx_campaign_runs_campaign ON campaign_runs(campaign_id);
     """)
     conn.commit()
 
@@ -142,7 +154,27 @@ def init_db():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # Reconciliar campaign_runs: heartbeat parado > 5min = orphaned (MERGED-004)
+    try:
+        db = get_db()
+        stale_cutoff = time.time() - 300
+        db.execute(
+            "UPDATE campaign_runs SET status = 'orphaned' WHERE status = 'running' AND (last_heartbeat IS NULL OR last_heartbeat < ?)",
+            (stale_cutoff,)
+        )
+        db.commit()
+        db.close()
+    except Exception as e:
+        logger.warning(f"lifespan reconciliation falhou: {e}")
     yield
+    # Marcar runs ainda 'running' como interrupted no shutdown
+    try:
+        db = get_db()
+        db.execute("UPDATE campaign_runs SET status = 'interrupted' WHERE status = 'running'")
+        db.commit()
+        db.close()
+    except Exception:
+        pass
 
 
 _audit_state = {

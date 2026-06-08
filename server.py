@@ -254,6 +254,12 @@ def init_db():
 
         INSERT OR IGNORE INTO daemon_state (id, state, started_at, last_heartbeat)
         VALUES (1, 'idle', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+        CREATE TABLE IF NOT EXISTS runtime_state (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at REAL
+        );
     """)
     conn.commit()
 
