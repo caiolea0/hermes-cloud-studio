@@ -185,4 +185,12 @@ python scripts/validate_implementation.py --apply-flags  # reabre tasks pra fail
 - WebSocket /ws exige token via `?token=` query param (browser não envia custom headers). FastAPI middleware NÃO cobre WS — auth no handler.
 - server.py bind `127.0.0.1:55000` (não 0.0.0.0). /api/internal/* aceita loopback + INTERNAL_TOKEN.
 
-Última edição: 2026-06-08 (Chapter 12 — Fase A).
+## 🔄 Robustness (Fase B — MERGED-005/015/004/016/007)
+
+- **SQLite**: usar `linkedin/db_utils._connect()` para novas conexões. `busy_timeout=30s` + WAL obrigatório.
+- **asyncio tasks**: usar `spawn()` (server.py / hermes_api_v2.py). NUNCA `asyncio.create_task()` bare.
+- **except Exception: pass**: sempre comentar `# noqa: silenciado intencional — <razão>`. Loops principais usar `logger.exception()`.
+- **campaign_runs**: persistência VM. Qualquer campanha 'running' com heartbeat > 5min = orphaned no próximo startup.
+- **sync overwrite**: `_local_error_until_ack` protege erros de dispatch. Não remover sem `/dismiss-error`.
+
+Última edição: 2026-06-08 (Chapter 13 — Fase B).

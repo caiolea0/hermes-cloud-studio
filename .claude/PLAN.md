@@ -222,6 +222,36 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 5. **Commits do projeto inteiro** (organizar 7+ chapters de mudanças)
 6. **Fix `_extract_profile_data`**: nome/headline vazios no result (LinkedIn DOM mudou — selectors precisam update)
 
+## Chapter 13 — Fase B State & Robustness CONCLUÍDA ✅ (2026-06-08)
+
+### MERGED-005 ✅ — SQLite busy_timeout
+- `linkedin/db_utils.py` com `_connect()` canônico: WAL + busy_timeout 30s + synchronous=NORMAL
+- `linkedin/limiter.py` usa _connect()
+
+### MERGED-015 ✅ — asyncio spawn helper
+- `spawn()` + `_background_tasks` set em server.py e hermes_api_v2.py
+- Todos asyncio.create_task() substituídos
+
+### MERGED-004 ✅ — Globals persistence
+- Tabela `campaign_runs` em hermes_api_v2.py (VM) — migration aplicada via SSH
+- Tabela `runtime_state` em server.py (PC)
+- Lifespan reconciliation: orphaned/interrupted em restart
+
+### MERGED-016 ✅ — Dispatch error preservation
+- `_local_error_until_ack` dict protege erros contra sync_loop
+- Endpoint `/campaigns/{id}/dismiss-error` + botão Dismiss no dashboard
+
+### MERGED-007 ✅ — except Exception: pass → logging
+- daemon/orchestrator.py: logger.exception no loop principal
+- server.py: 26 bare excepts → noqa com justificativas
+- hermes_api_v2.py: 15 bare excepts → noqa com justificativas
+- validator count_max agora extrai limite da description
+
+**validate --phase B: PASS 5/5**
+Próximo: Fase C (MERGED-013 primeiro — habilitador de C.2..C.6)
+
+---
+
 ## Chapter 12 — Fase A Security Critical CONCLUÍDA ✅ (2026-06-08)
 
 ### MERGED-002 ✅ — Fail-closed AUTH_TOKEN
