@@ -274,6 +274,21 @@ Toda task Fase F que toque código MADURO exige:
 
 **Razão**: 20/22 findings PASS (Fases A→E parcial) custaram 6+ sessões e ~7M tokens. Regressão silenciosa = retrabalho catastrófico. Pre/post test é barato, regressão não detectada é caro.
 
+## 🎨 UI changes gate (Fase F+) — INVIOLÁVEL
+
+Toda task Fase F que toque `dashboard/*` (app.js, components/*, index.html, styles.css, vendor/) exige:
+1. **Pre-commit**: invocar Agent `frontend-ux-reviewer` (subagent em `.claude/agents/frontend-ux-reviewer.md`)
+2. Reviewer valida: XSS (DOMPurify sanitize obrigatório), WCAG 2.1 AA (ARIA + contraste ≥4.5:1 + keyboard nav), design tokens (sem hex literal fora `:root`), real-time UX (WS vs polling, optimistic updates + rollback, toast feedback), performance (debounce, lazy render listas >100, no reflow loop)
+3. **Verdict required**: PASS ou PASS-WITH-NOTES. Blockers = REVERT mandatório, NÃO commit
+4. Aplica TODOS chapters UI: F.2 / F.3 / F.4 / F.6 / F.7 / F.8 / F.9
+
+🚫 NUNCA commitar mudança em `dashboard/*` sem rodar reviewer
+🚫 NUNCA dar override em BLOCKER do reviewer ("é cosmético") — bloqueia merge
+✅ SEMPRE invocar reviewer pre-commit via Agent tool: `Agent({subagent_type: "frontend-ux-reviewer", prompt: "Review the dashboard changes in this commit"})`
+✅ SEMPRE tratar blockers ANTES de TaskUpdate completed
+
+**Razão**: F.1 mapeou 11 endpoints fantasma e top 3 pain=5 daemon/* já consumidos. Próximas fases adicionam ~30 endpoints novos consumidos pela UI. Sem gate UX, owner solo no-code recebe UI cheia de bugs de XSS/accessibility/inconsistência. Reviewer custa 1 invocação Agent por commit dashboard. Bug em prod custa horas de debug + rollback.
+
 ## 🎯 Fase F — Operacional + Self-Evolving (regras invioláveis)
 
 - **Backend novo SEM frontend = débito imediato.** Qualquer endpoint `@router.<verb>` novo em `api/*.py` / `vm_api/routes.py` que cobre ação que owner faria pela UI EXIGE consumo correspondente em `dashboard/app.js`. Pendente entra em `.claude/FRONTEND-GAP.md`. Owner é solo no-code — CLI é fallback, não rota padrão.

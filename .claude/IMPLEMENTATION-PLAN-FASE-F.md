@@ -288,6 +288,21 @@ Mission Control atual (`/dashboard#control`) é Activity Orbit estática + polli
 6. **F.2.4 DOMPurify**: explicitar uso de `dashboard/vendor/purify.min.js` LOCAL (NÃO import externo).
 7. **WCAG AA**: usar `axe-core` via Playwright eval — done_criteria objetivo: "0 violations contrast em /dashboard#control".
 8. **Polling fallback ≥30s mensurável**: post_test F.2.5 — "sem requests `/api/daemon/state` com WS up durante 60s window" (Network panel ou backend log count).
+9. **Frontend UX reviewer gate (NOVO 2026-06-08 pós-F.1)**: Toda task F.2 que toca `dashboard/*` (F.2.4 design tokens + F.2.5 Mission Control rework + F.2.5b LiveLogTail+PrefPanel) EXIGE invocar Agent `frontend-ux-reviewer` PRE-COMMIT. Verdict PASS obrigatório (PASS-WITH-NOTES aceitável). Blockers = REVERT, NÃO override. Ver GUARDRAILS § 🎨 UI changes gate. Aplica também a F.3/F.4/F.6/F.7/F.8/F.9 — regra cross-cutting.
+
+### Pre-commit gate (NOVO — aplica a F.2.4, F.2.5, F.2.5b)
+
+```
+1. Implementar task
+2. Smoke test manual no browser (npm run dev OU python server.py)
+3. Invocar Agent({
+     subagent_type: "frontend-ux-reviewer",
+     prompt: "Review dashboard changes in this commit: <files>. Focus: XSS (sanitizeClaudeHtml em todo innerHTML +=), WCAG AA (ARIA labels + contraste tokens), design tokens (sem hex fora :root), WS broadcast em vez de polling agressivo, toast feedback em ação async."
+   })
+4. Tratar BLOCKERS (sempre) + NOTES (recomendado)
+5. Se PASS/PASS-WITH-NOTES: git add + commit + TaskUpdate completed
+6. Se BLOCKER: revert task, refazer, re-invocar reviewer
+```
 
 ### Tasks
 
