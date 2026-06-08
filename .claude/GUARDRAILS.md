@@ -222,4 +222,13 @@ python scripts/validate_implementation.py --apply-flags  # reabre tasks pra fail
 - **Late imports para circular** — `loops/linkedin_scheduler.py` importa `_compute_schedule_state` de `api.linkedin` dentro do loop body (NAO no topo). `api/hermes.py:trigger_sync` importa `sync_from_vm` de `loops.sync` dentro do handler.
 - **NUNCA atualizar globals com `global` keyword pra _LI_*** — eles vivem em `core/state.py`. Use `import core.state as state; state._LI_SESSION_LAST_OK = X`.
 
-Última edição: 2026-06-08 (Chapter 18 — Fase C.4 MERGED-014 Ollama router).
+## 🛡️ Infra & Supervision (Fase D — MERGED-017/018/020/006)
+
+- **Subprocess Popen na VM**: SEMPRE `start_new_session=True` (isola signals do parent) + `_write_pid_meta(pid_file, proc.pid)` (JSON {pid, create_time}) + `register_subproc(proc.pid)`. Liveness check via `_proc_alive(pid, expected_ct)` — NUNCA `kill -0` (Linux-only, sem create_time guard). `terminate_tracked_subprocs()` no lifespan shutdown.
+- **Session monitor** (`loops/linkedin_session.py`): `REQUIRED_FAILS=3`. UMA probe falha NUNCA dispara alert. Só notifica Telegram quando `_LI_SESSION_FAIL_STREAK >= REQUIRED_FAILS`. Probe ok zera streak. Mata spam por flake de rede / VM lag.
+- **Restart endpoints**: TODOS os `@router.post("/api/server/restart-*"|"/shutdown-local")` em `api/server_ctrl.py` carregam `@limiter.limit("2/hour")` + `request: Request` na assinatura (slowapi requirement). NUNCA adicionar restart sem rate-limit. Limiter singleton em `core/limiter.py`.
+- **UPDATE prospects**: SEMPRE incluir `version = version + 1` (e `updated_at = CURRENT_TIMESTAMP`) na clausula SET. Vale pra PC (`api/prospects.py`) e VM (`vm_api/routes.py`). Sync detecta conflict comparando `vm.version` vs `local.last_synced_version` + `local.version`. Bug invisível se version não bumpar.
+- **sync_from_vm conflict policy**: ambos editados (vm.version > last_synced E local.version > last_synced) → `conflict_at = now`, local **preservado**, NUNCA sobrescrever sem owner dismiss via `/api/prospects/{id}/resolve-conflict`.
+- **Migration nova em prospects**: aplicar BOTH PC (`core/state.py` init_db) E VM (`vm_core/state.py` init_db) — schemas precisam ficar coerentes pra sync funcionar. VM aplica via SSH + ALTER TABLE idempotente.
+
+Última edição: 2026-06-08 (Chapter 19 — Fase D MERGED-017/018/020/006).

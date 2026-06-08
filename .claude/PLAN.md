@@ -280,8 +280,33 @@ Commit: `fix(loops): MERGED-018 — session monitor exige 3 falhas consecutivas`
 
 Commit: `fix(api): MERGED-020 — slowapi rate-limit /api/server/restart-* (2/hour)` (push master cee06c5).
 
-### Pendente Fase D
-- [ ] MERGED-006 — Sync versioning prospects (version+updated_at, conflict detection) — schema migration
+### D.4 MERGED-006 ✅ — Sync versioning + conflict detection
+- **Schema migrations** (idempotentes):
+  - PC `core/state.py` init_db: `prospects.version` (default 1), `prospects.last_synced_version` (default 0), `prospects.conflict_at` REAL nullable.
+  - VM `vm_core/state.py` init_db: `prospects.version` (default 1). `updated_at` ja existia.
+  - VM live migration aplicada via SSH (`~/.hermes/data/command_center.db`).
+- **Version bumps em UPDATE prospects**:
+  - PC `api/prospects.py` (3 sites): `update_prospect`, `bulk stage_change`, `bulk score_update`.
+  - VM `vm_api/routes.py` (5 sites): `update_prospect`, 2 audit UPDATEs, 2 outreach UPDATEs.
+- **loops/sync.py — conflict policy**:
+  - `vm_changed = vm.version > local.last_synced_version`; `local_changed = local.version > max(last_synced, 1)`
+  - ambos changed → `conflict_at = time.time()`, local **preservado** (NÃO sobrescreve), log warning + WS broadcast com count.
+  - só vm → apply update, `last_synced_version = vm.version`.
+  - só local → no-op (push pending — feature futura).
+  - nada → no-op.
+- **Endpoint novo**: `POST /api/prospects/{id}/resolve-conflict` em `api/prospects.py` limpa `conflict_at`.
+- **Smoke comportamental 3/3**: VM update aplicado; local edit preservado quando VM idle; ambos editados → conflict_at marcado sem sobrescrever.
+- **validate --finding MERGED-006: PASS**
+- **validate --phase D: 4/4 PASS** ← Fase D FECHADA
+- **Sem regressão**: A 3/3 + B 5/5 + C 6/6 + D 4/4 = 18 PASS total. Restam E (channels Email/WA/IG + XSS) intocados.
+
+Commit: `fix(sync): MERGED-006 — versioning prospects com conflict detection` (push master 7b14fc5).
+
+### Fase D FECHADA ✅ — Resumo
+4 commits push master: e8871e4 (017), 25de712 (018), cee06c5 (020), 7b14fc5 (006).
+GUARDRAILS.md ganhou seção "Infra & Supervision" com 6 regras novas.
+VALIDATION-CHECKLIST.md atualizado: 4 findings com paths pós-MERGED-011.
+Próxima sessão: `/start-phase E` (channels Email/WA/IG + XSS sanitization).
 
 ---
 
