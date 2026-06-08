@@ -393,6 +393,60 @@ fn toggle_tunnel(services: State<AppServices>) -> Result<ServiceStatus, String> 
     Ok(get_status(services))
 }
 
+/// Le auth tokens do .env e retorna pro frontend.
+/// IPC command que substitui o modal "Cole token de acesso" — usuario nao precisa
+/// mais digitar token manualmente quando dashboard abrir via Tauri.
+#[derive(Clone, serde::Serialize)]
+struct AuthTokens {
+    auth_token: String,
+    internal_token: String,
+    dashboard_port: u16,
+}
+
+#[tauri::command]
+fn get_auth_tokens() -> Result<AuthTokens, String> {
+    use std::env;
+    use std::fs;
+    use std::path::PathBuf;
+
+    // Caminho do .env relativo ao executavel: app/src-tauri/target/release/hermes.exe
+    // .env esta em D:\dev-projects\main\hermes-cloud-studio\.env -> 3 levels up
+    let exe = env::current_exe().map_err(|e| format!("current_exe: {}", e))?;
+    let mut env_path: PathBuf = exe.clone();
+    // Tentar candidatos
+    let candidates: Vec<PathBuf> = vec![
+        env_path.parent().and_then(|p| p.parent()).and_then(|p| p.parent()).and_then(|p| p.parent()).map(|p| p.join(".env")).unwrap_or_default(),
+        env_path.parent().and_then(|p| p.parent()).and_then(|p| p.parent()).map(|p| p.join(".env")).unwrap_or_default(),
+        env_path.parent().and_then(|p| p.parent()).map(|p| p.join(".env")).unwrap_or_default(),
+    ];
+    env_path = candidates.into_iter().find(|p| p.exists()).ok_or_else(|| ".env nao encontrado relativo ao exe".to_string())?;
+
+    let content = fs::read_to_string(&env_path).map_err(|e| format!("read .env: {}", e))?;
+    let mut auth_token = String::new();
+    let mut internal_token = String::new();
+    let mut dashboard_port: u16 = 55000;
+
+    for line in content.lines() {
+        let line = line.trim();
+        if line.starts_with('#') || line.is_empty() { continue; }
+        if let Some((k, v)) = line.split_once('=') {
+            let k = k.trim();
+            let v = v.trim().trim_matches(|c| c == '"' || c == '\'').to_string();
+            match k {
+                "HERMES_AUTH_TOKEN" => auth_token = v,
+                "HERMES_INTERNAL_TOKEN" => internal_token = v,
+                "DASHBOARD_PORT" => dashboard_port = v.parse().unwrap_or(55000),
+                _ => {}
+            }
+        }
+    }
+
+    if auth_token.is_empty() {
+        return Err("HERMES_AUTH_TOKEN ausente no .env".to_string());
+    }
+    Ok(AuthTokens { auth_token, internal_token, dashboard_port })
+}
+
 fn do_stop_proc(proc: &Mutex<Option<Child>>) {
     let mut guard = proc.lock().unwrap();
     if let Some(ref mut child) = *guard {
@@ -506,6 +560,7 @@ pub fn run() {
             start_tunnel,
             stop_tunnel,
             toggle_tunnel,
+            get_auth_tokens,
         ])
         .setup(|app| {
             let svc = app.state::<AppServices>();

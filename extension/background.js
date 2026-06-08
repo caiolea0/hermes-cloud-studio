@@ -13,6 +13,47 @@ async function _getInternalToken() {
     return s[INTERNAL_TOKEN_KEY] || '';
 }
 
+/**
+ * Auto-fetch token do server.py local via endpoint loopback.
+ * Chamado em onInstalled e quando _getInternalToken retornar vazio.
+ * Zero manual entry — user nao precisa colar token no popup.
+ *
+ * Risco: endpoint /api/_bootstrap so responde se request.client.host eh
+ * 127.0.0.1/localhost (verificacao server-side). Extension Chrome
+ * (host_permissions: localhost) e a unica origem possivel no PC.
+ */
+async function bootstrapTokenFromServer() {
+    try {
+        const r = await fetch('http://localhost:55000/api/_bootstrap', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        if (!r.ok) return { ok: false, status: r.status };
+        const data = await r.json();
+        if (!data?.internal_token || data.internal_token.length < 20) {
+            return { ok: false, reason: 'invalid_payload' };
+        }
+        await chrome.storage.local.set({ [INTERNAL_TOKEN_KEY]: data.internal_token });
+        console.log('[Hermes] internal_token auto-bootstrap via /api/_bootstrap OK');
+        return { ok: true };
+    } catch (e) {
+        console.warn('[Hermes] bootstrap fetch falhou:', e.message);
+        return { ok: false, error: e.message };
+    }
+}
+
+/**
+ * Wrapper: garante token presente antes de operar. Se ausente, tenta auto-fetch.
+ * Returns string (token) ou '' se nada disponivel.
+ */
+async function ensureInternalToken() {
+    let t = await _getInternalToken();
+    if (t && t.length >= 20) return t;
+    const r = await bootstrapTokenFromServer();
+    if (r.ok) return await _getInternalToken();
+    return '';
+}
+
 async function readCurrentLiAt() {
     return new Promise(resolve => {
         chrome.cookies.get({ url: 'https://www.linkedin.com/', name: 'li_at' }, c => {
@@ -24,7 +65,10 @@ async function readCurrentLiAt() {
 async function pushToHermes(value) {
     if (!value) return { ok: false, reason: 'no_cookie' };
     try {
-        const internalToken = await _getInternalToken();
+        const internalToken = await ensureInternalToken();
+        if (!internalToken) {
+            return { ok: false, reason: 'no_internal_token (server offline ou bootstrap falhou)' };
+        }
         const r = await fetch(HERMES_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Internal-Token': internalToken },
@@ -63,14 +107,16 @@ async function syncIfChanged(trigger = 'manual') {
     }
 }
 
-// 1. On install: do initial sync
-chrome.runtime.onInstalled.addListener(() => {
+// 1. On install: auto-bootstrap token + initial sync
+chrome.runtime.onInstalled.addListener(async () => {
+    await bootstrapTokenFromServer();  // tenta auto-config
     syncIfChanged('install');
     // 2. Set up an alarm to poll every 30 min (safety net for missed events)
     chrome.alarms.create('hermes-sync', { periodInMinutes: 30 });
 });
 
-chrome.runtime.onStartup.addListener(() => {
+chrome.runtime.onStartup.addListener(async () => {
+    await bootstrapTokenFromServer();  // refresh em cada startup
     syncIfChanged('startup');
     chrome.alarms.create('hermes-sync', { periodInMinutes: 30 });
 });
@@ -92,7 +138,11 @@ chrome.alarms.onAlarm.addListener(a => {
 // 5. Account type detection (from content.js running on linkedin.com)
 async function pushAccountType(payload) {
     try {
-        const internalToken = await _getInternalToken();
+        const internalToken = await ensureInternalToken();
+        if (!internalToken) {
+            console.warn('[Hermes] account_type push skipped: no internal token');
+            return;
+        }
         const r = await fetch(ACCOUNT_TYPE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Internal-Token': internalToken },

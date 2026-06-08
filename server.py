@@ -69,8 +69,8 @@ _background_tasks: set = set()
 
 
 def spawn(coro) -> asyncio.Task:
-    """Cria asyncio.Task com referência forte para evitar coleta pelo GC."""
-    task = spawn(coro)
+    """Cria asyncio.Task com referência forte para evitar coleta pelo GC (MERGED-015)."""
+    task = asyncio.create_task(coro)
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
     return task

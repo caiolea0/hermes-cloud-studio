@@ -1,0 +1,45 @@
+{
+  "_meta": {
+    "project": "hermes-cloud-studio",
+    "owner": "Caio Leão",
+    "format_version": 1,
+    "description": "Portas declaradas pelo projeto. Lidas por scripts/port_allocator.py. Registry global vive em ~/.dev-projects-ports.json"
+  },
+  "ports": {
+    "dashboard": {
+      "preferred": 55000,
+      "fallback_range": [55001, 55020],
+      "host": "127.0.0.1",
+      "description": "PC server.py — dashboard backend FastAPI",
+      "consumers": ["Tauri webview", "extension Chrome", "li_at_sync.py"]
+    },
+    "socks5_proxy": {
+      "preferred": 55081,
+      "fallback_range": [55082, 55099],
+      "host": "127.0.0.1",
+      "description": "socks5_proxy.py — proxy reverse residencial pra VM",
+      "consumers": ["VM via SSH reverse tunnel"]
+    },
+    "vm_api_remote": {
+      "preferred": 8420,
+      "fixed": true,
+      "host": "136.115.74.69",
+      "description": "VM hermes_api_v2.py (porta remota, NAO local)",
+      "consumers": ["server.py PC sync_loop"]
+    },
+    "ollama_local": {
+      "preferred": 11434,
+      "fixed": true,
+      "host": "127.0.0.1",
+      "description": "Ollama local PC GPU. Tunneled via SSH pra VM",
+      "consumers": ["VM daemon via tunnel reverso"]
+    },
+    "agentmemory": {
+      "preferred": 3141,
+      "fixed": true,
+      "host": "127.0.0.1",
+      "description": "agentmemory MCP server",
+      "consumers": [".mcp.json"]
+    }
+  }
+}

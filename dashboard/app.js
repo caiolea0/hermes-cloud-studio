@@ -178,19 +178,92 @@ function showLoginScreen() {
     input.focus();
 }
 
-function checkAuth() {
-    const token = localStorage.getItem('hermes_token') || '';
+/**
+ * Auto-bootstrap de token: zero manual entry.
+ * Estrategia (em ordem):
+ *   1. Tauri context -> IPC `get_auth_tokens` le .env diretamente
+ *   2. Browser local (loopback) -> fetch /api/_bootstrap retorna tokens (server-side)
+ *   3. Cloudflare tunnel ou remoto -> mostra login modal manual
+ */
+async function tryAutoBootstrap() {
+    // Tauri context
+    if (window.__TAURI__ || window.__TAURI_INTERNALS__) {
+        try {
+            const invoke = (window.__TAURI__ && window.__TAURI__.core?.invoke) || (window.__TAURI_INTERNALS__?.invoke);
+            if (invoke) {
+                const tokens = await invoke('get_auth_tokens');
+                if (tokens?.auth_token) {
+                    localStorage.setItem('hermes_token', tokens.auth_token);
+                    if (tokens.internal_token) localStorage.setItem('hermes_internal_token', tokens.internal_token);
+                    console.log('[hermes] auto-bootstrap via Tauri IPC OK');
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.warn('[hermes] Tauri IPC bootstrap falhou:', e);
+        }
+    }
+    // Loopback fetch fallback
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+        try {
+            const r = await fetch(VM_API + '/api/_bootstrap');
+            if (r.ok) {
+                const tokens = await r.json();
+                if (tokens?.auth_token) {
+                    localStorage.setItem('hermes_token', tokens.auth_token);
+                    if (tokens.internal_token) localStorage.setItem('hermes_internal_token', tokens.internal_token);
+                    console.log('[hermes] auto-bootstrap via /api/_bootstrap OK');
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.warn('[hermes] /api/_bootstrap falhou:', e);
+        }
+    }
+    return false;
+}
+
+async function checkAuth() {
+    let token = localStorage.getItem('hermes_token') || '';
     const startPage = () => {
         const hash = window.location.hash.replace('#', '') || 'control';
         navigate(hash);
     };
+
     if (!token) {
+        // Tenta auto-bootstrap (Tauri IPC ou loopback fetch)
+        const ok = await tryAutoBootstrap();
+        if (ok) {
+            token = localStorage.getItem('hermes_token') || '';
+        }
+    }
+
+    if (!token) {
+        // Sem token e auto-bootstrap falhou (ex: dashboard via Cloudflare tunnel remoto)
         fetch(VM_API + '/api/dashboard').then(r => {
             if (r.status === 401) showLoginScreen();
             else startPage();
         }).catch(() => startPage());
-    } else {
-        startPage();
+        return;
+    }
+
+    // Token presente — validar com 1 request. Se 401, tentar re-bootstrap antes de mostrar login.
+    try {
+        const r = await fetch(VM_API + '/api/dashboard', { headers: { 'X-Hermes-Token': token } });
+        if (r.status === 401) {
+            localStorage.removeItem('hermes_token');
+            const refreshed = await tryAutoBootstrap();
+            if (refreshed) {
+                startPage();
+            } else {
+                showLoginScreen();
+            }
+        } else {
+            startPage();
+        }
+    } catch (e) {
+        startPage();  // offline ou erro de rede — deixa app rodar com token salvo
     }
 }
 
