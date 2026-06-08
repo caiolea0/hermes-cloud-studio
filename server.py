@@ -101,6 +101,7 @@ async def lifespan(app: FastAPI):
     # Restaurar globals persistidos em runtime_state (MERGED-004 / MERGED-016)
     state._LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
     state._LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)
+    state._LI_SESSION_FAIL_STREAK = get_runtime_state("li_session_fail_streak", 0)  # MERGED-018
     state._LI_HEALTH_LAST_STATE = get_runtime_state("li_health_last_state", None)
     state._LI_HEALTH_NOTIFIED_AT = get_runtime_state("li_health_notified_at", 0.0)
     restored_errors = get_runtime_state("local_error_until_ack", {})

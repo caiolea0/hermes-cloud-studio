@@ -144,8 +144,9 @@ checks:
 ### MERGED-018 — Session monitor consecutive failures
 - phase: D
 - checks:
-  - grep_present: server.py / "consecutive_fail|REQUIRED_FAILS|fail_count" / consec failure counter
-  - grep_present: server.py / "(>=|>=\s*3)" / threshold for confirmation
+  - grep_present: loops/linkedin_session.py / "REQUIRED_FAILS|_LI_SESSION_FAIL_STREAK" / consec failure counter (moved from server.py by MERGED-011)
+  - grep_present: loops/linkedin_session.py / ">=\s*REQUIRED_FAILS" / threshold for confirmation
+  - grep_present: core/state.py / "_LI_SESSION_FAIL_STREAK" / state var defined
 
 ### MERGED-020 — Rate-limit restart endpoints
 - phase: D

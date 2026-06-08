@@ -93,6 +93,8 @@ _agent_zero_context_id: Optional[str] = None
 # Session / health monitor globals (read/write em loops)
 _LI_SESSION_LAST_OK = True
 _LI_SESSION_LAST_NOTIFIED = 0.0
+# MERGED-018 — contador de falhas consecutivas pra evitar spam por flake de rede
+_LI_SESSION_FAIL_STREAK = 0
 _LI_HEALTH_LAST_STATE: Optional[str] = None
 _LI_HEALTH_NOTIFIED_AT = 0.0
 

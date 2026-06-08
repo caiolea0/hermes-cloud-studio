@@ -248,6 +248,26 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 - [x] MERGED-012 — Pipeline dedupe (core/pipeline.py compartilhado entre daemon e scripts) ✅ 2026-06-08 (Chapter 16)
 - [x] MERGED-011 — Split monolitos server.py + hermes_api_v2.py ✅ 2026-06-08 (Chapter 17)
 
+## Chapter 19 — Fase D iniciada (2026-06-08)
+
+### D.1 MERGED-017 ✅ — psutil subprocess supervision
+- `vm_api/routes.py`: `kill -0` (Linux-only) -> `psutil.pid_exists` + `is_running` + `STATUS_ZOMBIE` check com guard de `create_time` contra PID reciclado pelo SO.
+- PID file agora JSON `{pid, create_time}`; legacy plain text mantido com fallback (`_read_pid_meta`).
+- `vm_core/state.py`: `_tracked_subprocs` set + `register_subproc()` + `terminate_tracked_subprocs(grace=5s)` (SIGTERM → SIGKILL).
+- `hermes_api_v2.py` lifespan shutdown chama `terminate_tracked_subprocs()` antes do DB close.
+- `requirements.txt`: `psutil>=5.9.0` + instalado VM via `pip3 install --user --break-system-packages`.
+- `VALIDATION-CHECKLIST.md`: targets atualizados pós-MERGED-011 (server.py -> vm_api/routes.py).
+- **validate --finding MERGED-017: PASS**
+
+Commit: `fix(infra): MERGED-017 — psutil subprocess supervision pra scraper` (push master e8871e4).
+
+### Pendentes Fase D
+- [ ] MERGED-018 — Session monitor consecutive failures (3 falhas seguidas pra alertar)
+- [ ] MERGED-020 — Rate-limit `/api/server/restart-*` (slowapi)
+- [ ] MERGED-006 — Sync versioning prospects (version+updated_at, conflict detection)
+
+---
+
 ## Chapter 18 — Fase C.4 MERGED-014 ✅ (2026-06-08)
 
 ### MERGED-014 ✅ — Ollama fallback router
