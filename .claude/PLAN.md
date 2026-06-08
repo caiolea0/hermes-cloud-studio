@@ -135,8 +135,8 @@
 +- `WS /ws/daemon/subsystems` — broadcast status delta em mudança
 +
 +**Tasks**:
-+- [ ] Task 1: Backend `/api/daemon/subsystems` GET — agrega state.json + daemon_state + channels; cobertura testes 6 subsistemas
-+- [ ] Task 2: Backend POST pause/resume por subsistema — escreve `subsystem_pause` no daemon_state; loops checam flag a cada tick (não interrompe execução atual)
++- [x] Task 1 (F.2.1): Backend `/api/daemon/subsystems` GET — agrega daemon_state row + tunnel_supervisor_state.json; 6 subsistemas (daemon/linkedin/email/scraper/audit/tunnel) com status normalizado paused|healthy|warning|error|offline
++- [x] Task 2 (F.2.1): Backend POST pause/resume por subsistema — persiste em `runtime_state.subsystem_pauses` (JSON map name→until_ts) via set_runtime_state (NÃO ALTER TABLE); rate-limit 30/min; minutes bounded 1-720; WS broadcast `daemon.subsystem_status`
 +- [ ] Task 3: WS broadcast — `ws_manager.broadcast('subsystem_state', ...)` em loops/sync.py via spawn() pattern (MERGED-001); pre_test loops resilience phase D
 +- [ ] Task 4: Live tail logs WS — `/ws/daemon/log-tail` com rolling buffer 500 linhas em memória; backend SSE alternativa fallback
 +- [ ] Task 5: UI Activity Orbit redesign — tile por subsistema em grid 3x2; cores semafóricas (verde/amarelo/vermelho); contagem ações 24h; botão pause/resume inline com confirmação
