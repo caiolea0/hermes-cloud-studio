@@ -23,6 +23,7 @@ from vm_core.state import (
     get_db,
     init_db,
     logger,
+    terminate_tracked_subprocs,
 )
 import time
 from vm_api.routes import router as vm_router
@@ -47,6 +48,8 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
     yield
+    # MERGED-017 — terminate subprocs rastreados (scraper etc) antes do DB cleanup
+    terminate_tracked_subprocs()
     # Marcar runs ainda 'running' como interrupted no shutdown
     db = get_db()
     try:

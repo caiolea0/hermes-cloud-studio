@@ -21,12 +21,14 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 import httpx
+import psutil
 from fastapi import APIRouter, HTTPException, Query, Request
 from pathlib import Path
 from pydantic import BaseModel
 
 from config import settings
 from vm_core.state import (
+    register_subproc,
     DATA_DIR,
     DB_PATH,
     HERMES_HOME,
@@ -54,6 +56,51 @@ from vm_core.models import (
 )
 
 router = APIRouter()
+
+
+# --- Subprocess supervision helpers (MERGED-017) ---
+
+def _read_pid_meta(pid_file: Path) -> tuple[int | None, float | None]:
+    """Lê pid_file que pode ser JSON {pid, create_time} (novo) ou texto plain (legacy).
+    Retorna (pid, create_time_or_None). Se invalido, (None, None)."""
+    try:
+        raw = pid_file.read_text().strip()
+        if not raw:
+            return None, None
+        if raw.startswith("{"):
+            obj = json.loads(raw)
+            return int(obj.get("pid", 0)) or None, obj.get("create_time")
+        return int(raw), None
+    except Exception:
+        return None, None
+
+
+def _write_pid_meta(pid_file: Path, pid: int) -> None:
+    """Persiste {pid, create_time} pra detectar PID reciclado em status checks."""
+    try:
+        ct = psutil.Process(pid).create_time()
+        pid_file.write_text(json.dumps({"pid": pid, "create_time": ct}))
+    except Exception:
+        logger.exception("_write_pid_meta: fallback texto pid=%s", pid)
+        pid_file.write_text(str(pid))
+
+
+def _proc_alive(pid: int | None, expected_ct: float | None) -> bool:
+    """psutil-based liveness check com create_time guard contra PID recycling."""
+    if not pid:
+        return False
+    try:
+        if not psutil.pid_exists(pid):
+            return False
+        p = psutil.Process(pid)
+        if expected_ct is not None and abs(p.create_time() - expected_ct) > 1.0:
+            return False  # PID reciclado pelo SO
+        return p.is_running() and p.status() != psutil.STATUS_ZOMBIE
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return False
+    except Exception:
+        logger.exception("_proc_alive: falha pid=%s", pid)
+        return False
 
 
 # --- Dashboard ---
@@ -306,12 +353,13 @@ async def scraper_status():
     pid = None
 
     if pid_file.exists():
-        try:
-            pid = int(pid_file.read_text().strip())
-            result = subprocess.run(["kill", "-0", str(pid)], capture_output=True)
-            running = result.returncode == 0
-        except Exception:  # noqa: silenciado intencional — fallback seguro
-            pass
+        pid, expected_ct = _read_pid_meta(pid_file)
+        running = _proc_alive(pid, expected_ct)
+        if not running and pid is not None:
+            # PID stale (processo morreu ou reciclado) — limpar pid_file
+            with suppress(Exception):
+                pid_file.unlink()
+                pid = None
 
     # Try active checkpoint first
     checkpoint = {}
@@ -402,15 +450,14 @@ async def start_scraper(config: ScraperConfig):
     """Start the night scraper as a background process."""
     pid_file = HERMES_HOME / "data" / "night_scraper.pid"
 
-    # Check if already running
+    # Check if already running (MERGED-017 — psutil + create_time guard)
     if pid_file.exists():
-        try:
-            existing_pid = int(pid_file.read_text().strip())
-            result = subprocess.run(["kill", "-0", str(existing_pid)], capture_output=True)
-            if result.returncode == 0:
-                return {"status": "already_running", "pid": existing_pid}
-        except Exception:  # noqa: silenciado intencional — fallback seguro
-            pass
+        existing_pid, existing_ct = _read_pid_meta(pid_file)
+        if _proc_alive(existing_pid, existing_ct):
+            return {"status": "already_running", "pid": existing_pid}
+        # PID stale — limpar antes de continuar
+        with suppress(Exception):
+            pid_file.unlink()
 
     # Build command — use gosom scraper (free, Docker-based)
     script = str(HERMES_HOME / "scripts" / "gosom_scraper.py")
@@ -447,7 +494,8 @@ async def start_scraper(config: ScraperConfig):
             start_new_session=True,
         )
 
-    pid_file.write_text(str(proc.pid))
+    _write_pid_meta(pid_file, proc.pid)
+    register_subproc(proc.pid)  # MERGED-017 — terminate on lifespan shutdown
     return {"status": "started", "pid": proc.pid}
 
 
@@ -459,8 +507,14 @@ async def stop_scraper():
     if not pid_file.exists():
         return {"status": "not_running"}
 
+    pid, expected_ct = _read_pid_meta(pid_file)
+    if not pid:
+        pid_file.unlink(missing_ok=True)
+        return {"status": "not_running"}
     try:
-        pid = int(pid_file.read_text().strip())
+        if not _proc_alive(pid, expected_ct):
+            pid_file.unlink(missing_ok=True)
+            return {"status": "not_running"}
         os.kill(pid, signal.SIGTERM)
         pid_file.unlink(missing_ok=True)
         return {"status": "stopped", "pid": pid}

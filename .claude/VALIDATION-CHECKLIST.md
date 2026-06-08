@@ -135,8 +135,10 @@ checks:
 ### MERGED-017 — Subprocess scraper supervision
 - phase: D
 - checks:
-  - grep_present: hermes_api_v2.py / "psutil" / psutil used for process checks
-  - grep_present: hermes_api_v2.py / "start_new_session=True" / proper Popen isolation
+  - grep_present: vm_api/routes.py / "psutil" / psutil used for process checks (moved from hermes_api_v2.py by MERGED-011)
+  - grep_present: vm_api/routes.py / "start_new_session=True" / proper Popen isolation
+  - grep_present: vm_core/state.py / "terminate_tracked_subprocs" / lifespan shutdown hook
+  - grep_present: hermes_api_v2.py / "terminate_tracked_subprocs" / lifespan wires shutdown
   - grep_present: requirements.txt / "psutil" / dep declared
 
 ### MERGED-018 — Session monitor consecutive failures

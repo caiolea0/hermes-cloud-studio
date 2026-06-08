@@ -50,6 +50,47 @@ def spawn(coro) -> asyncio.Task:
     return task
 
 
+# Subprocess registry (MERGED-017) — Popen tracked pra terminate em lifespan shutdown.
+# Guarda (pid, create_time) — create_time distingue PID reciclado pelo SO.
+_tracked_subprocs: set = set()
+
+
+def register_subproc(pid: int) -> None:
+    """Registra subprocesso pra ser terminado no shutdown. Captura create_time via psutil."""
+    try:
+        import psutil
+        ct = psutil.Process(pid).create_time()
+        _tracked_subprocs.add((pid, ct))
+    except Exception:
+        logger.exception("register_subproc: falha capturar create_time pid=%s", pid)
+
+
+def terminate_tracked_subprocs(grace: float = 5.0) -> None:
+    """Terminate (SIGTERM) seguido de kill (SIGKILL) se nao morreu em grace s.
+    Skip se PID nao existe mais ou create_time mudou (recycled)."""
+    try:
+        import psutil
+    except Exception:
+        logger.exception("terminate_tracked_subprocs: psutil indisponivel")
+        return
+    for pid, ct in list(_tracked_subprocs):
+        try:
+            p = psutil.Process(pid)
+            if p.create_time() != ct:
+                continue  # PID reciclado, nao eh nosso
+            p.terminate()
+            try:
+                p.wait(timeout=grace)
+            except psutil.TimeoutExpired:
+                logger.warning("terminate_tracked_subprocs: SIGKILL pid=%s (no SIGTERM response)", pid)
+                p.kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+        except Exception:
+            logger.exception("terminate_tracked_subprocs: falha pid=%s", pid)
+    _tracked_subprocs.clear()
+
+
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
     conn.row_factory = sqlite3.Row
