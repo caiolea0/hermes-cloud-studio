@@ -3146,7 +3146,7 @@ async def server_restart_vm():
             "ssh",
             "-o", "StrictHostKeyChecking=no",
             "-o", "ConnectTimeout=10",
-            "hermes-gcp@136.115.74.69",
+            f"{settings.vm_user}@{settings.vm_host}",
             "systemctl --user restart hermes-api.service && echo OK",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

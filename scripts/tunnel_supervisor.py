@@ -7,7 +7,7 @@ Loop:
   2. Verificar SSH reverse tunnel ativo (probe via SSH na VM: ss -ltn | grep :55081)
      Se nao listening na VM, spawn `ssh -N -R ...`
   3. End-to-end check: SSH na VM e curl --socks5-hostname 127.0.0.1:55081 https://api.ipify.org
-     Se NAO retornar IP residencial (i.e. retornar 136.115.74.69 da VM OU timeout), restart tudo
+     Se NAO retornar IP residencial (i.e. retornar IP datacenter VM OU timeout), restart tudo
   4. Sleep TICK_SEC, repete
 
 Backoff: 30s base entre restarts. Max 3 restarts/min, depois cooldown 60s.
@@ -38,9 +38,13 @@ LOG_DIR.mkdir(exist_ok=True)
 LOG_FILE = LOG_DIR / "tunnel_supervisor.log"
 STATE_FILE = LOG_DIR / "tunnel_supervisor_state.json"
 
-SOCKS5_PORT = 55081
-VM_HOST = "136.115.74.69"
-VM_USER = "hermes-gcp"
+# MERGED-013/009 — Settings central
+sys.path.insert(0, str(BASE_DIR))
+from config import settings
+
+SOCKS5_PORT = settings.socks5_port
+VM_HOST = settings.vm_host
+VM_USER = settings.vm_user
 SSH_KEY = str(Path(os.environ.get("USERPROFILE", "")) / ".ssh" / "id_ed25519")
 TICK_SEC = 30
 MAX_RESTARTS_PER_MIN = 3
