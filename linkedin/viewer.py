@@ -13,6 +13,8 @@ import asyncio
 import json
 import logging
 import random
+import re
+import sqlite3
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +29,140 @@ from .limiter import RateLimiter
 from .stealth import close_stealth_browser, launch_stealth_browser, save_session
 
 logger = logging.getLogger("hermes.linkedin.viewer")
+
+
+# ─── parsing helpers (module-level for reuse) ───────────────────────────
+
+def _parse_role_from_headline(headline: str) -> Optional[str]:
+    """'Tech Recruiter @ Nubank | Hiring Eng' -> 'Tech Recruiter'."""
+    if not headline:
+        return None
+    for sep in [" @ ", " | ", " - ", " – ", " at ", " na ", " no "]:
+        if sep in headline:
+            return headline.split(sep, 1)[0].strip()
+    return headline.strip()
+
+
+def _parse_mutual(text: str) -> int:
+    """'12 mutual connections including...' -> 12.  '12 conexões em comum' -> 12."""
+    if not text:
+        return 0
+    m = re.search(r"(\d+)\s*(mutual|comum|comuns|em\s+comum)", text, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"^\s*(\d+)\b", text)
+    return int(m.group(1)) if m else 0
+
+
+def _parse_degree(text: str) -> Optional[str]:
+    """'2nd' / 'connection of 3rd degree' / '2º' -> '2nd'."""
+    if not text:
+        return None
+    t = text.lower()
+    if "1st" in t or "1°" in t or "1º" in t or "primeiro" in t:
+        return "1st"
+    if "2nd" in t or "2°" in t or "2º" in t or "segundo" in t:
+        return "2nd"
+    if "3rd" in t or "3°" in t or "3º" in t or "terceiro" in t:
+        return "3rd"
+    if "out" in t or "fora" in t:
+        return "out"
+    return None
+
+
+def _parse_last_activity(text: str) -> Optional[str]:
+    """'posted • 3 days ago' / 'há 3 dias' -> 'há 3 dias'."""
+    if not text:
+        return None
+    t = text.strip().lower()
+    # English: "X minutes ago", "X hours ago", "X days ago", "X weeks ago"
+    m = re.search(r"(\d+)\s*(minute|hour|day|week|month|year)s?\s*ago", t)
+    if m:
+        n, unit = int(m.group(1)), m.group(2)
+        labels = {"minute": "min", "hour": "h", "day": "dia", "week": "sem", "month": "mês", "year": "ano"}
+        return f"há {n} {labels.get(unit, unit)}{'s' if n > 1 and unit in ('day','week','year') else ''}"
+    # Portuguese: "há X dias"
+    m = re.search(r"há\s+\d+\s+(min|h|dia|sem|mês|ano)", t)
+    if m:
+        return text.strip()
+    return text.strip()[:30]
+
+
+def _company_domain_guess(company_name: str) -> Optional[str]:
+    """Best-effort guess of company website domain for clearbit logo."""
+    if not company_name:
+        return None
+    n = company_name.lower().strip()
+    # well-known BR mappings
+    known = {
+        "nubank": "nubank.com.br", "stone": "stone.co", "ifood": "ifood.com.br",
+        "magazine luiza": "magazineluiza.com.br", "magalu": "magazineluiza.com.br",
+        "itaú": "itau.com.br", "itau": "itau.com.br", "itaú unibanco": "itau.com.br",
+        "xp inc": "xpi.com.br", "xp": "xpi.com.br",
+        "mercado livre": "mercadolivre.com.br", "mercadolibre": "mercadolibre.com",
+        "globo": "globo.com", "embraer": "embraer.com", "totvs": "totvs.com",
+    }
+    if n in known:
+        return known[n]
+    # naive fallback: company-name.com (lowercased, dehyphenated)
+    slug = re.sub(r"[^a-z0-9]+", "", n)
+    return f"{slug}.com" if slug else None
+
+
+def _upsert_profile_cache(profile: dict, db_path: Optional[Path] = None) -> None:
+    """Insert or update profile in linkedin_profiles cache table."""
+    if not profile.get("profile_url"):
+        return
+    db = db_path or (Path.home() / ".hermes" / "data" / "command_center.db")
+    if not db.parent.exists():
+        return
+    try:
+        conn = sqlite3.connect(str(db), timeout=5)
+        conn.execute("PRAGMA journal_mode=WAL")
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute("""
+            INSERT INTO linkedin_profiles
+              (profile_url, name, photo, headline, current_role, current_company,
+               company_domain, location, bio, mutual_count, degree, top_skills,
+               last_activity, first_seen_at, last_seen_at, visit_count, extraction_meta)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+            ON CONFLICT(profile_url) DO UPDATE SET
+              name = excluded.name,
+              photo = COALESCE(excluded.photo, linkedin_profiles.photo),
+              headline = COALESCE(excluded.headline, linkedin_profiles.headline),
+              current_role = COALESCE(excluded.current_role, linkedin_profiles.current_role),
+              current_company = COALESCE(excluded.current_company, linkedin_profiles.current_company),
+              company_domain = COALESCE(excluded.company_domain, linkedin_profiles.company_domain),
+              location = COALESCE(excluded.location, linkedin_profiles.location),
+              bio = COALESCE(excluded.bio, linkedin_profiles.bio),
+              mutual_count = COALESCE(excluded.mutual_count, linkedin_profiles.mutual_count),
+              degree = COALESCE(excluded.degree, linkedin_profiles.degree),
+              top_skills = COALESCE(excluded.top_skills, linkedin_profiles.top_skills),
+              last_activity = COALESCE(excluded.last_activity, linkedin_profiles.last_activity),
+              last_seen_at = excluded.last_seen_at,
+              visit_count = linkedin_profiles.visit_count + 1,
+              extraction_meta = excluded.extraction_meta
+        """, (
+            profile.get("profile_url"),
+            profile.get("name"),
+            profile.get("photo"),
+            profile.get("headline"),
+            profile.get("current_role"),
+            profile.get("current_company"),
+            _company_domain_guess(profile.get("current_company")),
+            profile.get("location"),
+            profile.get("bio"),
+            profile.get("mutual_count", 0),
+            profile.get("degree"),
+            json.dumps(profile.get("top_skills", []), ensure_ascii=False),
+            profile.get("last_activity"),
+            now, now,
+            json.dumps(profile.get("extraction_meta", {}), ensure_ascii=False),
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"profile cache upsert failed: {e}")
 
 
 class LinkedInViewer:
@@ -56,14 +192,90 @@ class LinkedInViewer:
 
         Returns structured result dict for dashboard display.
         """
+        # ── Pre-flight #1: launch cooldown (30 min mandatory spacing) ────────
+        try:
+            wait_s = self.limiter.time_until_next_launch()
+            if wait_s > 0:
+                wait_min = (wait_s + 59) // 60
+                self._log(
+                    f"Aguardando cooldown LinkedIn — proximo launch em {wait_min} min ({wait_s}s)",
+                    phase="cooldown",
+                )
+                return {
+                    "type": "linkedin_viewer",
+                    "profiles_visited": 0, "profiles": [], "by_role": {}, "by_city": {},
+                    "_aborted_cooldown": True,
+                    "cooldown_state": {
+                        "state": "launch_cooldown",
+                        "reason": "mandatory_spacing_30min",
+                        "retry_after_seconds": wait_s,
+                    },
+                    "rate_limiter_stats": self.limiter.get_stats(),
+                }
+        except Exception as _e:
+            logger.warning(f"launch cooldown check failed: {_e}")
+
+        # ── Pre-flight: check LinkedIn health (cooldown / challenge) ──────────
+        try:
+            from .cooldown import check_health, fmt_state
+            health = await check_health()
+            if health.get("state") != "ok":
+                self._log(
+                    f"LinkedIn em cooldown: {fmt_state(health)} — abortando para "
+                    f"preservar a conta",
+                    phase="cooldown",
+                    detail=health,
+                )
+                return {
+                    "type": "linkedin_viewer",
+                    "profiles_visited": 0,
+                    "profiles": [],
+                    "by_role": {}, "by_city": {},
+                    "_aborted_cooldown": True,
+                    "cooldown_state": health,
+                    "rate_limiter_stats": self.limiter.get_stats(),
+                }
+        except Exception as e:
+            logger.warning(f"cooldown precheck failed (continuing): {e}")
+
+        # Record this launch so the 30min spacing applies to the next one
+        try:
+            self.limiter.record_launch()
+        except Exception:
+            pass
+
+        # Reset the "session" counter (each campaign launch = fresh session window).
+        try:
+            self.limiter.reset_session()
+        except Exception as e:
+            logger.warning(f"limiter.reset_session failed: {e}")
         self._log("Iniciando browser stealth...", phase="starting")
 
         try:
             self.browser, self.context, self.page = await launch_stealth_browser(self.config)
-            self._log("Browser launched com anti-deteccao ativa", phase="connecting",
-                      detail={"headless": self.config.headless, "proxy": bool(self.config.proxy_server)})
+            engine = getattr(self.page, "_engine_used", "unknown")
+            self._log(
+                f"Browser launched com anti-deteccao ativa (engine: {engine})",
+                phase="connecting",
+                detail={"headless": self.config.headless, "proxy": bool(self.config.proxy_server),
+                        "engine": engine}
+            )
 
             await self._authenticate()
+
+            # Pre-outreach human warm-up (v5): scroll feed → notifications → mynetwork → feed
+            if getattr(self.config, "pre_outreach_enabled", True):
+                from .human import simulate_pre_outreach
+                self._log(
+                    f"Iniciando pré-aquecimento humano (~{self.config.pre_outreach_duration_seconds}s)",
+                    phase="warming",
+                )
+                await simulate_pre_outreach(
+                    self.page,
+                    log_callback=lambda m: self._log(m, phase="warming"),
+                    duration_seconds=self.config.pre_outreach_duration_seconds,
+                    min_seconds=self.config.pre_outreach_min_seconds,
+                )
 
             targets = self.config.__dict__.get("_targets", {})
             roles = targets.get("roles", ["tech recruiter", "project manager", "SMB owner"])
@@ -104,16 +316,65 @@ class LinkedInViewer:
             return self._build_result(roles)
 
         except Exception as e:
+            # Auto-mark cooldown if the error pattern signals LinkedIn throttling
+            try:
+                from .cooldown import mark_cooldown_from_error
+                mark_cooldown_from_error(str(e))
+            except Exception:
+                pass
             self._log(f"Erro: {str(e)}", phase="error", level="error")
             raise
         finally:
             await self._cleanup()
 
     async def _authenticate(self):
-        """Navigate to LinkedIn and verify/establish authentication."""
+        """Navigate to LinkedIn and verify/establish authentication.
+
+        Strategy: hit homepage first so LinkedIn can issue bcookie/lidc/JSESSIONID
+        based on our li_at. Then navigate to /feed/. Going straight to /feed/
+        with only li_at can trigger redirect loops in some LinkedIn states.
+        """
         self._log("Verificando autenticacao...", phase="authenticating")
 
-        await self.page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
+        # Step 1: homepage — establish session cookies
+        try:
+            await self.page.goto("https://www.linkedin.com/", wait_until="domcontentloaded", timeout=30000)
+        except Exception as e:
+            self._log(f"Falha em www.linkedin.com: {str(e)[:200]}", phase="authenticating", level="warn")
+            # Dump diagnostics
+            try:
+                cookies = await self.context.cookies("https://www.linkedin.com")
+                names = sorted({c.get("name","") for c in cookies})
+                self._log(f"Cookies pre-error: {names} (page url={self.page.url[:120]})",
+                          phase="authenticating", level="warn")
+                from pathlib import Path
+                import time as _t
+                dbg = Path("/home/hermes-gcp/.hermes/data/debug")
+                dbg.mkdir(parents=True, exist_ok=True)
+                ts = int(_t.time())
+                try:
+                    await self.page.screenshot(path=str(dbg / f"home_fail_{ts}.png"), full_page=True)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            raise
+        await asyncio.sleep(random.uniform(2, 4))
+        self._log(f"Homepage carregada: {self.page.url[:100]}", phase="authenticating")
+
+        # Step 2: /feed/ — should work now that session cookies are set
+        try:
+            await self.page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=30000)
+        except Exception as e:
+            self._log(f"Falha em /feed/: {str(e)[:200]} (homepage funcionou)",
+                      phase="authenticating", level="warn")
+            try:
+                cookies = await self.context.cookies("https://www.linkedin.com")
+                names = sorted({c.get("name","") for c in cookies})
+                self._log(f"Cookies após homepage: {names}", phase="authenticating", level="warn")
+            except Exception:
+                pass
+            raise
         await asyncio.sleep(random.uniform(2, 4))
 
         url = self.page.url
@@ -124,7 +385,20 @@ class LinkedInViewer:
             return
 
         if "/login" in url or "/uas/login" in url or "checkpoint" in url:
-            self._log("Sessao expirada — login necessario", phase="authenticating", level="warn")
+            self._log(f"Sessao expirada — login necessario (url: {url[:200]})", phase="authenticating", level="warn")
+            # Dump cookies + screenshot for forensics
+            try:
+                cookies = await self.context.cookies("https://www.linkedin.com")
+                names = sorted({c.get("name","") for c in cookies})
+                self._log(f"Cookies presentes na sessão: {names}", phase="authenticating", level="warn")
+                from pathlib import Path
+                import time as _t
+                dbg = Path("/home/hermes-gcp/.hermes/data/debug")
+                dbg.mkdir(parents=True, exist_ok=True)
+                ts = int(_t.time())
+                await self.page.screenshot(path=str(dbg / f"auth_fail_{ts}.png"), full_page=True)
+            except Exception as _e:
+                logger.warning(f"auth dump failed: {_e}")
             await self._perform_login()
             return
 
@@ -186,12 +460,81 @@ class LinkedInViewer:
             raise RuntimeError(f"Login failed, ended up at: {self.page.url}")
 
     async def _search_and_visit(self, role: str, location: str, max_count: int) -> int:
-        """Search LinkedIn for profiles and visit them."""
-        search_url = self._build_search_url(role, location)
-        self._log(f"Navegando para busca: {role}", phase="searching")
+        """Search LinkedIn for profiles and visit them.
 
-        await self.page.goto(search_url, wait_until="domcontentloaded")
-        await asyncio.sleep(random.uniform(2, 5))
+        Path that survives 2026 bot detection:
+        1) navigate to /search/results/all/ (the search-bar default — NOT people)
+        2) wait for page to settle
+        3) click the "People" filter chip in the results header to switch to
+           /search/results/people/ via SWITCH_SEARCH_VERTICAL origin (looks like
+           a real user clicking the tab; direct URL nav to /people/ → redirect loop)
+        """
+        # PATCH 2026-06-07: ir direto pra /search/results/people/ — LinkedIn redireciona
+        # /all/ pra /jobs/ pra contas novas com pouco signal social.
+        from urllib.parse import quote_plus
+        people_url = f"https://www.linkedin.com/search/results/people/?keywords={quote_plus(role + ' ' + location)}&origin=GLOBAL_SEARCH_HEADER"
+        self._log(f"Navegando para people search direto: {role} {location}", phase="searching")
+
+        try:
+            await self.page.goto(people_url, wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(random.uniform(2, 4))
+            # Se redirecionou pra /jobs/, fallback pra /all/
+            if "/people/" not in self.page.url:
+                self._log(f"redirect inesperado: {self.page.url[:120]} — fallback /all/", phase="searching")
+                search_url = self._build_search_url(role, location)
+                await self.page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
+        except Exception as e:
+            # Last-resort: try driving the search via the top search box
+            self._log(f"Search URL falhou ({type(e).__name__}) — tentando search box", phase="searching", level="warn")
+            await self.page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(random.uniform(2, 4))
+            try:
+                box = await self.page.query_selector("input[role='combobox'][placeholder*='Pesquisar'], input.search-global-typeahead__input, input[aria-label*='Search']")
+                if box:
+                    await box.click()
+                    await asyncio.sleep(random.uniform(0.4, 0.9))
+                    await box.fill("")
+                    await box.type(role, delay=random.randint(60, 140))
+                    await asyncio.sleep(random.uniform(0.5, 1.0))
+                    await self.page.keyboard.press("Enter")
+                    await self.page.wait_for_load_state("domcontentloaded", timeout=20000)
+                else:
+                    raise
+            except Exception as e2:
+                self._log(f"Search box também falhou ({type(e2).__name__})", phase="searching", level="error")
+                raise
+
+        await asyncio.sleep(random.uniform(2, 4))
+
+        # Click "People" filter chip to scope results to profiles
+        if "/people/" not in self.page.url:
+            self._log("Clicando filtro 'Pessoas' / 'People'", phase="searching")
+            clicked = False
+            for sel in [
+                "button[aria-label*='Pessoas']",
+                "button[aria-label*='People']",
+                "a[href*='/search/results/people/']",
+                "li.search-reusables__primary-filter button",
+            ]:
+                try:
+                    el = await self.page.query_selector(sel)
+                    if el:
+                        await el.scroll_into_view_if_needed()
+                        await asyncio.sleep(random.uniform(0.3, 0.8))
+                        await el.click()
+                        clicked = True
+                        break
+                except Exception:
+                    continue
+            if clicked:
+                try:
+                    await self.page.wait_for_load_state("domcontentloaded", timeout=15000)
+                except Exception:
+                    pass
+                await asyncio.sleep(random.uniform(2, 4))
+            else:
+                self._log(f"Filtro 'Pessoas' não encontrado — continuando com all-results (url={self.page.url[:120]})", phase="searching", level="warn")
+
         await simulate_page_reading(self.page, min_time=2, max_time=5, speed=self.config.mouse_speed)
 
         visited_count = 0
@@ -253,16 +596,27 @@ class LinkedInViewer:
         return visited_count
 
     def _build_search_url(self, role: str, location: str) -> str:
-        """Build LinkedIn people search URL."""
+        """Build LinkedIn search URL (the /all/ variant — same URL the search bar emits).
+
+        We deliberately avoid /search/results/people/ — direct nav to that URL
+        triggers ERR_TOO_MANY_REDIRECTS on flagged or lurking-phase sessions.
+        The /all/ tab is what the global search bar produces when you press
+        Enter, and it loads reliably. The People filter is then applied in
+        _search_and_visit by clicking the in-page tab chip.
+        """
         from urllib.parse import quote
-        keywords = quote(role)
-        url = f"https://www.linkedin.com/search/results/people/?keywords={keywords}&origin=GLOBAL_SEARCH_HEADER"
-        if location:
-            url += f"&geoUrn=%5B%22106057199%22%5D"  # Brazil geo URN
-        return url
+        q = role
+        if location and location.strip().lower() not in role.lower():
+            q = f"{role} {location}".strip()
+        keywords = quote(q)
+        return f"https://www.linkedin.com/search/results/all/?keywords={keywords}&origin=GLOBAL_SEARCH_HEADER"
 
     async def _extract_profile_links(self) -> List[dict]:
-        """Extract profile links from search results page."""
+        """Extract profile links from search results page.
+
+        Tries multiple selectors — LinkedIn changes the DOM frequently and
+        a single brittle selector returns 0 hits when the real page is full.
+        """
         links = []
         try:
             # scroll to load all results
@@ -270,7 +624,48 @@ class LinkedInViewer:
                 await scroll_human(self.page, "down", random.randint(300, 600))
                 await asyncio.sleep(random.uniform(0.5, 1.5))
 
-            results = await self.page.query_selector_all('[data-chameleon-result-urn] a[href*="/in/"]')
+            # Try multiple selectors in order of specificity (2026 LinkedIn DOM has shifted).
+            SELECTORS = [
+                '[data-chameleon-result-urn] a[href*="/in/"]',         # legacy 2024-25
+                'div.search-results-container a[href*="/in/"]',         # mid-2025
+                '.reusable-search__result-container a[href*="/in/"]',   # 2025 reusable component
+                'ul[role="list"] li a.app-aware-link[href*="/in/"]',    # 2026 list-based
+                '[data-test-app-aware-link][href*="/in/"]',             # data-attr fallback
+                'a[href*="/in/"][data-test-app-aware-link]',            # ordering variant
+            ]
+            results = []
+            selector_used = None
+            for sel in SELECTORS:
+                try:
+                    found = await self.page.query_selector_all(sel)
+                    if found:
+                        results = found
+                        selector_used = sel
+                        break
+                except Exception:
+                    continue
+
+            if not results:
+                # Dump debug artifact for forensics (max 1 per campaign)
+                if not getattr(self, "_debug_dumped", False):
+                    try:
+                        from pathlib import Path
+                        import time as _t
+                        dbg_dir = Path("/home/hermes-gcp/.hermes/data/debug")
+                        dbg_dir.mkdir(parents=True, exist_ok=True)
+                        ts = int(_t.time())
+                        await self.page.screenshot(path=str(dbg_dir / f"search_empty_{ts}.png"), full_page=True)
+                        html = await self.page.content()
+                        (dbg_dir / f"search_empty_{ts}.html").write_text(html[:200000])
+                        self._log(
+                            f"DEBUG: search returned 0 — screenshot+html salvos em /data/debug/search_empty_{ts}.* (url={self.page.url[:120]})",
+                            phase="searching", level="warn",
+                        )
+                        self._debug_dumped = True
+                    except Exception as _e:
+                        logger.warning(f"debug dump failed: {_e}")
+            else:
+                self._log(f"Selector ativo: {selector_used} -> {len(results)} candidatos", phase="searching")
             seen = set()
             for el in results:
                 href = await el.get_attribute("href")
@@ -328,15 +723,23 @@ class LinkedInViewer:
                 speed=self.config.mouse_speed,
             )
 
-            # extract profile data
+            # extract profile data (rich schema)
             profile = await self._extract_profile_data()
             profile["url"] = url
+            if not profile.get("profile_url"):
+                profile["profile_url"] = url.split("?")[0].rstrip("/")
             profile["role_match"] = role
             profile["visited"] = True
             profile["visited_at"] = datetime.now(timezone.utc).isoformat()
 
             if not profile.get("name"):
                 profile["name"] = link_data.get("name", "Unknown")
+
+            # cache the rich profile so it's retrievable later by URL
+            try:
+                _upsert_profile_cache(profile)
+            except Exception as e:
+                logger.warning(f"profile upsert exception: {e}")
 
             return profile
 
@@ -345,50 +748,157 @@ class LinkedInViewer:
             return None
 
     async def _extract_profile_data(self) -> dict:
-        """Extract structured data from a LinkedIn profile page."""
-        data = {}
+        """Extract rich structured data from a LinkedIn profile page.
 
+        Returns dict with full schema expected by the dashboard. Missing fields
+        are None (UI degrades gracefully). Selectors are tried in order with
+        fallbacks because LinkedIn frequently changes class names.
+        """
+        data: dict = {}
+        hits: dict = {}  # which selectors succeeded — for debugging
+
+        async def _q_text(selectors: list, attr: str = None) -> Optional[str]:
+            """Try selectors in order, return inner_text() or attribute of first hit."""
+            for sel in selectors:
+                try:
+                    el = await self.page.query_selector(sel)
+                    if el:
+                        if attr:
+                            v = await el.get_attribute(attr)
+                        else:
+                            v = await el.inner_text()
+                        if v and v.strip():
+                            hits[sel] = True
+                            return v.strip()
+                except Exception:
+                    continue
+            return None
+
+        # Name (h1)
+        data["name"] = await _q_text([
+            "h1.text-heading-xlarge",
+            "h1.top-card-layout__title",
+            "main h1",
+        ])
+
+        # Profile photo — multiple selector variants
+        data["photo"] = await _q_text([
+            "img.pv-top-card-profile-picture__image",
+            "img.profile-photo-edit__preview",
+            "button.pv-top-card-profile-picture__image-button img",
+            ".pv-top-card-profile-picture img",
+        ], attr="src")
+
+        # Headline (the line right under the name)
+        data["headline"] = await _q_text([
+            ".text-body-medium.break-words",
+            ".top-card-layout__headline",
+            "div.pv-text-details__about-this-profile-entrypoint + div",
+        ])
+
+        # Location
+        data["location"] = await _q_text([
+            ".text-body-small.inline.t-black--light.break-words",
+            ".pv-text-details__left-panel .text-body-small",
+            ".top-card__subline-item",
+        ])
+
+        # Current company — try header button (most reliable in 2026 DOM)
+        data["current_company"] = await _q_text([
+            "button[aria-label*='Current company']",
+            ".pv-text-details__right-panel button[aria-label*='current']",
+            "section.pv-top-card .inline-show-more-text",
+        ])
+
+        # If still missing, fall back to first experience entry
+        if not data["current_company"]:
+            try:
+                exp_section = await self.page.query_selector("#experience ~ .pvs-list__outer-container")
+                if exp_section:
+                    first_exp = await exp_section.query_selector(".pvs-entity--padded")
+                    if first_exp:
+                        for sel in ["span.t-bold span[aria-hidden='true']",
+                                    ".t-bold span", "[data-field='experience_company_logo']"]:
+                            el = await first_exp.query_selector(sel)
+                            if el:
+                                v = await el.inner_text()
+                                if v and v.strip():
+                                    data["current_company"] = v.strip()
+                                    break
+            except Exception:
+                pass
+
+        # Parse role from headline (everything before " @ " or " | " or "-")
+        if data.get("headline"):
+            data["current_role"] = _parse_role_from_headline(data["headline"])
+        else:
+            data["current_role"] = None
+
+        # Bio / About section (first 300 chars)
+        bio_text = await _q_text([
+            "#about ~ .pvs-list__outer-container .inline-show-more-text",
+            "div.display-flex.ph5.pv3 .inline-show-more-text",
+            "section.summary p",
+        ])
+        data["bio"] = (bio_text[:300] if bio_text else None)
+
+        # Mutual connections count (from top card link "X mutual connections")
+        mutual_text = await _q_text([
+            ".pv-top-card--list-bullet li",
+            "a[href*='facetNetwork=F'] span",
+            "section.pv-top-card span.t-bold",
+        ])
+        data["mutual_count"] = _parse_mutual(mutual_text) if mutual_text else 0
+
+        # Degree (1st / 2nd / 3rd)
+        degree_text = await _q_text([
+            ".dist-value",
+            "span.distance-badge",
+            ".artdeco-entity-lockup__badge",
+        ])
+        data["degree"] = _parse_degree(degree_text) if degree_text else None
+
+        # Top skills (up to 5)
         try:
-            name_el = await self.page.query_selector("h1.text-heading-xlarge")
-            if name_el:
-                data["name"] = (await name_el.inner_text()).strip()
+            skills_locator = self.page.locator(
+                "#skills ~ .pvs-list__outer-container .mr1.hoverable-link-text span[aria-hidden='true']"
+            )
+            count = await skills_locator.count()
+            skills: list = []
+            for i in range(min(count, 5)):
+                try:
+                    s = (await skills_locator.nth(i).inner_text()).strip()
+                    if s and s not in skills:
+                        skills.append(s)
+                except Exception:
+                    continue
+            data["top_skills"] = skills
+        except Exception:
+            data["top_skills"] = []
+
+        # Last activity (from "Activity" section header — "posted X days ago")
+        activity_text = await _q_text([
+            "#content_collections ~ div .pvs-list__outer-container li:first-child .feed-shared-actor__sub-description",
+            "section.pv-recent-activity-section li:first-child time",
+            ".pv-recent-activity-section-v2__title + div",
+        ])
+        data["last_activity"] = _parse_last_activity(activity_text) if activity_text else None
+
+        # Total connections count (e.g., "500+ connections") — separate from mutual
+        connections_text = await _q_text([
+            "li.text-body-small span.t-bold",
+            "ul.pv-top-card--list span.t-bold",
+        ])
+        data["connections_total"] = connections_text  # raw label
+
+        # Canonical profile URL (strip tracking params)
+        try:
+            url = self.page.url
+            data["profile_url"] = url.split("?")[0].rstrip("/")
         except Exception:
             pass
 
-        try:
-            title_el = await self.page.query_selector(".text-body-medium.break-words")
-            if title_el:
-                data["title"] = (await title_el.inner_text()).strip()
-        except Exception:
-            pass
-
-        try:
-            loc_el = await self.page.query_selector(".text-body-small.inline.t-black--light.break-words")
-            if loc_el:
-                data["city"] = (await loc_el.inner_text()).strip()
-        except Exception:
-            pass
-
-        try:
-            company = ""
-            exp_section = await self.page.query_selector("#experience ~ .pvs-list__outer-container")
-            if exp_section:
-                first_exp = await exp_section.query_selector(".pvs-entity--padded")
-                if first_exp:
-                    comp_el = await first_exp.query_selector("span.t-bold span[aria-hidden='true']")
-                    if comp_el:
-                        company = (await comp_el.inner_text()).strip()
-            data["company"] = company
-        except Exception:
-            pass
-
-        try:
-            connections_el = await self.page.query_selector("li.text-body-small span.t-bold")
-            if connections_el:
-                data["connections"] = (await connections_el.inner_text()).strip()
-        except Exception:
-            pass
-
+        data["extraction_meta"] = {"selectors_hit": list(hits.keys())}
         return data
 
     async def _go_to_next_page(self) -> bool:
@@ -408,10 +918,11 @@ class LinkedInViewer:
         by_role = {}
         by_city = {}
         for p in self.profiles_visited:
-            r = p.get("role_match", "unknown")
+            r = p.get("current_role") or p.get("role_match") or "unknown"
             by_role[r] = by_role.get(r, 0) + 1
-            c = p.get("city", "Unknown")
-            by_city[c] = by_city.get(c, 0) + 1
+            loc = p.get("location") or "Unknown"
+            city = loc.split(",")[0].strip() if loc else "Unknown"
+            by_city[city] = by_city.get(city, 0) + 1
 
         return {
             "type": "linkedin_viewer",
