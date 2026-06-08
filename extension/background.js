@@ -128,12 +128,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return true;
     }
     if (msg.action === 'status') {
-        chrome.storage.local.get([STATUS_KEY, LAST_KEY, ACCOUNT_TYPE_STATUS_KEY]).then(s => {
+        chrome.storage.local.get([STATUS_KEY, LAST_KEY, ACCOUNT_TYPE_STATUS_KEY, INTERNAL_TOKEN_KEY]).then(s => {
             sendResponse({
                 status: s[STATUS_KEY] || null,
                 hasCookie: !!s[LAST_KEY],
                 accountType: s[ACCOUNT_TYPE_STATUS_KEY] || null,
+                hasToken: !!(s[INTERNAL_TOKEN_KEY] && s[INTERNAL_TOKEN_KEY].length >= 20),
             });
+        });
+        return true;
+    }
+    if (msg.action === 'setInternalToken') {
+        const t = (msg.token || '').trim();
+        if (!t || t.length < 20) {
+            sendResponse({ ok: false, error: 'token invalido' });
+            return true;
+        }
+        chrome.storage.local.set({ [INTERNAL_TOKEN_KEY]: t }).then(() => {
+            console.log('[Hermes] internal token configurado via popup');
+            // Tenta sync logo após salvar (caso cookie já esteja capturado e sync anterior tenha falhado por falta de token)
+            syncIfChanged('post-token-setup').then(() => sendResponse({ ok: true }));
         });
         return true;
     }

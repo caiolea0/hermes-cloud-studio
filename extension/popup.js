@@ -9,6 +9,17 @@ function renderStatus(resp) {
     const lastEl = document.getElementById('last-sync');
     const stEl = document.getElementById('status');
     const trigEl = document.getElementById('trigger');
+    const tokEl = document.getElementById('token-status');
+    const tokSetup = document.getElementById('token-setup');
+
+    // Token status — mostra setup form se ausente
+    if (resp.hasToken) {
+        tokEl.innerHTML = '<span class="dot ok"></span>configurado';
+        tokSetup.style.display = 'none';
+    } else {
+        tokEl.innerHTML = '<span class="dot err"></span>FALTA — configurar abaixo';
+        tokSetup.style.display = 'block';
+    }
 
     hasEl.innerHTML = resp.hasCookie
         ? '<span class="dot ok"></span>sim'
@@ -53,6 +64,27 @@ function load() {
 
 document.getElementById('sync-btn').addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'sync' }, () => setTimeout(load, 500));
+});
+
+document.getElementById('token-save-btn').addEventListener('click', () => {
+    const input = document.getElementById('token-input');
+    const token = (input.value || '').trim();
+    if (!token) {
+        alert('Token vazio. Cole o valor de HERMES_INTERNAL_TOKEN do .env.');
+        return;
+    }
+    if (token.length < 20) {
+        alert('Token muito curto. Verifique se copiou completo.');
+        return;
+    }
+    chrome.runtime.sendMessage({ action: 'setInternalToken', token }, (resp) => {
+        if (resp && resp.ok) {
+            input.value = '';
+            setTimeout(load, 200);
+        } else {
+            alert('Falha ao salvar token: ' + (resp?.error || 'desconhecido'));
+        }
+    });
 });
 
 load();

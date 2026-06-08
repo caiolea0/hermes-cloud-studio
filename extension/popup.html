@@ -24,7 +24,13 @@
   <div class="row">Status <span id="status">—</span></div>
   <div class="row">Trigger <span id="trigger">—</span></div>
   <div class="row">Tipo de conta <span id="account-type">—</span></div>
+  <div class="row">Token interno <span id="token-status"><span class="dot warn"></span>...</span></div>
   <button id="sync-btn">Sincronizar agora</button>
+  <div id="token-setup" style="display:none; margin-top:12px; padding-top:10px; border-top:1px solid #333;">
+    <div style="font-size:12px; color:#b0b0b0; margin-bottom:6px;">Cole HERMES_INTERNAL_TOKEN do .env:</div>
+    <input id="token-input" type="password" placeholder="token..." style="width:100%; padding:6px; background:#0f1014; color:#e7e7e7; border:1px solid #333; border-radius:4px; font-family:monospace; font-size:11px; box-sizing:border-box;">
+    <button id="token-save-btn" style="margin-top:6px; background:#22c55e;">Salvar token</button>
+  </div>
   <div class="hint">Sync automático: sempre que LinkedIn rotacionar o cookie + a cada 30min como safety net.</div>
 <script src="popup.js"></script>
 </body>
