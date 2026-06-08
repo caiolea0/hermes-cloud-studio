@@ -71,6 +71,16 @@ class HermesSettings(BaseSettings):
     # --- AgentMemory ---
     agentmemory_url: str = Field(default="http://localhost:3111", validation_alias="AGENTMEMORY_URL")
 
+    # --- Ollama (MERGED-014 router) ---
+    # PC tunnel reverso (RTX 2060 6GB) e' o primary. fallback vazio = sem VM local.
+    # Migracao VM-GPU: trocar ollama_url pra http://localhost:11434 e setar fallback="".
+    ollama_url: str = Field(default="http://localhost:11434", validation_alias="OLLAMA_URL")
+    ollama_url_fallback: str = Field(default="", validation_alias="HERMES_OLLAMA_FALLBACK_URL")
+    ollama_model_classify: str = Field(default="qwen2.5:3b", validation_alias="HERMES_OLLAMA_MODEL_CLASSIFY")
+    ollama_model_creative: str = Field(default="qwen2.5:7b-instruct", validation_alias="HERMES_OLLAMA_MODEL_CREATIVE")
+    ollama_connect_timeout: float = Field(default=3.0, validation_alias="HERMES_OLLAMA_CONNECT_TIMEOUT")
+    ollama_request_timeout: float = Field(default=45.0, validation_alias="HERMES_OLLAMA_REQUEST_TIMEOUT")
+
     # --- Telegram ---
     telegram_bot_token: str = Field(default="", validation_alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", validation_alias="TELEGRAM_CHAT_ID")

@@ -244,9 +244,45 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 **validate --phase C**: 3/6 PASS (013, 009, 008)
 
 ### Pendentes Fase C (próxima sessão `/start-phase C`)
-- [ ] MERGED-014 — Ollama fallback router (decisão: estudar melhor modelo Ollama RTX 2060 PC + tunnel VM:11434 antes de implementar. Quando VM-GPU migrar, eliminar acoplamento naturalmente.)
+- [x] MERGED-014 — Ollama fallback router ✅ 2026-06-08 (Chapter 18)
 - [x] MERGED-012 — Pipeline dedupe (core/pipeline.py compartilhado entre daemon e scripts) ✅ 2026-06-08 (Chapter 16)
 - [x] MERGED-011 — Split monolitos server.py + hermes_api_v2.py ✅ 2026-06-08 (Chapter 17)
+
+## Chapter 18 — Fase C.4 MERGED-014 ✅ (2026-06-08)
+
+### MERGED-014 ✅ — Ollama fallback router
+- `linkedin/ollama_router.py` novo: `OllamaRouter` async com primary (PC tunnel :11434) + fallback opcional. Por-task model map: `classify` -> `qwen2.5:3b`, `creative_ptbr` -> `qwen2.5:7b-instruct`. `OllamaUnavailable` exception quando primary + fallback falham.
+- `config.py`: 6 novos campos pydantic — `ollama_url`, `ollama_url_fallback`, `ollama_model_classify`, `ollama_model_creative`, `ollama_connect_timeout`, `ollama_request_timeout`.
+- `.env.example` documenta os 6 novos knobs + nota migracao VM-GPU.
+- Refator 3 sites na VM:
+  - `daemon/orchestrator.py:_classify_reply_intent` — substitui httpx direto por `ollama_router.route("classify", ...)`. `qwen3:8b` (overkill) -> `qwen2.5:3b` via task map.
+  - `linkedin/engager.py:_generate_comment_ollama` — substitui httpx por `ollama_router.route("creative_ptbr", ...)`. Bug fixado: `_generate_validated_comment_with_meta` lia `OLLAMA_MODEL` env diretamente, agora usa `settings.ollama_model_creative`.
+  - `linkedin/connector.py:_generate_connection_note` — substitui httpx por `ollama_router.route("creative_ptbr", ...)`. Bug fixado: default era `qwen2.5:7b` que NUNCA estava instalado no PC (silent fail historico desde sempre).
+- Install novo modelo PC: `qwen2.5:7b-instruct` (4.7GB, fit confortavel RTX 2060 6GB).
+
+### Estudo modelos PC (RTX 2060 6GB, 4.4GB free)
+Instalados pre-existentes: `devstral` (14GB nao fit), `qwen3:8b` (5.2GB tight KV cache), `qwen2.5-coder:7b` (codigo, nao PT-BR creative), `qwen2.5:3b` (1.9GB, perfeito classify), `nomic-embed-text` (embeddings).
+
+Decisao: instalar `qwen2.5:7b-instruct` (multilingual solido PT-BR, fit 6GB com KV cache pra prompts ~2k tokens). Mantem `qwen2.5:3b` pra classify (sub-segundo). Migracao VM-GPU = trocar OLLAMA_URL + zerar fallback, modelos viajam via Ollama na VM.
+
+### Sem fallback configurado (intencional)
+VM atual sem GPU = qualquer modelo no VM-CPU derruba daemon. Hook fica pronto com log claro `"PC offline, no fallback configured"`. Owner liga `HERMES_OLLAMA_FALLBACK_URL` quando VM-GPU chegar.
+
+### Smoke test executado
+- Router import OK
+- End-to-end classify: PASS (`qwen2.5:3b` retorna "questions" pra "sounds great, when can we chat?")
+- End-to-end creative_ptbr: PASS (`qwen2.5:7b-instruct` gera PT-BR coerente)
+- Fallback path bogus primary: `OllamaUnavailable` levantado conforme esperado
+- Fallback path bogus primary + valido fallback: PASS (caminho funciona quando configurado)
+
+### Validacao final
+- validate --finding MERGED-014: PASS
+- validate --phase A: 3/3 PASS (sem regressao)
+- validate --phase B: 5/5 PASS (sem regressao)
+- **validate --phase C: 6/6 PASS** ← Fase C FECHADA
+
+### Commits desta sessao
+- `feat(ollama): MERGED-014 — router PC primary + fallback hook + per-task model map` (push master)
 
 ### Commits desta sessão
 - `fix(config): MERGED-013 — Settings central pydantic-settings`

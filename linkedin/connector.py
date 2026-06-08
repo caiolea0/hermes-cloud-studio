@@ -29,7 +29,7 @@ from .stealth import close_stealth_browser, launch_stealth_browser, save_session
 
 logger = logging.getLogger("hermes.linkedin.connector")
 
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+from .ollama_router import router as ollama_router, OllamaUnavailable
 
 
 def _db_path() -> Path:
@@ -141,7 +141,7 @@ async def _detect_connection_status_on_profile(page) -> Optional[str]:
     except Exception:
         pass
     return None
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
+
 
 CONNECTION_NOTE_PROMPT = (
     "Você é um profissional de tecnologia brasileiro buscando expandir sua rede. "
@@ -156,7 +156,7 @@ CONNECTION_NOTE_PROMPT = (
 async def _generate_connection_note(
     name: str, title: str, company: str, template: Optional[str] = None
 ) -> Optional[str]:
-    """Generate personalized connection note via Ollama."""
+    """Generate personalized connection note via ollama_router (MERGED-014). Task: creative_ptbr."""
     if template:
         # simple template substitution
         note = template.replace("{nome}", name).replace("{empresa}", company).replace("{titulo}", title)
@@ -168,26 +168,21 @@ async def _generate_connection_note(
         + f"\n\nNome: {name}\nCargo: {title}\nEmpresa: {company}\n\nNota:"
     )
 
-    import httpx
     try:
-        async with httpx.AsyncClient() as client:
-            r = await client.post(
-                f"{OLLAMA_URL}/api/generate",
-                json={
-                    "model": OLLAMA_MODEL,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"temperature": 0.7, "top_p": 0.9, "num_predict": 80},
-                },
-                timeout=45,
-            )
-        note = r.json().get("response", "").strip()
+        note = await ollama_router.route(
+            "creative_ptbr", prompt,
+            options={"temperature": 0.7, "top_p": 0.9, "num_predict": 80},
+        )
+        note = note.strip()
         if note.startswith('"') and note.endswith('"'):
             note = note[1:-1].strip()
         # enforce 280 char limit
         if len(note) > 280:
             note = note[:277] + "..."
         return note if len(note) > 15 else None
+    except OllamaUnavailable as e:
+        logger.warning(f"Ollama unavailable (no fallback): {e}")
+        return None
     except Exception as e:
         logger.warning(f"Ollama note generation failed: {e}")
         return None

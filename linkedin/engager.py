@@ -32,8 +32,8 @@ from .stealth import close_stealth_browser, launch_stealth_browser, save_session
 
 logger = logging.getLogger("hermes.linkedin.engager")
 
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
+from .ollama_router import router as ollama_router, OllamaUnavailable
+from config import settings
 
 
 COMMENT_PROMPTS = {
@@ -57,7 +57,7 @@ COMMENT_PROMPTS = {
 
 
 async def _generate_comment_ollama(post_text: str, tone: str = "professional") -> Optional[str]:
-    """Generate comment via Ollama running on local PC."""
+    """Generate comment via ollama_router (MERGED-014). Task: creative_ptbr."""
     system_prompt = COMMENT_PROMPTS.get(tone, COMMENT_PROMPTS["professional"])
     lang_hint = "pt-BR" if any(c in post_text for c in "ãçõáéíóúâêîôûàèìòù") else "en-US"
 
@@ -69,23 +69,18 @@ async def _generate_comment_ollama(post_text: str, tone: str = "professional") -
     )
 
     try:
-        async with httpx.AsyncClient() as client:
-            r = await client.post(
-                f"{OLLAMA_URL}/api/generate",
-                json={
-                    "model": OLLAMA_MODEL,
-                    "prompt": full_prompt,
-                    "stream": False,
-                    "options": {"temperature": 0.75, "top_p": 0.9, "num_predict": 120},
-                },
-                timeout=45,
-            )
-        data = r.json()
-        comment = data.get("response", "").strip()
+        comment = await ollama_router.route(
+            "creative_ptbr", full_prompt,
+            options={"temperature": 0.75, "top_p": 0.9, "num_predict": 120},
+        )
+        comment = comment.strip()
         # strip quotes if Ollama wrapped it
         if comment.startswith('"') and comment.endswith('"'):
             comment = comment[1:-1].strip()
         return comment if len(comment) > 10 else None
+    except OllamaUnavailable as e:
+        logger.warning(f"Ollama unavailable (no fallback): {e}")
+        return None
     except Exception as e:
         logger.warning(f"Ollama error: {e}")
         return None
@@ -142,8 +137,7 @@ async def _generate_validated_comment_with_meta(
     Returns: {text, attempts, ollama_model, validation_score, validation_note}
     or {text: None, ...} if all attempts failed.
     """
-    import os as _os
-    model = _os.environ.get("OLLAMA_MODEL", "qwen3:8b")
+    model = settings.ollama_model_creative
     extra_hint = ""
     for attempt in range(max_attempts):
         comment = await _generate_comment_ollama(post_text + extra_hint, tone)

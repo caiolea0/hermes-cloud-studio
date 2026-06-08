@@ -202,6 +202,14 @@ python scripts/validate_implementation.py --apply-flags  # reabre tasks pra fail
 - **Fail-closed tokens**: settings.auth_token / internal_token / vm_auth_token são strings vazias por default. Cada consumidor (server.py, hermes_api_v2.py) DEVE manter `if not TOKEN: raise RuntimeError(...)` após binding pra preservar MERGED-002/003.
 - **Pydantic-settings carrega .env automaticamente** — `load_dotenv()` em server.py / hermes_api_v2.py virou redundante mas inofensivo (mantido por compat).
 
+## 🤖 Ollama router (Fase C.4 — MERGED-014)
+
+- **TODA chamada Ollama vai por `linkedin/ollama_router.py`** — NUNCA `httpx.post` direto pra `:11434`. Use `await ollama_router.route("classify"|"creative_ptbr", prompt, options={...})`.
+- **Model map por task**: `classify` -> `qwen2.5:3b` (rapido), `creative_ptbr` -> `qwen2.5:7b-instruct` (multilingual PT-BR). Override via `HERMES_OLLAMA_MODEL_*` env.
+- **Primary = PC tunnel reverso** (RTX 2060 6GB). Fallback opcional via `HERMES_OLLAMA_FALLBACK_URL` (vazio default, sem fallback = `OllamaUnavailable` quando PC offline).
+- **Migracao VM-GPU**: trocar `OLLAMA_URL` pra `http://localhost:11434` da VM e zerar fallback. Acoplamento PC->VM some.
+- **Modelo NAO instalado** = silent fail historico (connector.py default era `qwen2.5:7b` nunca instalado). Sempre `ollama list` antes de mudar default.
+
 ## 🧩 Split monolitos (Fase C.5 — MERGED-011)
 
 - **server.py é shell fino** (~250 linhas): imports, lifespan, app FastAPI, middleware, WS /ws endpoint, include_router(*) de api/, spawn() dos 6 loops em loops/.
@@ -214,4 +222,4 @@ python scripts/validate_implementation.py --apply-flags  # reabre tasks pra fail
 - **Late imports para circular** — `loops/linkedin_scheduler.py` importa `_compute_schedule_state` de `api.linkedin` dentro do loop body (NAO no topo). `api/hermes.py:trigger_sync` importa `sync_from_vm` de `loops.sync` dentro do handler.
 - **NUNCA atualizar globals com `global` keyword pra _LI_*** — eles vivem em `core/state.py`. Use `import core.state as state; state._LI_SESSION_LAST_OK = X`.
 
-Última edição: 2026-06-08 (Chapter 17 — Fase C.5 MERGED-011).
+Última edição: 2026-06-08 (Chapter 18 — Fase C.4 MERGED-014 Ollama router).

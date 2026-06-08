@@ -27,13 +27,13 @@ if str(_ROOT) not in sys.path:
 load_dotenv(_ROOT / ".env")
 
 from core.pipeline import PipelineRunner
+from linkedin.ollama_router import router as ollama_router, OllamaUnavailable
 
 logger = logging.getLogger("hermes.daemon")
 
 # --- Configuration ---
 VM_API_URL = os.environ.get("HERMES_VM_API", "http://localhost:8420")
 LOCAL_API_URL = os.environ.get("HERMES_LOCAL_API", "http://localhost:55000")
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 DB_PATH = Path(__file__).parent.parent / "hermes_local.db"
@@ -803,29 +803,27 @@ class HermesDaemon:
     # --- Intelligence ---
 
     async def _classify_reply_intent(self, message: str, context: dict) -> str:
-        """Classify reply intent using local LLM."""
+        """Classify reply intent using local LLM via ollama_router (MERGED-014)."""
+        prompt = (
+            f"Classify this reply from a B2B prospect in Brazil.\n"
+            f"Original outreach was about: {context.get('outreach_topic', 'design services')}\n"
+            f"Reply: \"{message}\"\n"
+            f"Categories: interested, questions, not_now, not_interested, meeting_request, spam, unclear\n"
+            f"Return ONLY the category name, nothing else."
+        )
         try:
-            prompt = (
-                f"Classify this reply from a B2B prospect in Brazil.\n"
-                f"Original outreach was about: {context.get('outreach_topic', 'design services')}\n"
-                f"Reply: \"{message}\"\n"
-                f"Categories: interested, questions, not_now, not_interested, meeting_request, spam, unclear\n"
-                f"Return ONLY the category name, nothing else."
+            raw = await ollama_router.route(
+                "classify", prompt,
+                options={"temperature": 0.1, "num_predict": 20},
             )
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.post(f"{OLLAMA_URL}/api/generate", json={
-                    "model": "qwen3:8b",
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"temperature": 0.1, "num_predict": 20}
-                })
-                if resp.status_code == 200:
-                    result = resp.json().get("response", "").strip().lower()
-                    valid = {"interested", "questions", "not_now", "not_interested",
-                             "meeting_request", "spam", "unclear"}
-                    return result if result in valid else "unclear"
+            result = raw.strip().lower()
+            valid = {"interested", "questions", "not_now", "not_interested",
+                     "meeting_request", "spam", "unclear"}
+            return result if result in valid else "unclear"
+        except OllamaUnavailable as e:
+            logger.warning("Intent classification skipped (ollama unavailable): %s", e)
         except Exception as e:
-            logger.warning(f"Intent classification failed: {e}")
+            logger.exception("Intent classification failed: %s", e)
         return "unclear"
 
     async def _send_auto_response(self, prospect_id: int, intent: str, channel: str):
