@@ -246,7 +246,7 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 ### Pendentes Fase C (próxima sessão `/start-phase C`)
 - [ ] MERGED-014 — Ollama fallback router (decisão: estudar melhor modelo Ollama RTX 2060 PC + tunnel VM:11434 antes de implementar. Quando VM-GPU migrar, eliminar acoplamento naturalmente.)
 - [x] MERGED-012 — Pipeline dedupe (core/pipeline.py compartilhado entre daemon e scripts) ✅ 2026-06-08 (Chapter 16)
-- [ ] MERGED-011 — Split monolitos server.py + hermes_api_v2.py (effort L, vários sub-commits)
+- [x] MERGED-011 — Split monolitos server.py + hermes_api_v2.py ✅ 2026-06-08 (Chapter 17)
 
 ### Commits desta sessão
 - `fix(config): MERGED-013 — Settings central pydantic-settings`
@@ -268,8 +268,46 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 Commit: `bd3ecda fix(pipeline): MERGED-012 — extrai core/pipeline.py compartilhado` (push master)
 
 ### Próxima sessão
-- MERGED-011 (split monolitos — effort L iterativo) — atacar isolado
-- MERGED-014 (Ollama router) — aguarda decisão VM-GPU
+- MERGED-014 (Ollama router) — aguarda decisão VM-GPU. Fase C NÃO esta fechada até esse finding entrar.
+
+---
+
+## Chapter 17 — Fase C.5 MERGED-011 ✅ (2026-06-08)
+
+### MERGED-011 ✅ — Split monolitos
+5 commits push master.
+
+**PC side**:
+- step 1: `core/state.py` + `core/models.py` extraidos de server.py. AUTH_TOKEN/INTERNAL_TOKEN fail-closed, get_db, init_db, runtime_state helpers, spawn (MERGED-015), WSManager+ws_manager, _check_internal (MERGED-003), _telegram_notify, _local_error_until_ack (MERGED-016), _LI_* globals. Models: 14 Pydantic request models.
+- step 2: 10 routers PC extraidos para api/*.py (dashboard, prospects, activities, tasks, claude, agent_zero, audit, outreach, photos, scraper, stats). `core/ai.py` novo com call_agent_zero/call_claude_cli/call_ai/execute_claude_command.
+- step 3: 8 routers PC adicionais (pipelines, linkedin com _compute_schedule_state + _proxy_linkedin_campaign + _vm_passthrough, internal, server_ctrl, hermes, daemon, tunnel, bootstrap).
+- step 4: 6 loops extraidos para loops/ (sync, linkedin_sync, linkedin_scheduler, linkedin_health, vm_watchdog, linkedin_session). Late import `from api.linkedin import _compute_schedule_state` em loops/linkedin_scheduler.py pra evitar circular.
+- **server.py: 3685 -> 251 linhas (-3434).** 93 rotas mantidas.
+
+**VM side**:
+- step 5: `vm_core/state.py` + `vm_core/models.py` + `vm_api/routes.py` consolidado. Decisao pragmatica: 1 router file ao inves de split por dominio (audit, scraper, linkedin etc) devido a forte acoplamento entre helpers LinkedIn e endpoints.
+- **hermes_api_v2.py: 2015 -> 98 linhas (-1917).** 51 rotas no app FastAPI.
+
+**Validation**:
+- validate --finding MERGED-011: PASS
+- --phase A: 3/3 PASS
+- --phase B: 5/5 PASS  
+- --phase C: 5/6 PASS (013/009/008/012/011; 014 deferido)
+
+**VALIDATION-CHECKLIST atualizado** (paths movidos):
+- MERGED-002: core/state.py + vm_core/state.py
+- MERGED-015: core/state.py
+- MERGED-008: api/linkedin.py (proxy.*linkedin pattern)
+
+### Commits desta sessão
+- `refactor(server): MERGED-011 step 1 — extract core/state.py + core/models.py`
+- `refactor(server): MERGED-011 step 2 — extract simple PC routers (10 domains)`
+- `refactor(server): MERGED-011 step 3 — extract 8 PC routers (pipelines/linkedin/internal/server_ctrl/hermes/daemon/tunnel/bootstrap)`
+- `refactor(server): MERGED-011 step 4 — extract 6 loops to loops/`
+- `refactor(server): MERGED-011 step 5 — split VM monolith (hermes_api_v2.py)`
+
+### Fase C NAO fechada
+Aguarda MERGED-014 (Ollama router) em sessao dedicada futura.
 
 ---
 

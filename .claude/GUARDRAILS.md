@@ -202,4 +202,16 @@ python scripts/validate_implementation.py --apply-flags  # reabre tasks pra fail
 - **Fail-closed tokens**: settings.auth_token / internal_token / vm_auth_token são strings vazias por default. Cada consumidor (server.py, hermes_api_v2.py) DEVE manter `if not TOKEN: raise RuntimeError(...)` após binding pra preservar MERGED-002/003.
 - **Pydantic-settings carrega .env automaticamente** — `load_dotenv()` em server.py / hermes_api_v2.py virou redundante mas inofensivo (mantido por compat).
 
-Última edição: 2026-06-08 (Chapter 15 — Fase C.1+C.2).
+## 🧩 Split monolitos (Fase C.5 — MERGED-011)
+
+- **server.py é shell fino** (~250 linhas): imports, lifespan, app FastAPI, middleware, WS /ws endpoint, include_router(*) de api/, spawn() dos 6 loops em loops/.
+- **PC routers em `api/<dominio>.py`** — cada arquivo expoe `router = APIRouter()` e e incluido em server.py via `app.include_router()`. NAO criar `@app.<verb>(...)` novo direto em server.py: adicionar ao router do dominio relevante (ou criar novo `api/<novo>.py` + include).
+- **PC loops em `loops/<loop>.py`** — `sync_loop`, `linkedin_sync_loop`, `linkedin_scheduler_loop`, `linkedin_health_monitor_loop`, `vm_health_watchdog_loop`, `linkedin_session_monitor_loop`. Lifespan em server.py spawns todos.
+- **Shared infra em `core/state.py`** — get_db, init_db, spawn (MERGED-015), AUTH_TOKEN/INTERNAL_TOKEN fail-closed, WSManager+ws_manager, _check_internal (MERGED-003), _telegram_notify, _local_error_until_ack (MERGED-016), _LI_* globals (acessados via `state.NOME` em loops, NUNCA via `global NOME`).
+- **Pydantic models em `core/models.py`** (PC) e `vm_core/models.py` (VM). NUNCA inline em routers.
+- **AI helpers em `core/ai.py`**: call_agent_zero, call_claude_cli, call_ai, execute_claude_command. Importados por api/prospects, api/tasks, api/claude, api/agent_zero, api/scraper.
+- **VM idem**: `hermes_api_v2.py` shell fino (~98 linhas), `vm_core/state.py` shared infra, `vm_api/routes.py` consolidado (todos endpoints + helpers LinkedIn ainda fortemente acoplados).
+- **Late imports para circular** — `loops/linkedin_scheduler.py` importa `_compute_schedule_state` de `api.linkedin` dentro do loop body (NAO no topo). `api/hermes.py:trigger_sync` importa `sync_from_vm` de `loops.sync` dentro do handler.
+- **NUNCA atualizar globals com `global` keyword pra _LI_*** — eles vivem em `core/state.py`. Use `import core.state as state; state._LI_SESSION_LAST_OK = X`.
+
+Última edição: 2026-06-08 (Chapter 17 — Fase C.5 MERGED-011).
