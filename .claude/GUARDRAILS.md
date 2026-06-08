@@ -248,3 +248,171 @@ python scripts/validate_implementation.py --apply-flags  # reabre tasks pra fail
 - **Fail-open dev only**: se DOMPurify ausente (vendor não carregou), `sanitizeClaudeHtml` retorna sem sanitizar com `console.warn`. Em prod isso = bug do `<script src=...>` no index.html — investigar, não ignorar.
 
 Última edição: 2026-06-08 (Chapter 20 — Fase E.1 MERGED-010 Email + E.2 MERGED-019 XSS).
+
+## 🧪 Regression-test gate (Fase F+) — INVIOLÁVEL
+
+Toda task Fase F que toque código MADURO exige:
+1. `pre_test`: capturar estado atual (smoke test concreto, não grep)
+2. Aplicar mudança
+3. `post_test`: re-run smoke + diff esperado
+4. `python scripts/validate_implementation.py --phase A B C D E` rodado ANTES E DEPOIS do chapter
+5. 20/22 PASS preservado é gate de merge inegociável
+6. Falha em qualquer assert prévio → REVERT mandatório, NÃO "cosmético deixa quieto"
+
+**Áreas MADURAS** (qualquer toque = regression gate ativado):
+- `core/{state,models,ai,pipeline,limiter}.py` + `core/brain.py` (Fase F.6 — decide/classify/evaluate_result)
+- `core/tools.py` (Fase F.6 — ToolRegistry unificado skills+MCPs+pipelines+endpoints)
+- `core/observability/*` (Fase F.2/F.6 — OpenTelemetry tracing + WS broadcast enrichment)
+- `loops/*` (6 loops PC pós-MERGED-011; F.2 adiciona WS subsystem health broadcast)
+- `api/*` (10+ routers PC; F.1+F.2+F.6 expõem 11 fantasmas + subsystem control)
+- `vm_api/routes.py` (VM consolidado)
+- `linkedin/{stealth,human,limiter,account_profile,preflight,stealth_compliance,ollama_router}.py`
+- `channels/email/*` (recém-maduro E.1 MERGED-010)
+- `daemon/orchestrator.py` (F.6 acopla Brain.decide() em decide_next_action())
+- `mcps/gateway/server.py` (Fase F.5 — IBM ContextForge MCP Gateway; SPOF de auth/rate-limit/audit pros 3 MCPs custom)
+- `mcps/hermes-linkedin/` + `mcps/hermes-prospects/` + `mcps/hermes-skills/` (Fase F.5 — MCPs custom FastMCP 3.0)
+
+**Razão**: 20/22 findings PASS (Fases A→E parcial) custaram 6+ sessões e ~7M tokens. Regressão silenciosa = retrabalho catastrófico. Pre/post test é barato, regressão não detectada é caro.
+
+## 🎯 Fase F — Operacional + Self-Evolving (regras invioláveis)
+
+- **Backend novo SEM frontend = débito imediato.** Qualquer endpoint `@router.<verb>` novo em `api/*.py` / `vm_api/routes.py` que cobre ação que owner faria pela UI EXIGE consumo correspondente em `dashboard/app.js`. Pendente entra em `.claude/FRONTEND-GAP.md`. Owner é solo no-code — CLI é fallback, não rota padrão.
+- **Tool registry obrigatório (Chapter F.6)**: quando `core/brain.py` existir, TODA skill / pipeline / MCP / endpoint exposto pra orquestração DEVE registrar via decorator/declaration. Não-registrado = invisível pro cérebro. Sem exceção.
+- **Skill proposta auto-gerada (Chapter F.4) NUNCA aplica direto na VM**. Pipeline obrigatório: propõe → lab-test sandbox → dashboard pra owner accept/reject → sync VM. Pular gate = aceitar Hermes escrever próprio código sem revisão (bug catastrófico em loop).
+- **MCP novo (custom ou integrado)**: documentar em `.mcp.json` + criar entry em `mcps/<nome>/README.md` com tools list + exemplo invocação. MCP sem doc = não existe pro próximo Claude session.
+- **Cobaia warmup (Chapter F.7)**: NUNCA pular gates day-by-day. Daemon executa conforme schedule documentado. Owner pode pausar mas NÃO acelerar. Burn em conta cobaia = perde 14d de calibração + risco fingerprint association cross-account.
+- **Mission Control (Chapter F.2)**: estado real-time vem de WS, NÃO polling >5s. Polling >5s = aceita stale state. Adicionar tile sem WS handler = bug UX silencioso.
+
+---
+
+## Fase F — Empoderamento No-Code (regras invioláveis por chapter)
+
+> Owner é solo, no-code-first. CLI/SSH é fallback de debug, NUNCA rota padrão de operação.
+> Cada regra abaixo é cicatriz de erro previsto. Quebrar = aceitar regressão A-E ou perda de capability owner.
+
+### F.1 — Backend↔Frontend Gap Audit
+
+🚫 **NUNCA**
+- Mergear novo endpoint `@router.<verb>` em `api/*.py` / `vm_api/routes.py` sem entry correspondente em `dashboard/app.js` OU em `.claude/FRONTEND-GAP.md` (lista órfãos rastreáveis).
+- Rodar skill `hermes-frontend-gap` ignorando sanity assert dos 11 endpoints fantasma (PHASE-F-STUDY-SYNTHESIS §2). Assert hard fail = parser bugado → consertar ANTES de sobrescrever `.claude/FRONTEND-GAP.md`.
+- Sobrescrever `.claude/FRONTEND-GAP.md` quando sanity asserts falharem. Preservar baseline antigo, gerar diff, investigar.
+
+✅ **SEMPRE**
+- Re-rodar skill `hermes-frontend-gap` ao fechar QUALQUER chapter F.2-F.9 — gap atualizado é termômetro de progresso UX.
+- Cada item top 10 do FRONTEND-GAP carrega `chapter_destino` (F.2/F.6/etc) + `cli_command_replaced` (comando que owner usa HOJE) + `owner_pain_score` (1-5).
+- Scripts da skill (parse_routes.py, grep_frontend.py, rank_gaps.py) ficam em `.claude/skills/hermes-frontend-gap/scripts/` — escopados, NÃO wildcard `python *` em `settings.local.json`.
+
+### F.2 — Mission Control Real-Time + Design System
+
+🚫 **NUNCA**
+- Adicionar tile/card no Mission Control com refresh interval >5s. Owner aceita stale state silencioso = bug UX.
+- Broadcast WS novo sem passar por `ws_manager.broadcast` (MERGED-001 path). Bare `websocket.send_json` quebra auth + connection pool.
+- Modificar `loops/sync.py` ou `loops/linkedin_*.py` pra adicionar WS push sem `try/except logger.exception` no body. Loop sem guard = MERGED-007 regredido.
+
+✅ **SEMPRE**
+- Novo endpoint `/api/daemon/*` ou `/api/daemon/subsystems/*` carrega `@limiter.limit` (singleton `core/limiter.py`) + `request: Request` na assinatura.
+- WS event novo (ex: `subsystem_health`, `decision_made`) registra no inventário `.claude/observability/ws-events.md` + handler `socket.on(...)` em `dashboard/app.js` na mesma PR.
+- Design tokens (cores, espaçamento, tipo) vivem em `dashboard/styles/tokens.css`. Componentes novos (`dashboard/components/*.js`) consomem tokens, NUNCA hex literal inline.
+- Pausa de subsistema (`/api/daemon/subsystems/{name}/pause`) é REVERSÍVEL via UI. Sem botão Resume = dead-end owner.
+
+### F.3 — Cobaia LinkedIn Lab (Live Ops controlled)
+
+🚫 **NUNCA**
+- Rodar lab apontando pra `linkedin_data/profiles/main_*` ou conta Caio. Lab USA APENAS perfil descartável `lab_cobaia_*`.
+- Skip workflow `hermes-li-lab` antes de aplicar patch stealth/human/limiter em prod. Lab é gate inegociável (cicatriz: regressão fingerprint silenciosa custa burn de conta).
+- Reusar `lab_runner` resultado >24h como justificativa pra prod-merge. Lab fresh ou refazer.
+
+✅ **SEMPRE**
+- Cobaia tem sticky_session_id próprio em `linkedin_data/account_profiles/cobaia_*.json`, isolado da conta real.
+- Trace + screenshots de lab são salvos em `linkedin/lab/artifacts/` (gitignored). Owner inspeciona via UI Mission Control aba "Lab".
+- Burn flag em cobaia = log + Telegram, NUNCA auto-retry, NUNCA spawn nova cobaia automático.
+
+### F.4 — Auto-Skill Loop (Hermes propõe → owner aprova)
+
+🚫 **NUNCA**
+- Aplicar skill auto-gerada direto na VM sem passar por: `skill_proposals.status='draft'` → lab sandbox → owner accept via dashboard → scp+restart. Pular gate = Hermes escreve próprio código sem review = bug catastrófico em loop.
+- Propor skill sem `cost_budget_per_day` no YAML. Skill pode estourar API → custo silencioso.
+- Re-ativar skill auto-disabled (5+ erros) sem owner explicit unflag + Sentry root cause análise.
+
+✅ **SEMPRE**
+- Lab sandbox roda 10+ fixtures parametrizadas (incluindo prompt injection) ANTES de marcar `lab_pass`. 8+ devem passar.
+- Dashboard mostra VISUAL DIFF do YAML proposto vs versões anteriores (highlight deltas). Owner não aprova cego.
+- Cooldown 1x/dia máximo entre proposals — força acumular feedback antes de novo loop.
+- GitHub MCP abre PR no repo skills sempre que owner approva. Substitui scp+restart por PR-based deploy (audit trail nativo).
+- Auto-disable após 5+ erros → Telegram notify owner + entry em `skill_proposals.disabled_at` + Sentry trigger_seer_root_cause.
+
+### F.5 — MCP Ecosystem (Gateway + 3 custom)
+
+🚫 **NUNCA**
+- Expor 15+ MCPs direto ao Brain. SEMPRE atrás de `mcps/gateway/server.py` (IBM ContextForge). Brain consulta APENAS gateway URL.
+- Adicionar MCP novo sem entry em `.mcp.json` + `mcps/<nome>/README.md` com tools list + exemplo invocação. MCP sem doc = não existe pro próximo Claude session.
+- Usar `mcp-server-sqlite` oficial em prod (Anthropic marca educational-only). Postgres MCP Pro ou nada.
+- Conectar `LinkedIn-Posts-Hunter-MCP` (kevin-weitgenant) na conta Caio. Playwright sem stealth = ban garantido.
+- Usar Microsoft Playwright MCP na conta real LinkedIn. Apenas QA/lab/cobaia descartável.
+
+✅ **SEMPRE**
+- MCPs custom (`hermes-linkedin`, `hermes-prospects`, `hermes-skills`) escritos em FastMCP 3.0 — OAuth 2.1 + JWT audience validation + OpenTelemetry tracing default.
+- Gateway IBM ContextForge deployado APENAS na VM. PC consulta via tunnel reverse autenticado.
+- Toda invocação MCP loga em `core/observability/mcp_audit.jsonl` (tool_name, caller, ts, result_status). Audit trail é gate de compliance.
+- MCPs read-only (Postgres MCP Pro, Sentry, Hunter.io) marcados explicitamente no gateway config. Write tools (GitHub, AgentMail, Apollo sequence_create) exigem owner-token escopado.
+- Antes de adotar MCP externo: validar coverage Brasil (Apollo PME interior?), free tier limits, manutenção repo (stars+commits 6m).
+
+### F.6 — Cérebro Hermes (core/brain.py + core/tools.py)
+
+🚫 **NUNCA**
+- Substituir `daemon/orchestrator.py::decide_next_action()` rule-based P1-P7 sem mantê-lo como FALLBACK quando Brain.decide() raise/timeout. Cold-start ou Ollama down NÃO pode parar daemon.
+- Skill / pipeline / MCP / endpoint orquestrável SEM registrar em `core/tools.py::ToolRegistry`. Não-registrado = invisível pro Brain = capability fantasma.
+- Brain consultar Ollama direto. SEMPRE via `linkedin/ollama_router.py` (MERGED-014 path — model map por task, fallback control).
+- `core/brain.py` chamar `subprocess.Popen` ou `httpx.post` em loop sem `spawn()` wrapper (MERGED-015). Brain é coordenador, não executor bare.
+
+✅ **SEMPRE**
+- `Brain.decide(context)` retorna `Task` tipado (Pydantic) com campos: `tool_name`, `tool_args`, `rationale`, `expected_reward`, `fallback_chain`. Sem rationale = decisão não auditável.
+- `Brain.evaluate_result(task, result)` grava score em tabela `brain_decisions` (id, ts, tool, args_hash, rationale, result_summary, reward). Feedback loop persistido.
+- ToolRegistry é fonte canônica — `tools.list()` retorna inventário pra dashboard exibir "Capabilities Hermes" (owner vê o que daemon pode fazer).
+- Agent Zero entra como decision-maker via `tool_registry.invoke("agent_zero", task=complex_task)`, NÃO chat-isolated.
+- Multi-agent orchestration via `mcp-agent` (Swarms) padrão. 10 architectures out-of-box — Brain escolhe por classificação de task.
+
+### F.7 — Cobaia Live Ops (warmup 14d outreach real)
+
+🚫 **NUNCA**
+- Acelerar warmup day-by-day. Daemon executa schedule documentado. Owner PAUSA, NUNCA pula dias.
+- Reusar `linkedin_data/profiles/lab_*` pra cobaia live ops. Cobaia live tem perfil próprio + sticky_session_id + AccountProfile próprio.
+- Enviar outreach cobaia sem Hunter.io verifier passar. Bounce mata reputação de domínio em 7d.
+- Misturar Apollo enrichment de cobaia com prospects da conta Caio. Cross-contamination de dados.
+
+✅ **SEMPRE**
+- Cobaia tem inbox próprio via AgentMail (se budget permitir) OU subdomínio email isolado (`hermes@cobaia.dominio.tld`). Caixa Caio inviolada.
+- Warmup dia 0 = 10% daily_cap (50/dia se cap=500). Ramp linear até dia 14 = 80%. Após 14d = 100% cap.
+- Working hours enabled = TRUE em prod cobaia. Sinal anti-spam pra provedor.
+- Burn em cobaia = perde 14d calibração + risco fingerprint cross-account. Owner notificado Telegram, decisão manual de spawn nova cobaia.
+- Discovery prospect via MCP Omnisearch (Brave+Kagi+Exa+Firecrawl) — NUNCA scraping bare sem rate-limit.
+
+### F.8 — Pipelines Configuráveis Visuais
+
+🚫 **NUNCA**
+- Pipeline editor visual permitir nó `subprocess.run` / `eval` / `exec` arbitrário owner-input. Sandboxed tool calls APENAS via ToolRegistry.
+- Persistir pipeline definition em arquivo `.py` executável. SEMPRE JSON declarativo + interpretador `core/pipeline.py`.
+- Pipeline em execução sem botão Stop/Cancel na UI. Owner trancado = bug UX.
+
+✅ **SEMPRE**
+- Pipeline JSON schema em `core/pipeline_schema.json` (versionado). Editor visual valida client-side ANTES de POST.
+- Cada nó pipeline = invocação `tool_registry.invoke(tool_name, args)`. Composabilidade vem do registry, não de código custom.
+- Execution log streamado via WS `pipeline_progress` event. Owner vê step-by-step real-time.
+- Dry-run obrigatório antes de production-run. Schema validation + tool availability check + cost estimate.
+
+### F.9 — Memory + Knowledge Graph
+
+🚫 **NUNCA**
+- Persistir memory facts em SQLite sidecar novo. SEMPRE via agentmemory MCP (PC :3111 escopo geral + logo-architect isolado + VM :3111 Hermes próprio).
+- Cross-contaminar escopos memory. Hermes escreve em VM agentmemory APENAS. PC agentmemory é pro owner/Claude global.
+- Memory fact sem `concepts` (2-5 lowercase keywords) + `type` (bug/architecture/preference/workflow). Sem metadata = não-searchable.
+
+✅ **SEMPRE**
+- `memory_save` automático após: bug fix, decisão arquitetural, preferência owner descoberta, git commit, session end.
+- Memory facts 1-3 sentences máximo. Dense, factual, searchable.
+- Knowledge graph via `memory_graph_query` exposto no dashboard aba "Memória Hermes". Owner navega visualmente.
+- Forget/delete sempre confirmado por owner via UI (skill `/forget`). NUNCA Hermes apaga memory autônomo.
+
+---
+
+Última edição: 2026-06-08 (Fase F empoderamento no-code — F.1 a F.9 + áreas MADURAS atualizadas com core/brain.py, core/tools.py, core/observability/*, mcps/gateway/server.py, mcps/hermes-*).

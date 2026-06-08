@@ -1,606 +1,388 @@
-# Hermes Cloud Studio — Plano Mestre
-
-> **Fonte da verdade durável**. Sobrevive a compressão de contexto, fim de sessão, crash.
-> Atualizar a cada milestone. Última edição: 2026-06-07.
-
----
-
-## Contexto estratégico (do owner)
-
-- **Estágio**: embrionário. Testes só on-demand. Nenhum bem-sucedido (detecção LinkedIn).
-- **Visão**: Hermes 24/7 interagindo com LinkedIn + ferramentas externas (prospecção → audit → proposta → site → entrega) com UI real-time.
-- **Dor #1**: passar detecção LinkedIn.
-- **Dor #2**: Hermes criar próprias skills, ser proativo, usar 100% potencial.
-- **Time**: solo agora, sócio futuro (comercial+marketing). Owner foca em estratégia/sites/apps.
-- **Sucesso**: muitas horas/dia LinkedIn sem ban + workflow expansão networking + prospecção+atendimento clientes integrados.
-- **Restrição mês**: migrar pra VM com GPU. Usar Ollama/HuggingFace/modelos free orquestrados Claude no PC. Zero API externa além da assinatura.
-- **Riscos**: ban LinkedIn; pipelines siloed sem conversar.
-
----
-
-## Gargalos diagnosticados
-
-1. **LinkedIn detection** — bloqueia tudo. Prioridade absoluta.
-2. **Silos** — channels Email/WA/IG são stubs.
-3. **Skills estáticas** — sem feedback loop, Hermes não evolui.
-
----
-
-## Fases
-
-### Fase 1 — Sobrevivência LinkedIn (semanas 1-2)
-Endurecer stealth/human/limiter. Lab mode. Sem isso nada importa.
-
-### Fase 2 — Cross-channel + auto-skills (semanas 3-6)
-Implementar channels reais. Hermes propõe próprias skills (workflow W3).
-
-### Fase 3 — Convergência (semanas 7-10)
-Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolidado.
-
-**Paralelo a fase 1**: migração VM GPU.
-
----
-
-## Execução desta sessão (2026-06-07)
-
-### Chapter 1 — Setup persistência ✅
-- [x] PLAN.md criado
-- [x] TaskCreate
-- [x] memory_save inicial
-- [x] chapter mark
-
-### Chapter 2 — Skill `/audit-project` global
-- [ ] `~/.claude/skills/audit-project/SKILL.md`
-- [ ] Inclui fase obrigatória de persistência (PLAN.md + TaskCreate + memory + chapters)
-- [ ] Rodar no Hermes → produz `.claude/AUDIT.md`
-
-### Chapter 3 — MCP `hermes-control` (TypeScript) ✅
-- [x] Scaffold `mcps/hermes-control/` (TS, MCP SDK 1.0.4)
-- [x] 16 tools: hermes_status, list_prospects, daemon_state/control, li_health/rate_limits/campaigns, activities, pipeline_list/execute, scraper_status/start, audit_start, skills_list/toggle, server_restart
-- [x] Registrado em `.mcp.json`
-- [x] Smoke test: npm install + tsc OK
-- [ ] **Pendente**: restart Claude Code pra MCP carregar; configurar `HERMES_AUTH_TOKEN` no env do shell
-
-### Chapter 4 — Workflow `linkedin-anti-detection-sweep` ✅
-- [x] Script `.claude/workflows/li-anti-detection.js`
-- [x] Orçamento confirmado (3% sessão, plano Max 5x)
-- [x] Executado: 52 agents, 1.86M tokens, 9.3min
-- [x] Output: `.claude/STEALTH-PATCHES.md` (101KB, 676 linhas)
-- [x] **8 patches confirmados** de 15 propostos (>=2 lentes valid de 3):
-  - 🔴 PATCH-003 — Mobile/ISP sticky proxy 1:1 por account (critical)
-  - 🔴 PATCH-004 — WebGL renderer 65 params coerentes UA (critical)
-  - 🔴 PATCH-005 — navigator.webdriver via prototype (critical)
-  - 🔴 PATCH-008 — Session continuity li_at+IP+fingerprint binding (critical)
-  - 🟡 PATCH-007 — Rate limiter 2026 (20-30 conn/dia, 100/sem)
-  - 🟡 PATCH-009 — Behavioral signals: dwell, scroll, hover, feed warm-up
-  - 🟡 PATCH-013 — window.chrome stub completo
-  - 🟡 PATCH-014 — Warm-up 14d + acceptance rate guard >70%
-
-### Chapter 5 — Skills + Subagents + Slash commands locais ✅
-**Skills** (`.claude/skills/`):
-- [x] `hermes-status` · `hermes-deploy` · `hermes-li-lab` · `hermes-bug-hunt` · `hermes-stealth-audit`
-- [ ] Defer fase 2: `hermes-skill-forge`, `hermes-channel-impl`, `hermes-pipeline-design`, `hermes-db-query`
-
-**Subagents** (`.claude/agents/`):
-- [x] `linkedin-detection-researcher` · `linkedin-flow-debugger` · `vm-deploy-verifier`
-- [ ] Defer fase 2: `pipeline-architect`, `skill-yaml-validator`, `hermes-meta-strategist`
-
-**Slash commands** (`.claude/commands/`): 8 wrappers ✅
-- [x] `/hermes-status`, `/hermes-deploy`, `/hermes-restart`, `/hermes-li-lab`, `/hermes-bug-hunt`, `/hermes-stealth-check`, `/hermes-debug-li`, `/hermes-verify-deploy`
-
-### Chapter 6 — Fecho ✅
-- [x] PLAN.md estado final
-- [x] MEMORY.md global atualizada
-- [x] Lembrar owner: organizar commits do projeto
-
----
-
-## Resumo executivo da sessão 2026-06-07
-
-**Tempo total**: ~1h30min
-**Artefatos criados**: 22 arquivos
-**Tokens consumidos**: ~2M (1.86M no workflow + ~100k main loop)
-
-**Próximas ações para o owner (priorizadas)**:
-
-1. **Restart Claude Code** pra MCP `hermes-control` carregar
-2. **Configurar `HERMES_AUTH_TOKEN`** no env do shell (necessário pro MCP)
-3. **Ler STEALTH-PATCHES.md** — começar por PATCH-003, 004, 005, 008 (critical)
-4. **Criar conta LinkedIn cobaia** pra `/hermes-li-lab` antes de aplicar patches em prod
-5. **Adquirir proxy ISP/mobile sticky** (PATCH-003 depende — operacional, ~$15-50/mês por IP)
-6. **Commits**: organizar mudanças não comitadas + esta sessão (aguardando prompt do owner)
-7. **Bug fix rápido** (5 min): `import time` no topo de `server.py` (linhas 698, 722)
-
----
-
-## Decisões arquiteturais tomadas nesta sessão
-
-- **MCP linguagem**: TypeScript (SDK Anthropic mais maduro, npx-friendly, ecosystem MCP nativo).
-- **Persistência**: 5 camadas — PLAN.md disco + TaskCreate + artefatos disco + agentmemory + chapter marks.
-- **Auditoria reusável**: skill global `/audit-project` com fase de persistência **obrigatória** ao final.
-- **Workflow stealth**: construir antes de aprovar execução (revisão de custo).
-
----
-
-## Pendências pra sessões futuras
-
-- Implementar channels Email/WA/IG (workflow W2)
-- Auto-skill loop Hermes (workflow W3)
-- VM GPU migration (workflow W4)
-- MCPs adicionais: `linkedin-lab`, `ollama-router`, `prospect-enricher`
-- Considerar Cowork quando sócio entrar OU Telegram bridge doer
-- ~~Resolver bug conhecido: `time.time()` sem import em `server.py:698,722`~~ ✅ resolvido sessão 2026-06-07
-
-## Sessão extra 2026-06-07 (próximos passos práticos)
-
-### ✅ Concluído
-- HERMES_AUTH_TOKEN gerado + .env + User env var Windows
-- Bug `import time` corrigido (server.py:20)
-- Estratégia proxy FREE definida (IP residencial nativo pra cobaia, hotspot 4G pra futura conta real)
-- Conta cobaia `milgrauz.exe@gmail.com` configurada em `.env` (LINKEDIN_LAB_*)
-- **`linkedin/lab/`** completo: lab_runner.py + 3 flows (fingerprint, login, viewer_test) + README + .gitignore
-
-### Pra owner rodar (próximo)
-1. **Fingerprint baseline**: `python -m linkedin.lab.lab_runner --flow fingerprint`
-2. **Login fresh Patchright**: `python -m linkedin.lab.lab_runner --flow login --manual-password`
-   - Vai abrir browser headful. Email auto-preenchido. Senha digitada por você. Esperado: challenge na primeira vez.
-3. **Verificar artefatos**: `linkedin/lab/artifacts/{flow}/{timestamp}/`
-4. **Aguardar 24h** antes de viewer test
-
-### Tasks ainda pendentes
-- #8 PATCH-008 reduzido (AccountProfile + burned_flag)
-- #9 PATCH-014 reduzido (acceptance_rate guard)
-- #11 PATCH-013 (window.chrome stub) com ressalvas
-
-## Chapter 7 — Resiliência + Compliance (2026-06-07) ✅
-
-### Infra always-on
-- ✅ `scripts/tunnel_supervisor.py` — loop 30s, port probe + SSH egress check, auto-restart exponential backoff
-- ✅ `scripts/tunnel_supervisor.bat` + `install_tunnel_supervisor.ps1` — Task Scheduler `HermesTunnelSupervisor` at logon
-- ✅ Validado: `--status` retorna `egress_residential: true ip 191.202.9.94`
-- ✅ Loop rodando como PID daemon, log em `logs/tunnel_supervisor.log`
-
-### Stealth compliance inegociável
-- ✅ `linkedin/preflight.py` — `assert_tunnel_healthy` fail-closed. Datacenter blocklist. Raises ProxyHealthError.
-- ✅ `linkedin/stealth_compliance.py` — probe JS pos-launch 18 sinais (critical/high/medium). Score 0-100. Auto-correct lang + chrome.loadTimes. Aborta se score<70 OU critical fail.
-- ✅ Plumbing em `linkedin/stealth.py`: preflight ANTES Patchright, compliance gate APÓS page criada.
-- ✅ Env knobs: `HERMES_SKIP_PREFLIGHT`, `HERMES_SKIP_COMPLIANCE`, `HERMES_COMPLIANCE_STRICT`, `HERMES_COMPLIANCE_MIN_SCORE`.
-
-### Fix gaps reais do lab
-- ✅ Locale `pt-BR` em `launch_kwargs` — mata mismatch `en-US/America/Cuiaba`
-- ✅ WebGL via ANGLE+SwiftShader+Vulkan (`--use-gl=angle`, `--use-angle=swiftshader`, `--enable-features=Vulkan`)
-- ✅ xvfb-run `--server-args='-screen 0 1920x1080x24'` via `linkedin/lab/run.sh`
-- ✅ Mesa instalado (`mesa-utils`, `libgl1-mesa-dri`) via `sudo apt-get` NOPASSWD
-
-### Baseline atualizado (run 20260608T015739Z)
-| Sinal | Antes | Agora |
-|---|---|---|
-| `lang` | en-US | **pt-BR** ✅ |
-| WebGL renderer | vazio | **WebKit WebGL** (ANGLE/Vulkan/SwiftShader) ✅ |
-| Compliance gate | abortou (86) | **passou** ✅ |
-| Egress | 191.202.9.94 | 191.202.9.94 ✅ |
-
-### Próximo
-- ~~Tasks #8 (PATCH-008 reduzido), #11 (PATCH-013), #9 (PATCH-014)~~ ✅
-- Antes de outreach real: re-run completo CreepJS+amiunique pra score quantificado
-
-## Chapter 8 — Patches A/B/C aplicados ✅ (2026-06-07)
-
-### Task #8 PATCH-008 escopo reduzido ✅
-- `linkedin/account_profile.py` — dataclass + JSON sidecar em `linkedin_data/account_profiles/`
-- AccountProfile.load_or_create + burn() + unburn() + check_and_burn(url)
-- BURN_URL_PATTERNS: /checkpoint, /uas/login, /authwall, session-expired, /blocked, /login-submit
-- assert_not_burned() helper — raise RuntimeError se burned
-- Plumbing `linkedin/stealth.py`: ACCOUNT BURN GATE após preflight, atribui `page._account_profile`
-- Plumbing `linkedin/lab/flows/login.py` + `viewer_test.py`: record_login, record_challenge, check_and_burn nos authwalls
-- Smoke test 100%: create, detect signals, burn, assert raise, unburn, reload preserva sticky_session_id
-
-### Task #11 PATCH-013 window.chrome stub ✅
-- Substituído stub antigo em `_STEALTH_SCRIPTS[1]`
-- t0 lazy via `performance.timeOrigin` (NÃO Date.now())
-- loadTimes/csi com Object.freeze (Chrome real: requestTime===requestTime)
-- wasAlpnNegotiated=true, alpnNegotiatedProtocol='h2' (NÃO NPN obsoleto)
-- runtime.connect retorna Port com onDisconnect async + lastError (Chrome real, NÃO throw)
-- toString hardening por função (`_native(name)`)
-- Object.keys(chrome.runtime) ordem realista
-- Só ativa fallback `not use_patchright`. Invariants smoke test 6/6 OK.
-
-### Task #9 PATCH-014 acceptance_rate guard ✅
-- 2 tabelas novas em `linkedin/limiter.py`: `pending_invites` + `acceptance_cooldown`
-- Métodos: `record_invite_sent/accepted/withdrawn`, `compute_acceptance_rate`, `evaluate_and_set_cooldown`, `force_lift_acceptance_cooldown`
-- Janela d-14 a d-7 (respeitando lag aceitação LinkedIn 3-7d) — NÃO 7d simples
-- MIN_SAMPLE=10 antes de avaliar (evita false positive)
-- THRESHOLD=40%, COOLDOWN=7d
-- Plumb em `can_perform("connection_request")` — bloqueia se cooldown ativo
-- Smoke test: 7/7 OK (empty, sample<10 ignora, rate calculado, cooldown trigger, can_perform bloqueia, profile_view não bloqueado, lift OK)
-
-### Próximos passos sugeridos (sessão futura)
-1. **Conectar invite tracking real**: connector.py chama limiter.record_invite_sent(invite_id) em send_invite
-2. **Polling /mynetwork/invitation-manager/sent/** 1x/dia pra detectar accepted/withdrawn (PATCH-014 part 2 — não implementado nesta sessão)
-3. **Re-run CreepJS + amiunique** com fingerprint_baseline.py expandido (eval JS pós-render pra ler score SPA)
-4. ~~**Lab login real** com milgrauz.exe@gmail.com~~ ✅ APROVADO 2026-06-07
-5. **Commits do projeto inteiro** (organizar 7+ chapters de mudanças)
-6. **Fix `_extract_profile_data`**: nome/headline vazios no result (LinkedIn DOM mudou — selectors precisam update)
-
-## Chapter 15 — Fase C.1 + C.2 CONCLUÍDAS ✅ (2026-06-08)
-
-### MERGED-013 ✅ — Settings central pydantic-settings
-- `config.py` raiz com HermesSettings (BaseSettings) — fonte canônica de TODAS env vars
-- server.py: 31 → 1 os.environ.get (USERPROFILE Windows OS keep)
-- hermes_api_v2.py: 15 → 1 (LI_AT runtime keep, set dinamicamente por li_at_update)
-- `vm_api_url_resolved` property: computa http://{vm_host}:{vm_api_port} se HERMES_VM_API não setado
-- Fail-closed tokens preservado (AUTH_TOKEN/INTERNAL_TOKEN/VM_AUTH_TOKEN raise se vazio)
-- requirements.txt: +pydantic-settings>=2.0
-- .env.example: documenta AGENTMEMORY_URL, HERMES_VM_RESTART_CMD, HERMES_PC_EVENT_URL, VM_API_PORT, HERMES_HOME
-
-### MERGED-009 ✅ — IP VM via settings.vm_host
-- server.py:3149 — SSH restart usa f"{settings.vm_user}@{settings.vm_host}"
-- scripts/tunnel_supervisor.py — VM_HOST/VM_USER/SOCKS5_PORT vem de settings
-- linkedin/preflight.py mantém VM_HOST="136.115.74.69" (constante de segurança datacenter blocklist, distinct de config)
-- Migração VM-GPU agora exige apenas `VM_HOST=<novo-ip>` no .env
-
-**validate --phase A**: PASS 3/3 (sem regressão)
-**validate --phase B**: PASS 5/5 (sem regressão)
-**validate --phase C**: 3/6 PASS (013, 009, 008)
-
-### Pendentes Fase C (próxima sessão `/start-phase C`)
-- [x] MERGED-014 — Ollama fallback router ✅ 2026-06-08 (Chapter 18)
-- [x] MERGED-012 — Pipeline dedupe (core/pipeline.py compartilhado entre daemon e scripts) ✅ 2026-06-08 (Chapter 16)
-- [x] MERGED-011 — Split monolitos server.py + hermes_api_v2.py ✅ 2026-06-08 (Chapter 17)
-
-## Chapter 19 — Fase D iniciada (2026-06-08)
-
-### D.1 MERGED-017 ✅ — psutil subprocess supervision
-- `vm_api/routes.py`: `kill -0` (Linux-only) -> `psutil.pid_exists` + `is_running` + `STATUS_ZOMBIE` check com guard de `create_time` contra PID reciclado pelo SO.
-- PID file agora JSON `{pid, create_time}`; legacy plain text mantido com fallback (`_read_pid_meta`).
-- `vm_core/state.py`: `_tracked_subprocs` set + `register_subproc()` + `terminate_tracked_subprocs(grace=5s)` (SIGTERM → SIGKILL).
-- `hermes_api_v2.py` lifespan shutdown chama `terminate_tracked_subprocs()` antes do DB close.
-- `requirements.txt`: `psutil>=5.9.0` + instalado VM via `pip3 install --user --break-system-packages`.
-- `VALIDATION-CHECKLIST.md`: targets atualizados pós-MERGED-011 (server.py -> vm_api/routes.py).
-- **validate --finding MERGED-017: PASS**
-
-Commit: `fix(infra): MERGED-017 — psutil subprocess supervision pra scraper` (push master e8871e4).
-
-### D.2 MERGED-018 ✅ — Session monitor consecutive failures
-- `core/state.py`: `_LI_SESSION_FAIL_STREAK = 0` novo.
-- `loops/linkedin_session.py`: `REQUIRED_FAILS = 3`. Probe ok zera streak. Alert Telegram só dispara quando streak >= REQUIRED_FAILS (janela de 3h). Mata spam por flake de rede / VM lag.
-- `server.py` lifespan restaura `_LI_SESSION_FAIL_STREAK` via `get_runtime_state("li_session_fail_streak", 0)`.
-- Smoke comportamental 4/4: 2 fails sem alert; 3o fail dispara; ok zera streak + restored; flake (1 fail isolado) não notifica.
-- **validate --finding MERGED-018: PASS**
-
-Commit: `fix(loops): MERGED-018 — session monitor exige 3 falhas consecutivas` (push master 25de712).
-
-### D.3 MERGED-020 ✅ — Rate-limit `/api/server/restart-*` (slowapi)
-- `core/limiter.py` novo: `Limiter(key_func=get_remote_address)` singleton.
-- `server.py`: `app.state.limiter = limiter` + `add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)`.
-- `api/server_ctrl.py`: `@limiter.limit("2/hour")` em 4 endpoints (restart-local, shutdown-local, restart-vm, restart-all) + `Request` param obrigatório na assinatura.
-- `requirements.txt`: `slowapi>=0.1.9`.
-- Smoke TestClient: 5x POST → `[200, 200, 429, 429, 429]` (limite 2/hour enforced).
-- **validate --finding MERGED-020: PASS**
-
-Commit: `fix(api): MERGED-020 — slowapi rate-limit /api/server/restart-* (2/hour)` (push master cee06c5).
-
-### D.4 MERGED-006 ✅ — Sync versioning + conflict detection
-- **Schema migrations** (idempotentes):
-  - PC `core/state.py` init_db: `prospects.version` (default 1), `prospects.last_synced_version` (default 0), `prospects.conflict_at` REAL nullable.
-  - VM `vm_core/state.py` init_db: `prospects.version` (default 1). `updated_at` ja existia.
-  - VM live migration aplicada via SSH (`~/.hermes/data/command_center.db`).
-- **Version bumps em UPDATE prospects**:
-  - PC `api/prospects.py` (3 sites): `update_prospect`, `bulk stage_change`, `bulk score_update`.
-  - VM `vm_api/routes.py` (5 sites): `update_prospect`, 2 audit UPDATEs, 2 outreach UPDATEs.
-- **loops/sync.py — conflict policy**:
-  - `vm_changed = vm.version > local.last_synced_version`; `local_changed = local.version > max(last_synced, 1)`
-  - ambos changed → `conflict_at = time.time()`, local **preservado** (NÃO sobrescreve), log warning + WS broadcast com count.
-  - só vm → apply update, `last_synced_version = vm.version`.
-  - só local → no-op (push pending — feature futura).
-  - nada → no-op.
-- **Endpoint novo**: `POST /api/prospects/{id}/resolve-conflict` em `api/prospects.py` limpa `conflict_at`.
-- **Smoke comportamental 3/3**: VM update aplicado; local edit preservado quando VM idle; ambos editados → conflict_at marcado sem sobrescrever.
-- **validate --finding MERGED-006: PASS**
-- **validate --phase D: 4/4 PASS** ← Fase D FECHADA
-- **Sem regressão**: A 3/3 + B 5/5 + C 6/6 + D 4/4 = 18 PASS total. Restam E (channels Email/WA/IG + XSS) intocados.
-
-Commit: `fix(sync): MERGED-006 — versioning prospects com conflict detection` (push master 7b14fc5).
-
-### Fase D FECHADA ✅ — Resumo
-4 commits push master: e8871e4 (017), 25de712 (018), cee06c5 (020), 7b14fc5 (006).
-GUARDRAILS.md ganhou seção "Infra & Supervision" com 6 regras novas.
-VALIDATION-CHECKLIST.md atualizado: 4 findings com paths pós-MERGED-011.
-Próxima sessão: `/start-phase E` (channels Email/WA/IG + XSS sanitization).
-
-## Chapter 20 — Fase E.1 + E.2 parcial (2026-06-08)
-
-### E.1 MERGED-010 Email channel ✅
-- `channels/email/{config.py, limiter.py, sender.py, __init__.py}` paralelo a linkedin/.
-- `EmailConfig.from_settings()` carrega de pydantic settings.
-- `EmailLimiter`: warmup 14d (10-80%) + daily 500/hourly 50 + working hours Mon-Fri 8-19.
-- Tabelas `email_actions` + `email_warmup_state` em `channels_data/email/email_rate.db` (reusa `linkedin/db_utils._connect` com WAL + busy_timeout 30s).
-- `EmailSender`: SMTP Gmail App Password (STARTTLS) + retry exponencial transient codes (421/450-454) + Message-ID + X-Hermes-Campaign-Id header pra tracking.
-- `config.py` +7 fields pydantic (EMAIL_SMTP_HOST/PORT, EMAIL_DAILY_CAP/HOURLY_CAP, EMAIL_WARMUP_*).
-- `.env.example` documenta knobs novos. `.env` populado com Gmail App Password cleao.mkt@gmail.com.
-- Smoke PASS. **validate --finding MERGED-010 (E.1): PASS**.
-- Commit: `466a48a feat(channels): MERGED-010 E.1 — channel Email SMTP Gmail + warmup limiter` (push master).
-
-### E.2 (XSS) MERGED-019 DOMPurify ✅
-- `dashboard/vendor/purify.min.js` (DOMPurify 3.2.4 Cure53, vendor local) carregado antes de app.js.
-- `app.js`: novo `sanitizeClaudeHtml(html)` com ALLOWED_TAGS restritivo (div/span/p/br/hr/strong/em/b/i/u/code/pre/svg/use/a/ul/ol/li) + ALLOWED_ATTR (style/class/href/use). ALLOW_DATA_ATTR=false.
-- Wrap em `formatInline()` e `renderMarkdownTerminal()` antes do `innerHTML +=`. Defesa em profundidade contra payload escape mal formado.
-- **validate --finding MERGED-019: PASS**.
-- Commit: `5b042b9 fix(dashboard): MERGED-019 — DOMPurify allowlist no Claude markdown render` (push master).
-
-### Status global pós-sessão
-**validate (tudo)**: PASS 20 / FAIL 2 / SKIP 0
-- A 3/3 + B 5/5 + C 6/6 + D 4/4 + E.1 + E.2(XSS) ✅
-- Pendentes: MERGED-010 E.2 (WhatsApp) e E.3 (Instagram). Deferidos por design do PLAN — testar 30d Email antes de implementar próximo channel.
-
-### Pendências futuras sessão dedicada
-- E.2 (WhatsApp) — decisão estratégica owner: Business API (paga, sem ban) vs wppconnect/Baileys (free, risco ban). Antes: 30d operação Email pra calibrar.
-- E.3 (Instagram) — Graph API ou DM via Selenium. Risco ban alto. Por último.
-
----
-
-## Chapter 18 — Fase C.4 MERGED-014 ✅ (2026-06-08)
-
-### MERGED-014 ✅ — Ollama fallback router
-- `linkedin/ollama_router.py` novo: `OllamaRouter` async com primary (PC tunnel :11434) + fallback opcional. Por-task model map: `classify` -> `qwen2.5:3b`, `creative_ptbr` -> `qwen2.5:7b-instruct`. `OllamaUnavailable` exception quando primary + fallback falham.
-- `config.py`: 6 novos campos pydantic — `ollama_url`, `ollama_url_fallback`, `ollama_model_classify`, `ollama_model_creative`, `ollama_connect_timeout`, `ollama_request_timeout`.
-- `.env.example` documenta os 6 novos knobs + nota migracao VM-GPU.
-- Refator 3 sites na VM:
-  - `daemon/orchestrator.py:_classify_reply_intent` — substitui httpx direto por `ollama_router.route("classify", ...)`. `qwen3:8b` (overkill) -> `qwen2.5:3b` via task map.
-  - `linkedin/engager.py:_generate_comment_ollama` — substitui httpx por `ollama_router.route("creative_ptbr", ...)`. Bug fixado: `_generate_validated_comment_with_meta` lia `OLLAMA_MODEL` env diretamente, agora usa `settings.ollama_model_creative`.
-  - `linkedin/connector.py:_generate_connection_note` — substitui httpx por `ollama_router.route("creative_ptbr", ...)`. Bug fixado: default era `qwen2.5:7b` que NUNCA estava instalado no PC (silent fail historico desde sempre).
-- Install novo modelo PC: `qwen2.5:7b-instruct` (4.7GB, fit confortavel RTX 2060 6GB).
-
-### Estudo modelos PC (RTX 2060 6GB, 4.4GB free)
-Instalados pre-existentes: `devstral` (14GB nao fit), `qwen3:8b` (5.2GB tight KV cache), `qwen2.5-coder:7b` (codigo, nao PT-BR creative), `qwen2.5:3b` (1.9GB, perfeito classify), `nomic-embed-text` (embeddings).
-
-Decisao: instalar `qwen2.5:7b-instruct` (multilingual solido PT-BR, fit 6GB com KV cache pra prompts ~2k tokens). Mantem `qwen2.5:3b` pra classify (sub-segundo). Migracao VM-GPU = trocar OLLAMA_URL + zerar fallback, modelos viajam via Ollama na VM.
-
-### Sem fallback configurado (intencional)
-VM atual sem GPU = qualquer modelo no VM-CPU derruba daemon. Hook fica pronto com log claro `"PC offline, no fallback configured"`. Owner liga `HERMES_OLLAMA_FALLBACK_URL` quando VM-GPU chegar.
-
-### Smoke test executado
-- Router import OK
-- End-to-end classify: PASS (`qwen2.5:3b` retorna "questions" pra "sounds great, when can we chat?")
-- End-to-end creative_ptbr: PASS (`qwen2.5:7b-instruct` gera PT-BR coerente)
-- Fallback path bogus primary: `OllamaUnavailable` levantado conforme esperado
-- Fallback path bogus primary + valido fallback: PASS (caminho funciona quando configurado)
-
-### Validacao final
-- validate --finding MERGED-014: PASS
-- validate --phase A: 3/3 PASS (sem regressao)
-- validate --phase B: 5/5 PASS (sem regressao)
-- **validate --phase C: 6/6 PASS** ← Fase C FECHADA
-
-### Commits desta sessao
-- `feat(ollama): MERGED-014 — router PC primary + fallback hook + per-task model map` (push master)
-
-### Commits desta sessão
-- `fix(config): MERGED-013 — Settings central pydantic-settings`
-- `fix(config): MERGED-009 — IP VM via settings.vm_host`
-
----
-
-## Chapter 16 — Fase C.6 MERGED-012 ✅ (2026-06-08)
-
-### MERGED-012 ✅ — Pipeline dedupe (core/pipeline.py)
-- `core/pipeline.py` novo: `PipelineRunner` async com `discovery()`, `audit_pending()`, `outreach_ready()`, `run_full()`. Encapsula HTTP plumb (headers auth, _request, _log_activity, dedupe via _existing_prospects_keys) e imports tardios de scraper/audit/outreach (não carrega scraper pesado no daemon)
-- `scripts/pipeline.py` reescrito como thin CLI: parse argparse → `asyncio.run(PipelineRunner.from_settings().run_full(...))`. Mesma interface (--mode full/discovery/audit-pending/outreach-ready)
-- `daemon/orchestrator.py`: import `from core.pipeline import PipelineRunner` + `self.pipeline = PipelineRunner(api_url=LOCAL_API_URL, ...)` no `__init__`. `_exec_batch_audit` agora delega pra `self.pipeline.audit_pending()`. `_exec_discovery` mantém `/api/scraper/start` (fluxo VM scraper distinto, não conflita)
-- `PipelineRunner.from_settings()`: helper que constrói a partir do `config.settings`
-
-**validate --finding MERGED-012**: PASS
-**validate --phase C**: 4/6 PASS (013, 009, 008, 012 ✓; 014, 011 pendentes)
-
-Commit: `bd3ecda fix(pipeline): MERGED-012 — extrai core/pipeline.py compartilhado` (push master)
-
-### Próxima sessão
-- MERGED-014 (Ollama router) — aguarda decisão VM-GPU. Fase C NÃO esta fechada até esse finding entrar.
-
----
-
-## Chapter 17 — Fase C.5 MERGED-011 ✅ (2026-06-08)
-
-### MERGED-011 ✅ — Split monolitos
-5 commits push master.
-
-**PC side**:
-- step 1: `core/state.py` + `core/models.py` extraidos de server.py. AUTH_TOKEN/INTERNAL_TOKEN fail-closed, get_db, init_db, runtime_state helpers, spawn (MERGED-015), WSManager+ws_manager, _check_internal (MERGED-003), _telegram_notify, _local_error_until_ack (MERGED-016), _LI_* globals. Models: 14 Pydantic request models.
-- step 2: 10 routers PC extraidos para api/*.py (dashboard, prospects, activities, tasks, claude, agent_zero, audit, outreach, photos, scraper, stats). `core/ai.py` novo com call_agent_zero/call_claude_cli/call_ai/execute_claude_command.
-- step 3: 8 routers PC adicionais (pipelines, linkedin com _compute_schedule_state + _proxy_linkedin_campaign + _vm_passthrough, internal, server_ctrl, hermes, daemon, tunnel, bootstrap).
-- step 4: 6 loops extraidos para loops/ (sync, linkedin_sync, linkedin_scheduler, linkedin_health, vm_watchdog, linkedin_session). Late import `from api.linkedin import _compute_schedule_state` em loops/linkedin_scheduler.py pra evitar circular.
-- **server.py: 3685 -> 251 linhas (-3434).** 93 rotas mantidas.
-
-**VM side**:
-- step 5: `vm_core/state.py` + `vm_core/models.py` + `vm_api/routes.py` consolidado. Decisao pragmatica: 1 router file ao inves de split por dominio (audit, scraper, linkedin etc) devido a forte acoplamento entre helpers LinkedIn e endpoints.
-- **hermes_api_v2.py: 2015 -> 98 linhas (-1917).** 51 rotas no app FastAPI.
-
-**Validation**:
-- validate --finding MERGED-011: PASS
-- --phase A: 3/3 PASS
-- --phase B: 5/5 PASS  
-- --phase C: 5/6 PASS (013/009/008/012/011; 014 deferido)
-
-**VALIDATION-CHECKLIST atualizado** (paths movidos):
-- MERGED-002: core/state.py + vm_core/state.py
-- MERGED-015: core/state.py
-- MERGED-008: api/linkedin.py (proxy.*linkedin pattern)
-
-### Commits desta sessão
-- `refactor(server): MERGED-011 step 1 — extract core/state.py + core/models.py`
-- `refactor(server): MERGED-011 step 2 — extract simple PC routers (10 domains)`
-- `refactor(server): MERGED-011 step 3 — extract 8 PC routers (pipelines/linkedin/internal/server_ctrl/hermes/daemon/tunnel/bootstrap)`
-- `refactor(server): MERGED-011 step 4 — extract 6 loops to loops/`
-- `refactor(server): MERGED-011 step 5 — split VM monolith (hermes_api_v2.py)`
-
-### Fase C NAO fechada
-Aguarda MERGED-014 (Ollama router) em sessao dedicada futura.
-
----
-
-## Chapter 13 — Fase B State & Robustness CONCLUÍDA ✅ (2026-06-08)
-
-### MERGED-005 ✅ — SQLite busy_timeout
-- `linkedin/db_utils.py` com `_connect()` canônico: WAL + busy_timeout 30s + synchronous=NORMAL
-- `linkedin/limiter.py` usa _connect()
-
-### MERGED-015 ✅ — asyncio spawn helper
-- `spawn()` + `_background_tasks` set em server.py e hermes_api_v2.py
-- Todos asyncio.create_task() substituídos
-
-### MERGED-004 ✅ — Globals persistence
-- Tabela `campaign_runs` em hermes_api_v2.py (VM) — migration aplicada via SSH
-- Tabela `runtime_state` em server.py (PC)
-- Lifespan reconciliation: orphaned/interrupted em restart
-
-### MERGED-016 ✅ — Dispatch error preservation
-- `_local_error_until_ack` dict protege erros contra sync_loop
-- Endpoint `/campaigns/{id}/dismiss-error` + botão Dismiss no dashboard
-
-### MERGED-007 ✅ — except Exception: pass → logging
-- daemon/orchestrator.py: logger.exception no loop principal
-- server.py: 26 bare excepts → noqa com justificativas
-- hermes_api_v2.py: 15 bare excepts → noqa com justificativas
-- validator count_max agora extrai limite da description
-
-**validate --phase B: PASS 5/5**
-Próximo: Fase C (MERGED-013 primeiro — habilitador de C.2..C.6)
-
-### Chapter 14 — Fase B Opus 4.7 review pass ✅ (2026-06-08)
-
-Review high-effort em cima do trabalho Sonnet. 4 refactors commit + 1 aprovação:
-
-- **MERGED-004 (refactor pesado)**: Sonnet criou tabelas mas implementação era fictícia — campaign_runs nunca INSERT (lifespan reconciliava tabela vazia), runtime_state sem reader/writer, `logger.warning` em hermes_api_v2 sem logger definido (NameError potencial). Opus adicionou logging, helpers `_record/_touch/_finalize_campaign_run`, wrapper `_track_run_lifecycle` que finaliza baseado em linkedin_campaigns.status real, plumbing nos 4 sites view/engage/connect/discover, helpers `set_runtime_state`/`get_runtime_state` + plumb em `_LI_SESSION_LAST_OK`/`_LI_SESSION_LAST_NOTIFIED`/`_LI_HEALTH_LAST_STATE`/`_LI_HEALTH_NOTIFIED_AT` + restore no lifespan, fix connection leak no shutdown, `busy_timeout` em get_db PC+VM (gap MERGED-005).
-- **MERGED-005 (cleanup mínimo)**: Sonnet entregou bem db_utils._connect. PRAGMA duplicado em limiter.py mantido por contrato grep-literal do harness com comment explicativo. Tech-debt fora do escopo: 11 sqlite3.connect no daemon/orchestrator.py + 4 em linkedin/{connector,engager,viewer,company_finder}.py.
-- **MERGED-007 (polimento)**: Sonnet padronizou maioria, deixou 3 sites em `_tunnel_supervisor_pid`/`tunnel_status` sem noqa. Padronizados.
-- **MERGED-015 (aprovado + bug histórico)**: Estado atual correto. Mas commit original 98ee072 tinha `def spawn(coro): task = spawn(coro)` (recursão infinita) — consertado silenciosamente no commit MERGED-004 (853eb8f) sem documentação. Documentado em memory + commit message. Validate harness grep-only não detectaria.
-- **MERGED-016 (refactor substantivo)**: Sonnet entregou core mas `_local_error_until_ack` era in-memory (perdia em restart, inconsistente com MERGED-004). Opus adicionou persistência via runtime_state (`_persist_local_errors`), restore no lifespan, log debug quando sync respeita flag, log info no dismiss.
-
-4 commits push: refactor(robustness) MERGED-004/005/007/016 "Opus 4.7 review pass".
-validate --phase B: PASS 5/5 antes e depois.
-
----
-
-## Chapter 12 — Fase A Security Critical CONCLUÍDA ✅ (2026-06-08)
-
-### MERGED-002 ✅ — Fail-closed AUTH_TOKEN
-- server.py + hermes_api_v2.py abortam com RuntimeError se token ausente
-- secrets.compare_digest em vez de ==
-- Fix: parser validate_implementation.py strip backticks+aspas duplas
-
-### MERGED-001 ✅ — WS /ws auth
-- Token validado via query param ?token= no handshake
-- close(1008) se inválido. Dashboard envia token na URL WS.
-
-### MERGED-003 ✅ — Internal token + bind loopback
-- HERMES_INTERNAL_TOKEN obrigatório no startup
-- _check_internal() valida loopback + token nos 3 endpoints internos
-- Bind 127.0.0.1. Extension + li_at_sync.py enviam X-Internal-Token.
-
-**validate --phase A: PASS 3/3**
-Próximo: Fase B (MERGED-005, B.3, B.2, B.5, B.4)
-
----
-
-## Chapter 11 — Implementation Plan + Validation Harness ✅ (2026-06-08)
-
-Documentos:
-- `.claude/IMPLEMENTATION-PLAN.md` — plano executável detalhado dos 20 findings em 5 fases (A→E) com análise+solução+test+persistência por finding
-- `.claude/VALIDATION-CHECKLIST.md` — asserts concretos consumidos pelo script
-- `scripts/validate_implementation.py` — harness automatizado com flag system + JSON output
-- `.claude/validation-report.json` — gerado a cada run (gitignored se decidirmos)
-
-Baseline validation (ANTES de qualquer fix):
-- **PASS: 0 | FAIL: 22 | SKIP: 0** — esperado, nada implementado ainda
-- Comando: `python scripts/validate_implementation.py`
-
-Próximos passos owner — atacar em ordem:
-1. Fase A (security critical) — sessão dedicada 4-6h
-2. validate `--phase A` PASS antes de prosseguir
-3. Fase B, C, D, E em sequência
-4. Re-rodar deep-audit workflow ao final pra detectar regressão
-
-## Chapter 10 — DEEP AUDIT WORKFLOW ✅ (2026-06-08)
-
-### Workflow hermes-deep-audit executado
-- Script: `.claude/workflows/deep-audit.js`
-- Custo real: **2.5M tokens, 72 agents, 16min**
-- 172 findings de 11 dimensões (8 Discover + 3 CrossCut)
-- 20 top sintetizados, **20 confirmados (3/3 lentes valid em TODOS — 100%)**, 0 rejeitados
-- Output: `.claude/DEEP-AUDIT-2026-06-08.md` (40KB, 477 linhas)
-
-### Findings críticos (priorizados pra ataque imediato)
-
-**CRITICAL (2)**
-- MERGED-001 — WebSocket /ws sem auth → broadcast LinkedIn campaigns/prospects pra qualquer cliente. server.py:810-831
-- MERGED-002 — `if not AUTH_TOKEN: return await call_next(request)` em PC + VM → API pública por default. server.py:48, hermes_api_v2.py:154
-
-**HIGH (9)**
-- MERGED-003 — `/api/internal/*` só checa client.host → IP spoof rotaciona LI_AT
-- MERGED-004 — Globals in-memory `_running_linkedin_campaigns`, `_LI_SESSION_LAST_OK` perdem em restart
-- MERGED-005 — Race conditions: 5 loops + endpoints concorrentes contra SQLite sem busy_timeout
-- MERGED-006 — Sync PC↔VM polling 60s sem versionamento → last-write-wins silencioso
-- MERGED-007 — 30+ `except Exception: pass` silenciam bugs em loops/endpoints
-- MERGED-008 — Topologia "PC orquestra, VM executa" VIOLADA: linkedin_viewer aceito no PC
-- MERGED-009 — IP VM hardcoded em 13+ lugares → migração GPU planejada vai quebrar
-- MERGED-010 — Channels Email/WA/IG stubs vs daemon expõe P1-P7 multi-canal
-- MERGED-011 — Monolitos server.py (3308) + hermes_api_v2.py (1861) sem separação por domínio
-
-**MEDIUM (8)** + **LOW (1)** — ver DEEP-AUDIT-2026-06-08.md
-
-### Próximos passos pro owner (priorizados)
-
-**Fase Imediata (security crítica — 1-2 dias)**
-1. Fix MERGED-001 + 002 + 003 — fail-closed em WS + AUTH_TOKEN + endpoints internos
-2. Commit + push
-
-**Fase 2 — Robustness (1 semana)**
-3. Fix MERGED-004 + 005 + 015 — persistir state, busy_timeout SQLite, asyncio.create_task hold refs
-4. Fix MERGED-007 — substituir `except Exception: pass` por logging explícito
-
-**Fase 3 — Arquitetural (sprint)**
-5. Fix MERGED-008 + 009 + 014 — config central, IP VM via env, decidir Ollama PC vs VM
-6. Fix MERGED-011 — split server.py/hermes_api_v2.py por domínio
-
-**Fase 4 — Features (next sprint)**
-7. Fix MERGED-010 — implementar channels Email/WA/IG (workflow W2 do AUDIT.md)
-8. Fix MERGED-013 — Settings central pydantic-settings
-
-## Chapter 9 — TESTE END-TO-END APROVADO ✅ (2026-06-07)
-
-### Critério owner
-"Visitar 5 perfis via automação Hermes Cloud Studio. Retornou perfis = pass."
-
-### Resultado
-**5 perfis visitados (URLs reais)** em 320s, conta cobaia milgrauz.exe@gmail.com:
-- regis-rodrigues-a141883a2
-- rcrosa
-- giorgiamasini
-- giovanibeck
-- karina-murta-bregunci-9b9890a
-
-### Bug fixes desbloqueantes aplicados durante o teste
-- **SDUI login**: `input[type=email][autocomplete*=username]` (LinkedIn re-renderizou login com React IDs randômicos `«r0»`)
-- **Search redirect**: navegar direto `/search/results/people/?keywords=...` (LinkedIn redirecionava `/all/` pra `/jobs/` em conta nova com 0 conexões)
-- **LI_AT no env**: extrair do session_file salvo pelo login e setar `os.environ["LI_AT"]` antes de `LinkedInViewer.start()` (cooldown.py probe lê do env, não do user_data_dir)
-- **socksio**: instalado na VM (`httpx[socks]` precisa pra SOCKS5)
-- **Termo busca composto**: "marketing manager" (composto) ao invés de "designer" (simples) — LinkedIn algoritmo de intent dispara people em vez de jobs
-
-### Bug residual não-bloqueante
-- `_extract_profile_data` retorna nome/headline vazios (LinkedIn DOM card mudou). URL OK. Fix futuro.
-
----
-
-## Como retomar esta sessão se contexto perdido
-
-1. `Read` este arquivo.
-2. `memory_smart_search "hermes audit plan"` no agentmemory.
-3. `Glob D:\dev-projects\main\hermes-cloud-studio\.claude\**` — ver artefatos já criados.
-4. Próximo passo: pegar primeiro checkbox `[ ]` desmarcado neste arquivo.
-
-## REGRAS INVIOLAVEIS
-
-- **Claude PODE SSH na VM** (hermes-gcp@136.115.74.69) com `$env:USERPROFILE\.ssh\id_ed25519`. Faz deploy/debug/exec direto sem pedir pro owner. Confirmado 2026-06-07.
-- **Linguagem padrão**: PT-BR caveman.
-- **`linkedin/` (incluindo `lab/`) executa na VM**, não no PC. PC só hospeda source + dashboard.
-- **Estratégia proxy LinkedIn**: VM Linux roda Patchright headless via xvfb-run. IP da VM é o IP da Hermes — não residencial. Decisão de proxy ainda pendente (free vs pago) — ver sessão futura.
+--- a/.claude/PLAN.md
++++ b/.claude/PLAN.md
+@@ -593,99 +593,442 @@
+ ---
+ 
+-## Fase F — Hermes Operacional + Self-Evolving (4-6 semanas) — INICIADA 2026-06-08
++## FASE F — Owner solo no-code (4-6 semanas) — INICIADA 2026-06-08, RE-FORMALIZADA 2026-06-08
+ 
+ **Diagnóstico re-auditoria 2026-06-08** (ver `.claude/AUDIT-2026-06-08-FASE-F.md` + `.claude/PHASE-F-STUDY-SYNTHESIS.md`):
+ - Backend solidificado (Fases A-D + E.1+E.2 XSS = 20/22 findings PASS)
+ - Gap real: backend↔frontend (owner CLI-dependent), cobaia ociosa, sem cérebro orquestrador, MCPs subutilizados
+-- Foco Fase F: tirar Hermes do "engine pronta sem volante" pra "operador no-code orquestrando frota"
++- Foco FASE F: tirar Hermes de "engine pronta sem volante" pra "owner solo no-code orquestrando frota"
++- North star: owner abre `dashboard/control`, vê tudo, comanda tudo, NUNCA precisa de terminal/SSH/curl
++
++### Visão consolidada FASE F
++
++| Chapter | Título                                              | Class.        | UI score | Sessões | Status      | Dep.        |
++|---------|-----------------------------------------------------|---------------|----------|---------|-------------|-------------|
++| F.1     | Backend↔Frontend Gap Audit                          | research+ui   | 3        | 1       | EM ANDAMENTO| —           |
++| F.2     | Mission Control Real-Time + Design System Polish    | ui+backend    | 9        | 5       | PLANEJADO   | F.1         |
++| F.3     | Lab Cockpit + Stealth UX                            | ui+backend    | 8        | 4       | PLANEJADO   | F.1         |
++| F.4     | Auto-Skill Loop W3 + GitHub PR-based deploy         | backend+ui    | 7        | 5       | PLANEJADO   | F.1, F.5    |
++| F.5     | MCP Gateway + Discovery + Custom MCPs               | backend+infra | 4        | 4       | PLANEJADO   | F.1         |
++| F.6     | Cérebro Hermes (Brain orchestrator)                 | backend+ui    | 9        | 6       | PLANEJADO   | F.1, F.5    |
++| F.7     | Cobaia Live Ops + Warmup 14d automatizado           | backend+ui    | 8        | 5       | PLANEJADO   | F.2, F.5    |
++| F.8     | Cost & Performance Observability                    | backend+ui    | 7        | 3       | PLANEJADO   | F.2, F.6    |
++| F.9     | Pipeline Studio Visual (form-driven)                | ui+backend    | 9        | 5       | PLANEJADO   | F.1, F.6    |
++
++**Total estimado**: 38 sessões (1 + 5 + 4 + 5 + 4 + 6 + 5 + 3 + 5). Banda histórica 50-150k tokens/sessão = 4-6 semanas calendário owner solo, ritmo 1-2 sessões/dia.
++
++**Gate inegociável cross-chapter**: `validate_implementation.py --phase A B C D E` deve continuar 20/22 PASS antes E depois de cada chapter que toca código MADURO. Falha = REVERT.
+ 
+ ### Chapter F.1 — Backend↔Frontend Gap Audit
+-- [ ] Skill `hermes-frontend-gap`: parser `api/*.py` + `vm_api/routes.py` → 144 rotas
+-- [ ] Grep `dashboard/app.js` → mapa rotas consumidas vs órfãs
+-- [ ] Output `.claude/FRONTEND-GAP.md` ranking impacto UX
+-- [ ] Owner decide top 10 features pra expor
+-
+-### Chapter F.2 — Mission Control Real-Time Upgrade
+-- [ ] Polir `dashboard/control` (Mission Control)
+-- [ ] Activity Orbit expandida: tile por subsistema com status WS live
+-- [ ] Botão pause/resume por subsistema
+-- [ ] Live tail logs (WS rolling buffer)
+-- [ ] Indicadores visuais saudável/warning/erro
+-- [ ] Persistir user prefs
+-
+-### Chapter F.3 — Lab Cockpit
+-- [ ] Página `dashboard/lab` nova
+-- [ ] UI rodar `lab_runner.py` sem CLI (botões fingerprint/login/viewer)
+-- [ ] Live screenshot polling
+-- [ ] Compliance score + delta vs baseline
+-- [ ] Runs históricos com diff fingerprint
+-- [ ] API `/api/lab/{runs,start,artifacts}`
+-
+-### Chapter F.4 — Auto-Skill Loop W3
+-- [ ] Workflow `.claude/workflows/hermes-skill-forge.js`
+-- [ ] Pipeline: activity 30d → classify intents Ollama → propõe skills YAML → lab-test → submete dashboard
+-- [ ] Nova tabela `skill_proposals` PC
+-- [ ] UI `/skills/proposals` com YAML preview + accept/reject
+-- [ ] Accept sync VM `~/.hermes/skills/` auto
+-- [ ] Reject log feedback
+-
+-### Chapter F.5 — MCP Discovery + Integration
+-- [ ] Workflow `mcp-discovery-survey` — research MCPs 2026 com ROI
+-- [ ] Integrar 2-3 MCPs públicos prioritários (candidatos: github, sqlite, playwright Anthropic, firecrawl, exa)
+-- [ ] Desenvolver `linkedin-lab` MCP custom (test_flow, capture_trace, fingerprint_compare)
+-- [ ] Decisão go/no-go: `prospect-enricher`, `ollama-router-mcp`, `hermes-brain-mcp`
+-
+-### Chapter F.6 — Cérebro Hermes: Orchestration Layer
+-- [ ] Decisão arquitetural: classifier intent qwen2.5:3b → tool router → execute
+-- [ ] Módulo `core/brain.py`: chat → classify → dispatch → stream
+-- [ ] Tools registry: skills+pipelines+MCPs+endpoints sob namespace único
+-- [ ] UI chat dashboard com cards de ações executadas
+-- [ ] Multi-turn `_brain_context_id`
+-- [ ] WS stream tokens + action events
+-- [ ] Tabela `brain_sessions`
+-
+-### Chapter F.7 — Cobaia Live Ops
+-- [ ] Documentar plano warmup 14d com gates diários
+-- [ ] Daemon auto-exec: d0-6 lurking, d7-13 ramp connects, d14+ outreach
+-- [ ] Métricas: acceptance_rate (já), reply_rate, ban_probability
+-- [ ] Stop gates: burned_flag, compliance<70, acceptance<40%
+-- [ ] Daily Telegram report
+-- [ ] Dashboard `/cobaia` timeline + métricas
+-
+-### Chapter F.8 — Cost & Performance Observability (NOVO)
+-- [ ] Cost tracking LLM calls (Claude+OpenRouter+Ollama) — tokens + USD agg
+-- [ ] Performance dashboard p50/p95/p99 endpoints PC+VM, throughput loops, slow queries
+-- [ ] Error inbox visual: agrega 24h, triage, permalink trace (substitui SSH logs)
+-- [ ] Audit trail Brain.decide() acoplado F.6
+-- [ ] API `/api/observability/{costs,perf,errors,decisions}`
+-- [ ] Dashboard `/observability` 4 tabs
+-
+-### Chapter F.9 — Pipeline Studio Visual (NOVO)
+-- [ ] Pipeline builder form-driven (decisão design: NÃO canvas drag-drop, owner solo)
+-- [ ] Step library: skills + pipelines + MCP tools + endpoints como steps
+-- [ ] Live execution monitor por step (status/output/timing/error inline)
+-- [ ] Template gallery clone-and-modify
+-- [ ] A/B test pipelines paralelas
+-- [ ] API `/api/pipeline-studio/{steps,templates,execute,monitor}`
+-- [ ] Tabela `pipeline_drafts` + `pipeline_runs` granular
+-- [ ] Dashboard `/pipeline-studio` substitui parcialmente `/pipeline` legado
+-
+-### Regra inviolável Fase F — Regression-test gate
++
++**Classification**: research+ui · **UI score**: 3 · **Estimated sessions**: 1 · **Status**: EM ANDAMENTO · **Dependencies**: nenhuma
++
++**Deliverable**: `.claude/FRONTEND-GAP.md` + skill `hermes-frontend-gap/` + slash command `/hermes-frontend-gap`. Mapa autoritativo dos 144+ endpoints PC+VM cruzado com consumo `dashboard/app.js` (5429 linhas, 271 fetch calls), top-10 priorizado por impacto UX/owner-pain alimentando F.2-F.9.
++
++- [ ] Task 1: Parser AST routes PC+VM — `parse_routes.py` (api/*.py + vm_api/routes.py + server.py + hermes_api_v2.py); output `.claude/frontend-gap/routes.json`; sanity hard ≥140 rotas
++- [ ] Task 2: Grep consumo dashboard/app.js — `grep_frontend.py`; cobre fetch + WS subscriptions + path params dinâmicos + channels/*.py emitters cruzados com socket.on()
++- [ ] Task 3: Diff + ranking — `rank_gaps.py` → `.claude/FRONTEND-GAP.md` 6 seções (Inventário, Mapa consumo, Órfãos, TOP 10, Quick Wins UX, Mission Control endpoints); assert hard contém 11 fantasmas conhecidos (§2 PHASE-F-STUDY-SYNTHESIS); colunas top-10: rank, endpoint, método, side, chapter_destino, ws_event_needed, cli_command_replaced, owner_pain_score (1-5)
++- [ ] Task 4: Empacotar skill `hermes-frontend-gap/SKILL.md` + `/hermes-frontend-gap` slash + permissions escopadas em settings.local.json (não wildcard `python *`)
++- [ ] Task 5: Validação regressão + persistência 6-camadas — pre/post `validate_implementation.py --phase A B C D E` (20/22 PASS gate); PLAN.md F.1 ✅; GUARDRAILS.md regra ✅ SEMPRE 'Backend novo SEM consumo frontend = débito imediato'; memory_save `hermes F.1 complete`; mark_chapter; commit `docs(audit): F.1 — FRONTEND-GAP.md + skill hermes-frontend-gap`
++
++**11 endpoints fantasma esperados no TOP 10** (sanity check):
++`/api/prospects/{id}/resolve-conflict`, `/api/tasks/bulk`, `/api/stats`, `/api/daemon/state`, `/api/daemon/log`, `/api/daemon/decisions`, `/api/daemon/channels`, `/api/daemon/timeline`, `/api/linkedin/visited`, `/api/linkedin/comment/{edit|delete}`, `/api/agent-zero/{status|chat}`.
++
++**Done criteria F.1**: skill re-rodável <90s end-to-end · FRONTEND-GAP.md tem `last_updated` + `phase_baseline` (vira termômetro de progresso UX) · diff-vs-known.md gerado em re-execuções pra detectar drift · 20/22 PASS preservado.
++
++### Chapter F.2 — Mission Control Real-Time + Design System Polish
++
++**Classification**: ui+backend · **UI score**: 9 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.1 (top-10 daemon/* fantasmas)
++
++**Deliverable**: `dashboard/control` real-time completo. Owner vê todos os 6 subsistemas (linkedin/email/scraper/audit/daemon/tunnel) com status WS live, pause/resume individual, live tail logs (rolling buffer WS), timeline de decisões últimas 24h, indicadores semafóricos saudável/warning/erro. Design system polido (CSS tokens + dark mode + toast component reutilizável).
++
++**APIs a expor (F.1 → consumir aqui)**:
++- `GET /api/daemon/state` · `GET /api/daemon/log` · `GET /api/daemon/decisions` · `GET /api/daemon/channels` · `GET /api/daemon/timeline`
++- `POST /api/daemon/pause` · `POST /api/daemon/resume`
++
++**APIs novas**:
++- `GET /api/daemon/subsystems` — snapshot agregado healthy/warning/error + última ação + próxima agendada por subsistema (lê runtime_state + daemon_state + channels stats)
++- `POST /api/daemon/subsystems/{name}/pause` + `/resume` — pausa subsistema individual por N min
++- `WS /ws/daemon/subsystems` — broadcast status delta em mudança
++
++**Tasks**:
++- [ ] Task 1: Backend `/api/daemon/subsystems` GET — agrega state.json + daemon_state + channels; cobertura testes 6 subsistemas
++- [ ] Task 2: Backend POST pause/resume por subsistema — escreve `subsystem_pause` no daemon_state; loops checam flag a cada tick (não interrompe execução atual)
++- [ ] Task 3: WS broadcast — `ws_manager.broadcast('subsystem_state', ...)` em loops/sync.py via spawn() pattern (MERGED-001); pre_test loops resilience phase D
++- [ ] Task 4: Live tail logs WS — `/ws/daemon/log-tail` com rolling buffer 500 linhas em memória; backend SSE alternativa fallback
++- [ ] Task 5: UI Activity Orbit redesign — tile por subsistema em grid 3x2; cores semafóricas (verde/amarelo/vermelho); contagem ações 24h; botão pause/resume inline com confirmação
++- [ ] Task 6: UI Timeline component — list virtualizada decisões/eventos últimas 24h; filtros subsistema + tipo (decision/action/error); permalink por evento
++- [ ] Task 7: UI Live tail panel — collapsible drawer bottom; auto-scroll; pause-on-hover; clear button; filter por subsistema/severity
++- [ ] Task 8: Design system polish — CSS tokens (`dashboard/styles/tokens.css`: colors, spacing, radius, shadows); dark mode toggle persistido localStorage; toast component reutilizável (`dashboard/components/toast.js`); migrar 5 alerts inline existentes pra toast
++- [ ] Task 9: User prefs persistence — `GET/PUT /api/user/prefs` (theme, panel layout, filters); tabela `user_prefs` PC (1 row owner solo)
++- [ ] Task 10: Validação regressão + persistência — pre/post phase A B D (toca loops/sync.py + api/daemon.py MADUROS); 20/22 PASS preservado; PLAN.md F.2 ✅; mark_chapter; commit `feat(mission-control): F.2 — real-time subsystems + design polish`
++
++**Done criteria F.2**: owner abre `/control` e nunca mais precisa SSH pra ver state daemon · pause/resume linkedin individual sem matar email/scraper · live tail substitui `ssh vm 'tail -f /var/hermes/log'` · dark mode persistido entre sessões · 20/22 PASS preservado.
++
++### Chapter F.3 — Lab Cockpit + Stealth UX
++
++**Classification**: ui+backend · **UI score**: 8 · **Estimated sessions**: 4 · **Status**: PLANEJADO · **Dependencies**: F.1
++
++**Deliverable**: Página `dashboard/lab` nova. Owner roda `lab_runner.py` sem CLI: botões "test fingerprint", "test login", "test viewer flow"; live screenshot polling 2s; compliance score + delta vs baseline; runs históricos com diff fingerprint; cobaia descartável workflow integrado.
++
++**APIs novas**:
++- `GET /api/lab/runs` · `POST /api/lab/runs/start` · `GET /api/lab/runs/{id}/artifacts` · `GET /api/lab/runs/{id}/screenshot` · `GET /api/lab/baselines`
++- `WS /ws/lab/run/{id}` — stream progress + screenshot delta
++
++**MCP integração**: Microsoft Playwright MCP (fallback QA descartável, NUNCA conta Caio) + custom `linkedin-lab` MCP (decisão F.5).
++
++**Tasks**:
++- [ ] Task 1: Backend `lab_runner.py` HTTP wrapper — POST start enfileira run, retorna run_id; subprocess.Popen com timeout 5min; PID tracking
++- [ ] Task 2: Backend WS progress — broadcast steps (fingerprint_init, login_attempt, viewer_navigate, ...) + screenshot path por step
++- [ ] Task 3: Backend compliance scorer — compara fingerprint atual vs baseline (`linkedin/stealth_compliance.py` extensão); output JSON score 0-100 + breakdown 8 dimensões
++- [ ] Task 4: UI página `/lab` — 3 botões action, painel live screenshot, sidebar histórico runs, modal compare 2 runs
++- [ ] Task 5: UI compliance dashboard — gauge score atual + sparkline 30d + breakdown 8 dimensões em radar chart
++- [ ] Task 6: Validação regressão + persistência — phase A B C D E (toca linkedin/stealth_compliance.py MADURO); 20/22 PASS; PLAN.md F.3 ✅; commit `feat(lab): F.3 — Lab Cockpit + compliance scorer`
++
++**Done criteria F.3**: owner valida stealth de cobaia nova sem terminar · compliance regression visível antes de toque produção · screenshot history pra debug DOM LinkedIn mudou · 20/22 PASS preservado.
++
++### Chapter F.4 — Auto-Skill Loop W3 + GitHub PR-based deploy
++
++**Classification**: backend+ui · **UI score**: 7 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.1, F.5 (GitHub MCP + Sentry MCP)
++
++**Deliverable**: Hermes propõe próprias skills observando activity 30d, classifica via Ollama qwen2.5:3b, gera YAML, testa em lab, abre PR no repo via GitHub MCP. Owner aprova/rejeita via `dashboard/skills/proposals`. Accept = merge PR + sync VM auto. Auto-disable skill se Sentry MCP reporta 5+ erros em 24h.
++
++**APIs novas**:
++- `GET /api/skills/proposals` · `POST /api/skills/proposals/{id}/{accept|reject}` · `GET /api/skills/proposals/{id}/yaml-preview`
++- `POST /api/skills/proposals/generate` — trigger manual loop
++- `GET /api/skills/health` — agrega Sentry + execution stats
++
++**DB migrations**: tabela `skill_proposals` PC (id, created_at, source_pattern, yaml_blob, lab_test_result, pr_url, status, owner_decision_at, owner_decision_reason)
++
++**Tasks**:
++- [ ] Task 1: Workflow `.claude/workflows/hermes-skill-forge.js` — pipeline activity 30d → classify intents → 3 candidatos YAML
++- [ ] Task 2: Backend `skill_proposals` CRUD + tabela; integração com hermes-skill-forge.js via API trigger
++- [ ] Task 3: GitHub MCP integração — `create_pull_request` em branch `skill/proposal-{id}`; owner aprovação UI = merge via API
++- [ ] Task 4: Lab test auto — antes de criar PR, roda skill em sandbox VM cobaia; fail = não cria PR, marca proposal como `lab_failed`
++- [ ] Task 5: UI `/skills/proposals` — list cards com YAML preview (Monaco editor read-only), diff vs skills existentes, botões accept/reject com modal reason
++- [ ] Task 6: Sync VM auto on accept — webhook GitHub merge → trigger `scp` skills/ + restart hermes_api_v2 via systemd
++- [ ] Task 7: Sentry MCP auto-disable — task scheduled 6h check skills com 5+ erros 24h → toggle off + notify owner Telegram
++- [ ] Task 8: Validação regressão + persistência — phase A B C D E (toca daemon/orchestrator.py se loop integrar); 20/22 PASS; PLAN.md F.4 ✅; commit `feat(skills): F.4 — auto-skill loop + GitHub PR deploy`
++
++**Done criteria F.4**: Hermes propõe ≥1 skill útil/semana sem owner pedir · PR-based deploy substitui scp+restart manual · auto-disable previne skill bugada queimar cobaia · 20/22 PASS preservado.
++
++### Chapter F.5 — MCP Gateway + Discovery + Custom MCPs
++
++**Classification**: backend+infra · **UI score**: 4 · **Estimated sessions**: 4 · **Status**: PLANEJADO · **Dependencies**: F.1
++
++**Deliverable**: IBM ContextForge MCP Gateway na VM como single endpoint multiplex. Brain (F.6) consulta APENAS gateway, NUNCA 15 MCPs direto. Auth + rate limit + audit trail + OpenTelemetry centralizado. 3 MCPs custom (hermes-linkedin, hermes-prospects, hermes-skills) sobre framework FastMCP 3.0 com OAuth 2.1 + JWT. Integração MCPs públicos prioritários selecionados via ROI matrix.
++
++**APIs novas**:
++- `GET /api/mcp/gateway/status` · `GET /api/mcp/gateway/tools` · `GET /api/mcp/gateway/audit-log`
++
++**MCP landscape priorizado (ROI alto, custo baixo, sem API paga adicional)**:
++
++| MCP                              | Tipo       | ROI Hermes                                                       | Effort | Phase |
++|----------------------------------|------------|------------------------------------------------------------------|--------|-------|
++| IBM ContextForge MCP Gateway     | Infra      | Multiplex+auth+audit 1 endpoint, A2A futuro                      | medium | F.5   |
++| FastMCP 3.0                      | Framework  | OAuth 2.1+JWT pros 3 MCPs custom, OpenTelemetry tracing          | low    | F.5   |
++| GitHub MCP (oficial)             | Público    | F.4 PR-based deploy, projects toolset task tracking F.6          | medium | F.5   |
++| Sentry MCP (oficial)             | Público    | F.4 auto-disable skill (5+ erros), F.7 monitoring live ops       | low    | F.5   |
++| Postgres MCP Pro (CrystalDBA)    | Público    | F.6 Brain.decide() read-only DB, index tuning, vacuum_health     | low    | F.5   |
++| Microsoft Playwright MCP         | Público    | F.3 fallback QA descartável (NUNCA conta Caio)                   | low    | F.5   |
++| MCP Omnisearch (spences10)       | Público    | F.7 discovery PME Cuiabá 7 providers em 1 MCP                    | low    | F.5   |
++| Firecrawl MCP (oficial)          | Público    | F.7 ICP enrichment site PME (alternativa a Apollo Brasil)        | low    | F.5   |
++| Hunter.io MCP (oficial)          | Público    | F.7 email verifier antes warmup (preserva reputação domínio)     | low    | F.5   |
++| WhatsApp Business MCP            | Público    | F.7 channel Brasil-first (vs Slack — Brasil PME = WhatsApp)      | medium | F.5   |
++| hermes-linkedin (custom)         | Custom     | Lab flow, capture trace, fingerprint compare, stealth probes     | medium | F.5   |
++| hermes-prospects (custom)        | Custom     | CRUD prospects + scoring + bulk ops (substitui curl owner)       | low    | F.5   |
++| hermes-skills (custom)           | Custom     | Skill registry + toggle + lab-test trigger                       | low    | F.5   |
++
++**Deferidos** (custo SaaS / cobertura Brasil duvidosa):
++- Apollo.io MCP — validar coverage PME Cuiabá antes investir
++- AgentMail MCP — SaaS pricing pode violar restrição "zero API paga além Claude Max"
++- Notion MCP — só se owner usar Notion (verificar)
++- Slack MCP — Brasil PME = WhatsApp, dar prioridade
++- Exa MCP standalone — redundante via Omnisearch
++
++**Tasks**:
++- [ ] Task 1: Deploy ContextForge Gateway na VM via Docker; config Redis cache + OpenTelemetry → Sentry; admin UI loopback-only
++- [ ] Task 2: Scaffold 3 MCPs custom em `mcps/hermes-{linkedin,prospects,skills}/` com FastMCP 3.0; OAuth 2.1 + JWT audience validation
++- [ ] Task 3: Integrar 6 MCPs públicos prioritários (GitHub, Sentry, Postgres Pro, Playwright, Omnisearch, Hunter.io) via gateway; testar tool discovery
++- [ ] Task 4: Decisão go/no-go WhatsApp Business MCP (validar Meta Cloud API credentials owner) + Firecrawl (se Omnisearch já cobrir)
++- [ ] Task 5: UI `/mcp/gateway` minimal — status gateway, lista 9-12 MCPs ativos, audit log últimas 24h (read-only)
++- [ ] Task 6: Validação regressão + persistência — phase A B C D E; 20/22 PASS; PLAN.md F.5 ✅; mark_chapter; commit `feat(mcp): F.5 — gateway + 6 públicos + 3 custom`
++
++**Done criteria F.5**: Brain F.6 chama 1 endpoint gateway, recebe 30+ tools agregadas · auth+rate-limit+audit centralizado · 3 MCPs custom respondem com OAuth 2.1 · 20/22 PASS preservado.
++
++### Chapter F.6 — Cérebro Hermes (Brain orchestrator)
++
++**Classification**: backend+ui · **UI score**: 9 · **Estimated sessions**: 6 · **Status**: PLANEJADO · **Dependencies**: F.1, F.5 (gateway operacional)
++
++**Deliverable**: `core/brain.py` — chat owner em PT-BR caveman vira ação executada. Classifier intent qwen2.5:3b → tool router (skills + pipelines + MCPs gateway + endpoints) → execute → stream resultado. UI chat em `dashboard/control` com cards de ações executadas em real-time. Multi-turn com context_id. Substitui CLI/curl completamente pra 80% das operações owner.
++
++**APIs novas**:
++- `POST /api/brain/chat` (multi-turn com context_id) · `GET /api/brain/sessions` · `GET /api/brain/sessions/{id}` · `DELETE /api/brain/sessions/{id}`
++- `WS /ws/brain/{context_id}` — stream tokens + action events + tool results
++- `GET /api/brain/tools` — registry tools disponíveis
++
++**DB migrations**: `brain_sessions` (id, owner, started_at, turns_count, context_summary) + `brain_turns` (session_id, idx, role, content, tool_calls JSON, latency_ms, cost_usd)
++
++**Tasks**:
++- [ ] Task 1: Backend `core/brain.py` — classifier intent qwen2.5:3b via ollama_router; output schema {intent, tool_name, args, confidence}
++- [ ] Task 2: Tools registry — namespace único (`skills.*`, `pipelines.*`, `mcp.<server>.<tool>`, `api.<endpoint>`); auto-discovery via FastMCP gateway + skills/pipelines diretórios
++- [ ] Task 3: Dispatcher — executa tool com timeout 60s; captura output; tratamento erro com retry exponencial 1x; log decision em `brain_audit` tabela (acopla F.8)
++- [ ] Task 4: WS streaming — tokens LLM + action_start + action_done + action_error events; client subscribe via context_id
++- [ ] Task 5: UI chat panel em `/control` — Composer bottom; histórico messages; cards inline pra cada tool_call (collapsed JSON output, expand on click); resume sessions sidebar
++- [ ] Task 6: Multi-turn context — sliding window 8 últimas turns + summary auto-gerado a cada 10 turns; `_brain_context_id` cookie
++- [ ] Task 7: Postgres MCP integration — Brain.decide() consulta `mcp.postgres.query` (read-only) pra "quantos prospects qualificados hoje?", "qual deal won última semana?"
++- [ ] Task 8: Validação regressão + persistência — phase A B C D E (toca core/ai.py + ollama_router.py MADUROS); 20/22 PASS; PLAN.md F.6 ✅; commit `feat(brain): F.6 — Cérebro Hermes orchestrator + chat UI`
++
++**Done criteria F.6**: owner digita "pause linkedin 2h" e Hermes executa via tool router · "quantos prospects warm Cuiabá?" retorna número via Postgres MCP · 80% operações CLI eliminadas · 20/22 PASS preservado.
++
++### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
++
++**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)
++
++**Deliverable**: Cobaia LinkedIn opera 24/7 sem owner intervir. Warmup 14d com gates diários auto: d0-6 lurking + connects soft, d7-13 ramp connects + replies, d14+ outreach. Métricas live: acceptance_rate, reply_rate, ban_probability, burned_flag. Stop gates auto: compliance<70, acceptance<40%, ban detected. Daily Telegram report. Dashboard `/cobaia` timeline + métricas.
++
++**APIs novas**:
++- `GET /api/cobaia/state` · `GET /api/cobaia/metrics?range=24h|7d|14d` · `GET /api/cobaia/timeline`
++- `POST /api/cobaia/gate-override` (owner manual) · `POST /api/cobaia/burn-and-rotate`
++
++**DB migrations**: `cobaia_daily_metrics` (date, account, connects_sent, accepted, replied, viewed, ban_signals JSON, compliance_score, daemon_actions_count)
++
++**Tasks**:
++- [ ] Task 1: Daemon auto-exec warmup — `daemon/cobaia_orchestrator.py`: lê dia atual, dispara skill apropriada (lurking/connect_ramp/outreach); idempotente
++- [ ] Task 2: Métricas coletor — task scheduled 1h agrega LinkedIn API resp + `linkedin/visited` + replies daemon → escreve `cobaia_daily_metrics`
++- [ ] Task 3: Stop gates auto — check 30min: compliance<70 → pause subsystem linkedin + alert; acceptance<40% rolling 7d → notify owner; burned_flag → burn-and-rotate
++- [ ] Task 4: Daily Telegram report — task scheduled 19h (Cuiabá): markdown report últimas 24h + comparação 7d + alertas; via existing Telegram bot
++- [ ] Task 5: UI `/cobaia` dashboard — timeline events 14d com markers (login, connect, reply, ban_signal); 4 gauges (acceptance, reply, compliance, ban_prob); botão override gate manual
++- [ ] Task 6: Hunter.io email verifier integration — antes warmup email channel (E.2), verifier prospect emails; bounce>2% pausa channel
++- [ ] Task 7: Sentry MCP — todos erros warmup → Sentry tag account_id; UI link Sentry issue por evento timeline
++- [ ] Task 8: Validação regressão + persistência — phase A B C D E (toca daemon/orchestrator.py + linkedin/limiter.py MADUROS); 20/22 PASS; PLAN.md F.7 ✅; commit `feat(cobaia): F.7 — warmup 14d auto + live ops`
++
++**Done criteria F.7**: cobaia opera 14d completos sem owner ssh · daily report Telegram 19h sem falha · stop gates previnem ban antes humano notar · 20/22 PASS preservado.
++
++### Chapter F.8 — Cost & Performance Observability
++
++**Classification**: backend+ui · **UI score**: 7 · **Estimated sessions**: 3 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control base), F.6 (Brain audit trail)
++
++**Deliverable**: Observabilidade 4 dimensões em `dashboard/observability`. Cost tracking LLM calls (Claude + OpenRouter + Ollama local = $0) com agg tokens + USD por dia/skill/loop. Performance p50/p95/p99 endpoints PC+VM, throughput loops, slow queries Postgres MCP. Error inbox visual agrega 24h, triage, permalink Sentry. Audit trail Brain.decide() acoplado F.6.
++
++**APIs novas**:
++- `GET /api/observability/costs?range=24h|7d|30d&group_by=skill|loop|model`
++- `GET /api/observability/perf?endpoint=&range=`
++- `GET /api/observability/errors?status=open|resolved` · `POST /api/observability/errors/{id}/resolve`
++- `GET /api/observability/decisions?context_id=` (F.6 brain audit)
++
++**DB migrations**: `llm_calls` (timestamp, source, model, prompt_tokens, completion_tokens, cost_usd, latency_ms, skill_id, loop_name) — partição mensal
++
++**Tasks**:
++- [ ] Task 1: Backend LLM cost middleware — wrapper único em core/ai.py + ollama_router.py + Brain dispatcher; grava `llm_calls`; tabela preço USD por model
++- [ ] Task 2: Performance metrics middleware — FastAPI middleware p50/p95/p99 percentis rolling 1h por endpoint; expose `/metrics` Prometheus-compatible
++- [ ] Task 3: Error inbox via Sentry MCP — query issues open last 24h, agrupa por fingerprint, expose com permalink Sentry; mark resolve via Sentry API
++- [ ] Task 4: UI `/observability` 4 tabs (Costs, Performance, Errors, Decisions) — Recharts pra séries temporais; tabela ordenável por coluna; export CSV
++- [ ] Task 5: Validação regressão + persistência — phase A B C D E (toca core/ai.py + ollama_router.py MADUROS); 20/22 PASS; PLAN.md F.8 ✅; commit `feat(observability): F.8 — cost+perf+errors+decisions`
++
++**Done criteria F.8**: owner vê custo Claude Max consumido por skill/dia · slow queries identificadas auto · error inbox substitui `ssh vm 'tail -f' | grep ERROR` · audit Brain decisions navegável · 20/22 PASS preservado.
++
++### Chapter F.9 — Pipeline Studio Visual (form-driven)
++
++**Classification**: ui+backend · **UI score**: 9 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.1, F.6 (Brain + tools registry)
++
++**Deliverable**: Pipeline builder form-driven (NÃO canvas drag-drop — owner solo dispensa). Step library reusa registry F.6 (skills + pipelines + MCPs + endpoints como steps). Live execution monitor por step (status/output/timing/error inline). Template gallery clone-and-modify. A/B test pipelines paralelas.
++
++**APIs novas**:
++- `GET /api/pipeline-studio/steps` (delega tools registry F.6) · `GET /api/pipeline-studio/templates`
++- `POST /api/pipeline-studio/drafts` · `PUT /api/pipeline-studio/drafts/{id}` · `POST /api/pipeline-studio/drafts/{id}/execute`
++- `GET /api/pipeline-studio/runs/{id}/monitor` · `WS /ws/pipeline-studio/run/{id}`
++
++**DB migrations**: `pipeline_drafts` (id, name, yaml_blob, version, owner, created_at, ab_group) + `pipeline_runs_granular` (run_id, draft_id, step_idx, step_name, status, output_json, started_at, ended_at, error)
++
++**Tasks**:
++- [ ] Task 1: Backend CRUD `pipeline_drafts` + integração tools registry F.6 como step library; validação YAML schema
++- [ ] Task 2: Backend execution engine — interpreta YAML drafts, chama tools via Brain dispatcher (F.6), grava granular per-step em `pipeline_runs_granular`
++- [ ] Task 3: WS monitor — broadcast step_start/step_done/step_error events; client renderiza progress live
++- [ ] Task 4: UI `/pipeline-studio` — form builder vertical (add step → modal step picker do registry → params form auto-gerado do tool schema); preview YAML lateral; botões save/execute/clone
++- [ ] Task 5: Template gallery — 5-8 templates seed (prospect → audit → proposta → site → entrega; lead enrichment; warmup cobaia; ...); clone-and-modify workflow
++- [ ] Task 6: A/B test — execute draft em 2 grupos paralelo (50/50 rotation); UI compara métricas (latency, cost, success_rate) lado-a-lado
++- [ ] Task 7: Substituição parcial `/pipeline` legado — flag feature-toggle no UI; legacy permanece read-only durante migração
++- [ ] Task 8: Validação regressão + persistência — phase A B C D E (toca core/pipeline.py MADURO); 20/22 PASS; PLAN.md F.9 ✅; commit `feat(pipeline-studio): F.9 — visual builder + A/B + templates`
++
++**Done criteria F.9**: owner cria pipeline nova sem editar YAML manual · live monitor mostra step travado em real-time · A/B compara duas estratégias outreach lado-a-lado · 20/22 PASS preservado.
++
++---
++
++### Regra inviolável FASE F — Regression-test gate
+ - [ ] Toda task que toca MADURO exige pre_test + post_test
+ - [ ] `validate_implementation.py --phase A B C D E` antes E depois de cada chapter
+ - [ ] 20/22 PASS preservado é gate de merge inegociável
+ - [ ] Falha = REVERT, não "cosmético deixa quieto"
++- [ ] Toda task fora de .claude/ exige `git diff --stat` no post_test (defesa contra drift acidental)
+ 
+ **Áreas MADURAS** (toque exige gate):
+ core/{state,models,ai,pipeline,limiter}.py + loops/* + api/* + vm_api/routes.py + linkedin/{stealth,human,limiter,account_profile,preflight,stealth_compliance,ollama_router}.py + channels/email/* + daemon/orchestrator.py
+ 
+-### Pendências cross-Fase F
++### Dependências cruzadas FASE F (DAG)
++
++```
++F.1 (gap audit) ──┬──> F.2 (mission control)  ──┬──> F.7 (cobaia live ops)
++                  ├──> F.3 (lab cockpit)         │
++                  ├──> F.4 (auto-skill) ──┐      │
++                  ├──> F.5 (MCP gateway) ─┴──┬──> F.6 (Brain) ──┬──> F.8 (observability)
++                  └──> F.9 (pipeline studio) <──┘                └──> F.9
++```
++
++**Ordem ótima execução**: F.1 → (F.2 ∥ F.5) → F.3 → (F.6 ∥ F.4) → (F.7 ∥ F.9) → F.8
++
++**Paralelizáveis** (sem conflito MADURO): F.2+F.5, F.6+F.4, F.7+F.9
++
++### Pendências cross-FASE F
+ - [ ] Channels WhatsApp + Instagram (E.2/E.3 — deferido 30d após Email operacional)
+ - [ ] VM-GPU migration (aguarda decisão financeira)
+ - [ ] Fix `_extract_profile_data` selectors LinkedIn DOM atual
+ - [ ] Tech-debt: 11 sqlite3.connect bare daemon + 4 linkedin/* → usar db_utils._connect
+ - [ ] Deletar `hermes_desktop.py` deprecated + subfolder `Hermes Cloud Studio/`
++- [ ] Validar Meta Cloud API credentials owner pra WhatsApp Business MCP (F.5)
++- [ ] Validar Apollo.io coverage PME Cuiabá antes investir SaaS (F.7 alternativa Firecrawl)
++- [ ] Verificar owner workflow usa Notion (skip MCP se não)
+ 
+ ### Sessão re-auditoria 2026-06-08 — Chapter atual
+ - [x] Ler GUARDRAILS + AUDIT + PLAN existentes
+ - [x] Inventário (CLAUDE.md, .mcp.json, git log, artifacts .claude/)
+ - [x] Entrevista 4 perguntas (foco próximas 4-6 semanas)
+ - [x] AUDIT-2026-06-08-FASE-F.md criado (delta v1)
+-- [x] PLAN.md atualizado com 7 chapters Fase F
+-- [ ] TaskCreate 7 chapters
+-- [ ] memory_save re-auditoria
++- [x] PHASE-F-STUDY-SYNTHESIS.md criado (11 fantasmas + MCP landscape)
++- [x] PLAN.md atualizado com 9 chapters FASE F + dependencies + estimated_sessions
++- [ ] TaskCreate 9 chapters
++- [ ] memory_save re-auditoria FASE F final
+ - [ ] Atualizar MEMORY.md global

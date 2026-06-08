@@ -2,8 +2,15 @@
   "_meta": {
     "project": "hermes-cloud-studio",
     "owner": "Caio Leão",
-    "format_version": 1,
-    "description": "Portas declaradas pelo projeto. Lidas por scripts/port_allocator.py. Registry global vive em ~/.dev-projects-ports.json"
+    "format_version": 2,
+    "description": "Portas declaradas pelo projeto. Lidas por scripts/port_allocator.py. Registry global vive em ~/.dev-projects-ports.json",
+    "changelog": [
+      {
+        "date": "2026-06-08",
+        "phase": "F",
+        "change": "format_version 1→2: adicionado bloco mcp_servers (mcp_gateway_vm:55401, hermes_linkedin_mcp:55402) + bloco oauth (audience=hermes-brain). Suporta Fase F.5 (FastMCP 3.0 + IBM ContextForge Gateway na VM)."
+      }
+    ]
   },
   "ports": {
     "dashboard": {
@@ -40,6 +47,102 @@
       "host": "127.0.0.1",
       "description": "agentmemory MCP server",
       "consumers": [".mcp.json"]
+    },
+    "mcp_gateway_vm": {
+      "preferred": 55401,
+      "fallback_range": [55402, 55410],
+      "host": "136.115.74.69",
+      "fixed": false,
+      "side": "vm",
+      "phase_introduced": "F.5",
+      "description": "IBM ContextForge MCP Gateway na VM — multiplex+auth+rate-limit+audit centralizado pros 15+ MCPs externos (GitHub/Sentry/Postgres/Slack/Omnisearch/Firecrawl/Hunter/Exa/WhatsApp/Apollo/AgentMail/Notion/Playwright + 2 custom Hermes). Brain NUNCA fala direto com MCP individual — sempre via gateway. OAuth 2.1 (audience=hermes-brain) + OpenTelemetry tracing alimenta Mission Control timeline F.2.",
+      "consumers": [
+        "Hermes Brain (api/agent_zero.py F.6)",
+        "daemon decision loop F.4 auto-skill",
+        "Mission Control timeline WS F.2"
+      ],
+      "auth_required": true,
+      "auth_mode": "oauth2.1_jwt",
+      "rate_limit_default": "60req/min per audience",
+      "loopback_only": false,
+      "exposed_via_tunnel": true,
+      "tunnel_pattern": "SSH reverse 127.0.0.1:55401→VM:55401 (gateway local-only na VM, exposto ao PC via tunnel; nunca exposto publicamente)",
+      "sanity_check": "curl -H 'Authorization: Bearer $JWT_HERMES_BRAIN' http://127.0.0.1:55401/health → 200 {gateway:'contextforge', mcps_registered:>=10}"
+    },
+    "hermes_linkedin_mcp": {
+      "preferred": 55402,
+      "fallback_range": [55403, 55410],
+      "host": "136.115.74.69",
+      "fixed": false,
+      "side": "vm",
+      "phase_introduced": "F.5",
+      "description": "MCP custom Hermes-LinkedIn (FastMCP 3.0) — expõe ações LinkedIn da conta Caio (send_message, send_invite, comment, visit, search) com guardrails stealth/human/limiter aplicados ANTES de chamar linkedin/client.py. Único MCP que pode tocar conta sagrada — proteção dupla via OAuth audience=hermes-brain + IP loopback-only VM.",
+      "consumers": [
+        "MCP Gateway (mcp_gateway_vm:55401) — registrado como upstream",
+        "Brain via gateway (F.6 decide ação → gateway roteia → linkedin_mcp aplica guardrails → linkedin/client.py)"
+      ],
+      "auth_required": true,
+      "auth_mode": "oauth2.1_jwt",
+      "loopback_only": true,
+      "exposed_via_tunnel": false,
+      "guardrails_enforced": [
+        "stealth.py (fingerprint Patchright)",
+        "human.py (delays + scroll + mouse)",
+        "limiter.py (cooldown.py + daily quota)",
+        "validate_token() audience=hermes-brain match obrigatório"
+      ],
+      "sanity_check": "ssh vm 'curl -s -H \"Authorization: Bearer $JWT_HERMES_BRAIN\" http://127.0.0.1:55402/tools' → lista [send_message, send_invite, comment, visit, search]"
+    }
+  },
+  "oauth": {
+    "_description": "Auth tokens JWT pro MCP gateway + Hermes-LinkedIn MCP custom. Introduzido Fase F.5 pra fechar gap detectado em internal.py (autenticação só por IP loopback). Validação faz match audience+expiry+signature.",
+    "audiences": {
+      "hermes-brain": {
+        "purpose": "Token usado pelo Brain (api/agent_zero.py F.6 + daemon decision loop F.4) pra invocar ferramentas via MCP gateway. Audience match obrigatório no gateway E no linkedin_mcp custom.",
+        "issuer": "hermes-pc-server",
+        "issuer_host": "127.0.0.1:55000 (PC server.py endpoint /api/internal/oauth/issue — protegido por require_internal IP loopback)",
+        "algorithm": "RS256",
+        "key_storage": "VM /var/hermes/secrets/jwt_private.pem (chmod 600) + /var/hermes/secrets/jwt_public.pem distribuído via deploy",
+        "ttl_seconds": 3600,
+        "rotation_policy": "rotação manual via skill hermes-jwt-rotate (F.5 entrega); revogação por bump de kid no JWKS",
+        "scopes": [
+          "mcp:gateway:invoke",
+          "mcp:linkedin:read",
+          "mcp:linkedin:write_guarded",
+          "mcp:postgres:read",
+          "mcp:github:write",
+          "mcp:sentry:read",
+          "mcp:omnisearch:query"
+        ],
+        "scope_default_deny": true,
+        "consumers": [
+          "api/agent_zero.py Brain.decide() — pede token via internal endpoint, cacheia in-memory até expiry-300s",
+          "loops/decision.py daemon auto-skill loop F.4",
+          "scripts/skill_proposals_sync.py (F.4 PR-based deploy via GitHub MCP)"
+        ],
+        "validation_chain": [
+          "1. Signature RS256 verify via jwt_public.pem",
+          "2. exp > now",
+          "3. aud == 'hermes-brain' (hard match)",
+          "4. iss == 'hermes-pc-server'",
+          "5. scope inclui a tool sendo invocada",
+          "6. nbf <= now (clock skew tolerância 30s)"
+        ],
+        "audit_log": "VM /var/hermes/logs/oauth_audit.jsonl — append-only, 1 linha por token issued/validated/rejected; alimenta Mission Control F.2 channel oauth_events"
+      }
+    },
+    "deny_audiences": {
+      "_note": "Audiences explicitamente bloqueados — qualquer JWT cuja aud bate aqui retorna 403 imediato no gateway (defesa em profundidade).",
+      "list": ["hermes-public", "hermes-test", "hermes-cobaia", "*"]
+    },
+    "regression_guard": {
+      "phase_a_b_d_must_pass": true,
+      "checklist": [
+        "Internal endpoints (/api/internal/*) continuam IP-loopback gated — OAuth é CAMADA EXTRA, não substituta (defense in depth)",
+        "WS /ws auth (Fase A) intocado — OAuth aqui só pra MCP gateway, não pra dashboard",
+        "Loops resilience (Fase D) — token fetch falhando NÃO derruba loop; spawn() + try/except logger.exception + fallback skip ação MCP até próximo tick",
+        "Daemon (Fase B) — sem OAuth NÃO degrada daemon; só bloqueia chamadas MCP gateway"
+      ]
     }
   }
 }
