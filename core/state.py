@@ -146,6 +146,22 @@ def get_runtime_state(key: str, default: Any = None) -> Any:
         db.close()
 
 
+def is_subsystem_paused(name: str) -> bool:
+    """F.2.1+F.2.2 — True se subsistema 'name' tem pause ativo (until_ts > now).
+
+    Lê runtime_state.subsystem_pauses (JSON map name -> until_ts unix).
+    Usado por loops maduros (sync, linkedin_sync, linkedin_scheduler) e
+    channels/email/sender pra skip iteration sem matar o processo inteiro.
+    """
+    raw = get_runtime_state("subsystem_pauses", {}) or {}
+    if not isinstance(raw, dict):
+        return False
+    until_ts = raw.get(name)
+    if not isinstance(until_ts, (int, float)):
+        return False
+    return float(until_ts) > time.time()
+
+
 def init_db() -> None:
     conn = get_db()
     conn.executescript("""

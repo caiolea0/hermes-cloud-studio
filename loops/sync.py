@@ -17,6 +17,7 @@ from core.state import (
     SYNC_INTERVAL,
     VM_API_URL,
     get_db,
+    is_subsystem_paused,
     logger,
     ws_manager,
 )
@@ -237,8 +238,18 @@ async def sync_from_vm():
 
 
 async def sync_loop():
-    """Background loop that syncs from VM every SYNC_INTERVAL seconds."""
+    """Background loop that syncs from VM every SYNC_INTERVAL seconds.
+
+    F.2.2 — Skip iteration quando subsistema 'daemon' pausado via
+    /api/daemon/subsystems/daemon/pause (runtime_state.subsystem_pauses).
+    """
     await asyncio.sleep(2)
     while True:
-        await sync_from_vm()
+        if is_subsystem_paused("daemon"):
+            logger.info(
+                "sync_loop skip — daemon paused",
+                extra={"category": "subsystem_pause", "subsystem": "daemon"},
+            )
+        else:
+            await sync_from_vm()
         await asyncio.sleep(SYNC_INTERVAL)

@@ -11,6 +11,7 @@ from core.state import (
     VM_API_URL,
     _telegram_notify,
     get_db,
+    is_subsystem_paused,
     logger,
     spawn,
     ws_manager,
@@ -24,6 +25,14 @@ async def linkedin_scheduler_loop():
     await asyncio.sleep(20)
     while True:
         try:
+            # F.2.2 — Skip iteration quando subsistema 'linkedin' pausado.
+            if is_subsystem_paused("linkedin"):
+                logger.info(
+                    "linkedin_scheduler_loop skip — linkedin paused",
+                    extra={"category": "subsystem_pause", "subsystem": "linkedin"},
+                )
+                await asyncio.sleep(30)
+                continue
             now_iso = datetime.now(timezone.utc).isoformat()
             conn = get_db()
             try:

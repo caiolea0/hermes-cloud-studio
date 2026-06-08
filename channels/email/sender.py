@@ -15,6 +15,8 @@ from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
 from typing import Optional
 
+from core.state import is_subsystem_paused
+
 from .config import EmailConfig
 from .limiter import EmailLimiter
 
@@ -125,6 +127,17 @@ class EmailSender:
         Levanta EmailRateLimited se gate do limiter bloquear.
         Levanta EmailSendError se SMTP falhar após retries.
         """
+        # F.2.2 — Gate subsystem_pauses ANTES de qualquer write em email_rate.db.
+        # Owner pausa 'email' via /api/daemon/subsystems/email/pause -> sender bloqueia.
+        if not skip_limiter and is_subsystem_paused("email"):
+            logger.info(
+                "email send skip — email subsystem paused recipient=%s campaign=%s",
+                to,
+                campaign_id or "-",
+                extra={"category": "subsystem_pause", "subsystem": "email"},
+            )
+            raise EmailRateLimited("subsystem_paused")
+
         if not skip_limiter:
             ok, reason = self.limiter.can_send()
             if not ok:

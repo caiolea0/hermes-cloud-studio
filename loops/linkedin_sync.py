@@ -10,6 +10,7 @@ from core.state import (
     VM_API_URL,
     _local_error_until_ack,
     get_db,
+    is_subsystem_paused,
     logger,
     ws_manager,
 )
@@ -90,11 +91,20 @@ async def sync_linkedin_campaigns():
 
 
 async def linkedin_sync_loop():
-    """10s LinkedIn campaigns sync. Lighter than the 60s general sync."""
+    """10s LinkedIn campaigns sync. Lighter than the 60s general sync.
+
+    F.2.2 — Skip iteration quando subsistema 'linkedin' pausado.
+    """
     await asyncio.sleep(5)
     while True:
         try:
-            await sync_linkedin_campaigns()
+            if is_subsystem_paused("linkedin"):
+                logger.info(
+                    "linkedin_sync_loop skip — linkedin paused",
+                    extra={"category": "subsystem_pause", "subsystem": "linkedin"},
+                )
+            else:
+                await sync_linkedin_campaigns()
         except Exception as e:
             logger.warning(f"linkedin_sync_loop error: {e}")
         await asyncio.sleep(10)
