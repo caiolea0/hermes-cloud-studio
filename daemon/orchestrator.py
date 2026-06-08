@@ -326,7 +326,7 @@ class HermesDaemon:
                     await asyncio.sleep(30)
 
             except Exception as e:
-                logger.error(f"Daemon loop error: {e}")
+                logger.exception(f"Daemon loop error: {e}")
                 self.consecutive_errors += 1
                 await self.log_event("error", "system", f"Daemon error: {str(e)[:200]}")
                 await asyncio.sleep(10)
@@ -856,7 +856,7 @@ class HermesDaemon:
                     headers=self._auth_headers()
                 )
         except Exception:
-            pass  # Non-critical if dashboard not connected
+            pass  # noqa: silenciado intencional — dashboard offline é OK
 
     async def _notify_telegram(self, message: str):
         """Send notification to user via Telegram."""

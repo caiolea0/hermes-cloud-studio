@@ -155,17 +155,19 @@ def check_file_exists(target: str, pattern: str = "") -> dict:
     return {"ok": True, "size": p.stat().st_size}
 
 
-def check_count_max(target: str, pattern: str) -> dict:
-    """target = file; pattern = regex; expected count <= some limit (passed via description)."""
-    # Aceita pattern com sufixo " / max:N" — mas o parser nosso joga max no description.
-    # Trick: extrair número de description quando vier; senão usa 0.
+def check_count_max(target: str, pattern: str, description: str = "") -> dict:
+    """Conta ocorrências; PASS se count <= max extraído da description ('fewer than N' ou 'max:N')."""
     p = _resolve_path(target)
     if not p.exists():
         return {"ok": False, "reason": f"missing: {target}"}
     try:
         content = p.read_text(encoding="utf-8", errors="ignore")
         count = len(re.findall(pattern, content, re.MULTILINE))
-        return {"ok": True, "count": count}  # quem decide PASS/FAIL é o caller usando count
+        m = re.search(r"(?:fewer than|max:|<=)\s*(\d+)", description, re.IGNORECASE)
+        max_allowed = int(m.group(1)) if m else 0
+        ok = count <= max_allowed
+        return {"ok": ok, "count": count, "max": max_allowed,
+                "reason": f"{count} occurrences (max {max_allowed})" if not ok else ""}
     except Exception as e:
         return {"ok": False, "reason": str(e)}
 
@@ -276,7 +278,10 @@ def run_finding(f: Finding) -> Result:
             overall_ok = False
             continue
         try:
-            r = runner(chk.target, chk.pattern)
+            if chk.kind == "count_max":
+                r = runner(chk.target, chk.pattern, chk.description)
+            else:
+                r = runner(chk.target, chk.pattern)
         except Exception as e:
             r = {"ok": False, "reason": f"check error: {e}"}
         d = {

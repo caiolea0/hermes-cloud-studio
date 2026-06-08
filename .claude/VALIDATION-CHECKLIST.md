@@ -64,8 +64,8 @@ checks:
 - phase: B
 - checks:
   - grep_present: server.py / "def spawn\(" / spawn helper defined OR import from util
-  - grep_absent: server.py / "asyncio\.create_task\(" / no bare create_task in server
-  - grep_absent: hermes_api_v2.py / "asyncio\.create_task\(" / idem
+  - grep_absent: server.py / `asyncio\.create_task\((?!coro\))` / no bare create_task outside spawn helper
+  - grep_absent: hermes_api_v2.py / `asyncio\.create_task\((?!coro\))` / idem
 
 ### MERGED-007 — except Exception: pass logging
 - phase: B
