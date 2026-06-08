@@ -1,7 +1,7 @@
 """Configuration constants for LinkedIn anti-detection system."""
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 
 BASE_DIR = Path(__file__).parent.parent
@@ -31,6 +31,8 @@ class LinkedInConfig:
     daily_profile_views: int = 70           # free=70, premium=150, sales_nav=250
     daily_connection_requests: int = 30     # free=30, premium=80, sales_nav=150
     daily_messages: int = 25
+    daily_post_engagements: int = 15        # like + comment combined; free=15, premium=30
+    daily_follows: int = 25                 # follow company/person; free=25, premium=50
     weekly_connection_requests: int = 40    # hard LinkedIn cap ~50/week free
     min_action_delay: float = 3.0           # seconds between actions
     max_action_delay: float = 15.0
@@ -62,6 +64,20 @@ class LinkedInConfig:
     scroll_naturally: bool = True
     simulate_reading: bool = True
 
+    # --- Pre-outreach warm-up (v5 — anti-detection 2026) ---
+    pre_outreach_enabled: bool = True       # navigate feed/notifications/network before any action
+    pre_outreach_duration_seconds: int = 300  # 5 min default
+    pre_outreach_min_seconds: int = 180     # never below 3 min if enabled
+
+    # --- Working hours (v5 — anti-detection 2026) ---
+    working_hours_enabled: bool = True
+    working_hours_start: int = 8            # local hour (config.timezone), inclusive
+    working_hours_end: int = 20             # local hour, exclusive
+    working_days: List[int] = field(default_factory=lambda: [0, 1, 2, 3, 4, 5, 6])  # 0=Mon..6=Sun
+
+    # --- Lurking phase (v5 — anti-detection 2026) ---
+    lurking_days: int = 7                   # days 0..lurking_days-1 = ZERO outreach (browsing only)
+
     # --- Targets (set by pipeline executor) ---
     targets: Optional[dict] = None          # {"roles": [...], "location": "...", "max_profiles": N}
 
@@ -75,11 +91,15 @@ class LinkedInConfig:
             self.daily_profile_views = 150
             self.daily_connection_requests = 80
             self.daily_messages = 75
+            self.daily_post_engagements = 30
+            self.daily_follows = 50
             self.weekly_connection_requests = 100
         elif self.account_type == "sales_navigator":
             self.daily_profile_views = 250
             self.daily_connection_requests = 150
             self.daily_messages = 120
+            self.daily_post_engagements = 50
+            self.daily_follows = 80
             self.weekly_connection_requests = 180
 
     def __post_init__(self):

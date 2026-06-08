@@ -216,3 +216,170 @@ async def random_delay(min_s: float = 3.0, max_s: float = 15.0):
     sigma = (max_s - min_s) / 4
     delay = max(min_s, min(max_s, random.gauss(center, sigma)))
     await asyncio.sleep(delay)
+
+
+# --- v5: Pre-outreach simulation (anti-detection 2026) ---
+
+async def simulate_pre_outreach(page, log_callback=None, duration_seconds: int = 300,
+                                min_seconds: int = 180):
+    """Pre-outreach human warm-up: feed scroll → notifications → mynetwork → feed.
+
+    Goal: LinkedIn sees a normal browsing session BEFORE any outreach.
+    Without this, the very first request after login goes straight to
+    /search/results/people/ — a hard signal of automation.
+
+    Args:
+        page: Patchright/Playwright page (already on linkedin.com/feed/).
+        log_callback: optional fn(msg: str) to forward progress to UI.
+        duration_seconds: total target duration (default 5 min).
+        min_seconds: never go shorter than this (default 3 min).
+    """
+    duration = max(duration_seconds, min_seconds)
+
+    def _say(msg):
+        if log_callback:
+            try:
+                log_callback(msg)
+            except Exception:
+                pass
+
+    # Budget allocation (rough %, randomized inside):
+    #   feed_initial: 40%, notifications: 20%, mynetwork: 25%, feed_final: 15%
+    t_feed_a = int(duration * random.uniform(0.35, 0.45))
+    t_notif  = int(duration * random.uniform(0.15, 0.25))
+    t_mynet  = int(duration * random.uniform(0.20, 0.30))
+    t_feed_b = max(30, duration - t_feed_a - t_notif - t_mynet)
+
+    # 1) Feed scroll
+    _say(f"Pré-aquecimento: scroll feed ~{t_feed_a}s")
+    try:
+        # If we're not on feed already, navigate
+        if "/feed" not in page.url:
+            await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
+            await asyncio.sleep(random.uniform(1.5, 3.0))
+        # Long scroll with multiple chunks + pauses
+        elapsed = 0.0
+        while elapsed < t_feed_a:
+            await scroll_human(page, "down", random.randint(300, 800))
+            pause = random.uniform(2.0, 5.0)
+            await asyncio.sleep(pause)
+            elapsed += pause + 0.5
+            if elapsed < t_feed_a and random.random() < 0.15:
+                # occasionally scroll up a bit (re-reading)
+                await scroll_human(page, "up", random.randint(100, 250))
+                await asyncio.sleep(random.uniform(0.8, 2.0))
+                elapsed += 1.5
+    except Exception as e:
+        _say(f"Pré-aquecimento: erro no feed inicial ({e})")
+
+    # Helper: detect if LinkedIn put session in checkpoint/redirect-loop state.
+    # When that happens, /mynetwork/ + /search/ + /feed/ all 302→checkpoint and
+    # we'd just keep banging on it. Abort pre-outreach cleanly instead.
+    async def _checkpoint_detected() -> bool:
+        try:
+            u = (page.url or "").lower()
+            if "checkpoint" in u or "uas/login" in u or "authwall" in u:
+                return True
+        except Exception:
+            pass
+        return False
+
+    checkpoint = False
+
+    # 2) Notifications — click only, no goto fallback (goto = automation signal)
+    _say(f"Pré-aquecimento: notificações ~{t_notif}s")
+    try:
+        clicked = False
+        for sel in ["a[href*='/notifications/']",
+                    "a[data-test-app-aware-link][href*='notifications']",
+                    "nav a[href*='notifications']"]:
+            el = await page.query_selector(sel)
+            if el:
+                try:
+                    await el.scroll_into_view_if_needed()
+                    await asyncio.sleep(random.uniform(0.3, 0.8))
+                    await el.click()
+                    clicked = True
+                    break
+                except Exception:
+                    continue
+        if clicked:
+            await asyncio.sleep(random.uniform(2.0, 4.0))
+            await simulate_page_reading(page, min_time=max(20, t_notif * 0.4), max_time=t_notif)
+        else:
+            _say("Pré-aquecimento: nav notif não encontrado — extra scroll feed")
+            await simulate_page_reading(page, min_time=max(20, t_notif * 0.4), max_time=t_notif)
+    except Exception as e:
+        _say(f"Pré-aquecimento: erro nas notificações ({type(e).__name__})")
+
+    if await _checkpoint_detected():
+        _say("Pré-aquecimento: checkpoint detectado — abortando warm-up")
+        checkpoint = True
+
+    # 3) MyNetwork — click only. Goto direto a /mynetwork/ triggers redirect
+    # loop em sessões marcadas pelo LinkedIn. Sem fallback goto.
+    if not checkpoint:
+        _say(f"Pré-aquecimento: minha rede ~{t_mynet}s")
+        try:
+            clicked = False
+            for sel in ["a[href*='/mynetwork/']",
+                        "a[data-test-app-aware-link][href*='mynetwork']",
+                        "nav a[href*='mynetwork']"]:
+                el = await page.query_selector(sel)
+                if el:
+                    try:
+                        await el.scroll_into_view_if_needed()
+                        await asyncio.sleep(random.uniform(0.3, 0.8))
+                        await el.click()
+                        clicked = True
+                        break
+                    except Exception:
+                        continue
+            if clicked:
+                await asyncio.sleep(random.uniform(2.0, 4.0))
+                await simulate_page_reading(page, min_time=max(20, t_mynet * 0.4), max_time=t_mynet)
+            else:
+                _say("Pré-aquecimento: nav mynetwork não clicável — pulando (goto provoca redirect loop)")
+                # spend the budget scrolling current page instead
+                await simulate_page_reading(page, min_time=max(20, t_mynet * 0.4), max_time=t_mynet)
+        except Exception as e:
+            _say(f"Pré-aquecimento: erro em minha rede ({type(e).__name__})")
+
+        if await _checkpoint_detected():
+            _say("Pré-aquecimento: checkpoint detectado — abortando warm-up")
+            checkpoint = True
+
+    # 4) Back to feed — click logo, fallback goto only if not in checkpoint
+    if not checkpoint:
+        _say(f"Pré-aquecimento: feed novamente ~{t_feed_b}s")
+        try:
+            clicked = False
+            for sel in ["a.global-nav__primary-link[href*='/feed/']",
+                        "a[href='/feed/']",
+                        "a.global-nav__brand-logo"]:
+                el = await page.query_selector(sel)
+                if el:
+                    try:
+                        await el.click()
+                        clicked = True
+                        break
+                    except Exception:
+                        continue
+            if not clicked and "/feed" not in (page.url or ""):
+                await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
+            await asyncio.sleep(random.uniform(1.5, 3.0))
+            elapsed = 0.0
+            while elapsed < t_feed_b:
+                await scroll_human(page, "down", random.randint(250, 600))
+                pause = random.uniform(1.5, 4.0)
+                await asyncio.sleep(pause)
+                elapsed += pause + 0.5
+        except Exception as e:
+            _say(f"Pré-aquecimento: erro no feed final ({type(e).__name__})")
+
+    if checkpoint:
+        _say("Pré-aquecimento abortado por checkpoint — sessão pode estar marcada")
+        # Raise so caller cancels the campaign cleanly instead of hammering search
+        raise RuntimeError("LinkedIn checkpoint redirect detected during warm-up")
+
+    _say("Pré-aquecimento concluído — partindo para a ação")
