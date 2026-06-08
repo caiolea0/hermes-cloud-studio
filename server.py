@@ -3524,7 +3524,7 @@ def _tunnel_supervisor_pid() -> Optional[int]:
                     for p in reversed(line.strip().split(",")):
                         if p.strip().isdigit():
                             return int(p.strip())
-        except Exception:
+        except Exception:  # noqa: silenciado intencional — tenta próximo binário python
             continue
     return None
 
@@ -3537,7 +3537,7 @@ async def tunnel_status():
     if sp.exists():
         try:
             state = json.loads(sp.read_text(encoding="utf-8"))
-        except Exception:
+        except Exception:  # noqa: silenciado intencional — state.json corrompido cai p/ default vazio
             pass
     pid = _tunnel_supervisor_pid()
     # Fallback "supervisor vivo": state.json atualizado < 90s atras
@@ -3553,7 +3553,7 @@ async def tunnel_status():
                 _u = _u.replace(tzinfo=timezone.utc)
             age = (_dt.now(timezone.utc) - _u).total_seconds()
             alive_via_heartbeat = age < 90
-    except Exception:
+    except Exception:  # noqa: silenciado intencional — heartbeat parse best-effort
         pass
     supervisor_running = (pid is not None) or alive_via_heartbeat
     healthy = bool(state.get("egress_residential")) and supervisor_running
