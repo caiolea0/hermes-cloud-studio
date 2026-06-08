@@ -222,6 +222,70 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 5. **Commits do projeto inteiro** (organizar 7+ chapters de mudanças)
 6. **Fix `_extract_profile_data`**: nome/headline vazios no result (LinkedIn DOM mudou — selectors precisam update)
 
+## Chapter 11 — Implementation Plan + Validation Harness ✅ (2026-06-08)
+
+Documentos:
+- `.claude/IMPLEMENTATION-PLAN.md` — plano executável detalhado dos 20 findings em 5 fases (A→E) com análise+solução+test+persistência por finding
+- `.claude/VALIDATION-CHECKLIST.md` — asserts concretos consumidos pelo script
+- `scripts/validate_implementation.py` — harness automatizado com flag system + JSON output
+- `.claude/validation-report.json` — gerado a cada run (gitignored se decidirmos)
+
+Baseline validation (ANTES de qualquer fix):
+- **PASS: 0 | FAIL: 22 | SKIP: 0** — esperado, nada implementado ainda
+- Comando: `python scripts/validate_implementation.py`
+
+Próximos passos owner — atacar em ordem:
+1. Fase A (security critical) — sessão dedicada 4-6h
+2. validate `--phase A` PASS antes de prosseguir
+3. Fase B, C, D, E em sequência
+4. Re-rodar deep-audit workflow ao final pra detectar regressão
+
+## Chapter 10 — DEEP AUDIT WORKFLOW ✅ (2026-06-08)
+
+### Workflow hermes-deep-audit executado
+- Script: `.claude/workflows/deep-audit.js`
+- Custo real: **2.5M tokens, 72 agents, 16min**
+- 172 findings de 11 dimensões (8 Discover + 3 CrossCut)
+- 20 top sintetizados, **20 confirmados (3/3 lentes valid em TODOS — 100%)**, 0 rejeitados
+- Output: `.claude/DEEP-AUDIT-2026-06-08.md` (40KB, 477 linhas)
+
+### Findings críticos (priorizados pra ataque imediato)
+
+**CRITICAL (2)**
+- MERGED-001 — WebSocket /ws sem auth → broadcast LinkedIn campaigns/prospects pra qualquer cliente. server.py:810-831
+- MERGED-002 — `if not AUTH_TOKEN: return await call_next(request)` em PC + VM → API pública por default. server.py:48, hermes_api_v2.py:154
+
+**HIGH (9)**
+- MERGED-003 — `/api/internal/*` só checa client.host → IP spoof rotaciona LI_AT
+- MERGED-004 — Globals in-memory `_running_linkedin_campaigns`, `_LI_SESSION_LAST_OK` perdem em restart
+- MERGED-005 — Race conditions: 5 loops + endpoints concorrentes contra SQLite sem busy_timeout
+- MERGED-006 — Sync PC↔VM polling 60s sem versionamento → last-write-wins silencioso
+- MERGED-007 — 30+ `except Exception: pass` silenciam bugs em loops/endpoints
+- MERGED-008 — Topologia "PC orquestra, VM executa" VIOLADA: linkedin_viewer aceito no PC
+- MERGED-009 — IP VM hardcoded em 13+ lugares → migração GPU planejada vai quebrar
+- MERGED-010 — Channels Email/WA/IG stubs vs daemon expõe P1-P7 multi-canal
+- MERGED-011 — Monolitos server.py (3308) + hermes_api_v2.py (1861) sem separação por domínio
+
+**MEDIUM (8)** + **LOW (1)** — ver DEEP-AUDIT-2026-06-08.md
+
+### Próximos passos pro owner (priorizados)
+
+**Fase Imediata (security crítica — 1-2 dias)**
+1. Fix MERGED-001 + 002 + 003 — fail-closed em WS + AUTH_TOKEN + endpoints internos
+2. Commit + push
+
+**Fase 2 — Robustness (1 semana)**
+3. Fix MERGED-004 + 005 + 015 — persistir state, busy_timeout SQLite, asyncio.create_task hold refs
+4. Fix MERGED-007 — substituir `except Exception: pass` por logging explícito
+
+**Fase 3 — Arquitetural (sprint)**
+5. Fix MERGED-008 + 009 + 014 — config central, IP VM via env, decidir Ollama PC vs VM
+6. Fix MERGED-011 — split server.py/hermes_api_v2.py por domínio
+
+**Fase 4 — Features (next sprint)**
+7. Fix MERGED-010 — implementar channels Email/WA/IG (workflow W2 do AUDIT.md)
+8. Fix MERGED-013 — Settings central pydantic-settings
+
 ## Chapter 9 — TESTE END-TO-END APROVADO ✅ (2026-06-07)
 
 ### Critério owner

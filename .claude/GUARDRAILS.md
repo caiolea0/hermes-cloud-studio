@@ -154,6 +154,22 @@ Reagir IMEDIATAMENTE se:
 
 ---
 
+## 🧪 Validation Harness (anti-regressão)
+
+Mecanismo automatizado pra confirmar implementação:
+```bash
+python scripts/validate_implementation.py            # tudo
+python scripts/validate_implementation.py --phase A  # uma fase
+python scripts/validate_implementation.py --finding MERGED-001
+python scripts/validate_implementation.py --json     # output máquina
+python scripts/validate_implementation.py --apply-flags  # reabre tasks pra fails
+```
+
+- Lê `.claude/VALIDATION-CHECKLIST.md` (asserts por finding)
+- Output: `.claude/validation-report.json`
+- Flags: `.claude/validation-flags.json` (lista finding_ids em FAIL)
+- **Inviolável**: rodar antes de fechar cada fase. FAIL = reabrir + reimplementar. Loop até 100% PASS.
+
 ## 🔄 Quando atualizar este arquivo
 
 - Toda decisão arquitetural nova → adiciona linha em "Arquitetura"
