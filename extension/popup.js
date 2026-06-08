@@ -56,6 +56,26 @@ function renderStatus(resp) {
     } else {
         stEl.innerHTML = '<span class="dot err"></span>' + (s.reason || 'erro');
     }
+
+    // Detalhe do erro inline
+    const errEl = document.getElementById('error-detail');
+    if (!s.ok && (s.error || s.reason)) {
+        const e = s.error;
+        let detail = '';
+        if (typeof e === 'object' && e) {
+            detail = `status=${e.status || '?'} reason=${e.reason || s.reason || '?'}`;
+            if (e.body && e.body.detail) detail += ` body=${JSON.stringify(e.body).slice(0,150)}`;
+            if (e.error) detail += ` err=${e.error}`;
+        } else if (typeof e === 'string') {
+            detail = e;
+        } else {
+            detail = s.reason || '?';
+        }
+        errEl.textContent = 'ERROR DETAIL: ' + detail;
+        errEl.style.display = 'block';
+    } else {
+        errEl.style.display = 'none';
+    }
 }
 
 function load() {
