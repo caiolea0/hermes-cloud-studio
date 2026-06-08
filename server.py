@@ -62,6 +62,10 @@ if not INTERNAL_TOKEN:
 # Persistent Agent Zero context for Hermes conversations
 _agent_zero_context_id: Optional[str] = None
 
+# Erros locais de dispatch preservados até ack do owner (MERGED-016).
+# Chave: str(campaign_id). Sync loop não sobrescreve enquanto erro pendente.
+_local_error_until_ack: dict = {}
+
 PHOTO_CACHE_DIR.mkdir(exist_ok=True)
 
 # Background task registry — previne GC de tasks "soltas" (MERGED-015)
@@ -503,6 +507,9 @@ async def sync_linkedin_campaigns():
             elif local["status"] in ("scheduled", "cancelled"):
                 # v6: PC owns these states. Skip — never let VM overwrite scheduled/cancelled.
                 pass
+            elif str(c["id"]) in _local_error_until_ack:
+                # MERGED-016: erro de dispatch pendente de ack — não sobrescrever com dados da VM
+                pass
             elif local["status"] != c.get("status") or local["progress"] != c.get("progress"):
                 conn.execute("""
                     UPDATE linkedin_campaigns
@@ -787,12 +794,14 @@ async def lifespan(app: FastAPI):
     li_monitor_task = spawn(linkedin_session_monitor_loop())
     li_health_task = spawn(linkedin_health_monitor_loop())
     li_scheduler_task = spawn(linkedin_scheduler_loop())
+    vm_watchdog_task = spawn(vm_health_watchdog_loop())
     yield
     task.cancel()
     li_task.cancel()
     li_monitor_task.cancel()
     li_health_task.cancel()
     li_scheduler_task.cancel()
+    vm_watchdog_task.cancel()
 
 
 app = FastAPI(title="Hermes Command Center", version="2.0.0", lifespan=lifespan)
@@ -2763,6 +2772,7 @@ async def _proxy_linkedin_campaign(campaign_type: str, config_data: dict) -> dic
                 logger.info(f"Campaign {campaign_id} dispatched to VM (ack={ack})")
         except Exception as e:
             logger.error(f"LinkedIn campaign dispatch error: {e}")
+            _local_error_until_ack[str(campaign_id)] = str(e)  # preserva contra sync overwrite
             conn3 = get_db()
             try:
                 conn3.execute(
@@ -2793,6 +2803,13 @@ async def _proxy_linkedin_campaign(campaign_type: str, config_data: dict) -> dic
 
     spawn(_dispatch())
     return {"ok": True, "campaign_id": campaign_id, "status": "dispatched"}
+
+
+@app.post("/api/linkedin/campaigns/{campaign_id}/dismiss-error")
+async def dismiss_error_campaign(campaign_id: int):
+    """Remove erro pendente de dispatch (MERGED-016). Permite sync sobrescrever estado."""
+    _local_error_until_ack.pop(str(campaign_id), None)
+    return {"ok": True, "campaign_id": campaign_id}
 
 
 @app.post("/api/linkedin/campaigns/view")
@@ -3052,16 +3069,43 @@ async def hermes_status():
         "agentmemory": {"online": False},
     }
 
+    # Probe leve /api/_ping (~50ms) — evita timeout em /api/dashboard (agregacao pesada com 35k+ prospects)
+    status["vm_reachable"] = False
     try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(f"{VM_API_URL}/api/dashboard")
+        async with httpx.AsyncClient(timeout=3) as client:
+            r = await client.get(f"{VM_API_URL}/api/_ping")
             if r.status_code == 200:
-                vm_data = r.json()
                 status["vm_reachable"] = True
-                status["vm_prospects"] = vm_data.get("total_prospects", 0)
-                status["vm_stages"] = vm_data.get("by_stage", {})
+                status["vm_probe_method"] = "ping"
     except Exception:
-        status["vm_reachable"] = False
+        # Fallback: se last_sync foi recente (<3min), considera reachable.
+        # sync_loop rodando a cada 60s = prova de vida.
+        try:
+            if last_sync and last_sync[0]:
+                from datetime import datetime as _dt
+                _ls = str(last_sync[0])
+                if _ls.endswith("Z"):
+                    _ls = _ls[:-1] + "+00:00"
+                _last = _dt.fromisoformat(_ls)
+                _age = (_dt.now(timezone.utc) - _last).total_seconds()
+                if _age < 180:
+                    status["vm_reachable"] = True
+                    status["vm_probe_method"] = "recent_sync_cache"
+                    status["vm_probe_cache_age_s"] = round(_age)
+        except Exception:
+            pass  # noqa: fallback best-effort
+
+    # Dados extras (best-effort, nao bloqueia status)
+    if status.get("vm_reachable"):
+        try:
+            async with httpx.AsyncClient(timeout=8) as client:
+                r = await client.get(f"{VM_API_URL}/api/dashboard")
+                if r.status_code == 200:
+                    vm_data = r.json()
+                    status["vm_prospects"] = vm_data.get("total_prospects", 0)
+                    status["vm_stages"] = vm_data.get("by_stage", {})
+        except Exception:
+            pass  # noqa: extras opcionais nao bloqueiam status
 
     # Agent Zero status
     try:

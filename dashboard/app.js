@@ -4266,6 +4266,10 @@ function _renderLiCampaignDetail(c) {
                 <summary style="cursor:pointer">Ver erro técnico</summary>
                 <code style="display:block;white-space:pre-wrap;padding:6px;background:rgba(0,0,0,.2);border-radius:4px;margin-top:4px">${escapeHtml(c.error)}</code>
             </details>` : ''}
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:11px"
+                onclick="liDismissError(${c.id})" title="Dismiss error — permite sync sobrescrever estado">
+                Dismiss error
+            </button>
         </div>`;
     }
     // Cooldown banner (status=cooldown OR last log entry is cooldown)
@@ -5156,6 +5160,12 @@ document.addEventListener('mouseleave', (e) => {
         _liHoverHideTimer = setTimeout(_hideLiHoverCard, 200);
     }
 }, true);
+
+function liDismissError(id) {
+    api(`/api/linkedin/campaigns/${id}/dismiss-error`, { method: 'POST' })
+        .then(() => { loadLinkedInCampaigns(); })
+        .catch(e => console.warn('dismiss-error falhou:', e));
+}
 
 function liStopCampaignById(id) {
     if (!confirm('Parar esta campanha?')) return;
