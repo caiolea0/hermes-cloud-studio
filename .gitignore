@@ -49,6 +49,10 @@ linkedin/lab/_parse_artifacts.py
 .claude/validation-report.json
 .claude/validation-flags.json
 
+# Server startup logs (test helpers, gerados ad-hoc)
+server_startup.log
+server_startup.log.err
+
 # Node
 node_modules/
 
