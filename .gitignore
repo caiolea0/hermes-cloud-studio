@@ -29,6 +29,21 @@ hermes_desktop.log
 photo_cache/
 linkedin_data/
 higgsfield_output/
+logs/
+linkedin/lab/artifacts/
+linkedin/lab/profiles/
+
+# MCP build artifacts
+mcps/*/dist/
+mcps/*/node_modules/
+
+# Smoke test / debug helpers (not part of prod)
+linkedin/lab/_smoke_*.py
+linkedin/lab/_inspect_*.py
+linkedin/lab/_check_*.py
+linkedin/lab/_clear_*.py
+linkedin/lab/_run_viewer_*.py
+linkedin/lab/_parse_artifacts.py
 
 # Node
 node_modules/
