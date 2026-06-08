@@ -111,8 +111,7 @@ async def hermes_status():
 @router.post("/api/hermes/sync")
 async def trigger_sync():
     """Manually trigger a sync from VM."""
-    # Late import: sync_from_vm vive em server.py (sera movido pra loops/ em proximo commit)
-    from server import sync_from_vm
+    from loops.sync import sync_from_vm
     return await sync_from_vm()
 
 
