@@ -9,12 +9,13 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from .config import LinkedInConfig, RATE_DB_PATH
+from .db_utils import _connect
 
 
 def _get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(RATE_DB_PATH))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
+    conn = _connect(RATE_DB_PATH)
+    conn.execute("PRAGMA busy_timeout=30000")  # garantia explícita (já setado em _connect)
+    conn.execute("PRAGMA journal_mode=WAL")    # garantia explícita
     conn.execute("""CREATE TABLE IF NOT EXISTS rate_actions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         account TEXT NOT NULL,
