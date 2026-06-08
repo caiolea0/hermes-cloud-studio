@@ -16,6 +16,7 @@ import json
 import os
 import secrets
 import sqlite3
+import sys
 import asyncio
 import logging
 import time
@@ -25,296 +26,54 @@ from pathlib import Path
 from typing import Optional, List
 
 import httpx
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
-
-load_dotenv(Path(__file__).parent / ".env")
 
 from config import settings  # MERGED-013 — Settings central pydantic-settings
-
-logger = logging.getLogger("hermes")
-
-BASE_DIR = Path(__file__).parent
-DASHBOARD_DIR = BASE_DIR / "dashboard"
-DB_PATH = BASE_DIR / "hermes_local.db"
-PHOTO_CACHE_DIR = BASE_DIR / "photo_cache"
-VM_API_URL = settings.vm_api_url_resolved
-AGENT_ZERO_URL = settings.agent_zero_url
-AGENT_ZERO_API_KEY = settings.agent_zero_api_key
-GOOGLE_API_KEY = settings.google_places_api_key
-SYNC_INTERVAL = settings.sync_interval
-AUTH_TOKEN = settings.auth_token.strip()
-if not AUTH_TOKEN:
-    raise RuntimeError(
-        "HERMES_AUTH_TOKEN obrigatório. Setar em .env ou env var antes de subir o server. "
-        "Gerar via: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
-    )
-INTERNAL_TOKEN = settings.internal_token.strip()
-if not INTERNAL_TOKEN:
-    raise RuntimeError(
-        "HERMES_INTERNAL_TOKEN obrigatório. Setar em .env ou env var antes de subir o server. "
-        "Gerar via: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
-    )
-
-# Persistent Agent Zero context for Hermes conversations
-_agent_zero_context_id: Optional[str] = None
-
-# Erros locais de dispatch preservados até ack do owner (MERGED-016).
-# Chave: str(campaign_id). Sync loop não sobrescreve enquanto erro pendente.
-# Restaurado em runtime_state no lifespan startup pra sobreviver restart.
-_local_error_until_ack: dict = {}
-
-
-def _persist_local_errors() -> None:
-    set_runtime_state("local_error_until_ack", _local_error_until_ack)
-
-PHOTO_CACHE_DIR.mkdir(exist_ok=True)
-
-# Background task registry — previne GC de tasks "soltas" (MERGED-015)
-_background_tasks: set = set()
-
-
-def spawn(coro) -> asyncio.Task:
-    """Cria asyncio.Task com referência forte para evitar coleta pelo GC (MERGED-015)."""
-    task = asyncio.create_task(coro)
-    _background_tasks.add(task)
-    task.add_done_callback(_background_tasks.discard)
-    return task
-
-
-def get_db():
-    conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=30000")
-    conn.execute("PRAGMA synchronous=NORMAL")
-    return conn
-
-
-def set_runtime_state(key: str, value) -> None:
-    """Persiste estado runtime (JSON-serializável) em hermes_local.db (MERGED-004)."""
-    db = get_db()
-    try:
-        db.execute(
-            "INSERT INTO runtime_state (key, value, updated_at) VALUES (?, ?, ?) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
-            (key, json.dumps(value), time.time()),
-        )
-        db.commit()
-    except Exception:
-        logger.exception("set_runtime_state(%s) falhou", key)
-    finally:
-        db.close()
-
-
-def get_runtime_state(key: str, default=None):
-    db = get_db()
-    try:
-        row = db.execute("SELECT value FROM runtime_state WHERE key=?", (key,)).fetchone()
-        if not row:
-            return default
-        return json.loads(row["value"])
-    except Exception:
-        logger.exception("get_runtime_state(%s) falhou", key)
-        return default
-    finally:
-        db.close()
-
-
-def init_db():
-    conn = get_db()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS prospects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            vm_id INTEGER UNIQUE,
-            name TEXT NOT NULL,
-            business_name TEXT,
-            category TEXT,
-            phone TEXT,
-            email TEXT,
-            address TEXT,
-            city TEXT DEFAULT 'Cuiaba',
-            state TEXT DEFAULT 'MT',
-            website TEXT,
-            has_website BOOLEAN DEFAULT 0,
-            google_maps_url TEXT,
-            google_rating REAL,
-            google_reviews INTEGER DEFAULT 0,
-            photo_ref TEXT,
-            social_instagram TEXT,
-            social_facebook TEXT,
-            linkedin_url TEXT,
-            source TEXT DEFAULT 'google_maps',
-            score INTEGER DEFAULT 0,
-            stage TEXT DEFAULT 'discovered',
-            notes TEXT,
-            audit_summary TEXT,
-            outreach_message TEXT,
-            outreach_status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS activities (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            vm_id INTEGER UNIQUE,
-            type TEXT NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT,
-            prospect_id INTEGER,
-            metadata TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (prospect_id) REFERENCES prospects(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS pipeline_stats (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT NOT NULL UNIQUE,
-            discovered INTEGER DEFAULT 0,
-            qualified INTEGER DEFAULT 0,
-            audited INTEGER DEFAULT 0,
-            outreach_sent INTEGER DEFAULT 0,
-            responses INTEGER DEFAULT 0
-        );
-
-        CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            description TEXT,
-            status TEXT DEFAULT 'pending',
-            priority TEXT DEFAULT 'medium',
-            assigned_to TEXT DEFAULT 'hermes',
-            created_by TEXT DEFAULT 'system',
-            result TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            completed_at TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS sync_state (
-            key TEXT PRIMARY KEY,
-            value TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_prospects_stage ON prospects(stage);
-        CREATE INDEX IF NOT EXISTS idx_prospects_score ON prospects(score DESC);
-        CREATE INDEX IF NOT EXISTS idx_prospects_vm_id ON prospects(vm_id);
-        CREATE INDEX IF NOT EXISTS idx_prospects_city ON prospects(city);
-        CREATE INDEX IF NOT EXISTS idx_prospects_category ON prospects(category);
-        CREATE INDEX IF NOT EXISTS idx_activities_type ON activities(type);
-        CREATE INDEX IF NOT EXISTS idx_activities_vm_id ON activities(vm_id);
-        CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-
-        CREATE TABLE IF NOT EXISTS pipeline_templates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            type TEXT NOT NULL DEFAULT 'custom',
-            description TEXT,
-            prompt TEXT,
-            targets_config TEXT,
-            schedule_config TEXT,
-            is_active BOOLEAN DEFAULT 1,
-            last_run_at TIMESTAMP,
-            total_runs INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS pipeline_executions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            template_id INTEGER NOT NULL,
-            status TEXT DEFAULT 'pending',
-            progress INTEGER DEFAULT 0,
-            total_items INTEGER DEFAULT 0,
-            processed_items INTEGER DEFAULT 0,
-            log TEXT DEFAULT '[]',
-            result TEXT,
-            started_at TIMESTAMP,
-            completed_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (template_id) REFERENCES pipeline_templates(id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_pipeline_exec_template ON pipeline_executions(template_id);
-        CREATE INDEX IF NOT EXISTS idx_pipeline_exec_status ON pipeline_executions(status);
-
-        CREATE TABLE IF NOT EXISTS daemon_state (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            state TEXT NOT NULL DEFAULT 'idle',
-            current_task_type TEXT,
-            current_task_detail TEXT,
-            energy REAL DEFAULT 1.0,
-            started_at TIMESTAMP,
-            last_heartbeat TIMESTAMP,
-            stats_today TEXT,
-            stats_week TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS daemon_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            level TEXT NOT NULL DEFAULT 'info',
-            category TEXT NOT NULL DEFAULT 'system',
-            message TEXT NOT NULL,
-            metadata TEXT,
-            visual_event TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS daemon_decisions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            action TEXT NOT NULL,
-            reason TEXT NOT NULL,
-            context TEXT,
-            result TEXT
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_daemon_log_ts ON daemon_log(timestamp DESC);
-        CREATE INDEX IF NOT EXISTS idx_daemon_log_cat ON daemon_log(category);
-        CREATE INDEX IF NOT EXISTS idx_daemon_decisions_ts ON daemon_decisions(timestamp DESC);
-
-        CREATE TABLE IF NOT EXISTS linkedin_campaigns (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type TEXT NOT NULL,
-            config TEXT NOT NULL DEFAULT '{}',
-            status TEXT DEFAULT 'pending',
-            progress INTEGER DEFAULT 0,
-            total INTEGER DEFAULT 0,
-            results TEXT,
-            log TEXT DEFAULT '[]',
-            started_at TEXT,
-            completed_at TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_li_campaigns_status ON linkedin_campaigns(status);
-        CREATE INDEX IF NOT EXISTS idx_li_campaigns_type ON linkedin_campaigns(type);
-
-        INSERT OR IGNORE INTO daemon_state (id, state, started_at, last_heartbeat)
-        VALUES (1, 'idle', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-
-        CREATE TABLE IF NOT EXISTS runtime_state (
-            key TEXT PRIMARY KEY,
-            value TEXT,
-            updated_at REAL
-        );
-    """)
-    conn.commit()
-
-    # Migration: add photo_ref column if missing
-    try:
-        conn.execute("SELECT photo_ref FROM prospects LIMIT 1")
-    except sqlite3.OperationalError:
-        conn.execute("ALTER TABLE prospects ADD COLUMN photo_ref TEXT")
-        conn.commit()
-        logger.info("Migration: added photo_ref column to prospects")
-
-    conn.close()
+import core.state as state
+from core.state import (
+    AUTH_TOKEN,
+    INTERNAL_TOKEN,
+    VM_API_URL,
+    AGENT_ZERO_URL,
+    AGENT_ZERO_API_KEY,
+    GOOGLE_API_KEY,
+    SYNC_INTERVAL,
+    DASHBOARD_DIR,
+    DB_PATH,
+    PHOTO_CACHE_DIR,
+    PROJECT_ROOT,
+    _check_internal,
+    _telegram_notify,
+    _local_error_until_ack,
+    _persist_local_errors,
+    get_db,
+    get_runtime_state,
+    init_db,
+    logger,
+    set_runtime_state,
+    spawn,
+    ws_manager,
+)
+from core.models import (
+    ActivityCreate,
+    AgentZeroChatRequest,
+    AuditConfig,
+    BulkProspectAction,
+    ClaudeCommand,
+    PipelineExecuteRequest,
+    PipelineTemplateCreate,
+    PipelineTemplateUpdate,
+    ProspectCreate,
+    ProspectUpdate,
+    ScraperConfig,
+    ScraperPrompt,
+    TaskCreate,
+    TaskUpdate,
+)
 
 
 async def sync_from_vm():
@@ -591,31 +350,6 @@ async def linkedin_sync_loop():
         await asyncio.sleep(10)
 
 
-# ─── Session health monitor (Option D — Telegram alert on session expiry) ───
-_LI_SESSION_LAST_OK = True   # debounce
-_LI_SESSION_LAST_NOTIFIED = 0.0
-
-
-async def _telegram_notify(text: str):
-    tok = settings.telegram_bot_token.strip()
-    chat = settings.telegram_chat_id.strip()
-    if not (tok and chat):
-        return
-    try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            await client.post(
-                f"https://api.telegram.org/bot{tok}/sendMessage",
-                json={"chat_id": chat, "text": text, "disable_web_page_preview": True},
-            )
-    except Exception as e:
-        logger.warning(f"Telegram notify failed: {e}")
-
-
-# ─── Health (cooldown) monitor loop ──────────────────────────────────────────
-_LI_HEALTH_LAST_STATE = None
-_LI_HEALTH_NOTIFIED_AT = 0.0
-
-
 async def linkedin_scheduler_loop():
     """Every 30s: find scheduled campaigns whose scheduled_for has elapsed AND
     all gates are clear, then dispatch them. Postpones (recomputes scheduled_for)
@@ -727,13 +461,12 @@ async def linkedin_scheduler_loop():
 
 async def linkedin_health_monitor_loop():
     """Probe health every 3min. Telegram on state transitions. WS broadcast."""
-    global _LI_HEALTH_LAST_STATE, _LI_HEALTH_NOTIFIED_AT
     await asyncio.sleep(30)
     while True:
         try:
             async with httpx.AsyncClient(timeout=20) as client:
                 # force_refresh sometimes to catch recovery; otherwise cached probe
-                fr = "true" if _LI_HEALTH_LAST_STATE not in (None, "ok") else "false"
+                fr = "true" if state._LI_HEALTH_LAST_STATE not in (None, "ok") else "false"
                 r = await client.get(f"{VM_API_URL}/api/linkedin/health",
                                      params={"force_refresh": fr})
                 health = r.json() if r.status_code == 200 else {}
@@ -743,9 +476,9 @@ async def linkedin_health_monitor_loop():
             await asyncio.sleep(180)
             continue
 
-        if new_state and new_state != _LI_HEALTH_LAST_STATE:
+        if new_state and new_state != state._LI_HEALTH_LAST_STATE:
             # Transition detected
-            if _LI_HEALTH_LAST_STATE is None:
+            if state._LI_HEALTH_LAST_STATE is None:
                 # First run — just record state, only alert if not ok
                 if new_state != "ok":
                     await _telegram_notify(
@@ -753,7 +486,7 @@ async def linkedin_health_monitor_loop():
                         f"motivo: {health.get('reason')} — "
                         f"HTTP {health.get('http_code')}. Não rode campanhas até liberar."
                     )
-            elif _LI_HEALTH_LAST_STATE == "ok":
+            elif state._LI_HEALTH_LAST_STATE == "ok":
                 await _telegram_notify(
                     f"🛑 Hermes LinkedIn entrou em {new_state.upper()}\n"
                     f"Motivo: {health.get('reason')}\n"
@@ -770,10 +503,10 @@ async def linkedin_health_monitor_loop():
                 await ws_manager.broadcast({"type": "linkedin_health", "data": health})
             except Exception:  # noqa: silenciado intencional — WS/broadcast opcional
                 pass
-            _LI_HEALTH_LAST_STATE = new_state
-            _LI_HEALTH_NOTIFIED_AT = time.time()
-            set_runtime_state("li_health_last_state", _LI_HEALTH_LAST_STATE)
-            set_runtime_state("li_health_notified_at", _LI_HEALTH_NOTIFIED_AT)
+            state._LI_HEALTH_LAST_STATE = new_state
+            state._LI_HEALTH_NOTIFIED_AT = time.time()
+            set_runtime_state("li_health_last_state", state._LI_HEALTH_LAST_STATE)
+            set_runtime_state("li_health_notified_at", state._LI_HEALTH_NOTIFIED_AT)
 
         # Sleep duration adapts to state:
         # - ok: 3min (light polling)
@@ -855,7 +588,6 @@ async def linkedin_session_monitor_loop():
     """Every 1h: GET /api/linkedin/status. If session_ok flips False, alert via Telegram.
     Avoids spamming — only notifies on transitions True→False (or every 12h while broken).
     """
-    global _LI_SESSION_LAST_OK, _LI_SESSION_LAST_NOTIFIED
     await asyncio.sleep(60)  # let system warm up
     while True:
         try:
@@ -867,21 +599,21 @@ async def linkedin_session_monitor_loop():
 
         now = time.time()
         if not ok:
-            need_notify = _LI_SESSION_LAST_OK or (now - _LI_SESSION_LAST_NOTIFIED > 43200)
+            need_notify = state._LI_SESSION_LAST_OK or (now - state._LI_SESSION_LAST_NOTIFIED > 43200)
             if need_notify:
                 await _telegram_notify(
                     "⚠️ Hermes LinkedIn: sessão caiu (session_ok=false).\n"
                     "Renove o cookie LI_AT no Chrome e o sync rodará no próximo ciclo (03:00), "
                     "ou rode agora manualmente: python scripts/li_at_sync.py"
                 )
-                _LI_SESSION_LAST_NOTIFIED = now
-                set_runtime_state("li_session_last_notified", _LI_SESSION_LAST_NOTIFIED)
-        elif not _LI_SESSION_LAST_OK:
+                state._LI_SESSION_LAST_NOTIFIED = now
+                set_runtime_state("li_session_last_notified", state._LI_SESSION_LAST_NOTIFIED)
+        elif not state._LI_SESSION_LAST_OK:
             # session restored
             await _telegram_notify("✅ Hermes LinkedIn: sessão restaurada.")
 
-        _LI_SESSION_LAST_OK = ok
-        set_runtime_state("li_session_last_ok", _LI_SESSION_LAST_OK)
+        state._LI_SESSION_LAST_OK = ok
+        set_runtime_state("li_session_last_ok", state._LI_SESSION_LAST_OK)
         await asyncio.sleep(3600)  # 1 hora
 
 
@@ -890,7 +622,7 @@ async def lifespan(app: FastAPI):
     init_db()
     # Apply LinkedIn migration if exists
     try:
-        sql_path = Path(__file__).parent / "migrations" / "2026_06_linkedin_full.sql"
+        sql_path = PROJECT_ROOT / "migrations" / "2026_06_linkedin_full.sql"
         if sql_path.exists():
             conn = get_db()
             conn.executescript(sql_path.read_text(encoding="utf-8"))
@@ -900,17 +632,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"LinkedIn migration failed: {e}")
     # Restaurar globals persistidos em runtime_state (MERGED-004 / MERGED-016)
-    global _LI_SESSION_LAST_OK, _LI_SESSION_LAST_NOTIFIED, _LI_HEALTH_LAST_STATE, _LI_HEALTH_NOTIFIED_AT
-    _LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
-    _LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)
-    _LI_HEALTH_LAST_STATE = get_runtime_state("li_health_last_state", None)
-    _LI_HEALTH_NOTIFIED_AT = get_runtime_state("li_health_notified_at", 0.0)
+    state._LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
+    state._LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)
+    state._LI_HEALTH_LAST_STATE = get_runtime_state("li_health_last_state", None)
+    state._LI_HEALTH_NOTIFIED_AT = get_runtime_state("li_health_notified_at", 0.0)
     restored_errors = get_runtime_state("local_error_until_ack", {})
     if isinstance(restored_errors, dict):
         _local_error_until_ack.update(restored_errors)
     logger.info(
         "runtime_state restaurado: session_ok=%s health_state=%s local_errors=%d",
-        _LI_SESSION_LAST_OK, _LI_HEALTH_LAST_STATE, len(_local_error_until_ack),
+        state._LI_SESSION_LAST_OK, state._LI_HEALTH_LAST_STATE, len(_local_error_until_ack),
     )
     logger.info("Starting server — sync will run in background")
     task = spawn(sync_loop())
@@ -942,40 +673,7 @@ app.add_middleware(
 app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR)), name="dashboard-static")
 
 
-# ============================================================
-# WEBSOCKET MANAGER
-# ============================================================
-
-class WSManager:
-    def __init__(self):
-        self.connections: list[WebSocket] = []
-
-    async def connect(self, ws: WebSocket):
-        await ws.accept()
-        self.connections.append(ws)
-
-    def disconnect(self, ws: WebSocket):
-        if ws in self.connections:
-            self.connections.remove(ws)
-
-    async def broadcast(self, event: dict):
-        for ws in self.connections[:]:
-            try:
-                await ws.send_json(event)
-            except Exception:  # noqa: silenciado intencional — WS/broadcast opcional
-                self.connections.remove(ws)
-
-
-ws_manager = WSManager()
-
-
-def _check_internal(request: Request):
-    """Valida requisições de endpoints internos: loopback + token dedicado."""
-    if request.client.host not in ("127.0.0.1", "::1", "localhost"):
-        raise HTTPException(403, "loopback only")
-    token = request.headers.get("X-Internal-Token", "")
-    if not secrets.compare_digest(token, INTERNAL_TOKEN):
-        raise HTTPException(401, "internal token invalid")
+# WebSocket manager + _check_internal viveram aqui — moveram pra core/state.py (MERGED-011).
 
 
 @app.websocket("/ws")
@@ -1008,113 +706,7 @@ async def auth_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-# --- Models ---
-
-class ProspectCreate(BaseModel):
-    name: str
-    business_name: Optional[str] = None
-    category: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    address: Optional[str] = None
-    city: str = "Cuiaba"
-    state: str = "MT"
-    website: Optional[str] = None
-    google_maps_url: Optional[str] = None
-    google_rating: Optional[float] = None
-    google_reviews: int = 0
-    photo_ref: Optional[str] = None
-    source: str = "google_maps"
-
-
-class ProspectUpdate(BaseModel):
-    name: Optional[str] = None
-    business_name: Optional[str] = None
-    category: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    website: Optional[str] = None
-    address: Optional[str] = None
-    city: Optional[str] = None
-    stage: Optional[str] = None
-    score: Optional[int] = None
-    notes: Optional[str] = None
-    audit_summary: Optional[str] = None
-    outreach_message: Optional[str] = None
-    outreach_status: Optional[str] = None
-
-
-class TaskCreate(BaseModel):
-    title: str
-    description: Optional[str] = None
-    priority: str = "medium"
-    assigned_to: str = "hermes"
-    created_by: str = "claude"
-
-
-class TaskUpdate(BaseModel):
-    status: Optional[str] = None
-    priority: Optional[str] = None
-    assigned_to: Optional[str] = None
-    result: Optional[str] = None
-
-
-class ActivityCreate(BaseModel):
-    type: str
-    title: str
-    description: Optional[str] = None
-    prospect_id: Optional[int] = None
-    metadata: Optional[dict] = None
-
-
-class ClaudeCommand(BaseModel):
-    command: str
-    context: Optional[str] = None
-
-
-class AuditConfig(BaseModel):
-    batch_size: int = 50
-    stage: str = "discovered"
-
-
-class ScraperConfig(BaseModel):
-    cities: Optional[List[str]] = None
-    categories: Optional[List[str]] = None
-    only_no_site: bool = False
-    rate_limit: float = 1.0
-
-
-class ScraperPrompt(BaseModel):
-    prompt: str
-
-
-class BulkProspectAction(BaseModel):
-    ids: List[int]
-    action: str  # "stage_change", "score_update"
-    value: str
-
-
-class PipelineTemplateCreate(BaseModel):
-    name: str
-    type: str = "custom"
-    description: Optional[str] = None
-    prompt: Optional[str] = None
-    targets_config: Optional[dict] = None
-    schedule_config: Optional[dict] = None
-
-
-class PipelineTemplateUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    prompt: Optional[str] = None
-    targets_config: Optional[dict] = None
-    schedule_config: Optional[dict] = None
-    is_active: Optional[bool] = None
-
-
-class PipelineExecuteRequest(BaseModel):
-    template_id: int
-    override_prompt: Optional[str] = None
+# Pydantic models viveram aqui — moveram pra core/models.py (MERGED-011).
 
 
 # --- Serve Dashboard ---
@@ -1509,12 +1101,11 @@ async def bulk_task_action(ids: List[int], action: str, value: str = ""):
 
 async def call_agent_zero(message: str, context_id: str = "", timeout: float = 300) -> dict:
     """Call Agent Zero API on VM. Returns {"response": str, "context_id": str, "provider": "agent_zero"}."""
-    global _agent_zero_context_id
     payload = {"message": message}
     if context_id:
         payload["context_id"] = context_id
-    elif _agent_zero_context_id:
-        payload["context_id"] = _agent_zero_context_id
+    elif state._agent_zero_context_id:
+        payload["context_id"] = state._agent_zero_context_id
 
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -1526,7 +1117,7 @@ async def call_agent_zero(message: str, context_id: str = "", timeout: float = 3
             resp.raise_for_status()
             data = resp.json()
             if data.get("context_id"):
-                _agent_zero_context_id = data["context_id"]
+                state._agent_zero_context_id = data["context_id"]
             return {
                 "response": data.get("response", "(sem resposta)"),
                 "context_id": data.get("context_id", ""),
@@ -1640,13 +1231,8 @@ async def agent_zero_status():
         "online": online,
         "url": AGENT_ZERO_URL,
         "ollama_models": ollama_models,
-        "context_id": _agent_zero_context_id,
+        "context_id": state._agent_zero_context_id,
     }
-
-
-class AgentZeroChatRequest(BaseModel):
-    message: str
-    context_id: Optional[str] = None
 
 
 @app.post("/api/agent-zero/chat")

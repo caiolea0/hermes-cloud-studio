@@ -30,7 +30,7 @@ checks:
 ### MERGED-002 — Fail-closed AUTH_TOKEN
 - phase: A
 - checks:
-  - grep_present: server.py / `if not AUTH_TOKEN:\s*\n\s*raise` / fail-closed startup
+  - grep_present: core/state.py / `if not AUTH_TOKEN:\s*\n\s*raise` / fail-closed startup (moved from server.py by MERGED-011)
   - grep_present: hermes_api_v2.py / `if not VM_AUTH_TOKEN:\s*\n\s*raise` / VM fail-closed
   - grep_absent: server.py / `if not AUTH_TOKEN:\s*\n\s*return await call_next` / no bypass
   - grep_absent: hermes_api_v2.py / `if not.*AUTH_TOKEN:.*return await call_next` / no bypass
@@ -63,7 +63,7 @@ checks:
 ### MERGED-015 — asyncio create_task hold refs
 - phase: B
 - checks:
-  - grep_present: server.py / "def spawn\(" / spawn helper defined OR import from util
+  - grep_present: core/state.py / "def spawn\(" / spawn helper defined (moved from server.py by MERGED-011)
   - grep_absent: server.py / `asyncio\.create_task\((?!coro\))` / no bare create_task outside spawn helper
   - grep_absent: hermes_api_v2.py / `asyncio\.create_task\((?!coro\))` / idem
 
