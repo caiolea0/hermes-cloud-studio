@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Hermes LinkedIn Sync",
+  "version": "1.0.0",
+  "description": "Auto-rotaciona o cookie li_at do LinkedIn para a VM Hermes quando muda no browser.",
+  "permissions": ["cookies", "storage", "alarms"],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://*.linkedin.com/*",
+    "http://localhost:55000/*",
+    "http://127.0.0.1:55000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/*", "https://*.linkedin.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Hermes LinkedIn Sync",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
