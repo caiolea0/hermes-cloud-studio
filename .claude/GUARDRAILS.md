@@ -231,4 +231,20 @@ python scripts/validate_implementation.py --apply-flags  # reabre tasks pra fail
 - **sync_from_vm conflict policy**: ambos editados (vm.version > last_synced E local.version > last_synced) → `conflict_at = now`, local **preservado**, NUNCA sobrescrever sem owner dismiss via `/api/prospects/{id}/resolve-conflict`.
 - **Migration nova em prospects**: aplicar BOTH PC (`core/state.py` init_db) E VM (`vm_core/state.py` init_db) — schemas precisam ficar coerentes pra sync funcionar. VM aplica via SSH + ALTER TABLE idempotente.
 
-Última edição: 2026-06-08 (Chapter 19 — Fase D MERGED-017/018/020/006).
+## 📬 Channels (Fase E.1 — MERGED-010 Email)
+
+- **Email channel mora em `channels/email/`** paralelo a `linkedin/`. Pattern: `config.py` (dataclass + `from_settings()`), `limiter.py` (warmup + caps + working hours, `_get_db()` reusa `linkedin/db_utils._connect`), `sender.py` (orquestra: assert_ready -> can_send -> _smtp_send -> record_sent/failed).
+- **Gmail App Password** em `EMAIL_APP_PASSWORD` (.env, NUNCA `.env.example`). Setar `EMAIL_FROM`. Smtp default smtp.gmail.com:587 STARTTLS.
+- **DB sidecar em `channels_data/email/email_rate.db`** — NUNCA reutilizar `linkedin_data/rate_limits.db`. Tabelas `email_actions` (per envio) + `email_warmup_state` (per account).
+- **Warmup obrigatório**: dia 0 = 10% de `daily_cap` (50/dia se cap=500). Ramp linear até dia 14 = 80%. Após 14d = 100% cap. Não desligar `working_hours_enabled` em prod (sinal anti-spam pra provedor).
+- **Retry só em transient SMTP codes** {421, 450, 451, 452, 454} e OSError de rede. Outros codes (5xx auth/perm) sobem como `EmailSendError` direto.
+- **Headers Hermes**: `Message-ID` (make_msgid hermes.local domain), `X-Hermes-Campaign-Id`, `X-Hermes-Run-Id` (uuid 12 hex). Pra tracking sem cookie pixel.
+- **Outros channels (WhatsApp/Instagram)**: replicar mesmo pattern em `channels/whatsapp/` e `channels/instagram/`. NÃO emparelhar — testar Email 30d antes do próximo.
+
+## 🔒 XSS dashboard (Fase E — MERGED-019)
+
+- **`dashboard/vendor/purify.min.js`** (DOMPurify 3.2.4) é vendor LOCAL. NÃO trocar por CDN runtime (dashboard pode estar offline). Atualizar versão = `curl jsdelivr` + commit binary.
+- **TODA injeção de HTML em `innerHTML +=` derivada de input do Claude/Hermes DEVE passar por `sanitizeClaudeHtml()`**. Allowlist atual em `app.js`: `CLAUDE_ALLOWED_TAGS` (17 tags) + `CLAUDE_ALLOWED_ATTR` (4 attrs). Expandir só se markdown render precisar.
+- **Fail-open dev only**: se DOMPurify ausente (vendor não carregou), `sanitizeClaudeHtml` retorna sem sanitizar com `console.warn`. Em prod isso = bug do `<script src=...>` no index.html — investigar, não ignorar.
+
+Última edição: 2026-06-08 (Chapter 20 — Fase E.1 MERGED-010 Email + E.2 MERGED-019 XSS).

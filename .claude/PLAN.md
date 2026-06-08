@@ -308,6 +308,35 @@ GUARDRAILS.md ganhou seção "Infra & Supervision" com 6 regras novas.
 VALIDATION-CHECKLIST.md atualizado: 4 findings com paths pós-MERGED-011.
 Próxima sessão: `/start-phase E` (channels Email/WA/IG + XSS sanitization).
 
+## Chapter 20 — Fase E.1 + E.2 parcial (2026-06-08)
+
+### E.1 MERGED-010 Email channel ✅
+- `channels/email/{config.py, limiter.py, sender.py, __init__.py}` paralelo a linkedin/.
+- `EmailConfig.from_settings()` carrega de pydantic settings.
+- `EmailLimiter`: warmup 14d (10-80%) + daily 500/hourly 50 + working hours Mon-Fri 8-19.
+- Tabelas `email_actions` + `email_warmup_state` em `channels_data/email/email_rate.db` (reusa `linkedin/db_utils._connect` com WAL + busy_timeout 30s).
+- `EmailSender`: SMTP Gmail App Password (STARTTLS) + retry exponencial transient codes (421/450-454) + Message-ID + X-Hermes-Campaign-Id header pra tracking.
+- `config.py` +7 fields pydantic (EMAIL_SMTP_HOST/PORT, EMAIL_DAILY_CAP/HOURLY_CAP, EMAIL_WARMUP_*).
+- `.env.example` documenta knobs novos. `.env` populado com Gmail App Password cleao.mkt@gmail.com.
+- Smoke PASS. **validate --finding MERGED-010 (E.1): PASS**.
+- Commit: `466a48a feat(channels): MERGED-010 E.1 — channel Email SMTP Gmail + warmup limiter` (push master).
+
+### E.2 (XSS) MERGED-019 DOMPurify ✅
+- `dashboard/vendor/purify.min.js` (DOMPurify 3.2.4 Cure53, vendor local) carregado antes de app.js.
+- `app.js`: novo `sanitizeClaudeHtml(html)` com ALLOWED_TAGS restritivo (div/span/p/br/hr/strong/em/b/i/u/code/pre/svg/use/a/ul/ol/li) + ALLOWED_ATTR (style/class/href/use). ALLOW_DATA_ATTR=false.
+- Wrap em `formatInline()` e `renderMarkdownTerminal()` antes do `innerHTML +=`. Defesa em profundidade contra payload escape mal formado.
+- **validate --finding MERGED-019: PASS**.
+- Commit: `5b042b9 fix(dashboard): MERGED-019 — DOMPurify allowlist no Claude markdown render` (push master).
+
+### Status global pós-sessão
+**validate (tudo)**: PASS 20 / FAIL 2 / SKIP 0
+- A 3/3 + B 5/5 + C 6/6 + D 4/4 + E.1 + E.2(XSS) ✅
+- Pendentes: MERGED-010 E.2 (WhatsApp) e E.3 (Instagram). Deferidos por design do PLAN — testar 30d Email antes de implementar próximo channel.
+
+### Pendências futuras sessão dedicada
+- E.2 (WhatsApp) — decisão estratégica owner: Business API (paga, sem ban) vs wppconnect/Baileys (free, risco ban). Antes: 30d operação Email pra calibrar.
+- E.3 (Instagram) — Graph API ou DM via Selenium. Risco ban alto. Por último.
+
 ---
 
 ## Chapter 18 — Fase C.4 MERGED-014 ✅ (2026-06-08)
