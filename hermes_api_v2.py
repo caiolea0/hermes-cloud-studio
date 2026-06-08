@@ -5,6 +5,7 @@ pipeline status, scraper control, and photo references to the dashboard.
 """
 import asyncio
 import json
+import logging
 import os
 import secrets
 import signal
@@ -13,12 +14,17 @@ import subprocess
 import sys
 import threading
 import time
-from contextlib import asynccontextmanager
+import uuid
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List
 
 from dotenv import load_dotenv
+
+logger = logging.getLogger("hermes_api_v2")
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -48,10 +54,81 @@ def spawn(coro) -> asyncio.Task:
 
 
 def get_db():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
+
+
+def _record_campaign_run(campaign_id: int, campaign_type: str) -> str:
+    """Registra início de uma campaign run em campaign_runs. Retorna run_id."""
+    run_id = uuid.uuid4().hex
+    db = get_db()
+    try:
+        db.execute(
+            "INSERT INTO campaign_runs (run_id, campaign_id, status, started_at, last_heartbeat, pid, metadata_json) "
+            "VALUES (?, ?, 'running', ?, ?, ?, ?)",
+            (run_id, campaign_id, time.time(), time.time(), os.getpid(), json.dumps({"type": campaign_type})),
+        )
+        db.commit()
+    finally:
+        db.close()
+    return run_id
+
+
+def _touch_campaign_run(run_id: str) -> None:
+    db = get_db()
+    try:
+        db.execute("UPDATE campaign_runs SET last_heartbeat=? WHERE run_id=?", (time.time(), run_id))
+        db.commit()
+    finally:
+        db.close()
+
+
+def _finalize_campaign_run(run_id: str, status: str) -> None:
+    db = get_db()
+    try:
+        db.execute(
+            "UPDATE campaign_runs SET status=?, last_heartbeat=? WHERE run_id=?",
+            (status, time.time(), run_id),
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+async def _track_run_lifecycle(run_id: str, campaign_id: int, coro):
+    """Wrapper que finaliza campaign_runs baseado no resultado real do coro.
+
+    Os coros de campanha NÃO relançam exceções (capturadas internamente),
+    então o estado final vem de linkedin_campaigns.status — consistente
+    com a fonte de verdade que o sync_loop já consome.
+    """
+    try:
+        await coro
+    except asyncio.CancelledError:
+        _finalize_campaign_run(run_id, "cancelled")
+        raise
+    except Exception:
+        logger.exception("campaign run %s falhou inesperadamente", run_id)
+        _finalize_campaign_run(run_id, "error")
+        return
+    final = "interrupted"
+    db = _get_li_db()
+    try:
+        row = db.execute(
+            "SELECT status FROM linkedin_campaigns WHERE id=?", (campaign_id,)
+        ).fetchone()
+        if row and row["status"] in ("done", "error", "stopped"):
+            final = row["status"]
+    except Exception:
+        logger.exception("track_run_lifecycle: lookup linkedin_campaigns falhou")
+    finally:
+        with suppress(Exception):
+            db.close()
+    _finalize_campaign_run(run_id, final)
 
 
 def init_db():
@@ -155,26 +232,31 @@ def init_db():
 async def lifespan(app: FastAPI):
     init_db()
     # Reconciliar campaign_runs: heartbeat parado > 5min = orphaned (MERGED-004)
+    db = get_db()
     try:
-        db = get_db()
         stale_cutoff = time.time() - 300
-        db.execute(
+        cur = db.execute(
             "UPDATE campaign_runs SET status = 'orphaned' WHERE status = 'running' AND (last_heartbeat IS NULL OR last_heartbeat < ?)",
-            (stale_cutoff,)
+            (stale_cutoff,),
         )
         db.commit()
+        if cur.rowcount:
+            logger.warning("lifespan: %d campaign_runs marcadas orphaned", cur.rowcount)
+    except Exception:
+        logger.exception("lifespan reconciliation falhou")
+    finally:
         db.close()
-    except Exception as e:
-        logger.warning(f"lifespan reconciliation falhou: {e}")
     yield
     # Marcar runs ainda 'running' como interrupted no shutdown
+    db = get_db()
     try:
-        db = get_db()
         db.execute("UPDATE campaign_runs SET status = 'interrupted' WHERE status = 'running'")
         db.commit()
-        db.close()
-    except Exception:  # noqa: silenciado intencional — fallback seguro
-        pass
+    except Exception:
+        logger.exception("shutdown finalize falhou")
+    finally:
+        with suppress(Exception):
+            db.close()
 
 
 _audit_state = {
@@ -1234,13 +1316,15 @@ async def vm_run_view_campaign(request: Request):
     finally:
         conn.close()
 
+    run_id = _record_campaign_run(campaign_id, "view")
+
     async def _run():
         try:
             from linkedin import LinkedInViewer
             config = _build_li_config()
             config._targets = data
             viewer = LinkedInViewer(config)
-            viewer.set_log_callback(lambda msg, phase="info", **kw: _li_log(campaign_id, msg, phase))
+            viewer.set_log_callback(lambda msg, phase="info", **kw: (_li_log(campaign_id, msg, phase), _touch_campaign_run(run_id)))
             result = await viewer.start()
             conn2 = _get_li_db()
             try:
@@ -1263,7 +1347,7 @@ async def vm_run_view_campaign(request: Request):
                 conn3.close()
             _li_log(campaign_id, f"Erro: {str(e)}", "error")
 
-    task = spawn(_run())
+    task = spawn(_track_run_lifecycle(run_id, campaign_id, _run()))
     _running_linkedin_campaigns[campaign_id] = task
     return {"ok": True, "campaign_id": campaign_id}
 
@@ -1287,12 +1371,14 @@ async def vm_run_engage_campaign(request: Request):
     finally:
         conn.close()
 
+    run_id = _record_campaign_run(campaign_id, "engage")
+
     async def _run():
         try:
             from linkedin import LinkedInEngager
             config = _build_li_config()
             engager = LinkedInEngager(config)
-            engager.set_log_callback(lambda msg, phase="info", **kw: _li_log(campaign_id, msg, phase))
+            engager.set_log_callback(lambda msg, phase="info", **kw: (_li_log(campaign_id, msg, phase), _touch_campaign_run(run_id)))
             result = await engager.start(data)
             conn2 = _get_li_db()
             try:
@@ -1315,7 +1401,7 @@ async def vm_run_engage_campaign(request: Request):
                 conn3.close()
             _li_log(campaign_id, f"Erro: {str(e)}", "error")
 
-    task = spawn(_run())
+    task = spawn(_track_run_lifecycle(run_id, campaign_id, _run()))
     _running_linkedin_campaigns[campaign_id] = task
     return {"ok": True, "campaign_id": campaign_id}
 
@@ -1339,13 +1425,15 @@ async def vm_run_connect_campaign(request: Request):
     finally:
         conn.close()
 
+    run_id = _record_campaign_run(campaign_id, "connect")
+
     async def _run():
         try:
             from linkedin import LinkedInConnector
             config = _build_li_config()
             connector = LinkedInConnector(config)
             connector.set_campaign_id(campaign_id)
-            connector.set_log_callback(lambda msg, phase="info", **kw: _li_log(campaign_id, msg, phase))
+            connector.set_log_callback(lambda msg, phase="info", **kw: (_li_log(campaign_id, msg, phase), _touch_campaign_run(run_id)))
             result = await connector.start(data)
             conn2 = _get_li_db()
             try:
@@ -1368,7 +1456,7 @@ async def vm_run_connect_campaign(request: Request):
                 conn3.close()
             _li_log(campaign_id, f"Erro: {str(e)}", "error")
 
-    task = spawn(_run())
+    task = spawn(_track_run_lifecycle(run_id, campaign_id, _run()))
     _running_linkedin_campaigns[campaign_id] = task
     return {"ok": True, "campaign_id": campaign_id}
 
@@ -1392,12 +1480,14 @@ async def vm_run_discover_campaign(request: Request):
     finally:
         conn.close()
 
+    run_id = _record_campaign_run(campaign_id, "discover")
+
     async def _run():
         try:
             from linkedin import CompanyFinder
             config = _build_li_config()
             finder = CompanyFinder(config)
-            finder.set_log_callback(lambda msg, phase="info", **kw: _li_log(campaign_id, msg, phase))
+            finder.set_log_callback(lambda msg, phase="info", **kw: (_li_log(campaign_id, msg, phase), _touch_campaign_run(run_id)))
             result = await finder.start(data)
             conn2 = _get_li_db()
             try:
@@ -1420,7 +1510,7 @@ async def vm_run_discover_campaign(request: Request):
                 conn3.close()
             _li_log(campaign_id, f"Erro: {str(e)}", "error")
 
-    task = spawn(_run())
+    task = spawn(_track_run_lifecycle(run_id, campaign_id, _run()))
     _running_linkedin_campaigns[campaign_id] = task
     return {"ok": True, "campaign_id": campaign_id}
 

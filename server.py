@@ -81,10 +81,42 @@ def spawn(coro) -> asyncio.Task:
 
 
 def get_db():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
+
+
+def set_runtime_state(key: str, value) -> None:
+    """Persiste estado runtime (JSON-serializável) em hermes_local.db (MERGED-004)."""
+    db = get_db()
+    try:
+        db.execute(
+            "INSERT INTO runtime_state (key, value, updated_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
+            (key, json.dumps(value), time.time()),
+        )
+        db.commit()
+    except Exception:
+        logger.exception("set_runtime_state(%s) falhou", key)
+    finally:
+        db.close()
+
+
+def get_runtime_state(key: str, default=None):
+    db = get_db()
+    try:
+        row = db.execute("SELECT value FROM runtime_state WHERE key=?", (key,)).fetchone()
+        if not row:
+            return default
+        return json.loads(row["value"])
+    except Exception:
+        logger.exception("get_runtime_state(%s) falhou", key)
+        return default
+    finally:
+        db.close()
 
 
 def init_db():
@@ -733,6 +765,8 @@ async def linkedin_health_monitor_loop():
                 pass
             _LI_HEALTH_LAST_STATE = new_state
             _LI_HEALTH_NOTIFIED_AT = time.time()
+            set_runtime_state("li_health_last_state", _LI_HEALTH_LAST_STATE)
+            set_runtime_state("li_health_notified_at", _LI_HEALTH_NOTIFIED_AT)
 
         # Sleep duration adapts to state:
         # - ok: 3min (light polling)
@@ -839,11 +873,13 @@ async def linkedin_session_monitor_loop():
                     "ou rode agora manualmente: python scripts/li_at_sync.py"
                 )
                 _LI_SESSION_LAST_NOTIFIED = now
+                set_runtime_state("li_session_last_notified", _LI_SESSION_LAST_NOTIFIED)
         elif not _LI_SESSION_LAST_OK:
             # session restored
             await _telegram_notify("✅ Hermes LinkedIn: sessão restaurada.")
 
         _LI_SESSION_LAST_OK = ok
+        set_runtime_state("li_session_last_ok", _LI_SESSION_LAST_OK)
         await asyncio.sleep(3600)  # 1 hora
 
 
@@ -861,6 +897,16 @@ async def lifespan(app: FastAPI):
             logger.info("LinkedIn migration applied")
     except Exception as e:
         logger.warning(f"LinkedIn migration failed: {e}")
+    # Restaurar globals persistidos em runtime_state (MERGED-004)
+    global _LI_SESSION_LAST_OK, _LI_SESSION_LAST_NOTIFIED, _LI_HEALTH_LAST_STATE, _LI_HEALTH_NOTIFIED_AT
+    _LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
+    _LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)
+    _LI_HEALTH_LAST_STATE = get_runtime_state("li_health_last_state", None)
+    _LI_HEALTH_NOTIFIED_AT = get_runtime_state("li_health_notified_at", 0.0)
+    logger.info(
+        "runtime_state restaurado: session_ok=%s health_state=%s",
+        _LI_SESSION_LAST_OK, _LI_HEALTH_LAST_STATE,
+    )
     logger.info("Starting server — sync will run in background")
     task = spawn(sync_loop())
     li_task = spawn(linkedin_sync_loop())
