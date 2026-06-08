@@ -144,11 +144,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             sendResponse({ ok: false, error: 'token invalido' });
             return true;
         }
-        chrome.storage.local.set({ [INTERNAL_TOKEN_KEY]: t }).then(() => {
-            console.log('[Hermes] internal token configurado via popup');
-            // Tenta sync logo após salvar (caso cookie já esteja capturado e sync anterior tenha falhado por falta de token)
-            syncIfChanged('post-token-setup').then(() => sendResponse({ ok: true }));
-        });
+        chrome.storage.local.set({ [INTERNAL_TOKEN_KEY]: t })
+            .then(() => {
+                console.log('[Hermes] internal token configurado via popup');
+                sendResponse({ ok: true });
+                // Fire-and-forget sync (não bloqueia response — service worker MV3
+                // tem timeout curto pra async chains, separar evita 'desconhecido')
+                syncIfChanged('post-token-setup').catch(e => console.warn('[Hermes] post-token sync falhou:', e));
+            })
+            .catch(e => {
+                console.error('[Hermes] storage.local.set falhou:', e);
+                sendResponse({ ok: false, error: e.message || 'storage_set_failed' });
+            });
         return true;
     }
     if (msg.action === 'accountTypeDetected') {
