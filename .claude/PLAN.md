@@ -222,6 +222,38 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 5. **Commits do projeto inteiro** (organizar 7+ chapters de mudanças)
 6. **Fix `_extract_profile_data`**: nome/headline vazios no result (LinkedIn DOM mudou — selectors precisam update)
 
+## Chapter 15 — Fase C.1 + C.2 CONCLUÍDAS ✅ (2026-06-08)
+
+### MERGED-013 ✅ — Settings central pydantic-settings
+- `config.py` raiz com HermesSettings (BaseSettings) — fonte canônica de TODAS env vars
+- server.py: 31 → 1 os.environ.get (USERPROFILE Windows OS keep)
+- hermes_api_v2.py: 15 → 1 (LI_AT runtime keep, set dinamicamente por li_at_update)
+- `vm_api_url_resolved` property: computa http://{vm_host}:{vm_api_port} se HERMES_VM_API não setado
+- Fail-closed tokens preservado (AUTH_TOKEN/INTERNAL_TOKEN/VM_AUTH_TOKEN raise se vazio)
+- requirements.txt: +pydantic-settings>=2.0
+- .env.example: documenta AGENTMEMORY_URL, HERMES_VM_RESTART_CMD, HERMES_PC_EVENT_URL, VM_API_PORT, HERMES_HOME
+
+### MERGED-009 ✅ — IP VM via settings.vm_host
+- server.py:3149 — SSH restart usa f"{settings.vm_user}@{settings.vm_host}"
+- scripts/tunnel_supervisor.py — VM_HOST/VM_USER/SOCKS5_PORT vem de settings
+- linkedin/preflight.py mantém VM_HOST="136.115.74.69" (constante de segurança datacenter blocklist, distinct de config)
+- Migração VM-GPU agora exige apenas `VM_HOST=<novo-ip>` no .env
+
+**validate --phase A**: PASS 3/3 (sem regressão)
+**validate --phase B**: PASS 5/5 (sem regressão)
+**validate --phase C**: 3/6 PASS (013, 009, 008)
+
+### Pendentes Fase C (próxima sessão `/start-phase C`)
+- [ ] MERGED-014 — Ollama fallback router (decisão: estudar melhor modelo Ollama RTX 2060 PC + tunnel VM:11434 antes de implementar. Quando VM-GPU migrar, eliminar acoplamento naturalmente.)
+- [ ] MERGED-012 — Pipeline dedupe (core/pipeline.py compartilhado entre daemon e scripts)
+- [ ] MERGED-011 — Split monolitos server.py + hermes_api_v2.py (effort L, vários sub-commits)
+
+### Commits desta sessão
+- `fix(config): MERGED-013 — Settings central pydantic-settings`
+- `fix(config): MERGED-009 — IP VM via settings.vm_host`
+
+---
+
 ## Chapter 13 — Fase B State & Robustness CONCLUÍDA ✅ (2026-06-08)
 
 ### MERGED-005 ✅ — SQLite busy_timeout

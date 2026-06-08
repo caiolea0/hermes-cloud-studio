@@ -193,4 +193,13 @@ python scripts/validate_implementation.py --apply-flags  # reabre tasks pra fail
 - **campaign_runs**: persistência VM. Qualquer campanha 'running' com heartbeat > 5min = orphaned no próximo startup.
 - **sync overwrite**: `_local_error_until_ack` protege erros de dispatch. Não remover sem `/dismiss-error`.
 
-Última edição: 2026-06-08 (Chapter 13 — Fase B).
+## 🧩 Config central (Fase C.1 — MERGED-013/009)
+
+- **`config.py` raiz é fonte canônica** de TODAS env vars do projeto. NUNCA `os.environ.get` novo em server.py / hermes_api_v2.py — adicionar field em `HermesSettings` e usar `settings.X`.
+  - Exceções permitidas: vars do SO (USERPROFILE, PATH) e tokens runtime-set (LI_AT é setado por endpoint, não vem do .env no boot).
+- **IP da VM**: `settings.vm_host`. NUNCA literal `136.115.74.69` em código. Excepcao unica: `linkedin/preflight.py` que mantém literal como constante de segurança datacenter blocklist (NÃO é config, é guard anti-detecção).
+- **`settings.vm_api_url_resolved`**: usar quando precisar do URL VM API completo (fallback computa de vm_host:vm_api_port).
+- **Fail-closed tokens**: settings.auth_token / internal_token / vm_auth_token são strings vazias por default. Cada consumidor (server.py, hermes_api_v2.py) DEVE manter `if not TOKEN: raise RuntimeError(...)` após binding pra preservar MERGED-002/003.
+- **Pydantic-settings carrega .env automaticamente** — `load_dotenv()` em server.py / hermes_api_v2.py virou redundante mas inofensivo (mantido por compat).
+
+Última edição: 2026-06-08 (Chapter 15 — Fase C.1+C.2).
