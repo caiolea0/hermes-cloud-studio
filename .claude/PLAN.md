@@ -261,8 +261,16 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 
 Commit: `fix(infra): MERGED-017 — psutil subprocess supervision pra scraper` (push master e8871e4).
 
+### D.2 MERGED-018 ✅ — Session monitor consecutive failures
+- `core/state.py`: `_LI_SESSION_FAIL_STREAK = 0` novo.
+- `loops/linkedin_session.py`: `REQUIRED_FAILS = 3`. Probe ok zera streak. Alert Telegram só dispara quando streak >= REQUIRED_FAILS (janela de 3h). Mata spam por flake de rede / VM lag.
+- `server.py` lifespan restaura `_LI_SESSION_FAIL_STREAK` via `get_runtime_state("li_session_fail_streak", 0)`.
+- Smoke comportamental 4/4: 2 fails sem alert; 3o fail dispara; ok zera streak + restored; flake (1 fail isolado) não notifica.
+- **validate --finding MERGED-018: PASS**
+
+Commit: `fix(loops): MERGED-018 — session monitor exige 3 falhas consecutivas` (push master 25de712).
+
 ### Pendentes Fase D
-- [ ] MERGED-018 — Session monitor consecutive failures (3 falhas seguidas pra alertar)
 - [ ] MERGED-020 — Rate-limit `/api/server/restart-*` (slowapi)
 - [ ] MERGED-006 — Sync versioning prospects (version+updated_at, conflict detection)
 

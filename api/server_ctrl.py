@@ -1,20 +1,27 @@
-"""Hermes Cloud Studio — Server control (restart/shutdown PC + VM) — MERGED-011."""
+"""Hermes Cloud Studio — Server control (restart/shutdown PC + VM) — MERGED-011.
+
+MERGED-020: rate-limit via slowapi (`@limiter.limit("2/hour")`) em todos os
+endpoints destrutivos pra impedir DoS por loop curl que impediria daemon de
+completar ciclo.
+"""
 from __future__ import annotations
 
 import asyncio
 import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from config import settings
+from core.limiter import limiter
 from core.state import spawn
 
 router = APIRouter()
 
 
 @router.post("/api/server/restart-local")
-async def server_restart_local():
+@limiter.limit("2/hour")
+async def server_restart_local(request: Request):
     """Schedule a local server restart. Tauri's health loop or systemd respawns.
     On Windows (no systemd), we exit the process — Tauri's lib.rs health monitor
     detects port 55000 closed and re-launches `python server.py`.
@@ -27,7 +34,8 @@ async def server_restart_local():
 
 
 @router.post("/api/server/shutdown-local")
-async def server_shutdown_local():
+@limiter.limit("2/hour")
+async def server_shutdown_local(request: Request):
     """Graceful shutdown of the local server (no auto-restart)."""
     try:
         flag = settings.hermes_home / "data" / "no_relaunch.flag"
@@ -44,7 +52,8 @@ async def server_shutdown_local():
 
 
 @router.post("/api/server/restart-vm")
-async def server_restart_vm():
+@limiter.limit("2/hour")
+async def server_restart_vm(request: Request):
     """Restart hermes-api.service on the VM via SSH."""
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -69,9 +78,10 @@ async def server_restart_vm():
 
 
 @router.post("/api/server/restart-all")
-async def server_restart_all():
+@limiter.limit("2/hour")
+async def server_restart_all(request: Request):
     """Restart VM first, then local (which auto-respawns via Tauri)."""
-    vm_result = await server_restart_vm()
+    vm_result = await server_restart_vm(request)
     if not vm_result.get("ok"):
         return {"ok": False, "error": f"VM falhou: {vm_result.get('error')}"}
 

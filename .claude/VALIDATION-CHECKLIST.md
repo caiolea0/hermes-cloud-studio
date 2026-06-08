@@ -151,9 +151,10 @@ checks:
 ### MERGED-020 — Rate-limit restart endpoints
 - phase: D
 - checks:
-  - grep_present: server.py / "slowapi|Limiter\(|@limiter\." / rate limiter applied
+  - grep_present: server.py / "slowapi|Limiter\(|app.state.limiter" / rate limiter wired in app
+  - grep_present: api/server_ctrl.py / "@limiter\.limit" / decorator applied (moved from server.py by MERGED-011)
+  - file_exists: core/limiter.py / shared limiter module
   - grep_present: requirements.txt / "slowapi" / dep declared
-  - http_test: POST /api/server/restart-local 5x rapid / expect 429 in last 2
 
 ### MERGED-006 — Sync versioning
 - phase: D

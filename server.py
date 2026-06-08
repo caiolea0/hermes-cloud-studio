@@ -129,6 +129,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Hermes Command Center", version="2.0.0", lifespan=lifespan)
 
+# MERGED-020 — slowapi rate-limit pra /api/server/restart-* (DoS guard)
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from core.limiter import limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
