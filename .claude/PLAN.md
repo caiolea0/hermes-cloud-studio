@@ -1,0 +1,262 @@
+# Hermes Cloud Studio — Plano Mestre
+
+> **Fonte da verdade durável**. Sobrevive a compressão de contexto, fim de sessão, crash.
+> Atualizar a cada milestone. Última edição: 2026-06-07.
+
+---
+
+## Contexto estratégico (do owner)
+
+- **Estágio**: embrionário. Testes só on-demand. Nenhum bem-sucedido (detecção LinkedIn).
+- **Visão**: Hermes 24/7 interagindo com LinkedIn + ferramentas externas (prospecção → audit → proposta → site → entrega) com UI real-time.
+- **Dor #1**: passar detecção LinkedIn.
+- **Dor #2**: Hermes criar próprias skills, ser proativo, usar 100% potencial.
+- **Time**: solo agora, sócio futuro (comercial+marketing). Owner foca em estratégia/sites/apps.
+- **Sucesso**: muitas horas/dia LinkedIn sem ban + workflow expansão networking + prospecção+atendimento clientes integrados.
+- **Restrição mês**: migrar pra VM com GPU. Usar Ollama/HuggingFace/modelos free orquestrados Claude no PC. Zero API externa além da assinatura.
+- **Riscos**: ban LinkedIn; pipelines siloed sem conversar.
+
+---
+
+## Gargalos diagnosticados
+
+1. **LinkedIn detection** — bloqueia tudo. Prioridade absoluta.
+2. **Silos** — channels Email/WA/IG são stubs.
+3. **Skills estáticas** — sem feedback loop, Hermes não evolui.
+
+---
+
+## Fases
+
+### Fase 1 — Sobrevivência LinkedIn (semanas 1-2)
+Endurecer stealth/human/limiter. Lab mode. Sem isso nada importa.
+
+### Fase 2 — Cross-channel + auto-skills (semanas 3-6)
+Implementar channels reais. Hermes propõe próprias skills (workflow W3).
+
+### Fase 3 — Convergência (semanas 7-10)
+Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolidado.
+
+**Paralelo a fase 1**: migração VM GPU.
+
+---
+
+## Execução desta sessão (2026-06-07)
+
+### Chapter 1 — Setup persistência ✅
+- [x] PLAN.md criado
+- [x] TaskCreate
+- [x] memory_save inicial
+- [x] chapter mark
+
+### Chapter 2 — Skill `/audit-project` global
+- [ ] `~/.claude/skills/audit-project/SKILL.md`
+- [ ] Inclui fase obrigatória de persistência (PLAN.md + TaskCreate + memory + chapters)
+- [ ] Rodar no Hermes → produz `.claude/AUDIT.md`
+
+### Chapter 3 — MCP `hermes-control` (TypeScript) ✅
+- [x] Scaffold `mcps/hermes-control/` (TS, MCP SDK 1.0.4)
+- [x] 16 tools: hermes_status, list_prospects, daemon_state/control, li_health/rate_limits/campaigns, activities, pipeline_list/execute, scraper_status/start, audit_start, skills_list/toggle, server_restart
+- [x] Registrado em `.mcp.json`
+- [x] Smoke test: npm install + tsc OK
+- [ ] **Pendente**: restart Claude Code pra MCP carregar; configurar `HERMES_AUTH_TOKEN` no env do shell
+
+### Chapter 4 — Workflow `linkedin-anti-detection-sweep` ✅
+- [x] Script `.claude/workflows/li-anti-detection.js`
+- [x] Orçamento confirmado (3% sessão, plano Max 5x)
+- [x] Executado: 52 agents, 1.86M tokens, 9.3min
+- [x] Output: `.claude/STEALTH-PATCHES.md` (101KB, 676 linhas)
+- [x] **8 patches confirmados** de 15 propostos (>=2 lentes valid de 3):
+  - 🔴 PATCH-003 — Mobile/ISP sticky proxy 1:1 por account (critical)
+  - 🔴 PATCH-004 — WebGL renderer 65 params coerentes UA (critical)
+  - 🔴 PATCH-005 — navigator.webdriver via prototype (critical)
+  - 🔴 PATCH-008 — Session continuity li_at+IP+fingerprint binding (critical)
+  - 🟡 PATCH-007 — Rate limiter 2026 (20-30 conn/dia, 100/sem)
+  - 🟡 PATCH-009 — Behavioral signals: dwell, scroll, hover, feed warm-up
+  - 🟡 PATCH-013 — window.chrome stub completo
+  - 🟡 PATCH-014 — Warm-up 14d + acceptance rate guard >70%
+
+### Chapter 5 — Skills + Subagents + Slash commands locais ✅
+**Skills** (`.claude/skills/`):
+- [x] `hermes-status` · `hermes-deploy` · `hermes-li-lab` · `hermes-bug-hunt` · `hermes-stealth-audit`
+- [ ] Defer fase 2: `hermes-skill-forge`, `hermes-channel-impl`, `hermes-pipeline-design`, `hermes-db-query`
+
+**Subagents** (`.claude/agents/`):
+- [x] `linkedin-detection-researcher` · `linkedin-flow-debugger` · `vm-deploy-verifier`
+- [ ] Defer fase 2: `pipeline-architect`, `skill-yaml-validator`, `hermes-meta-strategist`
+
+**Slash commands** (`.claude/commands/`): 8 wrappers ✅
+- [x] `/hermes-status`, `/hermes-deploy`, `/hermes-restart`, `/hermes-li-lab`, `/hermes-bug-hunt`, `/hermes-stealth-check`, `/hermes-debug-li`, `/hermes-verify-deploy`
+
+### Chapter 6 — Fecho ✅
+- [x] PLAN.md estado final
+- [x] MEMORY.md global atualizada
+- [x] Lembrar owner: organizar commits do projeto
+
+---
+
+## Resumo executivo da sessão 2026-06-07
+
+**Tempo total**: ~1h30min
+**Artefatos criados**: 22 arquivos
+**Tokens consumidos**: ~2M (1.86M no workflow + ~100k main loop)
+
+**Próximas ações para o owner (priorizadas)**:
+
+1. **Restart Claude Code** pra MCP `hermes-control` carregar
+2. **Configurar `HERMES_AUTH_TOKEN`** no env do shell (necessário pro MCP)
+3. **Ler STEALTH-PATCHES.md** — começar por PATCH-003, 004, 005, 008 (critical)
+4. **Criar conta LinkedIn cobaia** pra `/hermes-li-lab` antes de aplicar patches em prod
+5. **Adquirir proxy ISP/mobile sticky** (PATCH-003 depende — operacional, ~$15-50/mês por IP)
+6. **Commits**: organizar mudanças não comitadas + esta sessão (aguardando prompt do owner)
+7. **Bug fix rápido** (5 min): `import time` no topo de `server.py` (linhas 698, 722)
+
+---
+
+## Decisões arquiteturais tomadas nesta sessão
+
+- **MCP linguagem**: TypeScript (SDK Anthropic mais maduro, npx-friendly, ecosystem MCP nativo).
+- **Persistência**: 5 camadas — PLAN.md disco + TaskCreate + artefatos disco + agentmemory + chapter marks.
+- **Auditoria reusável**: skill global `/audit-project` com fase de persistência **obrigatória** ao final.
+- **Workflow stealth**: construir antes de aprovar execução (revisão de custo).
+
+---
+
+## Pendências pra sessões futuras
+
+- Implementar channels Email/WA/IG (workflow W2)
+- Auto-skill loop Hermes (workflow W3)
+- VM GPU migration (workflow W4)
+- MCPs adicionais: `linkedin-lab`, `ollama-router`, `prospect-enricher`
+- Considerar Cowork quando sócio entrar OU Telegram bridge doer
+- ~~Resolver bug conhecido: `time.time()` sem import em `server.py:698,722`~~ ✅ resolvido sessão 2026-06-07
+
+## Sessão extra 2026-06-07 (próximos passos práticos)
+
+### ✅ Concluído
+- HERMES_AUTH_TOKEN gerado + .env + User env var Windows
+- Bug `import time` corrigido (server.py:20)
+- Estratégia proxy FREE definida (IP residencial nativo pra cobaia, hotspot 4G pra futura conta real)
+- Conta cobaia `milgrauz.exe@gmail.com` configurada em `.env` (LINKEDIN_LAB_*)
+- **`linkedin/lab/`** completo: lab_runner.py + 3 flows (fingerprint, login, viewer_test) + README + .gitignore
+
+### Pra owner rodar (próximo)
+1. **Fingerprint baseline**: `python -m linkedin.lab.lab_runner --flow fingerprint`
+2. **Login fresh Patchright**: `python -m linkedin.lab.lab_runner --flow login --manual-password`
+   - Vai abrir browser headful. Email auto-preenchido. Senha digitada por você. Esperado: challenge na primeira vez.
+3. **Verificar artefatos**: `linkedin/lab/artifacts/{flow}/{timestamp}/`
+4. **Aguardar 24h** antes de viewer test
+
+### Tasks ainda pendentes
+- #8 PATCH-008 reduzido (AccountProfile + burned_flag)
+- #9 PATCH-014 reduzido (acceptance_rate guard)
+- #11 PATCH-013 (window.chrome stub) com ressalvas
+
+## Chapter 7 — Resiliência + Compliance (2026-06-07) ✅
+
+### Infra always-on
+- ✅ `scripts/tunnel_supervisor.py` — loop 30s, port probe + SSH egress check, auto-restart exponential backoff
+- ✅ `scripts/tunnel_supervisor.bat` + `install_tunnel_supervisor.ps1` — Task Scheduler `HermesTunnelSupervisor` at logon
+- ✅ Validado: `--status` retorna `egress_residential: true ip 191.202.9.94`
+- ✅ Loop rodando como PID daemon, log em `logs/tunnel_supervisor.log`
+
+### Stealth compliance inegociável
+- ✅ `linkedin/preflight.py` — `assert_tunnel_healthy` fail-closed. Datacenter blocklist. Raises ProxyHealthError.
+- ✅ `linkedin/stealth_compliance.py` — probe JS pos-launch 18 sinais (critical/high/medium). Score 0-100. Auto-correct lang + chrome.loadTimes. Aborta se score<70 OU critical fail.
+- ✅ Plumbing em `linkedin/stealth.py`: preflight ANTES Patchright, compliance gate APÓS page criada.
+- ✅ Env knobs: `HERMES_SKIP_PREFLIGHT`, `HERMES_SKIP_COMPLIANCE`, `HERMES_COMPLIANCE_STRICT`, `HERMES_COMPLIANCE_MIN_SCORE`.
+
+### Fix gaps reais do lab
+- ✅ Locale `pt-BR` em `launch_kwargs` — mata mismatch `en-US/America/Cuiaba`
+- ✅ WebGL via ANGLE+SwiftShader+Vulkan (`--use-gl=angle`, `--use-angle=swiftshader`, `--enable-features=Vulkan`)
+- ✅ xvfb-run `--server-args='-screen 0 1920x1080x24'` via `linkedin/lab/run.sh`
+- ✅ Mesa instalado (`mesa-utils`, `libgl1-mesa-dri`) via `sudo apt-get` NOPASSWD
+
+### Baseline atualizado (run 20260608T015739Z)
+| Sinal | Antes | Agora |
+|---|---|---|
+| `lang` | en-US | **pt-BR** ✅ |
+| WebGL renderer | vazio | **WebKit WebGL** (ANGLE/Vulkan/SwiftShader) ✅ |
+| Compliance gate | abortou (86) | **passou** ✅ |
+| Egress | 191.202.9.94 | 191.202.9.94 ✅ |
+
+### Próximo
+- ~~Tasks #8 (PATCH-008 reduzido), #11 (PATCH-013), #9 (PATCH-014)~~ ✅
+- Antes de outreach real: re-run completo CreepJS+amiunique pra score quantificado
+
+## Chapter 8 — Patches A/B/C aplicados ✅ (2026-06-07)
+
+### Task #8 PATCH-008 escopo reduzido ✅
+- `linkedin/account_profile.py` — dataclass + JSON sidecar em `linkedin_data/account_profiles/`
+- AccountProfile.load_or_create + burn() + unburn() + check_and_burn(url)
+- BURN_URL_PATTERNS: /checkpoint, /uas/login, /authwall, session-expired, /blocked, /login-submit
+- assert_not_burned() helper — raise RuntimeError se burned
+- Plumbing `linkedin/stealth.py`: ACCOUNT BURN GATE após preflight, atribui `page._account_profile`
+- Plumbing `linkedin/lab/flows/login.py` + `viewer_test.py`: record_login, record_challenge, check_and_burn nos authwalls
+- Smoke test 100%: create, detect signals, burn, assert raise, unburn, reload preserva sticky_session_id
+
+### Task #11 PATCH-013 window.chrome stub ✅
+- Substituído stub antigo em `_STEALTH_SCRIPTS[1]`
+- t0 lazy via `performance.timeOrigin` (NÃO Date.now())
+- loadTimes/csi com Object.freeze (Chrome real: requestTime===requestTime)
+- wasAlpnNegotiated=true, alpnNegotiatedProtocol='h2' (NÃO NPN obsoleto)
+- runtime.connect retorna Port com onDisconnect async + lastError (Chrome real, NÃO throw)
+- toString hardening por função (`_native(name)`)
+- Object.keys(chrome.runtime) ordem realista
+- Só ativa fallback `not use_patchright`. Invariants smoke test 6/6 OK.
+
+### Task #9 PATCH-014 acceptance_rate guard ✅
+- 2 tabelas novas em `linkedin/limiter.py`: `pending_invites` + `acceptance_cooldown`
+- Métodos: `record_invite_sent/accepted/withdrawn`, `compute_acceptance_rate`, `evaluate_and_set_cooldown`, `force_lift_acceptance_cooldown`
+- Janela d-14 a d-7 (respeitando lag aceitação LinkedIn 3-7d) — NÃO 7d simples
+- MIN_SAMPLE=10 antes de avaliar (evita false positive)
+- THRESHOLD=40%, COOLDOWN=7d
+- Plumb em `can_perform("connection_request")` — bloqueia se cooldown ativo
+- Smoke test: 7/7 OK (empty, sample<10 ignora, rate calculado, cooldown trigger, can_perform bloqueia, profile_view não bloqueado, lift OK)
+
+### Próximos passos sugeridos (sessão futura)
+1. **Conectar invite tracking real**: connector.py chama limiter.record_invite_sent(invite_id) em send_invite
+2. **Polling /mynetwork/invitation-manager/sent/** 1x/dia pra detectar accepted/withdrawn (PATCH-014 part 2 — não implementado nesta sessão)
+3. **Re-run CreepJS + amiunique** com fingerprint_baseline.py expandido (eval JS pós-render pra ler score SPA)
+4. ~~**Lab login real** com milgrauz.exe@gmail.com~~ ✅ APROVADO 2026-06-07
+5. **Commits do projeto inteiro** (organizar 7+ chapters de mudanças)
+6. **Fix `_extract_profile_data`**: nome/headline vazios no result (LinkedIn DOM mudou — selectors precisam update)
+
+## Chapter 9 — TESTE END-TO-END APROVADO ✅ (2026-06-07)
+
+### Critério owner
+"Visitar 5 perfis via automação Hermes Cloud Studio. Retornou perfis = pass."
+
+### Resultado
+**5 perfis visitados (URLs reais)** em 320s, conta cobaia milgrauz.exe@gmail.com:
+- regis-rodrigues-a141883a2
+- rcrosa
+- giorgiamasini
+- giovanibeck
+- karina-murta-bregunci-9b9890a
+
+### Bug fixes desbloqueantes aplicados durante o teste
+- **SDUI login**: `input[type=email][autocomplete*=username]` (LinkedIn re-renderizou login com React IDs randômicos `«r0»`)
+- **Search redirect**: navegar direto `/search/results/people/?keywords=...` (LinkedIn redirecionava `/all/` pra `/jobs/` em conta nova com 0 conexões)
+- **LI_AT no env**: extrair do session_file salvo pelo login e setar `os.environ["LI_AT"]` antes de `LinkedInViewer.start()` (cooldown.py probe lê do env, não do user_data_dir)
+- **socksio**: instalado na VM (`httpx[socks]` precisa pra SOCKS5)
+- **Termo busca composto**: "marketing manager" (composto) ao invés de "designer" (simples) — LinkedIn algoritmo de intent dispara people em vez de jobs
+
+### Bug residual não-bloqueante
+- `_extract_profile_data` retorna nome/headline vazios (LinkedIn DOM card mudou). URL OK. Fix futuro.
+
+---
+
+## Como retomar esta sessão se contexto perdido
+
+1. `Read` este arquivo.
+2. `memory_smart_search "hermes audit plan"` no agentmemory.
+3. `Glob D:\dev-projects\main\hermes-cloud-studio\.claude\**` — ver artefatos já criados.
+4. Próximo passo: pegar primeiro checkbox `[ ]` desmarcado neste arquivo.
+
+## REGRAS INVIOLAVEIS
+
+- **Claude PODE SSH na VM** (hermes-gcp@136.115.74.69) com `$env:USERPROFILE\.ssh\id_ed25519`. Faz deploy/debug/exec direto sem pedir pro owner. Confirmado 2026-06-07.
+- **Linguagem padrão**: PT-BR caveman.
+- **`linkedin/` (incluindo `lab/`) executa na VM**, não no PC. PC só hospeda source + dashboard.
+- **Estratégia proxy LinkedIn**: VM Linux roda Patchright headless via xvfb-run. IP da VM é o IP da Hermes — não residencial. Decisão de proxy ainda pendente (free vs pago) — ver sessão futura.
