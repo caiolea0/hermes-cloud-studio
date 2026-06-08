@@ -270,9 +270,18 @@ Commit: `fix(infra): MERGED-017 — psutil subprocess supervision pra scraper` (
 
 Commit: `fix(loops): MERGED-018 — session monitor exige 3 falhas consecutivas` (push master 25de712).
 
-### Pendentes Fase D
-- [ ] MERGED-020 — Rate-limit `/api/server/restart-*` (slowapi)
-- [ ] MERGED-006 — Sync versioning prospects (version+updated_at, conflict detection)
+### D.3 MERGED-020 ✅ — Rate-limit `/api/server/restart-*` (slowapi)
+- `core/limiter.py` novo: `Limiter(key_func=get_remote_address)` singleton.
+- `server.py`: `app.state.limiter = limiter` + `add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)`.
+- `api/server_ctrl.py`: `@limiter.limit("2/hour")` em 4 endpoints (restart-local, shutdown-local, restart-vm, restart-all) + `Request` param obrigatório na assinatura.
+- `requirements.txt`: `slowapi>=0.1.9`.
+- Smoke TestClient: 5x POST → `[200, 200, 429, 429, 429]` (limite 2/hour enforced).
+- **validate --finding MERGED-020: PASS**
+
+Commit: `fix(api): MERGED-020 — slowapi rate-limit /api/server/restart-* (2/hour)` (push master cee06c5).
+
+### Pendente Fase D
+- [ ] MERGED-006 — Sync versioning prospects (version+updated_at, conflict detection) — schema migration
 
 ---
 

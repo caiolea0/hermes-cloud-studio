@@ -271,6 +271,14 @@ def init_db() -> None:
         conn.execute("ALTER TABLE prospects ADD COLUMN photo_ref TEXT")
         conn.commit()
 
+    # MERGED-006 — Sync versioning. updated_at ja existe (TIMESTAMP).
+    try:
+        conn.execute("SELECT version FROM prospects LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE prospects ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
+        conn.commit()
+        logger.info("Migration: added version column to prospects (MERGED-006)")
+
     conn.close()
 
 

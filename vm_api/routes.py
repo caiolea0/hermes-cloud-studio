@@ -223,7 +223,9 @@ async def update_prospect(prospect_id: int, update: ProspectUpdate):
             params.append(value)
         if not sets:
             raise HTTPException(400, "No fields to update")
+        # MERGED-006 — bump version pra sync conflict detection
         sets.append("updated_at = CURRENT_TIMESTAMP")
+        sets.append("version = version + 1")
         params.append(prospect_id)
         conn.execute(f"UPDATE prospects SET {', '.join(sets)} WHERE id = ?", params)
         conn.commit()
@@ -609,7 +611,7 @@ async def start_audit(batch_size: int = 50, stage: str = "discovered"):
                 db2 = get_db()
                 try:
                     db2.execute(
-                        "UPDATE prospects SET score=?, stage=?, audit_summary=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                        "UPDATE prospects SET score=?, stage=?, audit_summary=?, updated_at=CURRENT_TIMESTAMP, version=version+1 WHERE id=?",
                         (result["score"], new_stage, result["audit_summary"], p["id"])
                     )
                     db2.execute(
@@ -674,7 +676,7 @@ async def audit_single(prospect_id: int):
     db = get_db()
     try:
         db.execute(
-            "UPDATE prospects SET score=?, stage=?, audit_summary=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            "UPDATE prospects SET score=?, stage=?, audit_summary=?, updated_at=CURRENT_TIMESTAMP, version=version+1 WHERE id=?",
             (result["score"], new_stage, result["audit_summary"], prospect_id)
         )
         db.execute(
@@ -750,7 +752,7 @@ async def generate_prospect_outreach(prospect_id: int):
     db = get_db()
     try:
         db.execute(
-            "UPDATE prospects SET outreach_message=?, outreach_status='ready', stage='outreach', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            "UPDATE prospects SET outreach_message=?, outreach_status='ready', stage='outreach', updated_at=CURRENT_TIMESTAMP, version=version+1 WHERE id=?",
             (result.get("whatsapp_message", ""), prospect_id)
         )
         db.execute(
@@ -799,7 +801,7 @@ async def outreach_batch(body: OutreachBatchRequest):
             db = get_db()
             try:
                 db.execute(
-                    "UPDATE prospects SET outreach_message=?, outreach_status='ready', stage='outreach', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    "UPDATE prospects SET outreach_message=?, outreach_status='ready', stage='outreach', updated_at=CURRENT_TIMESTAMP, version=version+1 WHERE id=?",
                     (result.get("whatsapp_message", ""), p["id"])
                 )
                 db.commit()

@@ -333,6 +333,16 @@ def init_db() -> None:
         conn.commit()
         logger.info("Migration: added photo_ref column to prospects")
 
+    # MERGED-006 — Sync versioning + conflict detection
+    try:
+        conn.execute("SELECT version FROM prospects LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE prospects ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
+        conn.execute("ALTER TABLE prospects ADD COLUMN last_synced_version INTEGER NOT NULL DEFAULT 0")
+        conn.execute("ALTER TABLE prospects ADD COLUMN conflict_at REAL")
+        conn.commit()
+        logger.info("Migration: added version/last_synced_version/conflict_at to prospects (MERGED-006)")
+
     conn.close()
 
 

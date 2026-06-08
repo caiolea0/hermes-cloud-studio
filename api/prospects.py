@@ -142,11 +142,30 @@ async def update_prospect(prospect_id: int, update: ProspectUpdate):
             params.append(value)
         if not sets:
             raise HTTPException(400, "No fields to update")
+        # MERGED-006 — bump version pra sync conflict detection
         sets.append("updated_at = CURRENT_TIMESTAMP")
+        sets.append("version = version + 1")
         params.append(prospect_id)
         conn.execute(f"UPDATE prospects SET {', '.join(sets)} WHERE id = ?", params)
         conn.commit()
         return {"status": "updated"}
+    finally:
+        conn.close()
+
+
+@router.post("/api/prospects/{prospect_id}/resolve-conflict")
+async def resolve_prospect_conflict(prospect_id: int):
+    """MERGED-006 — owner dismiss conflict flag depois de inspecionar/editar manualmente."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "UPDATE prospects SET conflict_at = NULL WHERE id = ? AND conflict_at IS NOT NULL",
+            (prospect_id,)
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            return {"status": "no_conflict"}
+        return {"status": "resolved"}
     finally:
         conn.close()
 
@@ -158,13 +177,13 @@ async def bulk_prospect_action(action: BulkProspectAction):
         if action.action == "stage_change":
             placeholders = ",".join("?" for _ in action.ids)
             conn.execute(
-                f"UPDATE prospects SET stage = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN ({placeholders})",
+                f"UPDATE prospects SET stage = ?, updated_at = CURRENT_TIMESTAMP, version = version + 1 WHERE id IN ({placeholders})",
                 [action.value] + action.ids
             )
         elif action.action == "score_update":
             placeholders = ",".join("?" for _ in action.ids)
             conn.execute(
-                f"UPDATE prospects SET score = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN ({placeholders})",
+                f"UPDATE prospects SET score = ?, updated_at = CURRENT_TIMESTAMP, version = version + 1 WHERE id IN ({placeholders})",
                 [int(action.value)] + action.ids
             )
         conn.commit()

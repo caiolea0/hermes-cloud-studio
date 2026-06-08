@@ -1,8 +1,14 @@
-"""Hermes Cloud Studio — VM sync loop (60s, paginated prospects+activities) — MERGED-011."""
+"""Hermes Cloud Studio — VM sync loop (60s, paginated prospects+activities) — MERGED-011.
+
+MERGED-006: conflict detection via version field. local.last_synced_version
+guarda a version VM aplicada pela ultima sincronizacao. Se ambos local e VM
+mudaram desde entao -> conflito (conflict_at set + log + ws broadcast).
+"""
 from __future__ import annotations
 
 import asyncio
 import json
+import time
 from datetime import datetime, timezone
 
 import httpx
@@ -71,10 +77,35 @@ async def sync_from_vm():
     conn = get_db()
     try:
         synced_p = 0
+        conflicts = 0
         for p in vm_prospects:
             vm_id = p.get("id")
-            existing = conn.execute("SELECT id FROM prospects WHERE vm_id = ?", (vm_id,)).fetchone()
+            vm_version = int(p.get("version") or 1)
+            existing = conn.execute(
+                "SELECT id, version, last_synced_version FROM prospects WHERE vm_id = ?",
+                (vm_id,)
+            ).fetchone()
             if existing:
+                local_version = int(existing["version"] or 1)
+                last_synced = int(existing["last_synced_version"] or 0)
+                vm_changed = vm_version > last_synced
+                local_changed = local_version > max(last_synced, 1)
+                if vm_changed and local_changed:
+                    # MERGED-006 — conflito: marcar conflict_at, NAO sobrescrever
+                    conn.execute(
+                        "UPDATE prospects SET conflict_at=? WHERE vm_id=? AND conflict_at IS NULL",
+                        (time.time(), vm_id),
+                    )
+                    conflicts += 1
+                    logger.warning(
+                        "sync conflict: vm_id=%s local_v=%d vm_v=%d last_synced=%d — preservando local",
+                        vm_id, local_version, vm_version, last_synced,
+                    )
+                    continue
+                if not vm_changed:
+                    # VM nao mudou desde ultimo sync; nada pra aplicar
+                    continue
+                # Caso normal: VM mudou, local nao — apply update e atualizar last_synced_version
                 conn.execute("""
                     UPDATE prospects SET
                         name=?, business_name=?, category=?, phone=?, email=?,
@@ -84,6 +115,7 @@ async def sync_from_vm():
                         social_instagram=?, social_facebook=?, source=?,
                         score=?, stage=?, audit_summary=?,
                         outreach_message=?, outreach_status=?,
+                        version=?, last_synced_version=?,
                         updated_at=CURRENT_TIMESTAMP
                     WHERE vm_id = ?
                 """, (
@@ -97,9 +129,10 @@ async def sync_from_vm():
                     p.get("source", "google_maps"),
                     p.get("score", 0), p.get("stage", "discovered"),
                     p.get("audit_summary"), p.get("outreach_message"),
-                    p.get("outreach_status"), vm_id,
+                    p.get("outreach_status"), vm_version, vm_version, vm_id,
                 ))
             else:
+                # MERGED-006 — INSERT novo: version=vm_version, last_synced_version=vm_version
                 conn.execute("""
                     INSERT INTO prospects (
                         vm_id, name, business_name, category, phone, email,
@@ -108,8 +141,9 @@ async def sync_from_vm():
                         photo_ref,
                         social_instagram, social_facebook, source,
                         score, stage, audit_summary,
-                        outreach_message, outreach_status, created_at
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        outreach_message, outreach_status,
+                        version, last_synced_version, created_at
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     vm_id, p.get("name"), p.get("business_name"), p.get("category"),
                     p.get("phone"), p.get("email"), p.get("address"),
@@ -121,7 +155,8 @@ async def sync_from_vm():
                     p.get("source", "google_maps"),
                     p.get("score", 0), p.get("stage", "discovered"),
                     p.get("audit_summary"), p.get("outreach_message"),
-                    p.get("outreach_status"), p.get("created_at"),
+                    p.get("outreach_status"), vm_version, vm_version,
+                    p.get("created_at"),
                 ))
                 synced_p += 1
 
@@ -179,8 +214,18 @@ async def sync_from_vm():
 
         total_p = len(vm_prospects)
         total_a = len(vm_activities)
-        logger.info("Sync OK — %d prospects (%d new), %d activities (%d new)", total_p, synced_p, total_a, synced_a)
-        result = {"ok": True, "prospects": total_p, "new_prospects": synced_p, "activities": total_a, "new_activities": synced_a}
+        logger.info(
+            "Sync OK — %d prospects (%d new, %d conflicts), %d activities (%d new)",
+            total_p, synced_p, conflicts, total_a, synced_a,
+        )
+        result = {
+            "ok": True,
+            "prospects": total_p,
+            "new_prospects": synced_p,
+            "conflicts": conflicts,
+            "activities": total_a,
+            "new_activities": synced_a,
+        }
         await ws_manager.broadcast({"type": "sync", "data": result})
         return result
 

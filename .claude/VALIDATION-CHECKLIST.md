@@ -159,9 +159,13 @@ checks:
 ### MERGED-006 — Sync versioning
 - phase: D
 - checks:
-  - sqlite_column: command_center.db / prospects.version / column exists
-  - sqlite_column: command_center.db / prospects.updated_at / column exists
-  - grep_present: server.py / "version.*conflict|conflict.*version" / conflict resolution
+  - sqlite_column: hermes_local.db / prospects.version / PC column exists (VM idem aplicado via init_db migration)
+  - sqlite_column: hermes_local.db / prospects.updated_at / column exists (ja existia)
+  - sqlite_column: hermes_local.db / prospects.last_synced_version / sync tracker column
+  - sqlite_column: hermes_local.db / prospects.conflict_at / conflict marker column
+  - grep_present: loops/sync.py / "conflict_at|last_synced_version" / conflict detection (moved from server.py by MERGED-011)
+  - grep_present: vm_core/state.py / "version INTEGER" / VM migration code present
+  - grep_present: api/prospects.py / "resolve-conflict" / dismiss endpoint exists
 
 ## Fase E — Features & Hardening
 
