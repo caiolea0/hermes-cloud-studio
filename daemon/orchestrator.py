@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import sqlite3
+import sys
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
@@ -19,7 +20,13 @@ from dataclasses import dataclass, field
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent.parent / ".env")
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+load_dotenv(_ROOT / ".env")
+
+from core.pipeline import PipelineRunner
 
 logger = logging.getLogger("hermes.daemon")
 
@@ -137,6 +144,12 @@ class HermesDaemon:
 
         # Decision log (last 100 decisions for dashboard)
         self.decision_log: list[dict] = []
+
+        # Pipeline runner compartilhado (core/pipeline.py) — usado em P3/P5
+        self.pipeline = PipelineRunner(
+            api_url=LOCAL_API_URL,
+            auth_token=os.environ.get("HERMES_AUTH_TOKEN", ""),
+        )
 
         self._init_db()
 
@@ -608,17 +621,8 @@ class HermesDaemon:
                 raise Exception(f"Scraper start failed: {resp.status_code}")
 
     async def _exec_batch_audit(self, data: list) -> dict:
-        """Run website audit on batch of prospects."""
-        async with httpx.AsyncClient(timeout=600) as client:
-            resp = await client.post(
-                f"{LOCAL_API_URL}/api/audit/start",
-                json={"prospect_ids": [p["id"] for p in data]},
-                headers=self._auth_headers()
-            )
-            if resp.status_code == 200:
-                return resp.json()
-            else:
-                raise Exception(f"Audit start failed: {resp.status_code}")
+        """Run website audit batch via PipelineRunner (shared core/pipeline.py)."""
+        return await self.pipeline.audit_pending(limit=len(data) if data else None)
 
     async def _exec_recalculate_scores(self, _) -> dict:
         """Trigger ML score recalculation for all prospects."""
