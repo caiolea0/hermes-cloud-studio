@@ -106,7 +106,7 @@ checks:
   - grep_absent: server.py / "from linkedin.viewer" / NO direct import linkedin viewer in PC
   - grep_absent: server.py / "from linkedin.engager" / idem
   - grep_absent: server.py / "from linkedin.connector" / idem
-  - grep_present: server.py / "proxy.*linkedin|httpx.*linkedin" / proxy pattern present
+  - grep_present: api/linkedin.py / "proxy.*linkedin|httpx.*linkedin" / proxy pattern present (moved from server.py by MERGED-011)
 
 ### MERGED-014 — Ollama fallback router
 - phase: C
