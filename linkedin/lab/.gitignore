@@ -1,0 +1,7 @@
+artifacts/
+*.png
+*.html
+*.zip
+*.har
+fingerprints/
+profiles/
