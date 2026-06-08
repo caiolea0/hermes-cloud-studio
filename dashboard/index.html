@@ -305,6 +305,10 @@
                     <span class="status-dot" id="server-menu-vm-dot"></span>
                     <span id="server-menu-vm-status">VM: verificando...</span>
                 </div>
+                <div class="server-menu-row server-menu-sub" id="server-menu-tunnel-row">
+                    <span class="status-dot" id="server-menu-tunnel-dot"></span>
+                    <span id="server-menu-tunnel-status">Tunnel: verificando...</span>
+                </div>
                 <div class="server-menu-divider"></div>
                 <button class="server-menu-item" onclick="serverAction('restart-local')">
                     <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg>
@@ -314,11 +318,23 @@
                     <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg>
                     Reiniciar Hermes VM
                 </button>
+                <button class="server-menu-item" onclick="tunnelControl('restart')">
+                    <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg>
+                    Reiniciar Tunnel (SOCKS5+SSH)
+                </button>
                 <button class="server-menu-item" onclick="serverAction('restart-all')">
                     <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg>
                     Reiniciar Tudo
                 </button>
                 <div class="server-menu-divider"></div>
+                <button class="server-menu-item" onclick="tunnelControl('start')">
+                    <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg>
+                    Iniciar Tunnel (se parado)
+                </button>
+                <button class="server-menu-item server-menu-item-danger" onclick="tunnelControl('stop')">
+                    <svg style="width:13px;height:13px"><use href="#i-x"/></svg>
+                    Parar Tunnel
+                </button>
                 <button class="server-menu-item server-menu-item-danger" onclick="serverAction('shutdown-local')">
                     <svg style="width:13px;height:13px"><use href="#i-x"/></svg>
                     Desligar Servidor Local

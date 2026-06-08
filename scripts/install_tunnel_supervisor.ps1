@@ -14,7 +14,8 @@ if (-not (Test-Path $Bat)) {
 Write-Host "Removendo task antiga (se existir)..."
 Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
 
-$action = New-ScheduledTaskAction -Execute $Bat
+# -WindowStyle Hidden adicional pra garantir zero janela visivel
+$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c start `"`" /B `"$Bat`""
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `

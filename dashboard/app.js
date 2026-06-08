@@ -391,18 +391,51 @@ async function _refreshServerMenuStatus() {
     if (localDot) localDot.style.background = 'var(--green)';
     if (localTxt) localTxt.textContent = 'Local online — porta 55000';
 
-    // VM check
+    // VM check via api() helper (inclui X-Hermes-Token automaticamente)
     const vmDot = document.getElementById('server-menu-vm-dot');
     const vmTxt = document.getElementById('server-menu-vm-status');
     try {
-        const r = await fetch('/api/hermes/status', { cache: 'no-store' });
-        const data = await r.json();
+        const data = await api('/api/hermes/status');
         const vmOk = !!data?.vm_reachable;
         if (vmDot) vmDot.style.background = vmOk ? 'var(--green)' : '#ef4444';
         if (vmTxt) vmTxt.textContent = vmOk ? 'VM online — porta 8420' : 'VM offline';
     } catch {
         if (vmDot) vmDot.style.background = '#f59e0b';
         if (vmTxt) vmTxt.textContent = 'VM: status indisponível';
+    }
+
+    // Tunnel supervisor status (auto-discover)
+    const tunDot = document.getElementById('server-menu-tunnel-dot');
+    const tunTxt = document.getElementById('server-menu-tunnel-status');
+    if (tunDot || tunTxt) {
+        try {
+            const t = await api('/api/tunnel/status');
+            const ok = !!t?.healthy;
+            if (tunDot) tunDot.style.background = ok ? 'var(--green)' : '#ef4444';
+            if (tunTxt) tunTxt.textContent = ok
+                ? `Tunnel OK — egress ${t.egress_ip || '?'}`
+                : `Tunnel ${t?.last_action || 'down'}`;
+        } catch {
+            if (tunDot) tunDot.style.background = '#f59e0b';
+            if (tunTxt) tunTxt.textContent = 'Tunnel: indisponível';
+        }
+    }
+}
+
+async function tunnelControl(action) {
+    const labels = { start: 'Iniciar Tunnel', stop: 'Parar Tunnel', restart: 'Reiniciar Tunnel' };
+    const label = labels[action] || action;
+    if (action !== 'start' && !confirm(`Confirmar: ${label}?`)) return;
+    toast(`${label} — executando...`, 'info');
+    try {
+        const r = await api('/api/tunnel/control', {
+            method: 'POST',
+            body: JSON.stringify({ action }),
+        });
+        toast(`${label} — ${JSON.stringify(r.result).slice(0, 80)}`, 'success');
+        setTimeout(_refreshServerMenuStatus, 1500);
+    } catch (e) {
+        toast(`${label} falhou: ${e.message}`, 'error');
     }
 }
 
