@@ -48,6 +48,8 @@ linkedin/lab/_parse_artifacts.py
 # Validation harness runtime outputs (gerados a cada run)
 .claude/validation-report.json
 .claude/validation-flags.json
+.claude/_*.json
+.claude/*.WORKFLOW-PROPOSED
 
 # Server startup logs (test helpers, gerados ad-hoc)
 server_startup.log
