@@ -45,6 +45,10 @@ linkedin/lab/_clear_*.py
 linkedin/lab/_run_viewer_*.py
 linkedin/lab/_parse_artifacts.py
 
+# Validation harness runtime outputs (gerados a cada run)
+.claude/validation-report.json
+.claude/validation-flags.json
+
 # Node
 node_modules/
 
