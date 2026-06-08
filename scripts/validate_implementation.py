@@ -92,7 +92,7 @@ def parse_checklist(path: Path) -> list[Finding]:
             # body padrão: "target / pattern / description"
             parts = [p.strip() for p in body.split(" / ")]
             target = parts[0] if parts else ""
-            pattern = parts[1] if len(parts) > 1 else ""
+            pattern = parts[1].strip("`") if len(parts) > 1 else ""
             desc = parts[2] if len(parts) > 2 else ""
             current_checks.append(Check(kind=kind, target=target, pattern=pattern, description=desc))
             continue

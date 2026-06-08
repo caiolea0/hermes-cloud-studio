@@ -31,7 +31,7 @@ checks:
 - phase: A
 - checks:
   - grep_present: server.py / `if not AUTH_TOKEN:\s*\n\s*raise` / fail-closed startup
-  - grep_present: hermes_api_v2.py / `if not.*AUTH_TOKEN.*raise` / VM fail-closed
+  - grep_present: hermes_api_v2.py / `if not VM_AUTH_TOKEN:\s*\n\s*raise` / VM fail-closed
   - grep_absent: server.py / `if not AUTH_TOKEN:\s*\n\s*return await call_next` / no bypass
   - grep_absent: hermes_api_v2.py / `if not.*AUTH_TOKEN:.*return await call_next` / no bypass
 

@@ -14,6 +14,7 @@ Port: 8500 (avoids Higgsfield Studio conflicts)
 import hashlib
 import json
 import os
+import secrets
 import sqlite3
 import asyncio
 import logging
@@ -45,7 +46,12 @@ AGENT_ZERO_URL = os.environ.get("AGENT_ZERO_URL", "http://localhost:50080")
 AGENT_ZERO_API_KEY = os.environ.get("AGENT_ZERO_API_KEY", "")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_PLACES_API_KEY", "")
 SYNC_INTERVAL = int(os.environ.get("HERMES_SYNC_INTERVAL", "60"))
-AUTH_TOKEN = os.environ.get("HERMES_AUTH_TOKEN", "")
+AUTH_TOKEN = os.environ.get("HERMES_AUTH_TOKEN", "").strip()
+if not AUTH_TOKEN:
+    raise RuntimeError(
+        "HERMES_AUTH_TOKEN obrigatório. Setar em .env ou env var antes de subir o server. "
+        "Gerar via: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
 
 # Persistent Agent Zero context for Hermes conversations
 _agent_zero_context_id: Optional[str] = None
@@ -821,12 +827,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    if not AUTH_TOKEN:
-        return await call_next(request)
     path = request.url.path
     if path.startswith("/api/"):
         token = request.headers.get("X-Hermes-Token", "")
-        if token != AUTH_TOKEN:
+        if not secrets.compare_digest(token, AUTH_TOKEN):
             return JSONResponse(status_code=401, content={"detail": "Token invalido"})
     return await call_next(request)
 

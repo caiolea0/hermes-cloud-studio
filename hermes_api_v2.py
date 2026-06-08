@@ -6,6 +6,7 @@ pipeline status, scraper control, and photo references to the dashboard.
 import asyncio
 import json
 import os
+import secrets
 import signal
 import sqlite3
 import subprocess
@@ -25,7 +26,12 @@ from pydantic import BaseModel
 
 load_dotenv()
 HERMES_HOME = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
-VM_AUTH_TOKEN = os.environ.get("HERMES_VM_AUTH_TOKEN", "")
+VM_AUTH_TOKEN = os.environ.get("HERMES_VM_AUTH_TOKEN", "").strip()
+if not VM_AUTH_TOKEN:
+    raise RuntimeError(
+        "HERMES_VM_AUTH_TOKEN obrigatório. Setar em ~/.hermes/.env antes de subir o server. "
+        "Gerar via: python3 -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
 DB_PATH = HERMES_HOME / "data" / "command_center.db"
 DATA_DIR = HERMES_HOME / "data"
 
@@ -152,11 +158,9 @@ app.add_middleware(
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    if not VM_AUTH_TOKEN:
-        return await call_next(request)
     if request.url.path.startswith("/api/"):
         token = request.headers.get("X-Hermes-Token", "")
-        if token != VM_AUTH_TOKEN:
+        if not secrets.compare_digest(token, VM_AUTH_TOKEN):
             return JSONResponse(status_code=401, content={"detail": "Token invalido"})
     return await call_next(request)
 
