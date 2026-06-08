@@ -64,7 +64,12 @@ _agent_zero_context_id: Optional[str] = None
 
 # Erros locais de dispatch preservados até ack do owner (MERGED-016).
 # Chave: str(campaign_id). Sync loop não sobrescreve enquanto erro pendente.
+# Restaurado em runtime_state no lifespan startup pra sobreviver restart.
 _local_error_until_ack: dict = {}
+
+
+def _persist_local_errors() -> None:
+    set_runtime_state("local_error_until_ack", _local_error_until_ack)
 
 PHOTO_CACHE_DIR.mkdir(exist_ok=True)
 
@@ -541,7 +546,7 @@ async def sync_linkedin_campaigns():
                 pass
             elif str(c["id"]) in _local_error_until_ack:
                 # MERGED-016: erro de dispatch pendente de ack — não sobrescrever com dados da VM
-                pass
+                logger.debug("sync skip overwrite campaign %s (local error pendente)", c["id"])
             elif local["status"] != c.get("status") or local["progress"] != c.get("progress"):
                 conn.execute("""
                     UPDATE linkedin_campaigns
@@ -897,15 +902,18 @@ async def lifespan(app: FastAPI):
             logger.info("LinkedIn migration applied")
     except Exception as e:
         logger.warning(f"LinkedIn migration failed: {e}")
-    # Restaurar globals persistidos em runtime_state (MERGED-004)
+    # Restaurar globals persistidos em runtime_state (MERGED-004 / MERGED-016)
     global _LI_SESSION_LAST_OK, _LI_SESSION_LAST_NOTIFIED, _LI_HEALTH_LAST_STATE, _LI_HEALTH_NOTIFIED_AT
     _LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
     _LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)
     _LI_HEALTH_LAST_STATE = get_runtime_state("li_health_last_state", None)
     _LI_HEALTH_NOTIFIED_AT = get_runtime_state("li_health_notified_at", 0.0)
+    restored_errors = get_runtime_state("local_error_until_ack", {})
+    if isinstance(restored_errors, dict):
+        _local_error_until_ack.update(restored_errors)
     logger.info(
-        "runtime_state restaurado: session_ok=%s health_state=%s",
-        _LI_SESSION_LAST_OK, _LI_HEALTH_LAST_STATE,
+        "runtime_state restaurado: session_ok=%s health_state=%s local_errors=%d",
+        _LI_SESSION_LAST_OK, _LI_HEALTH_LAST_STATE, len(_local_error_until_ack),
     )
     logger.info("Starting server — sync will run in background")
     task = spawn(sync_loop())
@@ -2892,6 +2900,7 @@ async def _proxy_linkedin_campaign(campaign_type: str, config_data: dict) -> dic
         except Exception as e:
             logger.error(f"LinkedIn campaign dispatch error: {e}")
             _local_error_until_ack[str(campaign_id)] = str(e)  # preserva contra sync overwrite
+            _persist_local_errors()
             conn3 = get_db()
             try:
                 conn3.execute(
@@ -2927,7 +2936,10 @@ async def _proxy_linkedin_campaign(campaign_type: str, config_data: dict) -> dic
 @app.post("/api/linkedin/campaigns/{campaign_id}/dismiss-error")
 async def dismiss_error_campaign(campaign_id: int):
     """Remove erro pendente de dispatch (MERGED-016). Permite sync sobrescrever estado."""
-    _local_error_until_ack.pop(str(campaign_id), None)
+    removed = _local_error_until_ack.pop(str(campaign_id), None)
+    if removed is not None:
+        _persist_local_errors()
+        logger.info("dismiss-error campaign %s: %s", campaign_id, removed)
     return {"ok": True, "campaign_id": campaign_id}
 
 
