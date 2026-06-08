@@ -1,0 +1,8 @@
+{
+  "model": "claude-opus-4-7",
+  "outputConfig": {
+    "effort": "high"
+  },
+  "dangerouslySkipPermissions": true,
+  "$schema_note": "Settings local (não commitado) já tem allowlist + MCP. Este settings.json é versionado e cobre defaults model/effort/permissions pro projeto inteiro."
+}

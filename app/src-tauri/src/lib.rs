@@ -10,6 +10,10 @@ use std::os::windows::process::CommandExt;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+const DETACHED_PROCESS: u32 = 0x00000008;
+// Combinacao defensiva: CREATE_NO_WINDOW sozinho nao basta pra ssh.exe nativo
+// (OpenSSH ignora e mostra console flash). DETACHED_PROCESS desconecta do console parent.
+const HIDDEN_PROC_FLAGS: u32 = CREATE_NO_WINDOW | DETACHED_PROCESS;
 
 use tauri::{
     image::Image,
@@ -157,13 +161,45 @@ fn project_dir() -> PathBuf {
     PathBuf::from(r"D:\dev-projects\main\hermes-cloud-studio")
 }
 
+/// True se tunnel_supervisor.py atualizou state.json nos ultimos 90s.
+/// Usado pra delegar controle de ssh tunnel ao supervisor (evita conflito 2 ssh em :55081).
+fn supervisor_is_active() -> bool {
+    use std::time::SystemTime;
+    let exe = match std::env::current_exe() {
+        Ok(e) => e,
+        Err(_) => return false,
+    };
+    let mut p = exe.clone();
+    for _ in 0..6 {
+        if let Some(parent) = p.parent() {
+            let candidate = parent.join("logs").join("tunnel_supervisor_state.json");
+            if candidate.exists() {
+                if let Ok(meta) = std::fs::metadata(&candidate) {
+                    if let Ok(modified) = meta.modified() {
+                        if let Ok(elapsed) = SystemTime::now().duration_since(modified) {
+                            return elapsed.as_secs() < 90;
+                        }
+                    }
+                }
+            }
+            p = parent.to_path_buf();
+        } else {
+            break;
+        }
+    }
+    false
+}
+
 #[cfg(windows)]
 fn spawn_hidden(cmd: &str, args: &[&str], cwd: Option<&PathBuf>) -> Result<Child, String> {
     let mut command = Command::new(cmd);
     command.args(args);
-    command.creation_flags(CREATE_NO_WINDOW);
+    // Flags combinadas: CREATE_NO_WINDOW (hide GUI) + DETACHED_PROCESS (cut from parent console).
+    // ssh.exe OpenSSH nativo ignora CREATE_NO_WINDOW sozinho — DETACHED_PROCESS forca hide.
+    command.creation_flags(HIDDEN_PROC_FLAGS);
     command.stdout(std::process::Stdio::null());
     command.stderr(std::process::Stdio::null());
+    command.stdin(std::process::Stdio::null());
     if let Some(d) = cwd {
         command.current_dir(d);
     }
@@ -225,6 +261,12 @@ fn launch_proxy(services: &AppServices) -> Result<(), String> {
 
 fn launch_tunnel(services: &AppServices) -> Result<(), String> {
     if is_process_alive(&services.tunnel_proc) {
+        return Ok(());
+    }
+    // Delega pro tunnel_supervisor.py se ele esta ativo (state.json recente).
+    // Evita conflito de 2 ssh tunnels concorrentes no mesmo :55081 da VM,
+    // que causava console flash periodico do ssh.exe respawnando.
+    if supervisor_is_active() {
         return Ok(());
     }
     let child = spawn_hidden(
