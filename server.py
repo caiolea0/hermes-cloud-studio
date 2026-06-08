@@ -847,6 +847,10 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
+    # /api/internal/* tem auth proprio via _check_internal (X-Internal-Token + loopback bind).
+    # Middleware geral usa X-Hermes-Token; pular pra nao bloquear chamadas da extension/li_at_sync.
+    if path.startswith("/api/internal/"):
+        return await call_next(request)
     if path.startswith("/api/"):
         token = request.headers.get("X-Hermes-Token", "")
         if not secrets.compare_digest(token, AUTH_TOKEN):
