@@ -85,10 +85,17 @@ class HermesSettings(BaseSettings):
     telegram_bot_token: str = Field(default="", validation_alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", validation_alias="TELEGRAM_CHAT_ID")
 
-    # --- Email ---
+    # --- Email (MERGED-010 E.1 channel) ---
     email_from: str = Field(default="", validation_alias="EMAIL_FROM")
     email_to: str = Field(default="", validation_alias="EMAIL_TO")
     email_app_password: str = Field(default="", validation_alias="EMAIL_APP_PASSWORD")
+    email_smtp_host: str = Field(default="smtp.gmail.com", validation_alias="EMAIL_SMTP_HOST")
+    email_smtp_port: int = Field(default=587, validation_alias="EMAIL_SMTP_PORT")
+    email_daily_cap: int = Field(default=500, validation_alias="EMAIL_DAILY_CAP")
+    email_hourly_cap: int = Field(default=50, validation_alias="EMAIL_HOURLY_CAP")
+    email_warmup_days: int = Field(default=14, validation_alias="EMAIL_WARMUP_DAYS")
+    email_warmup_start_pct: float = Field(default=0.10, validation_alias="EMAIL_WARMUP_START_PCT")
+    email_warmup_end_pct: float = Field(default=0.80, validation_alias="EMAIL_WARMUP_END_PCT")
 
     # --- LinkedIn ---
     linkedin_email: str = Field(default="", validation_alias="LINKEDIN_EMAIL")
