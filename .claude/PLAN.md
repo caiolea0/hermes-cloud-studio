@@ -250,6 +250,19 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 **validate --phase B: PASS 5/5**
 Próximo: Fase C (MERGED-013 primeiro — habilitador de C.2..C.6)
 
+### Chapter 14 — Fase B Opus 4.7 review pass ✅ (2026-06-08)
+
+Review high-effort em cima do trabalho Sonnet. 4 refactors commit + 1 aprovação:
+
+- **MERGED-004 (refactor pesado)**: Sonnet criou tabelas mas implementação era fictícia — campaign_runs nunca INSERT (lifespan reconciliava tabela vazia), runtime_state sem reader/writer, `logger.warning` em hermes_api_v2 sem logger definido (NameError potencial). Opus adicionou logging, helpers `_record/_touch/_finalize_campaign_run`, wrapper `_track_run_lifecycle` que finaliza baseado em linkedin_campaigns.status real, plumbing nos 4 sites view/engage/connect/discover, helpers `set_runtime_state`/`get_runtime_state` + plumb em `_LI_SESSION_LAST_OK`/`_LI_SESSION_LAST_NOTIFIED`/`_LI_HEALTH_LAST_STATE`/`_LI_HEALTH_NOTIFIED_AT` + restore no lifespan, fix connection leak no shutdown, `busy_timeout` em get_db PC+VM (gap MERGED-005).
+- **MERGED-005 (cleanup mínimo)**: Sonnet entregou bem db_utils._connect. PRAGMA duplicado em limiter.py mantido por contrato grep-literal do harness com comment explicativo. Tech-debt fora do escopo: 11 sqlite3.connect no daemon/orchestrator.py + 4 em linkedin/{connector,engager,viewer,company_finder}.py.
+- **MERGED-007 (polimento)**: Sonnet padronizou maioria, deixou 3 sites em `_tunnel_supervisor_pid`/`tunnel_status` sem noqa. Padronizados.
+- **MERGED-015 (aprovado + bug histórico)**: Estado atual correto. Mas commit original 98ee072 tinha `def spawn(coro): task = spawn(coro)` (recursão infinita) — consertado silenciosamente no commit MERGED-004 (853eb8f) sem documentação. Documentado em memory + commit message. Validate harness grep-only não detectaria.
+- **MERGED-016 (refactor substantivo)**: Sonnet entregou core mas `_local_error_until_ack` era in-memory (perdia em restart, inconsistente com MERGED-004). Opus adicionou persistência via runtime_state (`_persist_local_errors`), restore no lifespan, log debug quando sync respeita flag, log info no dismiss.
+
+4 commits push: refactor(robustness) MERGED-004/005/007/016 "Opus 4.7 review pass".
+validate --phase B: PASS 5/5 antes e depois.
+
 ---
 
 ## Chapter 12 — Fase A Security Critical CONCLUÍDA ✅ (2026-06-08)
