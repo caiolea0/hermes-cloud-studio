@@ -177,4 +177,12 @@ python scripts/validate_implementation.py --apply-flags  # reabre tasks pra fail
 - Toda dep nova → adiciona em "Deps por máquina"
 - Todo gate novo → adiciona em "🔐"
 
-Última edição: 2026-06-07 (Chapter 10).
+## 🔐 Auth tokens obrigatórios (MERGED-002/001/003)
+
+- `HERMES_AUTH_TOKEN` — PC server.py. Ausente = RuntimeError no startup.
+- `HERMES_VM_AUTH_TOKEN` — VM hermes_api_v2.py. Idem.
+- `HERMES_INTERNAL_TOKEN` — endpoints /api/internal/*. Ausente = RuntimeError. Extension + li_at_sync.py enviam via `X-Internal-Token`.
+- WebSocket /ws exige token via `?token=` query param (browser não envia custom headers). FastAPI middleware NÃO cobre WS — auth no handler.
+- server.py bind `127.0.0.1:55000` (não 0.0.0.0). /api/internal/* aceita loopback + INTERNAL_TOKEN.
+
+Última edição: 2026-06-08 (Chapter 12 — Fase A).

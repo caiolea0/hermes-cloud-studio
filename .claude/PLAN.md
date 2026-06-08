@@ -222,6 +222,27 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 5. **Commits do projeto inteiro** (organizar 7+ chapters de mudanças)
 6. **Fix `_extract_profile_data`**: nome/headline vazios no result (LinkedIn DOM mudou — selectors precisam update)
 
+## Chapter 12 — Fase A Security Critical CONCLUÍDA ✅ (2026-06-08)
+
+### MERGED-002 ✅ — Fail-closed AUTH_TOKEN
+- server.py + hermes_api_v2.py abortam com RuntimeError se token ausente
+- secrets.compare_digest em vez de ==
+- Fix: parser validate_implementation.py strip backticks+aspas duplas
+
+### MERGED-001 ✅ — WS /ws auth
+- Token validado via query param ?token= no handshake
+- close(1008) se inválido. Dashboard envia token na URL WS.
+
+### MERGED-003 ✅ — Internal token + bind loopback
+- HERMES_INTERNAL_TOKEN obrigatório no startup
+- _check_internal() valida loopback + token nos 3 endpoints internos
+- Bind 127.0.0.1. Extension + li_at_sync.py enviam X-Internal-Token.
+
+**validate --phase A: PASS 3/3**
+Próximo: Fase B (MERGED-005, B.3, B.2, B.5, B.4)
+
+---
+
 ## Chapter 11 — Implementation Plan + Validation Harness ✅ (2026-06-08)
 
 Documentos:
