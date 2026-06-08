@@ -158,19 +158,37 @@ def find_ssh_tunnel_pid() -> int | None:
     return None
 
 
+def _hidden_startupinfo():
+    """Windows STARTUPINFO com SW_HIDE — esconde janela mesmo de execs nativos
+    (ssh.exe OpenSSH ignora CREATE_NO_WINDOW e mostra console flash sem isto)."""
+    si = subprocess.STARTUPINFO()
+    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    si.wShowWindow = 0  # SW_HIDE
+    return si
+
+
+# CREATE_NO_WINDOW (0x08000000) + DETACHED_PROCESS (0x00000008) + CREATE_NEW_PROCESS_GROUP
+_HIDDEN_FLAGS = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+
+
 def spawn_socks5() -> int | None:
     """Start socks5_proxy.py in background. Returns PID."""
     script = BASE_DIR / "socks5_proxy.py"
     if not script.exists():
         log.error(f"socks5_proxy.py NAO encontrado em {script}")
         return None
-    py = sys.executable
+    # Forcar pythonw.exe (sem console) ao inves de sys.executable que pode ser python.exe
+    py = sys.executable.replace("python.exe", "pythonw.exe")
+    if not Path(py).exists():
+        py = sys.executable  # fallback
     log.info(f"spawning socks5: {py} {script} {SOCKS5_PORT}")
     try:
         proc = subprocess.Popen(
             [py, str(script), str(SOCKS5_PORT)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | 0x08000000,  # CREATE_NO_WINDOW
+            creationflags=_HIDDEN_FLAGS,
+            startupinfo=_hidden_startupinfo(),
+            close_fds=True,
         )
         return proc.pid
     except Exception as e:
@@ -179,7 +197,11 @@ def spawn_socks5() -> int | None:
 
 
 def spawn_ssh_tunnel() -> int | None:
-    """Start SSH reverse tunnel in background. Returns PID."""
+    """Start SSH reverse tunnel in background. Returns PID.
+
+    OpenSSH client (ssh.exe) ignora CREATE_NO_WINDOW — usa STARTUPINFO SW_HIDE
+    pra esconder console totalmente.
+    """
     log.info(f"spawning ssh reverse tunnel -R {SOCKS5_PORT}")
     try:
         proc = subprocess.Popen(
@@ -192,7 +214,10 @@ def spawn_ssh_tunnel() -> int | None:
                 f"{VM_USER}@{VM_HOST}",
             ],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | 0x08000000,
+            stdin=subprocess.DEVNULL,
+            creationflags=_HIDDEN_FLAGS,
+            startupinfo=_hidden_startupinfo(),
+            close_fds=True,
         )
         return proc.pid
     except Exception as e:
