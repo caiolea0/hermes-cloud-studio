@@ -17,8 +17,9 @@ import os
 import sqlite3
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List
 
@@ -210,6 +211,23 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_daemon_log_ts ON daemon_log(timestamp DESC);
         CREATE INDEX IF NOT EXISTS idx_daemon_log_cat ON daemon_log(category);
         CREATE INDEX IF NOT EXISTS idx_daemon_decisions_ts ON daemon_decisions(timestamp DESC);
+
+        CREATE TABLE IF NOT EXISTS linkedin_campaigns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            config TEXT NOT NULL DEFAULT '{}',
+            status TEXT DEFAULT 'pending',
+            progress INTEGER DEFAULT 0,
+            total INTEGER DEFAULT 0,
+            results TEXT,
+            log TEXT DEFAULT '[]',
+            started_at TEXT,
+            completed_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_li_campaigns_status ON linkedin_campaigns(status);
+        CREATE INDEX IF NOT EXISTS idx_li_campaigns_type ON linkedin_campaigns(type);
 
         INSERT OR IGNORE INTO daemon_state (id, state, started_at, last_heartbeat)
         VALUES (1, 'idle', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
@@ -413,13 +431,339 @@ async def sync_loop():
         await asyncio.sleep(SYNC_INTERVAL)
 
 
+async def sync_linkedin_campaigns():
+    """Pull running LinkedIn campaigns from VM and update local DB +
+    broadcast WS event if state changed. Runs every 10s."""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"{VM_API_URL}/api/linkedin/campaigns?limit=50")
+            if r.status_code != 200:
+                return
+            data = r.json()
+            campaigns = data.get("campaigns", [])
+    except Exception:
+        return
+
+    if not campaigns:
+        return
+
+    conn = get_db()
+    try:
+        any_change = False
+        for c in campaigns:
+            # Look up local copy by id
+            local = conn.execute(
+                "SELECT status, progress FROM linkedin_campaigns WHERE id=?",
+                (c["id"],)
+            ).fetchone()
+            if not local:
+                # Insert
+                conn.execute("""
+                    INSERT INTO linkedin_campaigns
+                      (id, type, config, status, progress, total, results, log, started_at, completed_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    c["id"], c.get("type"),
+                    json.dumps(c.get("config")) if isinstance(c.get("config"), (dict, list)) else (c.get("config") or "{}"),
+                    c.get("status"), c.get("progress", 0), c.get("total", 0),
+                    json.dumps(c.get("results")) if c.get("results") else None,
+                    json.dumps(c.get("log", [])) if isinstance(c.get("log"), list) else (c.get("log") or "[]"),
+                    c.get("started_at"), c.get("completed_at"),
+                ))
+                any_change = True
+            elif local["status"] in ("scheduled", "cancelled"):
+                # v6: PC owns these states. Skip — never let VM overwrite scheduled/cancelled.
+                pass
+            elif local["status"] != c.get("status") or local["progress"] != c.get("progress"):
+                conn.execute("""
+                    UPDATE linkedin_campaigns
+                    SET status=?, progress=?, results=?, completed_at=?
+                    WHERE id=?
+                """, (
+                    c.get("status"), c.get("progress", 0),
+                    json.dumps(c.get("results")) if c.get("results") else None,
+                    c.get("completed_at"),
+                    c["id"],
+                ))
+                any_change = True
+                # Broadcast progress
+                try:
+                    await ws_manager.broadcast({
+                        "type": "linkedin_progress",
+                        "data": {
+                            "campaign_id": c["id"],
+                            "status": c.get("status"),
+                            "progress": c.get("progress", 0),
+                            "partial_results": c.get("results"),
+                        }
+                    })
+                except Exception:
+                    pass
+        if any_change:
+            conn.commit()
+    finally:
+        conn.close()
+
+
+async def linkedin_sync_loop():
+    """10s LinkedIn campaigns sync. Lighter than the 60s general sync."""
+    await asyncio.sleep(5)
+    while True:
+        try:
+            await sync_linkedin_campaigns()
+        except Exception as e:
+            logger.warning(f"linkedin_sync_loop error: {e}")
+        await asyncio.sleep(10)
+
+
+# ─── Session health monitor (Option D — Telegram alert on session expiry) ───
+_LI_SESSION_LAST_OK = True   # debounce
+_LI_SESSION_LAST_NOTIFIED = 0.0
+
+
+async def _telegram_notify(text: str):
+    tok = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    if not (tok and chat):
+        return
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            await client.post(
+                f"https://api.telegram.org/bot{tok}/sendMessage",
+                json={"chat_id": chat, "text": text, "disable_web_page_preview": True},
+            )
+    except Exception as e:
+        logger.warning(f"Telegram notify failed: {e}")
+
+
+# ─── Health (cooldown) monitor loop ──────────────────────────────────────────
+_LI_HEALTH_LAST_STATE = None
+_LI_HEALTH_NOTIFIED_AT = 0.0
+
+
+async def linkedin_scheduler_loop():
+    """Every 30s: find scheduled campaigns whose scheduled_for has elapsed AND
+    all gates are clear, then dispatch them. Postpones (recomputes scheduled_for)
+    if gates still active."""
+    await asyncio.sleep(20)
+    while True:
+        try:
+            now_iso = datetime.now(timezone.utc).isoformat()
+            conn = get_db()
+            try:
+                rows = conn.execute(
+                    "SELECT id, type, config FROM linkedin_campaigns "
+                    "WHERE status='scheduled' AND scheduled_for <= ? "
+                    "ORDER BY scheduled_for ASC",
+                    (now_iso,)
+                ).fetchall()
+            finally:
+                conn.close()
+
+            for r in rows:
+                cid = r["id"]
+                ctype = r["type"]
+                try:
+                    cfg = json.loads(r["config"] or "{}")
+                except Exception:
+                    cfg = {}
+
+                # Re-check gates one more time before dispatching
+                new_sched, reasons = await _compute_schedule_state()
+                if new_sched:
+                    # Still gated — push schedule forward
+                    msg = " · ".join(reasons)
+                    conn2 = get_db()
+                    try:
+                        conn2.execute(
+                            "UPDATE linkedin_campaigns SET scheduled_for=?, schedule_reason=? "
+                            "WHERE id=? AND status='scheduled'",
+                            (new_sched, msg, cid)
+                        )
+                        conn2.commit()
+                    finally:
+                        conn2.close()
+                    try:
+                        await ws_manager.broadcast({
+                            "type": "linkedin_progress",
+                            "data": {"campaign_id": cid, "status": "scheduled",
+                                     "scheduled_for": new_sched, "schedule_reason": msg}
+                        })
+                    except Exception:
+                        pass
+                    continue
+
+                # All clear → flip to pending and dispatch
+                conn3 = get_db()
+                try:
+                    conn3.execute(
+                        "UPDATE linkedin_campaigns SET status='pending', "
+                        "started_at=?, scheduled_for=NULL, schedule_reason=NULL "
+                        "WHERE id=? AND status='scheduled'",
+                        (datetime.now(timezone.utc).isoformat(), cid)
+                    )
+                    conn3.commit()
+                finally:
+                    conn3.close()
+
+                # WS notify dashboard the transition
+                try:
+                    await ws_manager.broadcast({
+                        "type": "linkedin_progress",
+                        "data": {"campaign_id": cid, "status": "pending",
+                                 "msg": "Scheduler disparou campanha agendada"}
+                    })
+                except Exception:
+                    pass
+
+                # Fire dispatch (same flow as immediate path)
+                async def _fire(cid=cid, ctype=ctype, cfg=cfg):
+                    try:
+                        async with httpx.AsyncClient(timeout=30) as client:
+                            r = await client.post(
+                                f"{VM_API_URL}/api/linkedin/campaigns/{ctype}",
+                                json={"campaign_id": cid, **cfg},
+                            )
+                            ack = r.json() if r.status_code == 200 else {"ok": False}
+                            if not ack.get("ok"):
+                                raise RuntimeError(f"VM rejected: HTTP {r.status_code}")
+                        # Telegram alert: scheduler fired
+                        type_label = {"view": "Visitar Perfis", "engage": "Engajar Posts",
+                                      "connect": "Enviar Conexões", "discover": "Descobrir Empresas"}.get(ctype, ctype)
+                        await _telegram_notify(
+                            f"🚀 Hermes disparou campanha agendada #{cid} ({type_label})"
+                        )
+                    except Exception as e:
+                        logger.error(f"Scheduler dispatch error for #{cid}: {e}")
+                        conn_e = get_db()
+                        try:
+                            conn_e.execute(
+                                "UPDATE linkedin_campaigns SET status='error', completed_at=? WHERE id=?",
+                                (datetime.now(timezone.utc).isoformat(), cid)
+                            )
+                            conn_e.commit()
+                        finally:
+                            conn_e.close()
+                asyncio.create_task(_fire())
+        except Exception as e:
+            logger.warning(f"linkedin_scheduler_loop error: {e}")
+        await asyncio.sleep(30)
+
+
+async def linkedin_health_monitor_loop():
+    """Probe health every 3min. Telegram on state transitions. WS broadcast."""
+    global _LI_HEALTH_LAST_STATE, _LI_HEALTH_NOTIFIED_AT
+    await asyncio.sleep(30)
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                # force_refresh sometimes to catch recovery; otherwise cached probe
+                fr = "true" if _LI_HEALTH_LAST_STATE not in (None, "ok") else "false"
+                r = await client.get(f"{VM_API_URL}/api/linkedin/health",
+                                     params={"force_refresh": fr})
+                health = r.json() if r.status_code == 200 else {}
+            new_state = health.get("state")
+        except Exception as e:
+            logger.warning(f"health monitor probe failed: {e}")
+            await asyncio.sleep(180)
+            continue
+
+        if new_state and new_state != _LI_HEALTH_LAST_STATE:
+            # Transition detected
+            if _LI_HEALTH_LAST_STATE is None:
+                # First run — just record state, only alert if not ok
+                if new_state != "ok":
+                    await _telegram_notify(
+                        f"⚠️ Hermes LinkedIn: estado inicial é {new_state.upper()} — "
+                        f"motivo: {health.get('reason')} — "
+                        f"HTTP {health.get('http_code')}. Não rode campanhas até liberar."
+                    )
+            elif _LI_HEALTH_LAST_STATE == "ok":
+                await _telegram_notify(
+                    f"🛑 Hermes LinkedIn entrou em {new_state.upper()}\n"
+                    f"Motivo: {health.get('reason')}\n"
+                    f"HTTP: {health.get('http_code')}\n"
+                    f"Retry em ~{(health.get('retry_after_seconds') or 0)//60}min.\n"
+                    f"Campanhas serão bloqueadas até liberar."
+                )
+            elif new_state == "ok":
+                await _telegram_notify(
+                    f"✅ Hermes LinkedIn liberado — pode rodar campanhas novamente."
+                )
+            # Broadcast to dashboard
+            try:
+                await ws_manager.broadcast({"type": "linkedin_health", "data": health})
+            except Exception:
+                pass
+            _LI_HEALTH_LAST_STATE = new_state
+            _LI_HEALTH_NOTIFIED_AT = time.time()
+
+        # Sleep duration adapts to state:
+        # - ok: 3min (light polling)
+        # - cooldown/challenge: 60s (we want to detect recovery fast)
+        # - blocked: 5min
+        delay = {"ok": 180, "cooldown": 60, "challenge": 60, "blocked": 300}.get(new_state, 120)
+        await asyncio.sleep(delay)
+
+
+async def linkedin_session_monitor_loop():
+    """Every 1h: GET /api/linkedin/status. If session_ok flips False, alert via Telegram.
+    Avoids spamming — only notifies on transitions True→False (or every 12h while broken).
+    """
+    global _LI_SESSION_LAST_OK, _LI_SESSION_LAST_NOTIFIED
+    await asyncio.sleep(60)  # let system warm up
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                r = await client.get(f"{VM_API_URL}/api/linkedin/session-check")
+                ok = r.status_code == 200 and r.json().get("ok")
+        except Exception:
+            ok = False
+
+        now = time.time()
+        if not ok:
+            need_notify = _LI_SESSION_LAST_OK or (now - _LI_SESSION_LAST_NOTIFIED > 43200)
+            if need_notify:
+                await _telegram_notify(
+                    "⚠️ Hermes LinkedIn: sessão caiu (session_ok=false).\n"
+                    "Renove o cookie LI_AT no Chrome e o sync rodará no próximo ciclo (03:00), "
+                    "ou rode agora manualmente: python scripts/li_at_sync.py"
+                )
+                _LI_SESSION_LAST_NOTIFIED = now
+        elif not _LI_SESSION_LAST_OK:
+            # session restored
+            await _telegram_notify("✅ Hermes LinkedIn: sessão restaurada.")
+
+        _LI_SESSION_LAST_OK = ok
+        await asyncio.sleep(3600)  # 1 hora
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # Apply LinkedIn migration if exists
+    try:
+        sql_path = Path(__file__).parent / "migrations" / "2026_06_linkedin_full.sql"
+        if sql_path.exists():
+            conn = get_db()
+            conn.executescript(sql_path.read_text(encoding="utf-8"))
+            conn.commit()
+            conn.close()
+            logger.info("LinkedIn migration applied")
+    except Exception as e:
+        logger.warning(f"LinkedIn migration failed: {e}")
     logger.info("Starting server — sync will run in background")
     task = asyncio.create_task(sync_loop())
+    li_task = asyncio.create_task(linkedin_sync_loop())
+    li_monitor_task = asyncio.create_task(linkedin_session_monitor_loop())
+    li_health_task = asyncio.create_task(linkedin_health_monitor_loop())
+    li_scheduler_task = asyncio.create_task(linkedin_scheduler_loop())
     yield
     task.cancel()
+    li_task.cancel()
+    li_monitor_task.cancel()
+    li_health_task.cancel()
+    li_scheduler_task.cancel()
 
 
 app = FastAPI(title="Hermes Command Center", version="2.0.0", lifespan=lifespan)
@@ -1943,6 +2287,572 @@ async def linkedin_rate_limits():
         return {"error": "LinkedIn module not installed", "warmup_multiplier": 0}
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# LINKEDIN CAMPAIGN ENDPOINTS  (proxy → VM for execution)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/linkedin/status")
+async def linkedin_status():
+    """Session health + rate limits — proxied from VM (authoritative source)."""
+    # Try VM first — VM has the actual session file + limiter DB
+    vm_session = None
+    vm_rate = None
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            sess_r, rate_r = await asyncio.gather(
+                client.get(f"{VM_API_URL}/api/linkedin/session-check"),
+                client.get(f"{VM_API_URL}/api/linkedin/rate-limits"),
+                return_exceptions=True,
+            )
+            if hasattr(sess_r, "json"):
+                vm_session = sess_r.json()
+            if hasattr(rate_r, "json"):
+                vm_rate = rate_r.json()
+    except Exception:
+        pass
+
+    if vm_session is not None:
+        return {
+            "session_ok": vm_session.get("ok", False),
+            "account_email": vm_session.get("email") or os.environ.get("LINKEDIN_EMAIL", ""),
+            "account_type": vm_session.get("account_type") or os.environ.get("LINKEDIN_ACCOUNT_TYPE", "free"),
+            "proxy_configured": vm_session.get("proxy_configured", False),
+            "proxy_url": vm_session.get("proxy_url"),
+            "proxy_alive": vm_session.get("proxy_alive", False),
+            "rate_limits": vm_rate or {},
+            "source": "vm",
+        }
+
+    # VM unreachable — fallback to local guess
+    try:
+        from linkedin import LinkedInConfig
+        from linkedin.limiter import RateLimiter
+        config = LinkedInConfig(
+            account_email=os.environ.get("LINKEDIN_EMAIL", "default"),
+            account_type=os.environ.get("LINKEDIN_ACCOUNT_TYPE", "free"),
+        )
+        limiter = RateLimiter(config)
+        stats = limiter.get_stats()
+        return {
+            "session_ok": False,
+            "account_email": os.environ.get("LINKEDIN_EMAIL", ""),
+            "account_type": os.environ.get("LINKEDIN_ACCOUNT_TYPE", "free"),
+            "proxy_alive": False,
+            "rate_limits": stats,
+            "source": "local_fallback",
+            "warning": "VM unreachable",
+        }
+    except Exception as e:
+        return {"error": str(e), "session_ok": False, "source": "error"}
+
+
+@app.post("/api/linkedin/campaigns/{campaign_id}/cancel")
+async def linkedin_cancel_scheduled(campaign_id: int):
+    """Cancel a scheduled campaign before it fires."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT status FROM linkedin_campaigns WHERE id=?", (campaign_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "Campaign not found")
+        if row["status"] != "scheduled":
+            return {"ok": False, "error": f"Campaign #{campaign_id} is not scheduled (status={row['status']})"}
+        conn.execute(
+            "UPDATE linkedin_campaigns SET status='cancelled', completed_at=?, "
+            "log=COALESCE(log, '[]') WHERE id=?",
+            (datetime.now(timezone.utc).isoformat(), campaign_id)
+        )
+        # Append cancel log entry
+        cur = conn.execute("SELECT log FROM linkedin_campaigns WHERE id=?", (campaign_id,)).fetchone()
+        logs = json.loads(cur["log"]) if cur and cur["log"] else []
+        logs.append({
+            "time": datetime.now(timezone.utc).isoformat(),
+            "phase": "cancelled",
+            "msg": "Agendamento cancelado pelo usuário",
+        })
+        conn.execute("UPDATE linkedin_campaigns SET log=? WHERE id=?", (json.dumps(logs), campaign_id))
+        conn.commit()
+    finally:
+        conn.close()
+    try:
+        await ws_manager.broadcast({
+            "type": "linkedin_progress",
+            "data": {"campaign_id": campaign_id, "status": "cancelled",
+                     "msg": "Agendamento cancelado pelo usuário"}
+        })
+    except Exception:
+        pass
+    return {"ok": True, "campaign_id": campaign_id, "status": "cancelled"}
+
+
+@app.post("/api/internal/account_type_set")
+async def account_type_set(request: Request):
+    """Receive an account_type detected by the browser extension (content script).
+    Forwards to VM which updates its cache (~/.hermes/data/linkedin_account_type.json).
+    """
+    if request.client.host not in ("127.0.0.1", "::1", "localhost"):
+        raise HTTPException(403, "internal endpoint")
+    body = await request.json()
+    account_type = (body.get("account_type") or "").strip()
+    if account_type not in ("free", "premium", "sales_navigator"):
+        raise HTTPException(400, "invalid account_type")
+    token = os.environ.get("HERMES_VM_AUTH_TOKEN", "")
+    if not token:
+        return {"ok": False, "error": "HERMES_VM_AUTH_TOKEN not set on PC"}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                f"{VM_API_URL}/api/internal/account_type_set",
+                json={
+                    "account_type": account_type,
+                    "evidence": body.get("evidence", []),
+                    "detected_from": body.get("detected_from", "extension"),
+                    "page_url": body.get("page_url"),
+                },
+                headers={"X-Hermes-Token": token},
+            )
+            vm_data = r.json() if r.status_code == 200 else {"ok": False}
+    except Exception as e:
+        return {"ok": False, "error": f"VM forward failed: {e}"}
+    if vm_data.get("ok"):
+        try:
+            await ws_manager.broadcast({"type": "linkedin_account_type_updated", "account_type": account_type})
+        except Exception:
+            pass
+    return vm_data
+
+
+@app.post("/api/internal/li_at_rotate")
+async def rotate_li_at(request: Request):
+    """Receive a new li_at cookie from the local sync script and forward to VM.
+
+    The script (scripts/li_at_sync.py) reads Chrome's cookie DB once a day.
+    Only accepts 127.0.0.1 (same-host). Also broadcasts a status reload event.
+    """
+    if request.client.host not in ("127.0.0.1", "::1", "localhost"):
+        raise HTTPException(403, "internal endpoint")
+    body = await request.json()
+    li_at = (body.get("li_at") or "").strip()
+    if not li_at or len(li_at) < 30:
+        raise HTTPException(400, "li_at missing or too short")
+    # Forward to VM with shared-secret header
+    token = os.environ.get("HERMES_VM_AUTH_TOKEN", "")
+    if not token:
+        return {"ok": False, "error": "HERMES_VM_AUTH_TOKEN not set on PC"}
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                f"{VM_API_URL}/api/internal/li_at_update",
+                json={"li_at": li_at},
+                headers={"X-Hermes-Token": token},
+            )
+            vm_ok = r.status_code == 200 and r.json().get("ok")
+            if not vm_ok:
+                return {"ok": False, "vm_status": r.status_code, "vm_body": r.text[:200]}
+    except Exception as e:
+        return {"ok": False, "error": f"VM forward failed: {e}"}
+    if vm_ok:
+        try:
+            await ws_manager.broadcast({"type": "linkedin_session_rotated"})
+        except Exception:
+            pass
+    return {"ok": vm_ok}
+
+
+@app.post("/api/internal/linkedin/event")
+async def receive_linkedin_event(request: Request):
+    """VM-only callback: VM hermes_api.py pushes progress events here.
+
+    Updates local DB partial_results + broadcasts WS event linkedin_progress.
+    Only accepts requests from 127.0.0.1 (SSH tunnel makes VM appear as localhost).
+    """
+    if request.client.host not in ("127.0.0.1", "::1", "localhost"):
+        raise HTTPException(403, "internal endpoint")
+    body = await request.json()
+    cid = body.get("campaign_id")
+    if not cid:
+        return {"ok": False}
+    # Update DB with partial_results / progress
+    try:
+        conn = get_db()
+        if body.get("partial_results") is not None or body.get("progress") is not None:
+            conn.execute("""
+                UPDATE linkedin_campaigns
+                SET results = COALESCE(?, results),
+                    progress = COALESCE(?, progress)
+                WHERE id = ?
+            """, (
+                json.dumps(body["partial_results"]) if body.get("partial_results") else None,
+                body.get("progress"),
+                cid,
+            ))
+            conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"internal event DB update failed: {e}")
+    # Broadcast
+    try:
+        await ws_manager.broadcast({"type": "linkedin_progress", "data": body})
+    except Exception:
+        pass
+    return {"ok": True}
+
+
+@app.post("/api/linkedin/auth")
+async def linkedin_trigger_auth():
+    """Trigger LinkedIn auth on VM (opens browser for session establishment)."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(f"{VM_API_URL}/api/linkedin/auth")
+            return r.json()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/api/linkedin/campaigns")
+async def list_linkedin_campaigns(limit: int = 20, offset: int = 0):
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM linkedin_campaigns ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset)
+        ).fetchall()
+        total = conn.execute("SELECT COUNT(*) FROM linkedin_campaigns").fetchone()[0]
+        campaigns = []
+        for r in rows:
+            c = dict(r)
+            c["config"] = json.loads(c["config"]) if c.get("config") else {}
+            c["results"] = json.loads(c["results"]) if c.get("results") else None
+            c["log"] = json.loads(c["log"]) if c.get("log") else []
+            campaigns.append(c)
+        return {"campaigns": campaigns, "total": total}
+    finally:
+        conn.close()
+
+
+@app.get("/api/linkedin/campaigns/{campaign_id}/log")
+async def get_campaign_log(campaign_id: int):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, type, status, progress, total, log, results FROM linkedin_campaigns WHERE id=?",
+            (campaign_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        c = dict(row)
+        c["log"] = json.loads(c["log"]) if c.get("log") else []
+        c["results"] = json.loads(c["results"]) if c.get("results") else None
+        return c
+    finally:
+        conn.close()
+
+
+@app.post("/api/linkedin/campaigns/{campaign_id}/stop")
+async def stop_linkedin_campaign(campaign_id: int):
+    """Signal VM to stop a running campaign."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE linkedin_campaigns SET status='stopped', completed_at=? WHERE id=? AND status='running'",
+            (datetime.now(timezone.utc).isoformat(), campaign_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(f"{VM_API_URL}/api/linkedin/campaigns/{campaign_id}/stop")
+            return r.json()
+    except Exception:
+        return {"ok": True, "note": "VM unreachable but local status updated"}
+
+
+async def _compute_schedule_state() -> tuple:
+    """Probes VM for current gate state and returns (scheduled_for_iso, reasons[]).
+
+    Returns (None, []) if all 3 gates are clear — campaign can dispatch now.
+    Otherwise returns the LATEST ISO timestamp among the active gates, plus
+    a list of human-readable reasons (PT-BR).
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            hr, rl = await asyncio.gather(
+                client.get(f"{VM_API_URL}/api/linkedin/health"),
+                client.get(f"{VM_API_URL}/api/linkedin/rate-limits"),
+                return_exceptions=True,
+            )
+            health = hr.json() if hasattr(hr, "json") else {}
+            ratel = rl.json() if hasattr(rl, "json") else {}
+    except Exception:
+        health, ratel = {}, {}
+
+    candidates = []  # list of (datetime, reason_pt_BR)
+    now = datetime.now(timezone.utc)
+
+    # Gate 1: working hours
+    if ratel.get("working_hours_ok") is False:
+        next_win = ratel.get("next_working_window")
+        if next_win:
+            try:
+                dt = datetime.fromisoformat(next_win)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                reason = ratel.get("working_hours_reason") or "fora do horário"
+                candidates.append((dt.astimezone(timezone.utc), f"horário comercial ({reason})"))
+            except Exception:
+                pass
+
+    # Gate 2: mandatory 30min spacing between launches
+    next_launch = ratel.get("next_launch_in_seconds", 0) or 0
+    if next_launch > 0:
+        candidates.append((
+            now + timedelta(seconds=next_launch),
+            f"cooldown 30min entre launches ({(next_launch + 59)//60}min restantes)",
+        ))
+
+    # Gate 3: LinkedIn health (429/challenge/blocked)
+    if health.get("state") and health.get("state") != "ok":
+        retry = health.get("retry_after_seconds") or 0
+        state = health.get("state")
+        if retry > 0:
+            candidates.append((
+                now + timedelta(seconds=retry),
+                f"LinkedIn {state} (HTTP {health.get('http_code', '?')})",
+            ))
+        else:
+            # No explicit retry — probe is the source of truth, schedule for 5 min from now
+            candidates.append((
+                now + timedelta(minutes=5),
+                f"LinkedIn {state} ({health.get('reason') or 'verificando recovery'})",
+            ))
+
+    if not candidates:
+        return None, []
+
+    # Pick LATEST timestamp (must wait until ALL gates are clear)
+    latest_dt = max(c[0] for c in candidates)
+    reasons = [c[1] for c in candidates]
+    return latest_dt.isoformat(), reasons
+
+
+async def _proxy_linkedin_campaign(campaign_type: str, config_data: dict) -> dict:
+    """Create local campaign record and dispatch to VM for execution."""
+    conn = get_db()
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        cur = conn.execute(
+            "INSERT INTO linkedin_campaigns (type, config, status, started_at) VALUES (?,?,?,?)",
+            (campaign_type, json.dumps(config_data), "pending", now)
+        )
+        campaign_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Broadcast new campaign so dashboard inserts it without F5
+    try:
+        await ws_manager.broadcast({
+            "type": "linkedin_campaign_created",
+            "data": {
+                "id": campaign_id,
+                "type": campaign_type,
+                "status": "pending",
+                "progress": 0,
+                "total": 0,
+                "config": config_data,
+                "started_at": now,
+                "log": [],
+                "results": None,
+            }
+        })
+    except Exception:
+        pass
+
+    # Compute scheduled_for if any of the 3 gates blocks immediate dispatch.
+    # v6: never reject — always create row. If gated, status='scheduled' and the
+    # scheduler loop fires when scheduled_for <= now() AND gates are clear.
+    scheduled_for_iso, schedule_reasons = await _compute_schedule_state()
+    if scheduled_for_iso:
+        msg = " · ".join(schedule_reasons)
+        conn_s = get_db()
+        try:
+            conn_s.execute(
+                "UPDATE linkedin_campaigns SET status='scheduled', "
+                "scheduled_for=?, schedule_reason=?, log=? WHERE id=?",
+                (scheduled_for_iso, msg,
+                 json.dumps([{"time": datetime.now(timezone.utc).isoformat(),
+                              "phase": "scheduled", "msg": f"Agendada para {scheduled_for_iso} — {msg}"}]),
+                 campaign_id)
+            )
+            conn_s.commit()
+        finally:
+            conn_s.close()
+        try:
+            await ws_manager.broadcast({
+                "type": "linkedin_progress",
+                "data": {"campaign_id": campaign_id, "status": "scheduled",
+                         "scheduled_for": scheduled_for_iso,
+                         "schedule_reason": msg}
+            })
+        except Exception:
+            pass
+        return {
+            "ok": True, "campaign_id": campaign_id,
+            "status": "scheduled", "scheduled_for": scheduled_for_iso,
+            "schedule_reason": msg,
+        }
+
+    # Fire dispatch to VM. VM endpoint returns FAST ({ok, campaign_id}) —
+    # actual work runs in VM's async task. We do NOT mark "done" from this response.
+    # Completion is detected by linkedin_sync_loop() polling VM every 10s OR
+    # by the internal event push from VM's _li_log.
+    async def _dispatch():
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                r = await client.post(
+                    f"{VM_API_URL}/api/linkedin/campaigns/{campaign_type}",
+                    json={"campaign_id": campaign_id, **config_data},
+                )
+                ack = r.json() if r.status_code == 200 else {"ok": False}
+                if not ack.get("ok"):
+                    raise RuntimeError(f"VM rejected dispatch: HTTP {r.status_code} {r.text[:200]}")
+                logger.info(f"Campaign {campaign_id} dispatched to VM (ack={ack})")
+        except Exception as e:
+            logger.error(f"LinkedIn campaign dispatch error: {e}")
+            conn3 = get_db()
+            try:
+                conn3.execute(
+                    "UPDATE linkedin_campaigns SET status='error', completed_at=?, "
+                    "log=COALESCE(log, '[]') WHERE id=?",
+                    (datetime.now(timezone.utc).isoformat(), campaign_id)
+                )
+                # Append error to log
+                row = conn3.execute("SELECT log FROM linkedin_campaigns WHERE id=?", (campaign_id,)).fetchone()
+                logs = json.loads(row["log"]) if row and row["log"] else []
+                logs.append({
+                    "time": datetime.now(timezone.utc).isoformat(),
+                    "msg": f"Falha no dispatch: {e}",
+                    "phase": "error",
+                })
+                conn3.execute("UPDATE linkedin_campaigns SET log=? WHERE id=?",
+                              (json.dumps(logs), campaign_id))
+                conn3.commit()
+            finally:
+                conn3.close()
+            try:
+                await ws_manager.broadcast({
+                    "type": "linkedin_progress",
+                    "data": {"campaign_id": campaign_id, "status": "error", "msg": str(e)}
+                })
+            except Exception:
+                pass
+
+    asyncio.create_task(_dispatch())
+    return {"ok": True, "campaign_id": campaign_id, "status": "dispatched"}
+
+
+@app.post("/api/linkedin/campaigns/view")
+async def start_view_campaign(request: Request):
+    data = await request.json()
+    return await _proxy_linkedin_campaign("view", data)
+
+
+@app.post("/api/linkedin/campaigns/engage")
+async def start_engage_campaign(request: Request):
+    data = await request.json()
+    return await _proxy_linkedin_campaign("engage", data)
+
+
+@app.post("/api/linkedin/campaigns/connect")
+async def start_connect_campaign(request: Request):
+    data = await request.json()
+    return await _proxy_linkedin_campaign("connect", data)
+
+
+@app.post("/api/linkedin/campaigns/discover")
+async def start_discover_campaign(request: Request):
+    data = await request.json()
+    return await _proxy_linkedin_campaign("discover", data)
+
+
+# ─── Fase 2 — proxy passthroughs to VM ─────────────────────────────────────
+
+async def _vm_passthrough(method: str, path: str, json_body: dict = None,
+                          params: dict = None, timeout: float = 30.0):
+    """Generic VM passthrough helper."""
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.request(method, f"{VM_API_URL}{path}",
+                                     json=json_body, params=params)
+            return r.json()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/linkedin/comment/edit")
+async def linkedin_comment_edit(request: Request):
+    body = await request.json()
+    return await _vm_passthrough("POST", "/api/linkedin/comment/edit", json_body=body, timeout=120)
+
+
+@app.post("/api/linkedin/comment/delete")
+async def linkedin_comment_delete(request: Request):
+    body = await request.json()
+    return await _vm_passthrough("POST", "/api/linkedin/comment/delete", json_body=body, timeout=120)
+
+
+@app.get("/api/linkedin/visited")
+async def linkedin_visited(limit: int = 100, days: int = 30):
+    return await _vm_passthrough("GET", "/api/linkedin/visited",
+                                  params={"limit": limit, "days": days})
+
+
+@app.get("/api/linkedin/profiles")
+async def linkedin_profile_by_url(url: str):
+    return await _vm_passthrough("GET", "/api/linkedin/profiles",
+                                  params={"url": url}, timeout=10)
+
+
+@app.get("/api/linkedin/companies/lookup")
+async def linkedin_company_lookup(name: str):
+    return await _vm_passthrough("GET", "/api/linkedin/companies/lookup",
+                                  params={"name": name})
+
+
+@app.post("/api/linkedin/detect-account-type")
+async def linkedin_detect_account_type():
+    return await _vm_passthrough("POST", "/api/linkedin/detect-account-type", timeout=120)
+
+
+@app.get("/api/linkedin/health")
+async def linkedin_health(force_refresh: bool = False):
+    """Pass-through to VM health probe. UI calls this to enable/disable launch buttons."""
+    return await _vm_passthrough(
+        "GET", "/api/linkedin/health",
+        params={"force_refresh": str(force_refresh).lower()},
+        timeout=20,
+    )
+
+
+@app.post("/api/linkedin/health/clear")
+async def linkedin_health_clear():
+    return await _vm_passthrough("POST", "/api/linkedin/health/clear", timeout=10)
+
+
+@app.post("/api/linkedin/connection/refresh")
+async def linkedin_connection_refresh(request: Request):
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    return await _vm_passthrough("POST", "/api/linkedin/connection/refresh",
+                                  json_body=body, timeout=600)
+
+
 @app.get("/api/pipelines/{pipeline_id}/executions")
 async def list_executions(pipeline_id: int, limit: int = 20):
     conn = get_db()
@@ -2010,6 +2920,76 @@ async def get_execution(exec_id: int):
 
 # --- Hermes VM Sync ---
 
+# ─── Server control endpoints (header dot dropdown) ──────────────────────
+
+@app.post("/api/server/restart-local")
+async def server_restart_local():
+    """Schedule a local server restart. Tauri's health loop or systemd respawns.
+    On Windows (no systemd), we exit the process — Tauri's lib.rs health monitor
+    detects port 55000 closed and re-launches `python server.py`.
+    """
+    async def _shutdown():
+        await asyncio.sleep(0.5)
+        os._exit(0)
+    asyncio.create_task(_shutdown())
+    return {"ok": True, "note": "processo encerrando — Tauri vai reiniciar em ~10s"}
+
+
+@app.post("/api/server/shutdown-local")
+async def server_shutdown_local():
+    """Graceful shutdown of the local server (no auto-restart)."""
+    # Mark a flag so Tauri health loop knows NOT to relaunch
+    try:
+        flag = HERMES_HOME / "data" / "no_relaunch.flag"
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.write_text(datetime.now(timezone.utc).isoformat())
+    except Exception:
+        pass
+    async def _shutdown():
+        await asyncio.sleep(0.5)
+        os._exit(0)
+    asyncio.create_task(_shutdown())
+    return {"ok": True, "note": "servidor desligando — fechar Tauri também"}
+
+
+@app.post("/api/server/restart-vm")
+async def server_restart_vm():
+    """Restart hermes-api.service on the VM via SSH."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ssh",
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "ConnectTimeout=10",
+            "hermes-gcp@136.115.74.69",
+            "systemctl --user restart hermes-api.service && echo OK",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+        out = stdout.decode().strip()
+        err = stderr.decode().strip()
+        if "OK" in out:
+            return {"ok": True, "note": "VM reiniciada"}
+        return {"ok": False, "error": err or out or "comando falhou"}
+    except asyncio.TimeoutError:
+        return {"ok": False, "error": "SSH timeout"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/server/restart-all")
+async def server_restart_all():
+    """Restart VM first, then local (which auto-respawns via Tauri)."""
+    vm_result = await server_restart_vm()
+    if not vm_result.get("ok"):
+        return {"ok": False, "error": f"VM falhou: {vm_result.get('error')}"}
+    async def _shutdown():
+        await asyncio.sleep(1.0)
+        os._exit(0)
+    asyncio.create_task(_shutdown())
+    return {"ok": True, "note": "VM reiniciada + local reiniciando"}
+
+
 @app.get("/api/hermes/status")
 async def hermes_status():
     conn = get_db()
@@ -2061,13 +3041,22 @@ async def hermes_status():
     except Exception:
         pass
 
-    # AgentMemory status (local)
+    # AgentMemory status (local) — iii MCP transport on port 3141.
+    # iii doesn't expose /livez or /health; any HTTP response (even 404)
+    # means the process is alive and listening.
     try:
         async with httpx.AsyncClient(timeout=3) as client:
-            r = await client.get("http://localhost:3111/livez")
-            status["agentmemory"]["online"] = r.status_code == 200
+            r = await client.get("http://localhost:3141/")
+            # Anything < 500 means iii is up (404 is normal for root path)
+            status["agentmemory"]["online"] = r.status_code < 500
     except Exception:
-        pass
+        # Fallback: raw TCP probe in case iii blocks HTTP root entirely
+        try:
+            import socket
+            with socket.create_connection(("127.0.0.1", 3141), timeout=2):
+                status["agentmemory"]["online"] = True
+        except Exception:
+            status["agentmemory"]["online"] = False
 
     return status
 
@@ -2312,8 +3301,8 @@ if __name__ == "__main__":
     import uvicorn
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
     print("\n  Hermes Command Center v2")
-    print(f"  Dashboard:  http://localhost:8500")
+    print(f"  Dashboard:  http://localhost:55000")
     print(f"  VM API:     {VM_API_URL}")
     print(f"  Sync every: {SYNC_INTERVAL}s")
-    print(f"  API Docs:   http://localhost:8500/docs\n")
-    uvicorn.run(app, host="0.0.0.0", port=8500, log_level="info")
+    print(f"  API Docs:   http://localhost:55000/docs\n")
+    uvicorn.run(app, host="0.0.0.0", port=55000, log_level="info")
