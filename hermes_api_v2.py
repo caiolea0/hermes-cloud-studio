@@ -31,8 +31,13 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 load_dotenv()
-HERMES_HOME = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
-VM_AUTH_TOKEN = os.environ.get("HERMES_VM_AUTH_TOKEN", "").strip()
+
+# MERGED-013 — Settings central pydantic-settings
+sys.path.insert(0, str(Path(__file__).parent))
+from config import settings
+
+HERMES_HOME = settings.hermes_home
+VM_AUTH_TOKEN = settings.vm_auth_token.strip()
 if not VM_AUTH_TOKEN:
     raise RuntimeError(
         "HERMES_VM_AUTH_TOKEN obrigatório. Setar em ~/.hermes/.env antes de subir o server. "
@@ -1191,7 +1196,7 @@ def _build_li_config():
     """Build LinkedInConfig — account_type prefers DOM-detected cache over env."""
     from linkedin import LinkedInConfig
     # Prefer detected type over env value (env is the seed; cache is the truth)
-    account_type = os.environ.get("LINKEDIN_ACCOUNT_TYPE", "free")
+    account_type = settings.linkedin_account_type
     try:
         from linkedin.account_detector import read_cached
         cached = read_cached()
@@ -1200,11 +1205,11 @@ def _build_li_config():
     except Exception:  # noqa: silenciado intencional — fallback seguro
         pass
     return LinkedInConfig(
-        account_email=os.environ.get("LINKEDIN_EMAIL", ""),
+        account_email=settings.linkedin_email,
         account_type=account_type,
-        proxy_server=os.environ.get("LINKEDIN_PROXY"),
-        proxy_username=os.environ.get("LINKEDIN_PROXY_USER"),
-        proxy_password=os.environ.get("LINKEDIN_PROXY_PASS"),
+        proxy_server=settings.linkedin_proxy,
+        proxy_username=settings.linkedin_proxy_user,
+        proxy_password=settings.linkedin_proxy_pass,
         headless=True,
         use_system_chrome=False,
     )
@@ -1636,8 +1641,8 @@ async def vm_linkedin_session_check():
         from linkedin.account_detector import read_cached, detect_and_cache
         config = _build_li_config()
         session_file = Path(config.session_file)
-        li_at = os.environ.get("LI_AT", "").strip()
-        proxy_url = os.environ.get("LINKEDIN_PROXY", "").strip()
+        li_at = os.environ.get("LI_AT", "").strip()  # runtime-set por li_at_update; mantido fora de settings
+        proxy_url = (settings.linkedin_proxy or "").strip()
         proxy_configured = bool(proxy_url)
         # Proxy liveness check
         proxy_alive = False
@@ -1695,7 +1700,7 @@ async def vm_account_type_set(request: Request):
     Writes directly to the cache file used by read_cached().
     Auth: X-Hermes-Token header.
     """
-    expected = os.environ.get("HERMES_VM_AUTH_TOKEN", "")
+    expected = settings.vm_auth_token
     presented = request.headers.get("X-Hermes-Token", "")
     if not expected or presented != expected:
         raise HTTPException(403, "invalid token")
@@ -1891,10 +1896,10 @@ async def vm_linkedin_comment_delete(request: Request):
 async def vm_li_at_update(request: Request):
     """Receive a new li_at cookie from the PC (forwarded by server.py).
     Writes to ~/.hermes/.env so next browser launch picks it up via
-    `os.environ.get("LI_AT")` in stealth.py.
+    the LI_AT env var read by stealth.py.
     Auth: X-Hermes-Token header must match HERMES_VM_AUTH_TOKEN env.
     """
-    expected = os.environ.get("HERMES_VM_AUTH_TOKEN", "")
+    expected = settings.vm_auth_token
     presented = request.headers.get("X-Hermes-Token", "")
     if not expected or presented != expected:
         raise HTTPException(403, "invalid token")
@@ -1902,7 +1907,7 @@ async def vm_li_at_update(request: Request):
     li_at = (body.get("li_at") or "").strip()
     if not li_at or len(li_at) < 30:
         raise HTTPException(400, "li_at missing or too short")
-    env_path = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / ".env"
+    env_path = Path(settings.hermes_home) / ".env"
     try:
         if env_path.exists():
             lines = env_path.read_text(encoding="utf-8").splitlines()
@@ -1923,7 +1928,7 @@ async def vm_li_at_update(request: Request):
         os.environ["LI_AT"] = li_at
         # Also delete any stored session file (forces re-create with new cookie)
         try:
-            sess = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / "data" / "sessions"
+            sess = Path(settings.hermes_home) / "data" / "sessions"
             for f in sess.glob("*.json"):
                 f.unlink()
         except Exception:  # noqa: silenciado intencional — fallback seguro
@@ -1952,7 +1957,7 @@ async def vm_linkedin_connection_refresh(request: Request):
 
 # ─── Push progress events to PC (real-time) ──────────────────────────────────
 
-PC_EVENT_URL = os.environ.get("HERMES_PC_EVENT_URL", "http://127.0.0.1:55000/api/internal/linkedin/event")
+PC_EVENT_URL = settings.hermes_pc_event_url
 
 async def _push_event_to_pc(campaign_id: int, msg: str, phase: str = "info",
                             progress: Optional[int] = None,

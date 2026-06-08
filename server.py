@@ -35,24 +35,26 @@ from pydantic import BaseModel
 
 load_dotenv(Path(__file__).parent / ".env")
 
+from config import settings  # MERGED-013 — Settings central pydantic-settings
+
 logger = logging.getLogger("hermes")
 
 BASE_DIR = Path(__file__).parent
 DASHBOARD_DIR = BASE_DIR / "dashboard"
 DB_PATH = BASE_DIR / "hermes_local.db"
 PHOTO_CACHE_DIR = BASE_DIR / "photo_cache"
-VM_API_URL = os.environ.get("HERMES_VM_API", "http://localhost:8420")
-AGENT_ZERO_URL = os.environ.get("AGENT_ZERO_URL", "http://localhost:50080")
-AGENT_ZERO_API_KEY = os.environ.get("AGENT_ZERO_API_KEY", "")
-GOOGLE_API_KEY = os.environ.get("GOOGLE_PLACES_API_KEY", "")
-SYNC_INTERVAL = int(os.environ.get("HERMES_SYNC_INTERVAL", "60"))
-AUTH_TOKEN = os.environ.get("HERMES_AUTH_TOKEN", "").strip()
+VM_API_URL = settings.vm_api_url_resolved
+AGENT_ZERO_URL = settings.agent_zero_url
+AGENT_ZERO_API_KEY = settings.agent_zero_api_key
+GOOGLE_API_KEY = settings.google_places_api_key
+SYNC_INTERVAL = settings.sync_interval
+AUTH_TOKEN = settings.auth_token.strip()
 if not AUTH_TOKEN:
     raise RuntimeError(
         "HERMES_AUTH_TOKEN obrigatório. Setar em .env ou env var antes de subir o server. "
         "Gerar via: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
     )
-INTERNAL_TOKEN = os.environ.get("HERMES_INTERNAL_TOKEN", "").strip()
+INTERNAL_TOKEN = settings.internal_token.strip()
 if not INTERNAL_TOKEN:
     raise RuntimeError(
         "HERMES_INTERNAL_TOKEN obrigatório. Setar em .env ou env var antes de subir o server. "
@@ -595,8 +597,8 @@ _LI_SESSION_LAST_NOTIFIED = 0.0
 
 
 async def _telegram_notify(text: str):
-    tok = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+    tok = settings.telegram_bot_token.strip()
+    chat = settings.telegram_chat_id.strip()
     if not (tok and chat):
         return
     try:
@@ -795,15 +797,10 @@ async def vm_health_watchdog_loop():
     """
     consecutive_fail = 0
     alerted = False
-    RESTART_CMD = os.environ.get(
-        "HERMES_VM_RESTART_CMD",
-        "systemctl --user restart hermes-api 2>/dev/null || "
-        "(pkill -f hermes_api_v2 2>/dev/null; sleep 2; "
-        "cd ~ && nohup python3 hermes_api_v2.py > logs/api.log 2>&1 & echo restarted)"
-    )
+    RESTART_CMD = settings.hermes_vm_restart_cmd
     SSH_KEY = os.environ.get("USERPROFILE", "") + r"\.ssh\id_ed25519"
-    vm_user = os.environ.get("VM_USER", "hermes-gcp")
-    vm_host = os.environ.get("VM_HOST", "136.115.74.69")
+    vm_user = settings.vm_user
+    vm_host = settings.vm_host
 
     await asyncio.sleep(30)  # warmup
     while True:
@@ -2314,11 +2311,11 @@ async def _execute_linkedin_viewer(exec_id: int, targets: dict, prompt: str, add
     try:
         from linkedin import LinkedInViewer, LinkedInConfig
         li_config = LinkedInConfig(
-            account_email=os.environ.get("LINKEDIN_EMAIL", ""),
-            account_type=os.environ.get("LINKEDIN_ACCOUNT_TYPE", "free"),
-            proxy_server=os.environ.get("LINKEDIN_PROXY", None),
-            proxy_username=os.environ.get("LINKEDIN_PROXY_USER", None),
-            proxy_password=os.environ.get("LINKEDIN_PROXY_PASS", None),
+            account_email=settings.linkedin_email,
+            account_type=settings.linkedin_account_type,
+            proxy_server=settings.linkedin_proxy,
+            proxy_username=settings.linkedin_proxy_user,
+            proxy_password=settings.linkedin_proxy_pass,
             headless=True,
         )
         li_config.targets = {"roles": roles, "location": location, "max_profiles": max_profiles}
@@ -2458,8 +2455,8 @@ async def linkedin_rate_limits():
         from linkedin import LinkedInConfig
         from linkedin.limiter import RateLimiter
         config = LinkedInConfig(
-            account_email=os.environ.get("LINKEDIN_EMAIL", "default"),
-            account_type=os.environ.get("LINKEDIN_ACCOUNT_TYPE", "free"),
+            account_email=settings.linkedin_email or "default",
+            account_type=settings.linkedin_account_type,
         )
         limiter = RateLimiter(config)
         return limiter.get_stats()
@@ -2494,8 +2491,8 @@ async def linkedin_status():
     if vm_session is not None:
         return {
             "session_ok": vm_session.get("ok", False),
-            "account_email": vm_session.get("email") or os.environ.get("LINKEDIN_EMAIL", ""),
-            "account_type": vm_session.get("account_type") or os.environ.get("LINKEDIN_ACCOUNT_TYPE", "free"),
+            "account_email": vm_session.get("email") or settings.linkedin_email,
+            "account_type": vm_session.get("account_type") or settings.linkedin_account_type,
             "proxy_configured": vm_session.get("proxy_configured", False),
             "proxy_url": vm_session.get("proxy_url"),
             "proxy_alive": vm_session.get("proxy_alive", False),
@@ -2508,15 +2505,15 @@ async def linkedin_status():
         from linkedin import LinkedInConfig
         from linkedin.limiter import RateLimiter
         config = LinkedInConfig(
-            account_email=os.environ.get("LINKEDIN_EMAIL", "default"),
-            account_type=os.environ.get("LINKEDIN_ACCOUNT_TYPE", "free"),
+            account_email=settings.linkedin_email or "default",
+            account_type=settings.linkedin_account_type,
         )
         limiter = RateLimiter(config)
         stats = limiter.get_stats()
         return {
             "session_ok": False,
-            "account_email": os.environ.get("LINKEDIN_EMAIL", ""),
-            "account_type": os.environ.get("LINKEDIN_ACCOUNT_TYPE", "free"),
+            "account_email": settings.linkedin_email,
+            "account_type": settings.linkedin_account_type,
             "proxy_alive": False,
             "rate_limits": stats,
             "source": "local_fallback",
@@ -2576,7 +2573,7 @@ async def account_type_set(request: Request):
     account_type = (body.get("account_type") or "").strip()
     if account_type not in ("free", "premium", "sales_navigator"):
         raise HTTPException(400, "invalid account_type")
-    token = os.environ.get("HERMES_VM_AUTH_TOKEN", "")
+    token = settings.vm_auth_token
     if not token:
         return {"ok": False, "error": "HERMES_VM_AUTH_TOKEN not set on PC"}
     try:
@@ -2615,7 +2612,7 @@ async def rotate_li_at(request: Request):
     if not li_at or len(li_at) < 30:
         raise HTTPException(400, "li_at missing or too short")
     # Forward to VM with shared-secret header
-    token = os.environ.get("HERMES_VM_AUTH_TOKEN", "")
+    token = settings.vm_auth_token
     if not token:
         return {"ok": False, "error": "HERMES_VM_AUTH_TOKEN not set on PC"}
     try:
@@ -3318,7 +3315,7 @@ async def toggle_skill(name: str, body: dict):
 # MEMORY (proxy to AgentMemory or VM)
 # ============================================================
 
-MEMORY_API_URL = os.environ.get("AGENTMEMORY_URL", "http://localhost:3111")
+MEMORY_API_URL = settings.agentmemory_url
 
 
 @app.get("/api/hermes/memory")
@@ -3642,7 +3639,7 @@ async def bootstrap_tokens(request: Request):
     if request.client.host not in ("127.0.0.1", "::1", "localhost"):
         raise HTTPException(403, "loopback only")
     # Detectar porta atual via socket peer info
-    port_now = int(os.environ.get("DASHBOARD_PORT", "55000"))
+    port_now = settings.dashboard_port
     try:
         from scripts.port_allocator import _load_global_registry, _key
         _reg = _load_global_registry()
@@ -3670,7 +3667,7 @@ if __name__ == "__main__":
         _DASHBOARD_PORT = allocate_port("dashboard", reserve=True)
     except Exception as _e:
         print(f"[hermes] WARN: port_allocator falhou ({_e}). Caindo no default 55000.")
-        _DASHBOARD_PORT = int(os.environ.get("DASHBOARD_PORT", "55000"))
+        _DASHBOARD_PORT = settings.dashboard_port
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
     print("\n  Hermes Command Center v2")

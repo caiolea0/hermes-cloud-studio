@@ -1,0 +1,117 @@
+"""Hermes Cloud Studio — Settings central (pydantic-settings).
+
+Fonte da verdade pra TODAS env vars do projeto. Substitui os.environ.get espalhado.
+
+Uso:
+    from config import settings
+    settings.auth_token
+    settings.vm_host
+
+Carregamento:
+    1. .env na raiz (se existir)
+    2. variáveis de ambiente (override .env)
+
+Required fields (sem default) abortam startup se ausentes — fail-closed.
+Optional fields têm default seguro.
+
+Notas:
+    - Pra PC: .env em D:\\dev-projects\\main\\hermes-cloud-studio\\.env
+    - Pra VM: copiar config.py + ~/.hermes/.env. HERMES_HOME aponta pra base.
+    - HERMES_AUTH_TOKEN / HERMES_INTERNAL_TOKEN / HERMES_VM_AUTH_TOKEN devem
+      ser gerados via: python -c "import secrets; print(secrets.token_urlsafe(32))"
+"""
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+_BASE_DIR = Path(__file__).parent
+
+
+class HermesSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=str(_BASE_DIR / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    # --- Auth (fail-closed: vazio dispara raise no consumidor) ---
+    auth_token: str = Field(default="", validation_alias="HERMES_AUTH_TOKEN")
+    internal_token: str = Field(default="", validation_alias="HERMES_INTERNAL_TOKEN")
+    vm_auth_token: str = Field(default="", validation_alias="HERMES_VM_AUTH_TOKEN")
+
+    # --- VM connection ---
+    vm_host: str = Field(default="136.115.74.69", validation_alias="VM_HOST")
+    vm_user: str = Field(default="hermes-gcp", validation_alias="VM_USER")
+    vm_api_url: str = Field(default="", validation_alias="HERMES_VM_API")
+    vm_api_port: int = Field(default=8420, validation_alias="VM_API_PORT")
+
+    # --- Proxy / Tunnel ---
+    socks5_port: int = Field(default=55081, validation_alias="PROXY_PORT")
+    proxy_user: str = Field(default="hermes", validation_alias="PROXY_USER")
+    proxy_pass: str = Field(default="", validation_alias="PROXY_PASS")
+
+    # --- Dashboard ---
+    dashboard_port: int = Field(default=55000, validation_alias="DASHBOARD_PORT")
+    sync_interval: int = Field(default=60, validation_alias="HERMES_SYNC_INTERVAL")
+
+    # --- Agent Zero ---
+    agent_zero_url: str = Field(default="http://localhost:50080", validation_alias="AGENT_ZERO_URL")
+    agent_zero_api_key: str = Field(default="", validation_alias="AGENT_ZERO_API_KEY")
+
+    # --- External APIs ---
+    google_places_api_key: str = Field(default="", validation_alias="GOOGLE_PLACES_API_KEY")
+    openrouter_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
+
+    # --- AgentMemory ---
+    agentmemory_url: str = Field(default="http://localhost:3111", validation_alias="AGENTMEMORY_URL")
+
+    # --- Telegram ---
+    telegram_bot_token: str = Field(default="", validation_alias="TELEGRAM_BOT_TOKEN")
+    telegram_chat_id: str = Field(default="", validation_alias="TELEGRAM_CHAT_ID")
+
+    # --- Email ---
+    email_from: str = Field(default="", validation_alias="EMAIL_FROM")
+    email_to: str = Field(default="", validation_alias="EMAIL_TO")
+    email_app_password: str = Field(default="", validation_alias="EMAIL_APP_PASSWORD")
+
+    # --- LinkedIn ---
+    linkedin_email: str = Field(default="", validation_alias="LINKEDIN_EMAIL")
+    linkedin_password: str = Field(default="", validation_alias="LINKEDIN_PASSWORD")
+    linkedin_account_type: str = Field(default="free", validation_alias="LINKEDIN_ACCOUNT_TYPE")
+    linkedin_proxy: Optional[str] = Field(default=None, validation_alias="LINKEDIN_PROXY")
+    linkedin_proxy_user: Optional[str] = Field(default=None, validation_alias="LINKEDIN_PROXY_USER")
+    linkedin_proxy_pass: Optional[str] = Field(default=None, validation_alias="LINKEDIN_PROXY_PASS")
+
+    # --- Hermes paths (HERMES_HOME default ~/.hermes; honra env var) ---
+    hermes_home: Path = Field(
+        default_factory=lambda: Path.home() / ".hermes",
+        validation_alias="HERMES_HOME",
+    )
+
+    # --- VM bridge ---
+    hermes_vm_restart_cmd: str = Field(
+        default=(
+            "systemctl --user restart hermes-api 2>/dev/null || "
+            "(pkill -f hermes_api_v2 2>/dev/null; sleep 2; "
+            "cd ~ && nohup python3 hermes_api_v2.py > logs/api.log 2>&1 & echo restarted)"
+        ),
+        validation_alias="HERMES_VM_RESTART_CMD",
+    )
+    hermes_pc_event_url: str = Field(
+        default="http://127.0.0.1:55000/api/internal/linkedin/event",
+        validation_alias="HERMES_PC_EVENT_URL",
+    )
+
+    @property
+    def vm_api_url_resolved(self) -> str:
+        """Retorna vm_api_url explícito OU computa de vm_host/vm_api_port."""
+        return self.vm_api_url or f"http://{self.vm_host}:{self.vm_api_port}"
+
+
+settings = HermesSettings()
