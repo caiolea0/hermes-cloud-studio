@@ -86,9 +86,10 @@ def port_listening(host: str, port: int, timeout: float = 2.0) -> bool:
 
 
 def ssh_exec(cmd: str, timeout: float = 10.0) -> tuple[int, str, str]:
-    """Run a command on the VM via SSH. Returns (rc, stdout, stderr)."""
+    """Run a command on the VM via SSH. Returns (rc, stdout, stderr).
+    Usa _run_hidden — ssh.exe nativo ignora CREATE_NO_WINDOW sem STARTUPINFO."""
     try:
-        result = subprocess.run(
+        result = _run_hidden(
             [
                 "ssh", "-o", "ConnectTimeout=8", "-o", "BatchMode=yes",
                 "-i", SSH_KEY, f"{VM_USER}@{VM_HOST}", cmd,
@@ -123,9 +124,9 @@ def check_egress_residential() -> tuple[bool, str]:
 # --- Process management ---
 
 def find_socks5_pid() -> int | None:
-    """Look for running socks5_proxy.py process (Windows: tasklist + wmic)."""
+    """Look for running socks5_proxy.py process (Windows: wmic com SW_HIDE)."""
     try:
-        out = subprocess.check_output(
+        out = _check_output_hidden(
             ["wmic", "process", "where", "name='python.exe'", "get", "ProcessId,CommandLine", "/format:csv"],
             text=True, stderr=subprocess.DEVNULL, timeout=10,
         )
@@ -141,9 +142,9 @@ def find_socks5_pid() -> int | None:
 
 
 def find_ssh_tunnel_pid() -> int | None:
-    """Look for ssh.exe with -R 55081 flag."""
+    """Look for ssh.exe with -R 55081 flag (Windows: wmic com SW_HIDE)."""
     try:
-        out = subprocess.check_output(
+        out = _check_output_hidden(
             ["wmic", "process", "where", "name='ssh.exe'", "get", "ProcessId,CommandLine", "/format:csv"],
             text=True, stderr=subprocess.DEVNULL, timeout=10,
         )
@@ -160,15 +161,35 @@ def find_ssh_tunnel_pid() -> int | None:
 
 def _hidden_startupinfo():
     """Windows STARTUPINFO com SW_HIDE — esconde janela mesmo de execs nativos
-    (ssh.exe OpenSSH ignora CREATE_NO_WINDOW e mostra console flash sem isto)."""
+    (ssh.exe OpenSSH e wmic.exe ignoram CREATE_NO_WINDOW e mostram console flash sem isto)."""
+    if not hasattr(subprocess, "STARTUPINFO"):
+        return None  # Non-Windows
     si = subprocess.STARTUPINFO()
     si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
     si.wShowWindow = 0  # SW_HIDE
     return si
 
 
-# CREATE_NO_WINDOW (0x08000000) + DETACHED_PROCESS (0x00000008) + CREATE_NEW_PROCESS_GROUP
-_HIDDEN_FLAGS = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+# Flags combinadas: CREATE_NO_WINDOW (0x08000000) + DETACHED_PROCESS (0x00000008)
+# Sozinho CREATE_NO_WINDOW NAO basta pra ssh.exe/wmic.exe nativos Windows.
+_HIDDEN_FLAGS = 0x08000000 | 0x00000008
+
+
+def _run_hidden(cmd, **kwargs):
+    """subprocess.run com STARTUPINFO SW_HIDE — ZERO console flash.
+    Usar pra TODA subprocess do supervisor que roda a cada tick (probes wmic/ssh)."""
+    kwargs.setdefault("creationflags", _HIDDEN_FLAGS)
+    kwargs.setdefault("startupinfo", _hidden_startupinfo())
+    kwargs.setdefault("stdin", subprocess.DEVNULL)
+    return subprocess.run(cmd, **kwargs)
+
+
+def _check_output_hidden(cmd, **kwargs):
+    """subprocess.check_output com STARTUPINFO SW_HIDE — ZERO console flash."""
+    kwargs.setdefault("creationflags", _HIDDEN_FLAGS)
+    kwargs.setdefault("startupinfo", _hidden_startupinfo())
+    kwargs.setdefault("stdin", subprocess.DEVNULL)
+    return subprocess.check_output(cmd, **kwargs)
 
 
 def spawn_socks5() -> int | None:
@@ -227,7 +248,7 @@ def spawn_ssh_tunnel() -> int | None:
 
 def kill_pid(pid: int):
     try:
-        subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=5)
+        _run_hidden(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=5)
         log.info(f"killed pid {pid}")
     except Exception:
         pass
