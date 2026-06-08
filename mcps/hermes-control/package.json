@@ -1,0 +1,27 @@
+{
+  "name": "hermes-control-mcp",
+  "version": "0.1.0",
+  "description": "MCP server exposing Hermes Cloud Studio backend as natural-language tools for Claude",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "hermes-control-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
