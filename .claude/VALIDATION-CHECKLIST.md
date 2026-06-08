@@ -41,7 +41,7 @@ checks:
   - grep_present: server.py / `HERMES_INTERNAL_TOKEN|INTERNAL_TOKEN` / token defined
   - grep_present: server.py / `X-Internal-Token` / endpoints check header
   - grep_present: server.py / `host="127.0.0.1"` / bind loopback only (no 0.0.0.0)
-  - file_exists: .env.example with `HERMES_INTERNAL_TOKEN=` line
+  - grep_present: .env.example / `HERMES_INTERNAL_TOKEN=` / INTERNAL_TOKEN documented in env.example
 
 ## Fase B — State & Robustness
 

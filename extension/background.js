@@ -6,6 +6,12 @@ const ACCOUNT_TYPE_URL = 'http://localhost:55000/api/internal/account_type_set';
 const LAST_KEY = 'hermes_li_at_last';
 const STATUS_KEY = 'hermes_status_last';
 const ACCOUNT_TYPE_STATUS_KEY = 'hermes_account_type_status';
+const INTERNAL_TOKEN_KEY = 'hermes_internal_token';
+
+async function _getInternalToken() {
+    const s = await chrome.storage.local.get(INTERNAL_TOKEN_KEY);
+    return s[INTERNAL_TOKEN_KEY] || '';
+}
 
 async function readCurrentLiAt() {
     return new Promise(resolve => {
@@ -18,9 +24,10 @@ async function readCurrentLiAt() {
 async function pushToHermes(value) {
     if (!value) return { ok: false, reason: 'no_cookie' };
     try {
+        const internalToken = await _getInternalToken();
         const r = await fetch(HERMES_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Internal-Token': internalToken },
             body: JSON.stringify({ li_at: value }),
         });
         const data = await r.json().catch(() => ({}));
@@ -85,9 +92,10 @@ chrome.alarms.onAlarm.addListener(a => {
 // 5. Account type detection (from content.js running on linkedin.com)
 async function pushAccountType(payload) {
     try {
+        const internalToken = await _getInternalToken();
         const r = await fetch(ACCOUNT_TYPE_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Internal-Token': internalToken },
             body: JSON.stringify({
                 account_type: payload.type,
                 evidence: payload.evidence,

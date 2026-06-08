@@ -40,6 +40,7 @@ BROWSERS = {
 }
 
 LOCAL_SERVER = os.environ.get("HERMES_LOCAL_URL", "http://localhost:55000")
+INTERNAL_TOKEN = os.environ.get("HERMES_INTERNAL_TOKEN", "")
 STATE_FILE = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / "data" / "li_at_last.json"
 
 
@@ -199,10 +200,14 @@ def _write_state(state: dict):
 
 def push_to_hermes(li_at: str) -> bool:
     """POST the new cookie to local Hermes server. Returns True on success."""
+    if not INTERNAL_TOKEN:
+        LOG.error("HERMES_INTERNAL_TOKEN não configurado — sync abortado")
+        return False
     try:
         r = httpx.post(
             f"{LOCAL_SERVER}/api/internal/li_at_rotate",
             json={"li_at": li_at},
+            headers={"X-Internal-Token": INTERNAL_TOKEN},
             timeout=15.0,
         )
         if r.status_code == 200:

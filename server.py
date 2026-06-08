@@ -52,6 +52,12 @@ if not AUTH_TOKEN:
         "HERMES_AUTH_TOKEN obrigatório. Setar em .env ou env var antes de subir o server. "
         "Gerar via: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
     )
+INTERNAL_TOKEN = os.environ.get("HERMES_INTERNAL_TOKEN", "").strip()
+if not INTERNAL_TOKEN:
+    raise RuntimeError(
+        "HERMES_INTERNAL_TOKEN obrigatório. Setar em .env ou env var antes de subir o server. "
+        "Gerar via: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
 
 # Persistent Agent Zero context for Hermes conversations
 _agent_zero_context_id: Optional[str] = None
@@ -811,6 +817,15 @@ class WSManager:
 
 
 ws_manager = WSManager()
+
+
+def _check_internal(request: Request):
+    """Valida requisições de endpoints internos: loopback + token dedicado."""
+    if request.client.host not in ("127.0.0.1", "::1", "localhost"):
+        raise HTTPException(403, "loopback only")
+    token = request.headers.get("X-Internal-Token", "")
+    if not secrets.compare_digest(token, INTERNAL_TOKEN):
+        raise HTTPException(401, "internal token invalid")
 
 
 @app.websocket("/ws")
@@ -2399,8 +2414,7 @@ async def account_type_set(request: Request):
     """Receive an account_type detected by the browser extension (content script).
     Forwards to VM which updates its cache (~/.hermes/data/linkedin_account_type.json).
     """
-    if request.client.host not in ("127.0.0.1", "::1", "localhost"):
-        raise HTTPException(403, "internal endpoint")
+    _check_internal(request)
     body = await request.json()
     account_type = (body.get("account_type") or "").strip()
     if account_type not in ("free", "premium", "sales_navigator"):
@@ -2438,8 +2452,7 @@ async def rotate_li_at(request: Request):
     The script (scripts/li_at_sync.py) reads Chrome's cookie DB once a day.
     Only accepts 127.0.0.1 (same-host). Also broadcasts a status reload event.
     """
-    if request.client.host not in ("127.0.0.1", "::1", "localhost"):
-        raise HTTPException(403, "internal endpoint")
+    _check_internal(request)
     body = await request.json()
     li_at = (body.get("li_at") or "").strip()
     if not li_at or len(li_at) < 30:
@@ -2475,8 +2488,7 @@ async def receive_linkedin_event(request: Request):
     Updates local DB partial_results + broadcasts WS event linkedin_progress.
     Only accepts requests from 127.0.0.1 (SSH tunnel makes VM appear as localhost).
     """
-    if request.client.host not in ("127.0.0.1", "::1", "localhost"):
-        raise HTTPException(403, "internal endpoint")
+    _check_internal(request)
     body = await request.json()
     cid = body.get("campaign_id")
     if not cid:
@@ -3313,4 +3325,4 @@ if __name__ == "__main__":
     print(f"  VM API:     {VM_API_URL}")
     print(f"  Sync every: {SYNC_INTERVAL}s")
     print(f"  API Docs:   http://localhost:55000/docs\n")
-    uvicorn.run(app, host="0.0.0.0", port=55000, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=55000, log_level="info")
