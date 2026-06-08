@@ -4,8 +4,8 @@
     {
       "name": "hermes",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8500", "--reload"],
-      "port": 8500
+      "runtimeArgs": ["-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "55001", "--reload"],
+      "port": 55001
     }
   ]
 }

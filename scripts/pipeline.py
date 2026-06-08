@@ -32,7 +32,7 @@ from google_maps_scraper import discover_businesses, CATEGORIES
 from web_audit import audit_prospect
 from outreach_generator import generate_outreach
 
-API_URL = os.environ.get("HERMES_API_URL", "http://localhost:8500")
+API_URL = os.environ.get("HERMES_API_URL", "http://localhost:55000")
 HERMES_HOME = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
 LOG_DIR = HERMES_HOME / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)

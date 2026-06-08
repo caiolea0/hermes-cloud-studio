@@ -76,7 +76,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id != ALLOWED_CHAT_ID:
         return
     import httpx
-    server_url = os.environ.get("HERMES_SERVER_URL", "http://localhost:8500")
+    server_url = os.environ.get("HERMES_SERVER_URL", "http://localhost:55000")
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(f"{server_url}/api/hermes/status")

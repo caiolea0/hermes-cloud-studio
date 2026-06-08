@@ -234,10 +234,17 @@ function navigate(page) {
         pipeline: 'Pipeline',
         tasks: 'Fila do Dia',
         skills: 'Hermes Skills',
+        linkedin: 'LinkedIn Automation',
         memory: 'Memoria do Agente',
         missions: 'Missoes da Semana',
         claude: 'AI Terminal'
     };
+    if (page === 'linkedin') {
+        loadLinkedInPage();
+        _liStartLiveTickers();
+    } else if (typeof _liStopLiveTickers === 'function') {
+        _liStopLiveTickers();
+    }
     document.getElementById('topbar-title').textContent = titles[page] || page;
     window.location.hash = page;
 
@@ -278,6 +285,84 @@ function navigate(page) {
 function refreshCurrentPage() {
     navigate(currentPage);
     toast('Pagina atualizada', 'success');
+}
+
+/* ============================================================
+   SERVER CONTROL MENU (header dot dropdown)
+   ============================================================ */
+function toggleServerMenu(ev) {
+    ev?.stopPropagation();
+    const menu = document.getElementById('server-menu');
+    if (!menu) return;
+    if (menu.style.display === 'none' || !menu.style.display) {
+        menu.style.display = 'block';
+        _refreshServerMenuStatus();
+    } else {
+        menu.style.display = 'none';
+    }
+}
+
+// close on outside click
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('server-menu');
+    const trigger = document.getElementById('hermes-status');
+    if (!menu || menu.style.display === 'none') return;
+    if (menu.contains(e.target) || trigger?.contains(e.target)) return;
+    menu.style.display = 'none';
+});
+
+async function _refreshServerMenuStatus() {
+    // Local server — if we're running, by definition local is up
+    const localDot = document.getElementById('server-menu-dot');
+    const localTxt = document.getElementById('server-menu-status');
+    if (localDot) localDot.style.background = 'var(--green)';
+    if (localTxt) localTxt.textContent = 'Local online — porta 55000';
+
+    // VM check
+    const vmDot = document.getElementById('server-menu-vm-dot');
+    const vmTxt = document.getElementById('server-menu-vm-status');
+    try {
+        const r = await fetch('/api/hermes/status', { cache: 'no-store' });
+        const data = await r.json();
+        const vmOk = !!data?.vm_reachable;
+        if (vmDot) vmDot.style.background = vmOk ? 'var(--green)' : '#ef4444';
+        if (vmTxt) vmTxt.textContent = vmOk ? 'VM online — porta 8420' : 'VM offline';
+    } catch {
+        if (vmDot) vmDot.style.background = '#f59e0b';
+        if (vmTxt) vmTxt.textContent = 'VM: status indisponível';
+    }
+}
+
+async function serverAction(action) {
+    const labels = {
+        'restart-local': 'Reiniciar servidor local',
+        'restart-vm':    'Reiniciar Hermes VM',
+        'restart-all':   'Reiniciar tudo (local + VM)',
+        'shutdown-local':'Desligar servidor local',
+    };
+    const label = labels[action] || action;
+    if (!confirm(`Confirmar: ${label}?`)) return;
+    toast(`${label} — executando...`, 'info');
+    try {
+        const r = await api(`/api/server/${action}`, { method: 'POST' });
+        if (r.ok) {
+            toast(`${label} — ${r.note || 'enviado'}`, 'success');
+        } else {
+            toast(`Falha: ${r.error || 'erro desconhecido'}`, 'error');
+        }
+    } catch (e) {
+        // Restart kills connection mid-flight → expected
+        if (action.includes('restart') || action.includes('shutdown')) {
+            toast(`${label} — comando enviado (conexão caiu como esperado)`, 'info');
+        } else {
+            toast(`Erro: ${e.message || e}`, 'error');
+        }
+    }
+    document.getElementById('server-menu').style.display = 'none';
+    // Re-check status after a few seconds
+    if (action.includes('restart')) {
+        setTimeout(_refreshServerMenuStatus, 8000);
+    }
 }
 
 /* ============================================================
@@ -2572,7 +2657,16 @@ function connectWS() {
             handleWSEvent(event);
         } catch (err) {}
     };
-    ws.onclose = () => { ws = null; setTimeout(connectWS, 3000); };
+    ws.onopen  = () => {
+        document.getElementById('status-dot').className = 'status-dot';
+        document.getElementById('status-text').textContent = 'Online';
+    };
+    ws.onclose = () => {
+        document.getElementById('status-dot').className = 'status-dot offline';
+        document.getElementById('status-text').textContent = 'Offline';
+        ws = null;
+        setTimeout(connectWS, 3000);
+    };
     ws.onerror = () => { ws?.close(); };
 }
 
@@ -3181,3 +3275,2010 @@ function initOrbitCanvas() {
 }
 
 init();
+
+/* ============================================================
+   LINKEDIN PAGE
+   ============================================================ */
+
+let _liPollInterval = null;
+let _liActiveCampaignId = null;
+
+// ── Chip multi-select ──
+document.addEventListener('click', e => {
+    const chip = e.target.closest('.li-chip:not(.li-chip-custom)');
+    if (chip) chip.classList.toggle('selected');
+});
+
+// ── Note template toggle ──
+document.addEventListener('change', e => {
+    if (e.target.id === 'li-connect-note') {
+        const tmpl = document.getElementById('li-connect-note-template');
+        if (tmpl) tmpl.style.display = e.target.checked ? 'block' : 'none';
+    }
+    if (e.target.id === 'li-view-loc-tabs' || e.target.closest('#li-view-loc-tabs')) {
+        const val = document.querySelector('#li-view-loc-tabs .li-tab.active')?.dataset.val;
+        const custom = document.getElementById('li-view-loc-custom');
+        if (custom) custom.style.display = val === 'custom' ? 'block' : 'none';
+    }
+});
+
+function liSelectTab(btn, groupId) {
+    document.querySelectorAll(`#${groupId} .li-tab`).forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    // handle show/hide for location custom input
+    if (groupId === 'li-view-loc-tabs') {
+        const custom = document.getElementById('li-view-loc-custom');
+        if (custom) custom.style.display = btn.dataset.val === 'custom' ? 'block' : 'none';
+    }
+}
+
+function liConnectModeChange() {
+    const mode = document.querySelector('#li-connect-mode-tabs .li-tab.active')?.dataset.val || 'search';
+    document.getElementById('li-connect-search-fields').style.display = mode === 'search' ? 'block' : 'none';
+    document.getElementById('li-connect-urls-fields').style.display = mode === 'urls' ? 'block' : 'none';
+}
+
+function liAddTag(event, containerId, inputId) {
+    if (event.key !== 'Enter' && event.key !== ',') return;
+    event.preventDefault();
+    const input = document.getElementById(inputId);
+    const val = input.value.trim().replace(/^#/, '');
+    if (!val) return;
+    const container = document.getElementById(containerId);
+    const tag = document.createElement('span');
+    tag.className = 'li-tag';
+    tag.innerHTML = `${escapeHtml(val)} <span onclick="this.parentElement.remove()" style="cursor:pointer;opacity:.6">×</span>`;
+    container.appendChild(tag);
+    input.value = '';
+}
+
+function liAddCustomRole(cardType) {
+    const val = prompt('Digite a função personalizada:');
+    if (!val) return;
+    const container = document.getElementById('li-chips-roles');
+    const chip = document.createElement('div');
+    chip.className = 'li-chip selected';
+    chip.dataset.val = val;
+    chip.textContent = val;
+    const addBtn = container.querySelector('.li-chip-custom');
+    container.insertBefore(chip, addBtn);
+}
+
+// ── Load page data ──
+// ============================================================================
+// LinkedIn — Phase 2 (real backend integration, no mock)
+// ============================================================================
+const LI_USE_MOCK = false;
+
+// Maps cryptic errors (Patchright / LinkedIn / network) into plain Portuguese.
+function humanizeLiError(raw) {
+    if (!raw) return '';
+    const m = String(raw).toLowerCase();
+    // Anti-bot / rate-limiting patterns
+    if (m.includes('err_http_response_code_failure') && m.includes('/feed/')) {
+        return 'LinkedIn recusou nosso acesso à página inicial. Geralmente significa que detectou padrão de robô e bloqueou temporariamente — coloca a conta em "quarentena" por 30-60 min. Não é problema do código; é proteção deles.';
+    }
+    if (m.includes('err_too_many_redirects')) {
+        return 'O LinkedIn ficou redirecionando em loop — isso acontece quando o site quer forçar uma verificação humana (captcha, e-mail) ou suspeita da sessão. Aguarde ~30 min e tente de novo.';
+    }
+    if (m.includes('429') || m.includes('too many requests')) {
+        return 'Limite de requisições atingido — fizemos chamadas demais em pouco tempo. O LinkedIn pede uma pausa.';
+    }
+    if (m.includes('err_connection_refused') || m.includes('err_name_not_resolved')) {
+        return 'Não conseguimos nem chegar no LinkedIn. Pode ser problema de internet ou do proxy SOCKS5 (verifica se o SSH tunnel está rodando).';
+    }
+    if (m.includes('timeout') && m.includes('navigating')) {
+        return 'O LinkedIn demorou demais para carregar a página (timeout). Pode ser instabilidade da rede ou throttling silencioso.';
+    }
+    if (m.includes('session max duration') || m.includes('session_max')) {
+        return 'O contador interno de sessão atingiu o limite. O sistema reinicia automático na próxima campanha.';
+    }
+    if (m.includes('login') || m.includes('uas/login') || m.includes('checkpoint') || m.includes('challenge')) {
+        return 'O LinkedIn pediu que façamos login de novo (cookie expirou ou foi invalidado). A extension do Chrome deveria captar o novo cookie automaticamente assim que você logar.';
+    }
+    if (m.includes('rate limit') && m.includes('weekly')) {
+        return 'Atingimos o limite semanal de conexões para esta conta. Aguarda até a próxima semana ou aumenta o limite na config.';
+    }
+    if (m.includes('rate limit') && m.includes('daily')) {
+        return 'Atingimos o limite diário desta conta. O contador reseta meia-noite UTC.';
+    }
+    if (m.includes('ollama') && m.includes('timeout')) {
+        return 'A IA local (Ollama) demorou demais para gerar o texto. Verifica se o modelo qwen3:8b está rodando no seu PC.';
+    }
+    if (m.includes('ollama')) {
+        return 'Falha ao conversar com a IA local (Ollama). Verifica se está rodando: http://localhost:11434';
+    }
+    if (m.includes('claude') && m.includes('subprocess')) {
+        return 'Falha na validação do comentário pelo Claude Code (subprocess). Pode ser que o CLI não esteja disponível na VM.';
+    }
+    if (m.includes('no such file') && m.includes('session')) {
+        return 'Arquivo de sessão do navegador não encontrado. Execute autenticação primeiro.';
+    }
+    if (m.includes('mandatory_spacing_30min') || m.includes('cooldown obrigatório')) {
+        return 'Aguardando os 30 minutos obrigatórios entre uma campanha e outra (proteção da conta).';
+    }
+    if (m.includes('working hours') || m.includes('fora do horário') || m.includes('fora dos dias úteis')) {
+        return 'Fora do horário comercial configurado. O sistema só roda campanhas em horário de trabalho para parecer uso humano real.';
+    }
+    if (m.includes('lurking') || m.includes('lurking phase')) {
+        return 'Conta em fase de aquecimento — só browsing passivo nos primeiros dias para o LinkedIn confiar. Conexões e comentários liberam após o período inicial.';
+    }
+    if (m.includes('pré-aquecimento') || m.includes('pre-outreach') || m.includes('warming')) {
+        return 'Simulando navegação humana antes da ação (feed, notificações, rede). Reduz drasticamente detecção de robô.';
+    }
+    if (m.includes('chromium_bundled') || m.includes('chrome stable não instalado')) {
+        return 'Chrome real não está instalado no servidor — usando Chromium genérico. Fingerprint TLS pior. Recomendado instalar google-chrome-stable na VM.';
+    }
+    if (m.includes('patchright_response_code_failure')) {
+        return 'O LinkedIn recusou o acesso do navegador automatizado. Conta em cooldown de 30 min.';
+    }
+    if (m.includes('http_429_detected_in_run')) {
+        return 'O LinkedIn nos mandou um "calma aí" (HTTP 429) no meio da campanha. Bloqueamos novas tentativas por 30 min.';
+    }
+    if (m.includes('sem mais resultados')) {
+        return 'A busca não retornou nenhum perfil compatível. Pode ser que os filtros estão muito restritivos ou o LinkedIn escondeu os resultados.';
+    }
+    // Generic fallback: trim noisy stack trace, return first useful line
+    const firstLine = String(raw).split('\n')[0].slice(0, 200);
+    return firstLine || 'Erro desconhecido';
+}
+
+async function loadLinkedInPage() {
+    await Promise.all([loadLinkedInStatus(), loadLinkedInCampaigns()]);
+}
+
+async function loadLinkedInStatus() {
+    try {
+        const [data, health] = await Promise.all([
+            api('/api/linkedin/status'),
+            api('/api/linkedin/health').catch(() => ({state: 'unknown'})),
+        ]);
+        _renderLiStatus(data);
+        _liHealth = health || {state: 'unknown'};
+        _renderLiHealth(_liHealth);
+        _applyLiHealthToButtons(_liHealth);
+    } catch (e) {
+        console.warn('LinkedIn status error:', e);
+    }
+}
+
+let _liHealth = {state: 'unknown'};
+
+function _renderLiHealth(h) {
+    const badge = document.getElementById('li-health-badge');
+    const dot = document.getElementById('li-health-dot');
+    const lbl = document.getElementById('li-health-label');
+    const retry = document.getElementById('li-health-retry');
+    if (!badge || !dot || !lbl) return;
+    badge.style.display = 'inline-flex';
+    const colors = {
+        ok: 'var(--lime)',
+        cooldown: '#f59e0b',
+        challenge: '#ef4444',
+        blocked: '#ef4444',
+        unknown: 'var(--text-3)',
+    };
+    const labels = {
+        ok: 'LinkedIn OK',
+        cooldown: 'Em cooldown',
+        challenge: 'Sessão expirada',
+        blocked: 'Bloqueado',
+        unknown: 'Verificando...',
+    };
+    dot.style.background = colors[h.state] || colors.unknown;
+    lbl.textContent = labels[h.state] || 'Desconhecido';
+    if (h.state !== 'ok' && h.retry_after_seconds) {
+        const min = Math.ceil(h.retry_after_seconds / 60);
+        retry.textContent = ` · retry em ~${min}min`;
+    } else {
+        retry.textContent = '';
+    }
+}
+
+function _applyLiHealthToButtons(h) {
+    // v6: botões NUNCA são bloqueados — campanha sempre é enviada.
+    // Se gates ativos, vira agendada. Tooltip explica o que vai acontecer.
+    const healthOk = h?.state === 'ok' || h?.state === 'unknown';
+    const wait = _liRateLimits?.next_launch_in_seconds || 0;
+    const launchOk = wait <= 0;
+    const hoursOk = _liRateLimits?.working_hours_ok !== false;
+    const allOk = healthOk && launchOk && hoursOk;
+    let tip = '';
+    if (!hoursOk) {
+        const reason = _liRateLimits?.working_hours_reason || 'fora do horário';
+        tip = `Fora do horário (${reason}). Campanha será agendada para a próxima janela.`;
+    } else if (!healthOk) {
+        tip = `LinkedIn em ${h.state} — campanha será agendada até recuperar`;
+    } else if (!launchOk) {
+        tip = `Cooldown 30min entre launches: campanha será agendada para daqui ${Math.ceil(wait / 60)}min`;
+    }
+    document.querySelectorAll('.li-launch-btn').forEach(btn => {
+        btn.disabled = false;
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+        if (tip) btn.setAttribute('title', tip); else btn.removeAttribute('title');
+    });
+    const retry = document.getElementById('li-health-retry');
+    if (retry && healthOk && !launchOk) {
+        retry.textContent = ` · próx. launch em ${Math.ceil(wait / 60)}min`;
+    } else if (retry && healthOk && launchOk) {
+        retry.textContent = '';
+    }
+}
+
+let _liRateLimits = {};
+let _liStatusTickerHandle = null;
+let _liStatusRefreshHandle = null;
+
+function _liStartLiveTickers() {
+    // 1) 1-second visual ticker — decrements next_launch_in_seconds locally
+    //    and re-applies button state when countdown hits zero.
+    if (_liStatusTickerHandle) clearInterval(_liStatusTickerHandle);
+    _liStatusTickerHandle = setInterval(() => {
+        if (currentPage !== 'linkedin') return;
+        const cur = _liRateLimits.next_launch_in_seconds || 0;
+        if (cur <= 0) return;
+        _liRateLimits.next_launch_in_seconds = cur - 1;
+        _applyLiHealthToButtons(_liHealth);
+        // When we cross zero, force a fresh server check to sync ground truth
+        if (cur - 1 <= 0) {
+            loadLinkedInStatus();
+        }
+    }, 1000);
+
+    // 2) 30-second hard refresh — re-pulls status + health from server
+    //    so anything done outside this tab (cron, other dashboard) syncs.
+    if (_liStatusRefreshHandle) clearInterval(_liStatusRefreshHandle);
+    _liStatusRefreshHandle = setInterval(() => {
+        if (currentPage === 'linkedin') loadLinkedInStatus();
+    }, 30000);
+
+    // 3) Scheduled banner countdown ticker (1s)
+    _liStartSchedTicker();
+}
+
+function _liStopLiveTickers() {
+    if (_liStatusTickerHandle) { clearInterval(_liStatusTickerHandle); _liStatusTickerHandle = null; }
+    if (_liStatusRefreshHandle) { clearInterval(_liStatusRefreshHandle); _liStatusRefreshHandle = null; }
+    if (_liSchedTickerHandle) { clearInterval(_liSchedTickerHandle); _liSchedTickerHandle = null; }
+}
+
+// v6: Live countdown for scheduled campaign banners
+let _liSchedTickerHandle = null;
+function _liStartSchedTicker() {
+    if (_liSchedTickerHandle) clearInterval(_liSchedTickerHandle);
+    const tick = () => {
+        const banners = document.querySelectorAll('.li-scheduled-banner');
+        const now = Date.now();
+        banners.forEach(b => {
+            const targetMs = parseInt(b.getAttribute('data-target-ms') || '0');
+            const span = b.querySelector('.li-sched-countdown');
+            if (!span) return;
+            const diff = Math.max(0, targetMs - now);
+            if (diff <= 0) {
+                span.textContent = 'qualquer segundo agora…';
+                return;
+            }
+            const totalSec = Math.floor(diff / 1000);
+            const h = Math.floor(totalSec / 3600);
+            const m = Math.floor((totalSec % 3600) / 60);
+            const s = totalSec % 60;
+            span.textContent = h > 0
+                ? `${h}h ${String(m).padStart(2,'0')}min`
+                : (m > 0 ? `${m}min ${String(s).padStart(2,'0')}s` : `${s}s`);
+        });
+    };
+    tick();
+    _liSchedTickerHandle = setInterval(tick, 1000);
+}
+
+function _renderLiScheduledConfig(c) {
+    let cfg = c.config;
+    if (typeof cfg === 'string') { try { cfg = JSON.parse(cfg); } catch { cfg = {}; } }
+    cfg = cfg || {};
+
+    const accent = LI_TYPE_COLORS[c.type] || '#3b82f6';
+    const big = (n) => `<span class="li-sc-num" style="color:${accent}">${n ?? '—'}</span>`;
+    const chips = (arr, kind = '') => (arr && arr.length)
+        ? arr.map(t => `<span class="li-sc-chip ${kind}">${escapeHtml(t)}</span>`).join('')
+        : '<em class="li-sc-empty">nenhum configurado</em>';
+    const yes = '<span class="li-sc-yes">✓ Sim</span>';
+    const no = '<span class="li-sc-no">— Não</span>';
+
+    let headline = '';
+    let blocks = '';
+
+    if (c.type === 'view') {
+        const modeLabel = cfg.ghost_only ? 'Ghost View' : 'View + Interação';
+        const modeDesc = cfg.ghost_only
+            ? 'Visita o perfil sem nenhuma interação. O LinkedIn notifica o dono ("alguém viu seu perfil"), criando reciprocidade — muitos retornam o view ou seguem você.'
+            : 'Visita + interação ativa: pode seguir, curtir um post recente, e gerar engajamento visível.';
+        const n = cfg.max_profiles ?? '—';
+        const noun = n === 1 ? 'perfil de recrutador' : 'perfis de recrutadores';
+        headline = `Vai visitar até ${big(n)} <span class="li-sc-noun">${noun}</span> em <span class="li-sc-strong">${escapeHtml(cfg.location || '—')}</span>.`;
+        blocks = `
+            <div class="li-sc-block">
+                <div class="li-sc-block-head">Filtros aplicados</div>
+                <div class="li-sc-row">
+                    <span class="li-sc-row-label">Tipos de recrutador</span>
+                    <div class="li-sc-row-value li-sc-chips">${chips(cfg.roles)}</div>
+                </div>
+                <div class="li-sc-row">
+                    <span class="li-sc-row-label">Localização</span>
+                    <div class="li-sc-row-value">${escapeHtml(cfg.location || '—')}</div>
+                </div>
+            </div>
+            <div class="li-sc-block">
+                <div class="li-sc-block-head">Modo de interação</div>
+                <div class="li-sc-mode">
+                    <div class="li-sc-mode-title" style="color:${accent}">${escapeHtml(modeLabel)}</div>
+                    <div class="li-sc-mode-desc">${escapeHtml(modeDesc)}</div>
+                </div>
+            </div>
+        `;
+    } else if (c.type === 'engage') {
+        const toneLabels = {professional: 'Profissional', casual: 'Casual', technical: 'Técnico'};
+        const actsDesc = [];
+        if (cfg.do_like) actsDesc.push('curtir');
+        if (cfg.do_comment) actsDesc.push('comentar com IA');
+        const actsStr = actsDesc.length ? actsDesc.join(' e ') : 'apenas ler';
+        const n = cfg.max_posts ?? '—';
+        const noun = n === 1 ? 'post relevante' : 'posts relevantes';
+        headline = `Vai ${actsStr} em até ${big(n)} <span class="li-sc-noun">${noun}</span>, tom <span class="li-sc-strong">${escapeHtml(toneLabels[cfg.tone] || cfg.tone || '—')}</span>.`;
+        blocks = `
+            <div class="li-sc-block">
+                <div class="li-sc-block-head">O que buscar</div>
+                <div class="li-sc-row">
+                    <span class="li-sc-row-label">Keywords / hashtags</span>
+                    <div class="li-sc-row-value li-sc-chips">${chips(cfg.keywords, 'g')}</div>
+                </div>
+                <div class="li-sc-row">
+                    <span class="li-sc-row-label">Indústrias</span>
+                    <div class="li-sc-row-value li-sc-chips">${chips(cfg.industries, 'g')}</div>
+                </div>
+            </div>
+            <div class="li-sc-block">
+                <div class="li-sc-block-head">Ações por post</div>
+                <div class="li-sc-actions">
+                    ${cfg.do_like
+                        ? `<div class="li-sc-action li-sc-action-on">
+                            <div class="li-sc-action-title">${yes} Curtir</div>
+                            <div class="li-sc-action-desc">Like simples no post — sinal social de baixo custo.</div>
+                          </div>`
+                        : `<div class="li-sc-action li-sc-action-off"><div class="li-sc-action-title">${no} Curtir</div></div>`}
+                    ${cfg.do_comment
+                        ? `<div class="li-sc-action li-sc-action-on">
+                            <div class="li-sc-action-title">${yes} Comentar com IA</div>
+                            <div class="li-sc-action-desc">Ollama qwen3:8b gera comentário no tom "<strong>${escapeHtml(toneLabels[cfg.tone] || cfg.tone)}</strong>". Claude valida humanidade antes de postar.</div>
+                          </div>`
+                        : `<div class="li-sc-action li-sc-action-off"><div class="li-sc-action-title">${no} Comentar</div></div>`}
+                </div>
+            </div>
+        `;
+    } else if (c.type === 'connect') {
+        const modeLabels = {search: 'Busca por função', urls: 'Lista de URLs', visited: 'Perfis já visitados'};
+        const modeDescs = {
+            search: 'Busca pessoas no LinkedIn que correspondem ao termo + localização.',
+            urls: 'Envia convites direto pra cada URL fornecida — sem busca.',
+            visited: 'Conecta com perfis que o pipeline view já abriu recentemente.',
+        };
+        const n = cfg.max_connections ?? '—';
+        const noun = n === 1 ? 'convite de conexão' : 'convites de conexão';
+        const noteStr = cfg.send_note ? 'com nota personalizada por IA' : 'sem nota personalizada';
+        headline = `Vai enviar até ${big(n)} <span class="li-sc-noun">${noun}</span> ${noteStr}.`;
+        let modeBlock = '';
+        if (cfg.mode === 'search') {
+            modeBlock = `
+                <div class="li-sc-row">
+                    <span class="li-sc-row-label">Termo de busca</span>
+                    <div class="li-sc-row-value"><strong>${escapeHtml(cfg.query || '—')}</strong></div>
+                </div>
+                <div class="li-sc-row">
+                    <span class="li-sc-row-label">Localização</span>
+                    <div class="li-sc-row-value">${escapeHtml(cfg.location || '—')}</div>
+                </div>`;
+        } else if (cfg.mode === 'urls') {
+            const urls = cfg.profile_urls || [];
+            modeBlock = `
+                <div class="li-sc-row">
+                    <span class="li-sc-row-label">URLs fornecidas</span>
+                    <div class="li-sc-row-value"><strong>${urls.length}</strong> ${urls.length === 1 ? 'URL alvo' : 'URLs alvo'}</div>
+                </div>`;
+        }
+        blocks = `
+            <div class="li-sc-block">
+                <div class="li-sc-block-head">Origem dos perfis</div>
+                <div class="li-sc-mode">
+                    <div class="li-sc-mode-title" style="color:${accent}">${escapeHtml(modeLabels[cfg.mode] || cfg.mode || '—')}</div>
+                    <div class="li-sc-mode-desc">${escapeHtml(modeDescs[cfg.mode] || '')}</div>
+                </div>
+                ${modeBlock}
+            </div>
+            <div class="li-sc-block">
+                <div class="li-sc-block-head">Mensagem de conexão</div>
+                ${cfg.send_note
+                    ? `<div class="li-sc-mode">
+                          <div class="li-sc-mode-title" style="color:#22c55e">${yes} Nota personalizada</div>
+                          <div class="li-sc-mode-desc">Cada convite carrega uma nota gerada com Ollama, referenciando nome + empresa do alvo.</div>
+                       </div>
+                       ${cfg.note_template
+                           ? `<div class="li-sc-template">
+                                <div class="li-sc-template-label">Template usado</div>
+                                <code>${escapeHtml(cfg.note_template)}</code>
+                              </div>`
+                           : ''}`
+                    : `<div class="li-sc-mode">
+                          <div class="li-sc-mode-title" style="color:var(--text-3)">${no} Convite seco</div>
+                          <div class="li-sc-mode-desc">Envia só o botão "Conectar" sem mensagem. Aceite tende a ser menor.</div>
+                       </div>`}
+            </div>
+        `;
+    } else if (c.type === 'discover') {
+        const scopeLabels = {recruiters_only: 'Só Recrutadores', hr_full: 'RH Completo', all_employees: 'Todos os funcionários'};
+        const scopeDescs = {
+            recruiters_only: 'Filtra título contendo "recruiter", "talent", "headhunter", "RH" e variantes.',
+            hr_full: 'Inclui todos do departamento RH/People (não só recrutadores).',
+            all_employees: 'Lista todos os funcionários visíveis (sem filtro de função).',
+        };
+        const actionLabels = {save: 'Só salvar', view: 'Visitar cada perfil', connect: 'Solicitar conexão direto'};
+        const actionDescs = {
+            save: 'Salva os perfis encontrados no banco — você revisa depois.',
+            view: 'Encadeia uma campanha de Visitar Perfis com os perfis encontrados.',
+            connect: 'Encadeia uma campanha de Conexão direto.',
+        };
+        const totalCompanies = (cfg.companies || []).length;
+        const maxPer = cfg.max_per_company ?? '—';
+        headline = `Vai descobrir até ${big(maxPer)} <span class="li-sc-noun">${maxPer === 1 ? 'perfil' : 'perfis'}</span> por empresa em <span class="li-sc-strong">${totalCompanies}</span> ${totalCompanies === 1 ? 'empresa' : 'empresas'}.`;
+        blocks = `
+            <div class="li-sc-block">
+                <div class="li-sc-block-head">Empresas alvo</div>
+                <div class="li-sc-row">
+                    <div class="li-sc-row-value li-sc-chips" style="margin-left:0">${chips(cfg.companies, 'p')}</div>
+                </div>
+            </div>
+            <div class="li-sc-block">
+                <div class="li-sc-block-head">Critério de busca</div>
+                <div class="li-sc-mode">
+                    <div class="li-sc-mode-title" style="color:${accent}">${escapeHtml(scopeLabels[cfg.scope] || cfg.scope || '—')}</div>
+                    <div class="li-sc-mode-desc">${escapeHtml(scopeDescs[cfg.scope] || '')}</div>
+                </div>
+            </div>
+            <div class="li-sc-block">
+                <div class="li-sc-block-head">Após descoberta</div>
+                <div class="li-sc-mode">
+                    <div class="li-sc-mode-title" style="color:${accent}">${escapeHtml(actionLabels[cfg.post_action] || cfg.post_action || '—')}</div>
+                    <div class="li-sc-mode-desc">${escapeHtml(actionDescs[cfg.post_action] || '')}</div>
+                </div>
+            </div>
+        `;
+    } else {
+        headline = `Configuração: <code>${escapeHtml(JSON.stringify(cfg))}</code>`;
+    }
+
+    return `<div class="li-sc-card" style="--sc-accent:${accent}">
+        <div class="li-sc-headline">${headline}</div>
+        <div class="li-sc-blocks">${blocks}</div>
+    </div>`;
+}
+
+async function liCancelScheduled(campaignId) {
+    if (!confirm(`Cancelar agendamento da campanha #${campaignId}?`)) return;
+    try {
+        const r = await api(`/api/linkedin/campaigns/${campaignId}/cancel`, { method: 'POST' });
+        if (r.ok) {
+            showToast(`Agendamento da #${campaignId} cancelado`, 'success');
+            const c = _liAllCampaigns.find(x => x.id === campaignId);
+            if (c) { c.status = 'cancelled'; _renderLiMonitor(); }
+        } else {
+            showToast(`Erro: ${r.error || 'falha ao cancelar'}`, 'error');
+        }
+    } catch (e) {
+        showToast(`Erro: ${e.message || e}`, 'error');
+    }
+}
+
+function _renderLiStatus(data) {
+    const stats = data.rate_limits || {};
+    _liRateLimits = stats;
+
+    // v5: Working hours badge
+    const hoursBadge = document.getElementById('li-hours-badge');
+    const hoursDot = document.getElementById('li-hours-dot');
+    const hoursLbl = document.getElementById('li-hours-label');
+    if (hoursBadge && hoursDot && hoursLbl) {
+        if (stats.working_hours_ok === false) {
+            hoursBadge.style.display = 'inline-flex';
+            hoursDot.style.background = '#f59e0b';
+            const winStr = stats.working_hours_window || '';
+            hoursLbl.textContent = `Fora do horário ${winStr}`;
+            hoursBadge.title = stats.working_hours_reason
+                ? `${stats.working_hours_reason} · próx: ${stats.next_working_window || 'amanhã'}`
+                : '';
+        } else if (stats.working_hours_window) {
+            hoursBadge.style.display = 'inline-flex';
+            hoursDot.style.background = 'var(--lime)';
+            hoursLbl.textContent = `Horário ${stats.working_hours_window}`;
+        }
+    }
+
+    // v5: Lurking phase badge
+    const lurkBadge = document.getElementById('li-lurking-badge');
+    const lurkLbl = document.getElementById('li-lurking-label');
+    if (lurkBadge && lurkLbl) {
+        if (stats.lurking_phase) {
+            lurkBadge.style.display = 'inline-flex';
+            const dayNum = stats.warmup_day || 0;
+            const totalLurk = stats.lurking_days_total || 7;
+            lurkLbl.textContent = `Lurking ${dayNum + 1}/${totalLurk}`;
+            lurkBadge.title = 'Fase de aquecimento — só browsing passivo. Conexões/comentários bloqueados.';
+        } else {
+            lurkBadge.style.display = 'none';
+        }
+    }
+    const dot = document.getElementById('li-session-dot');
+    const acct = document.getElementById('li-status-account');
+    const badge = document.getElementById('li-account-type-badge');
+    const proxyDot = document.getElementById('li-proxy-dot');
+    const proxyBadge = document.getElementById('li-proxy-badge');
+
+    if (dot) dot.style.background = data.session_ok ? 'var(--lime)' : 'var(--red)';
+    if (acct) acct.textContent = data.session_ok
+        ? (data.account_email || 'Sessão ativa')
+        : 'Sessão inativa — clique em Reconectar';
+    if (badge) {
+        badge.textContent = (data.account_type || 'free').toUpperCase();
+        badge.className = 'li-status-badge li-badge-' + (data.account_type || 'free');
+    }
+    if (proxyDot) proxyDot.style.background = data.proxy_alive ? 'var(--lime)' : 'var(--red)';
+    if (proxyBadge) {
+        const txt = data.proxy_configured
+            ? (data.proxy_alive ? '● Proxy BR/Cuiabá' : '● Proxy offline')
+            : '● Direto (sem proxy)';
+        proxyBadge.innerHTML = txt;
+        proxyBadge.style.color = data.proxy_alive ? 'var(--lime)' : 'var(--red)';
+    }
+
+    // warmup
+    const wu = stats.warmup_multiplier != null ? stats.warmup_multiplier : 1;
+    const wuDay = stats.warmup_day || 14;
+    const wuDays = stats.warmup_days || 14;
+    const wuComplete = stats.warmup_complete;
+    const fill = document.getElementById('li-warmup-fill');
+    const label = document.getElementById('li-warmup-label');
+    if (fill) fill.style.width = `${Math.round(wu * 100)}%`;
+    if (label) label.textContent = wuComplete ? `Dia ${wuDay}/${wuDays} ✓` : `Dia ${wuDay}/${wuDays}`;
+
+    // daily stats
+    const sv = document.getElementById('li-stat-views');
+    const sc = document.getElementById('li-stat-connects');
+    const sl = document.getElementById('li-stat-likes');
+    const sm = document.getElementById('li-stat-comments');
+    if (sv) sv.textContent = stats.daily_views ?? '–';
+    if (sc) sc.textContent = stats.daily_connections ?? '–';
+    if (sl) sl.textContent = stats.daily_engagements ?? '–';
+    if (sm) sm.textContent = stats.daily_comments ?? '–';
+}
+
+async function liReconnect() {
+    showToast('Iniciando reconexão na VM...', 'info');
+    try {
+        const r = await api('/api/linkedin/auth', { method: 'POST' });
+        if (r.ok) showToast('Sessão estabelecida!', 'success');
+        else showToast(r.note || r.error || 'Verifique a VM', 'warning');
+        await loadLinkedInStatus();
+    } catch (e) {
+        showToast('Erro ao reconectar: ' + e.message, 'error');
+    }
+}
+
+// ── Start campaign ──
+async function liStartCampaign(type) {
+    const config = _buildLiCampaignConfig(type);
+    if (!config) return;
+
+    // v6: sem pré-flight bloqueante. Backend decide se vira agendada ou dispara.
+
+    try {
+        const r = await api(`/api/linkedin/campaigns/${type}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config),
+        });
+        if (r.status === 'scheduled') {
+            const when = new Date(r.scheduled_for).toLocaleString('pt-BR', {
+                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+            });
+            showToast(
+                `📅 Campanha #${r.campaign_id} agendada para ${when} — ${r.schedule_reason || ''}`,
+                'info'
+            );
+            loadLinkedInCampaigns();
+            return;
+        }
+        if (r.status === 'cooldown') {
+            showToast(`Bloqueado: ${r.reason}`, 'warning');
+            if (r.health) { _liHealth = r.health; _renderLiHealth(r.health); _applyLiHealthToButtons(r.health); }
+            return;
+        }
+        if (!r.ok && !r.campaign_id) throw new Error(r.error || 'Falha ao iniciar');
+        showToast(`Campanha ${_liTypeName(type)} iniciada (ID ${r.campaign_id})`, 'success');
+        openLiLogModal(r.campaign_id, type);
+        loadLinkedInCampaigns();
+    } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+function _buildLiCampaignConfig(type) {
+    if (type === 'view') {
+        const roles = [...document.querySelectorAll('#li-chips-roles .li-chip.selected')]
+            .map(c => c.dataset.val).filter(Boolean);
+        if (!roles.length) { showToast('Selecione pelo menos um tipo de recrutador', 'warning'); return null; }
+        const locTab = document.querySelector('#li-view-loc-tabs .li-tab.active')?.dataset.val || 'Brazil';
+        const location = locTab === 'custom'
+            ? (document.getElementById('li-view-loc-custom')?.value || 'Brazil')
+            : locTab;
+        const mode = document.querySelector('input[name="li-view-mode"]:checked')?.value || 'ghost';
+        return {
+            roles,
+            location,
+            ghost_only: mode === 'ghost',
+            max_profiles: parseInt(document.getElementById('li-view-max')?.value || '25'),
+        };
+    }
+    if (type === 'engage') {
+        const tags = [...document.querySelectorAll('#li-engage-tags .li-tag')]
+            .map(t => t.textContent.replace('×', '').trim()).filter(Boolean);
+        const industries = [...document.querySelectorAll('#li-chips-industries .li-chip.selected')]
+            .map(c => c.dataset.val).filter(Boolean);
+        return {
+            keywords: tags.length ? tags : ['recrutamento', 'tecnologia'],
+            industries,
+            do_like: document.getElementById('li-engage-like')?.checked ?? true,
+            do_comment: document.getElementById('li-engage-comment')?.checked ?? true,
+            tone: document.getElementById('li-engage-tone')?.value || 'professional',
+            max_posts: parseInt(document.getElementById('li-engage-max')?.value || '10'),
+        };
+    }
+    if (type === 'connect') {
+        const mode = document.querySelector('#li-connect-mode-tabs .li-tab.active')?.dataset.val || 'search';
+        const base = {
+            mode,
+            send_note: document.getElementById('li-connect-note')?.checked ?? false,
+            note_template: document.getElementById('li-connect-note-template')?.value || '',
+            max_connections: parseInt(document.getElementById('li-connect-max')?.value || '15'),
+        };
+        if (mode === 'search') {
+            base.query = document.getElementById('li-connect-query')?.value || 'Tech Recruiter';
+            base.location = document.getElementById('li-connect-location')?.value || 'Brazil';
+        } else if (mode === 'urls') {
+            const raw = document.getElementById('li-connect-urls')?.value || '';
+            base.profile_urls = raw.split('\n').map(s => s.trim()).filter(s => s.startsWith('http'));
+            if (!base.profile_urls.length) { showToast('Adicione pelo menos uma URL', 'warning'); return null; }
+        }
+        return base;
+    }
+    if (type === 'discover') {
+        const raw = document.getElementById('li-discover-companies')?.value || '';
+        const companies = raw.split('\n').map(s => s.trim()).filter(Boolean);
+        if (!companies.length) { showToast('Adicione pelo menos uma empresa', 'warning'); return null; }
+        return {
+            companies,
+            scope: document.querySelector('input[name="li-discover-scope"]:checked')?.value || 'recruiters_only',
+            post_action: document.querySelector('input[name="li-discover-action"]:checked')?.value || 'save',
+            max_per_company: parseInt(document.getElementById('li-discover-max')?.value || '10'),
+        };
+    }
+    return null;
+}
+
+// ── Campaigns table ──
+// ============================================================================
+// LinkedIn — Campaigns Monitor (hierarchical: tabs + collapsible sections)
+// ============================================================================
+let _liAllCampaigns = [];
+let _liActiveTab = localStorage.getItem('li_active_tab') || 'active';
+let _liSelected = new Set();      // selected profile URLs across pipelines
+let _liSelectedSource = '';        // 'view' | 'connect' | 'discover'
+let _liFilters = { view: {}, connect: {} };
+let _liHoverTimer = null;
+let _liHoverHideTimer = null;
+let _liExpandedPosts = new Set();
+
+async function loadLinkedInCampaigns() {
+    try {
+        const data = await api('/api/linkedin/campaigns?limit=50');
+        _liAllCampaigns = data.campaigns || [];
+        _renderLiMonitor();
+    } catch (e) { console.warn('LinkedIn campaigns error:', e); }
+}
+
+// Build profile cache from embedded campaign results (rows + grids contain rich data).
+// Used by hover card to find profile data by URL.
+function _liFindProfileByUrl(url) {
+    if (!url) return null;
+    for (const c of _liAllCampaigns) {
+        const r = c.results;
+        if (!r) continue;
+        // view + connect campaigns have .profiles or .connections arrays
+        const buckets = [
+            r.profiles || [],
+            r.connections || [],
+        ];
+        // discover: by_company is {name: [profiles...]}
+        if (r.by_company) {
+            for (const list of Object.values(r.by_company)) {
+                if (Array.isArray(list)) buckets.push(list);
+            }
+        }
+        for (const list of buckets) {
+            for (const p of list) {
+                const pu = p.profile_url || p.url;
+                if (pu === url) return p;
+            }
+        }
+    }
+    return null;
+}
+
+const LI_TYPE_ICONS = {
+    view: '#i-eye', engage: '#i-message-circle', connect: '#i-users', discover: '#i-briefcase'
+};
+const LI_TYPE_COLORS = {
+    view: '#3b82f6', engage: '#10b981', connect: '#f59e0b', discover: '#a855f7'
+};
+
+function _liTypeName(type) {
+    return { view: 'Visitar Perfis', engage: 'Engajar Posts', connect: 'Enviar Conexões', discover: 'Descobrir por Empresa' }[type] || type;
+}
+
+function liSwitchTab(tab) {
+    _liActiveTab = tab;
+    localStorage.setItem('li_active_tab', tab);
+    document.querySelectorAll('.li-monitor-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tab);
+    });
+    liBatchClear();
+    _renderLiMonitor();
+}
+
+function _liFilterByTab(campaigns, tab) {
+    if (tab === 'active') return campaigns.filter(c => ['running','pending'].includes(c.status));
+    if (tab === 'scheduled') return campaigns.filter(c => c.status === 'scheduled');
+    if (tab === 'completed') return campaigns.filter(c => ['done','error','stopped','cancelled'].includes(c.status));
+    return campaigns;
+}
+
+function _renderLiMonitor() {
+    const body = document.getElementById('li-monitor-body');
+    if (!body) return;
+
+    const active = _liAllCampaigns.filter(c => ['running','pending'].includes(c.status));
+    const completed = _liAllCampaigns.filter(c => ['done','error','stopped','cancelled'].includes(c.status));
+    const scheduled = _liAllCampaigns.filter(c => c.status === 'scheduled');
+    const cActive = document.getElementById('li-tab-count-active');
+    const cScheduled = document.getElementById('li-tab-count-scheduled');
+    const cCompleted = document.getElementById('li-tab-count-completed');
+    const cAll = document.getElementById('li-tab-count-all');
+    if (cActive) cActive.textContent = active.length;
+    if (cScheduled) cScheduled.textContent = scheduled.length;
+    if (cCompleted) cCompleted.textContent = completed.length;
+    if (cAll) cAll.textContent = _liAllCampaigns.length;
+
+    // Mark active tab
+    document.querySelectorAll('.li-monitor-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === _liActiveTab);
+    });
+
+    const list = _liFilterByTab(_liAllCampaigns, _liActiveTab);
+    if (!list.length) {
+        body.innerHTML = `<div class="li-monitor-empty">
+            <svg style="width:32px;height:32px;stroke:var(--text-3)"><use href="#i-zap"/></svg>
+            <p>Nenhuma campanha ${_liActiveTab === 'active' ? 'ativa' : _liActiveTab === 'completed' ? 'concluída' : ''} ainda</p>
+        </div>`;
+        return;
+    }
+
+    // Group by type
+    const byType = { view: [], engage: [], connect: [], discover: [] };
+    list.forEach(c => { if (byType[c.type]) byType[c.type].push(c); });
+
+    body.innerHTML = ['view','engage','connect','discover'].map(type => {
+        if (!byType[type].length) return '';
+        return _renderLiSection(type, byType[type]);
+    }).join('');
+}
+
+function _renderLiSection(type, campaigns) {
+    const collapsedKey = `li_section_collapsed_${type}`;
+    const isCollapsed = localStorage.getItem(collapsedKey) === '1';
+    const color = LI_TYPE_COLORS[type];
+    const icon = LI_TYPE_ICONS[type];
+    const runningCount = campaigns.filter(c => c.status === 'running').length;
+    const runningDot = runningCount > 0 ? '<span class="li-section-running-dot" title="Campanha rodando"></span>' : '';
+
+    const bodyHtml = campaigns.map(c => _renderLiCampaignDetail(c)).join('');
+
+    return `<div class="li-section ${isCollapsed ? 'collapsed' : ''}" data-type="${type}">
+        <div class="li-section-header" onclick="liToggleSection('${type}')">
+            <svg class="li-section-chevron"><use href="#i-chevron-right"/></svg>
+            <div class="li-section-icon-wrap" style="background:${color}22">
+                <svg style="width:14px;height:14px;stroke:${color}"><use href="${icon}"/></svg>
+            </div>
+            <div class="li-section-title">${escapeHtml(_liTypeName(type))}</div>
+            <div class="li-section-meta">
+                ${runningDot}
+                <span>${campaigns.length} ${campaigns.length === 1 ? 'campanha' : 'campanhas'}${runningCount ? ` · ${runningCount} ativa${runningCount > 1 ? 's' : ''}` : ''}</span>
+            </div>
+        </div>
+        <div class="li-section-body">${bodyHtml}</div>
+    </div>`;
+}
+
+function liToggleSection(type) {
+    const sec = document.querySelector(`.li-section[data-type="${type}"]`);
+    if (!sec) return;
+    sec.classList.toggle('collapsed');
+    localStorage.setItem(`li_section_collapsed_${type}`,
+        sec.classList.contains('collapsed') ? '1' : '0');
+}
+
+function _renderLiCampaignDetail(c) {
+    const color = LI_TYPE_COLORS[c.type];
+    const isCollapsed = _liIsCampaignCollapsed(c);
+    // Derive error/failure reason from log if c.error not populated
+    if (!c.error && (c.status === 'error' || c.status === 'stopped')) {
+        const log = c.log || [];
+        const lastErr = [...log].reverse().find(e => e && e.phase === 'error');
+        if (lastErr) c.error = lastErr.msg || '';
+    }
+
+    let progressEl = '';
+    if (c.status === 'running') {
+        progressEl = `<div class="li-campaign-card-progress">
+            <div class="li-progress-bar"><div style="width:${c.progress||0}%;background:${color}"></div></div>
+            <span>${c.progress||0}%</span>
+        </div>`;
+    } else if (c.status === 'done') {
+        progressEl = `<div class="li-campaign-card-progress"><span style="color:#22c55e">✓ Concluída</span></div>`;
+    } else if (c.status === 'error') {
+        const errFull = humanizeLiError(c.error || 'Falha desconhecida');
+        const errShort = _liErrorShortLabel(c.error || '');
+        progressEl = `<div class="li-campaign-card-progress" title="${escapeHtml(errFull)}\n\n(técnico: ${escapeHtml((c.error||'').slice(0,300))})">
+            <span style="color:#ef4444;display:flex;align-items:center;gap:5px;max-width:340px">
+                <svg style="width:11px;height:11px;flex-shrink:0"><use href="#i-x"/></svg>
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(errShort)}</span>
+            </span>
+        </div>`;
+    } else if (c.status === 'stopped') {
+        progressEl = `<div class="li-campaign-card-progress"><span style="color:var(--text-3)">Parada</span></div>`;
+    }
+
+    const timeStr = c.status === 'running'
+        ? `há ${_liRelTime(c.started_at)}`
+        : c.completed_at
+            ? `há ${_liRelTime(c.completed_at)}`
+            : `Iniciada ${_liFmtTime(c.started_at)}`;
+
+    const phaseChip = (c.status === 'running') ? _liPhaseChip(c) : '';
+    const cfgSummary = _liConfigSummary(c);
+
+    const header = `<div class="li-campaign-card-header" onclick="liToggleCampaignCard(${c.id})">
+        <svg class="li-campaign-card-chevron"><use href="#i-chevron-right"/></svg>
+        ${_liStatusBadge(c.status)}
+        <span class="li-campaign-card-id">#${c.id}</span>
+        <span class="li-campaign-card-time" title="${escapeHtml(_liFmtTime(c.started_at))}">
+            <svg><use href="#i-eye"/></svg>${timeStr}
+        </span>
+        ${phaseChip}
+        <div class="li-campaign-card-cfg">${cfgSummary}</div>
+        <div class="li-campaign-card-inline-stats">${_liInlineStats(c)}</div>
+        ${progressEl}
+        <div class="li-campaign-card-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-ghost btn-sm" onclick="openLiLogModal(${c.id},'${c.type}')" title="Ver log">
+                <svg style="width:13px;height:13px"><use href="#i-message-circle"/></svg>
+            </button>
+            ${c.status === 'running' ? `<button class="btn btn-ghost btn-sm" onclick="liStopCampaignById(${c.id})" title="Parar"><svg style="width:13px;height:13px"><use href="#i-stop"/></svg></button>` : ''}
+        </div>
+    </div>`;
+
+    let content = '';
+    if (c.status === 'error' && c.error) {
+        const friendly = humanizeLiError(c.error);
+        const showTech = friendly !== c.error;
+        content += `<div class="li-campaign-error-msg">
+            ⚠ ${escapeHtml(friendly)}
+            ${showTech ? `<details style="margin-top:6px;font-size:11px;opacity:.6">
+                <summary style="cursor:pointer">Ver erro técnico</summary>
+                <code style="display:block;white-space:pre-wrap;padding:6px;background:rgba(0,0,0,.2);border-radius:4px;margin-top:4px">${escapeHtml(c.error)}</code>
+            </details>` : ''}
+        </div>`;
+    }
+    // Cooldown banner (status=cooldown OR last log entry is cooldown)
+    const lastLog = (c.log || []).slice(-1)[0];
+    if (c.status === 'cooldown' || (lastLog && lastLog.phase === 'cooldown')) {
+        const msg = lastLog?.msg || 'Campanha bloqueada por proteção anti-cooldown';
+        content += `<div class="li-campaign-error-msg" style="background:rgba(245,158,11,.1);color:#f59e0b">
+            ⏸ ${escapeHtml(humanizeLiError(msg))}
+        </div>`;
+    }
+    // v6: Scheduled banner with live countdown + cancel button
+    if (c.status === 'scheduled' && c.scheduled_for) {
+        const target = new Date(c.scheduled_for);
+        const targetMs = target.getTime();
+        content += `<div class="li-campaign-error-msg li-scheduled-banner" data-target-ms="${targetMs}" data-cid="${c.id}"
+                         style="background:rgba(59,130,246,.1);color:#3b82f6;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-size:14px">📅</span>
+            <div style="flex:1;min-width:200px">
+                <div style="font-weight:600;font-size:13px">Agendada — iniciará em
+                    <span class="li-sched-countdown" style="font-variant-numeric:tabular-nums">calculando…</span>
+                </div>
+                <div style="font-size:11px;opacity:.85;margin-top:2px">
+                    ${escapeHtml(c.schedule_reason || 'Aguardando condições')}
+                </div>
+                <div style="font-size:10px;opacity:.6;margin-top:1px">
+                    Data: ${target.toLocaleString('pt-BR')}
+                </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="liCancelScheduled(${c.id})"
+                    style="color:#3b82f6;border-color:rgba(59,130,246,.3)">
+                <svg style="width:12px;height:12px"><use href="#i-x"/></svg> Cancelar
+            </button>
+        </div>`;
+    }
+    if (c.status === 'cancelled') {
+        content += `<div class="li-campaign-error-msg" style="background:rgba(107,114,128,.1);color:var(--text-3)">
+            ✕ Agendamento cancelado pelo usuário
+        </div>`;
+    }
+    // For scheduled campaigns: show the configuration preview instead of empty results
+    if (c.status === 'scheduled') {
+        content += _renderLiScheduledConfig(c);
+    } else if (c.type === 'view') content += _renderLiViewCampaign(c);
+    else if (c.type === 'engage') content += _renderLiEngageCampaign(c);
+    else if (c.type === 'connect') content += _renderLiConnectCampaign(c);
+    else if (c.type === 'discover') content += _renderLiDiscoverCampaign(c);
+
+    const stateClass = c.status === 'running' ? 'is-running' : c.status === 'error' ? 'is-error' : '';
+
+    return `<div class="li-campaign-card ${isCollapsed ? 'collapsed' : ''} ${stateClass}" data-campaign-id="${c.id}">
+        ${header}
+        <div class="li-campaign-card-body">${content}</div>
+    </div>`;
+}
+
+// Build type-specific inline stats shown in card header (visible when collapsed)
+function _liInlineStats(c) {
+    const r = c.results || {};
+    if (c.type === 'view') {
+        const visited = r.profiles_visited ?? (r.profiles?.length || 0);
+        const cities = Object.keys(r.by_city || {}).length;
+        const roles = Object.keys(r.by_role || {}).length;
+        return `
+            <span class="li-inline-stat"><strong>${visited}</strong>visitados</span>
+            ${roles ? `<span class="li-inline-stat-sep"></span><span class="li-inline-stat muted"><strong>${roles}</strong>funções</span>` : ''}
+            ${cities ? `<span class="li-inline-stat-sep"></span><span class="li-inline-stat muted"><strong>${cities}</strong>cidades</span>` : ''}
+        `;
+    }
+    if (c.type === 'engage') {
+        const liked = r.liked ?? 0;
+        const commented = r.commented ?? 0;
+        const total = r.posts?.length ?? 0;
+        return `
+            <span class="li-inline-stat"><strong>${total}</strong>posts</span>
+            <span class="li-inline-stat-sep"></span>
+            <span class="li-inline-stat success"><strong>${liked}</strong>curtidos</span>
+            <span class="li-inline-stat-sep"></span>
+            <span class="li-inline-stat success"><strong>${commented}</strong>comentados</span>
+        `;
+    }
+    if (c.type === 'connect') {
+        const sent = r.connections_sent ?? 0;
+        const acc = r.accepted ?? 0;
+        const pen = r.pending ?? 0;
+        const rej = r.rejected ?? 0;
+        const ign = r.ignored ?? 0;
+        return `
+            <span class="li-inline-stat"><strong>${sent}</strong>enviadas</span>
+            <span class="li-inline-stat-sep"></span>
+            <span class="li-inline-stat success"><strong>${acc}</strong>aceitas</span>
+            <span class="li-inline-stat-sep"></span>
+            <span class="li-inline-stat warn"><strong>${pen}</strong>pendentes</span>
+            ${rej ? `<span class="li-inline-stat-sep"></span><span class="li-inline-stat danger"><strong>${rej}</strong>recusadas</span>` : ''}
+            ${ign ? `<span class="li-inline-stat-sep"></span><span class="li-inline-stat muted"><strong>${ign}</strong>ignoradas</span>` : ''}
+        `;
+    }
+    if (c.type === 'discover') {
+        const found = r.found ?? 0;
+        const companies = Object.keys(r.by_company || {}).length;
+        const totalCompanies = c.config?.companies?.length || companies;
+        return `
+            <span class="li-inline-stat"><strong>${found}</strong>encontrados</span>
+            <span class="li-inline-stat-sep"></span>
+            <span class="li-inline-stat muted"><strong>${companies}${c.status==='running' && totalCompanies > companies ? '/'+totalCompanies : ''}</strong>empresas</span>
+        `;
+    }
+    return '';
+}
+
+// Short error label (max ~40 chars) for collapsed header. Full reason in tooltip.
+function _liErrorShortLabel(raw) {
+    if (!raw) return 'Falha desconhecida';
+    const m = String(raw).toLowerCase();
+    if (m.includes('órfã') || m.includes('orfã') || m.includes('processo morto')) return 'Processo morto durante deploy';
+    if (m.includes('err_too_many_redirects')) return 'LinkedIn em loop de redirect (checkpoint)';
+    if (m.includes('err_http_response_code_failure')) return 'LinkedIn bloqueou o acesso (provável 429/999)';
+    if (m.includes('checkpoint') && m.includes('redirect')) return 'Sessão marcada — LinkedIn pediu verificação';
+    if (m.includes('429') || m.includes('too many requests')) return 'Rate limit (429)';
+    if (m.includes('err_connection_refused')) return 'Conexão recusada (proxy/SSH tunnel?)';
+    if (m.includes('err_name_not_resolved')) return 'DNS falhou — proxy offline?';
+    if (m.includes('timeout') && m.includes('navigating')) return 'Timeout de navegação';
+    if (m.includes('session_max') || m.includes('session max duration')) return 'Sessão excedeu duração máxima';
+    if (m.includes('uas/login') || m.includes('challenge')) return 'LinkedIn pediu re-login';
+    if (m.includes('cookie') && (m.includes('expired') || m.includes('invalid'))) return 'Cookie LI_AT expirado';
+    if (m.includes('ollama')) return 'Ollama indisponível';
+    if (m.includes('claude') && m.includes('subprocess')) return 'Claude CLI falhou';
+    if (m.includes('working hours') || m.includes('fora do horário')) return 'Fora do horário comercial';
+    if (m.includes('lurking')) return 'Conta em fase lurking';
+    if (m.includes('cooldown')) return 'Cooldown anti-bot ativo';
+    // Fallback: first sentence of raw, capped
+    const first = String(raw).split(/[.\n]/)[0].trim();
+    return first.length > 60 ? first.slice(0, 57) + '…' : (first || 'Falha desconhecida');
+}
+
+// Type-specific config preview shown collapsed (keywords, mode, etc.)
+function _liConfigSummary(c) {
+    const cfg = c.config || {};
+    const chip = (label, value, title) =>
+        `<span class="li-cfg-chip" ${title ? `title="${escapeHtml(title)}"` : ''}>` +
+        (label ? `<span class="li-cfg-chip-k">${label}</span>` : '') +
+        `<span class="li-cfg-chip-v">${escapeHtml(String(value))}</span></span>`;
+    const chips = [];
+    if (c.type === 'view') {
+        if (cfg.keywords) chips.push(chip('', cfg.keywords));
+        if (cfg.location) chips.push(chip('em', cfg.location));
+        if (cfg.target_urls?.length) chips.push(chip('', `${cfg.target_urls.length} URLs`));
+        if (cfg.max_profiles) chips.push(chip('alvo', cfg.max_profiles));
+    } else if (c.type === 'engage') {
+        if (cfg.keyword) chips.push(chip('', cfg.keyword));
+        else if (cfg.feed_mode) chips.push(chip('', cfg.feed_mode));
+        if (cfg.tone) chips.push(chip('tom', cfg.tone));
+        if (cfg.max_posts) chips.push(chip('alvo', cfg.max_posts));
+    } else if (c.type === 'connect') {
+        const mode = cfg.mode || (cfg.target_urls ? 'urls' : 'auto');
+        chips.push(chip('modo', mode));
+        if (cfg.target_urls?.length) chips.push(chip('', `${cfg.target_urls.length} URLs`));
+        else if (cfg.urls_count) chips.push(chip('', `${cfg.urls_count} URLs`));
+        else if (cfg.max_invites) chips.push(chip('alvo', cfg.max_invites));
+        if (cfg.send_note) chips.push(chip('', 'nota IA', 'Envia nota personalizada via Ollama+Claude'));
+    } else if (c.type === 'discover') {
+        const comps = cfg.companies || [];
+        if (comps.length) {
+            const preview = comps.slice(0,2).join(', ') + (comps.length > 2 ? ` +${comps.length-2}` : '');
+            chips.push(chip('', preview, comps.join(', ')));
+        }
+        if (cfg.scope) chips.push(chip('', cfg.scope.replace(/_/g,' ')));
+        if (cfg.post_action) chips.push(chip('ação', cfg.post_action));
+    }
+    return chips.join('');
+}
+
+// Current phase chip — shows what running campaign is doing right now (warming/searching/...)
+const _LI_PHASE_LABEL = {
+    starting:       { label: 'iniciando',   color: '#94a3b8' },
+    connecting:     { label: 'conectando',  color: '#60a5fa' },
+    authenticating: { label: 'autenticando',color: '#60a5fa' },
+    warming:        { label: 'aquecendo',   color: '#f59e0b' },
+    planning:       { label: 'planejando',  color: '#a78bfa' },
+    searching:      { label: 'buscando',    color: '#a78bfa' },
+    visiting:       { label: 'visitando',   color: '#22c55e' },
+    engaging:       { label: 'engajando',   color: '#22c55e' },
+    commenting:     { label: 'comentando',  color: '#22c55e' },
+    connecting_send:{ label: 'conectando',  color: '#22c55e' },
+    discovering:    { label: 'descobrindo', color: '#22c55e' },
+    cooldown:       { label: 'cooldown',    color: '#f59e0b' },
+};
+function _liPhaseChip(c) {
+    const log = c.log || [];
+    const last = log.slice(-1)[0];
+    if (!last || !last.phase) return '';
+    const info = _LI_PHASE_LABEL[last.phase] || { label: last.phase, color: '#94a3b8' };
+    const tip = last.msg ? `${last.phase}: ${last.msg}` : last.phase;
+    return `<span class="li-phase-chip" style="--phase:${info.color}" title="${escapeHtml(tip)}">
+        <span class="li-phase-dot"></span>${info.label}
+    </span>`;
+}
+
+// Format ISO timestamp as "32 min", "2h", "3 dias"
+function _liRelTime(iso) {
+    if (!iso) return '–';
+    const d = new Date(iso);
+    const diff = (Date.now() - d) / 1000;
+    if (diff < 60) return `${Math.floor(diff)}s`;
+    if (diff < 3600) return `${Math.floor(diff/60)} min`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h`;
+    return `${Math.floor(diff/86400)} dias`;
+}
+
+// Decide initial collapsed state for a campaign card
+// Priority: localStorage > status default
+function _liIsCampaignCollapsed(c) {
+    const stored = localStorage.getItem(`li_campaign_collapsed_${c.id}`);
+    if (stored === '1') return true;
+    if (stored === '0') return false;
+    // Default: collapse non-running campaigns
+    return c.status !== 'running' && c.status !== 'pending';
+}
+
+function liToggleCampaignCard(id) {
+    const card = document.querySelector(`.li-campaign-card[data-campaign-id="${id}"]`);
+    if (!card) return;
+    card.classList.toggle('collapsed');
+    localStorage.setItem(
+        `li_campaign_collapsed_${id}`,
+        card.classList.contains('collapsed') ? '1' : '0'
+    );
+}
+
+function _liFmtTime(iso) {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffH = (now - d) / 3600000;
+    if (diffH < 24) {
+        return d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    }
+    return d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+}
+
+// ── VIEW campaign rendering ─────────────────────────────────────────────
+function _renderLiViewCampaign(c) {
+    const profiles = c.results?.profiles || [];
+    if (!profiles.length) return `<div class="li-section-empty">Nenhum perfil visitado ainda</div>`;
+
+    // Stats summary
+    const stats = `<div class="li-campaign-stats">
+        <div><strong>${profiles.length}</strong><span>Visitados</span></div>
+        ${Object.entries(c.results.by_role || {}).slice(0,2).map(([k,v]) =>
+            `<div><strong>${v}</strong><span>${escapeHtml(k)}</span></div>`).join('')}
+        <div><strong>${Object.keys(c.results.by_city || {}).length}</strong><span>Cidades</span></div>
+    </div>`;
+
+    // Filters
+    const roles = [...new Set(profiles.map(p => p.current_role).filter(Boolean))];
+    const cities = [...new Set(profiles.map(p => (p.location||'').split(',')[0].trim()).filter(Boolean))];
+    const filterKey = `view_${c.id}`;
+    const activeFilter = _liFilters[filterKey] || {};
+    const filtersRow = `<div class="li-filters-row">
+        <span class="li-filter-label">Função:</span>
+        <span class="li-mini-chip ${!activeFilter.role ? 'active' : ''}" onclick="liSetFilter('${filterKey}','role','')">Todas</span>
+        ${roles.slice(0,4).map(r => `<span class="li-mini-chip ${activeFilter.role === r ? 'active' : ''}" onclick="liSetFilter('${filterKey}','role','${escapeHtml(r)}')">${escapeHtml(r)}</span>`).join('')}
+        <span style="width:1px;height:14px;background:var(--border);margin:0 4px"></span>
+        <span class="li-filter-label">Cidade:</span>
+        <span class="li-mini-chip ${!activeFilter.city ? 'active' : ''}" onclick="liSetFilter('${filterKey}','city','')">Todas</span>
+        ${cities.slice(0,3).map(ci => `<span class="li-mini-chip ${activeFilter.city === ci ? 'active' : ''}" onclick="liSetFilter('${filterKey}','city','${escapeHtml(ci)}')">${escapeHtml(ci)}</span>`).join('')}
+    </div>`;
+
+    // Apply filters
+    let filtered = profiles;
+    if (activeFilter.role) filtered = filtered.filter(p => p.current_role === activeFilter.role);
+    if (activeFilter.city) filtered = filtered.filter(p => (p.location||'').startsWith(activeFilter.city));
+
+    const rows = filtered.map(p => _renderLiProfileRow(p, 'view', c.id)).join('');
+
+    return stats + filtersRow + `<table class="li-profile-table">
+        <thead><tr>
+            <th class="li-th-check"><input type="checkbox" class="li-check" onchange="liSelectAllInTable(this, ${c.id}, 'view')"></th>
+            <th>Perfil</th>
+            <th>Empresa</th>
+            <th>Localização</th>
+            <th>Mutual</th>
+            <th>Visitado</th>
+            <th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function liSetFilter(key, field, value) {
+    if (!_liFilters[key]) _liFilters[key] = {};
+    _liFilters[key][field] = value;
+    _renderLiMonitor();
+}
+
+function _renderLiProfileRow(p, source, campaignId) {
+    const profKey = `${campaignId}:${p.profile_url}`;
+    const checked = _liSelected.has(profKey) ? 'checked' : '';
+    const visitedAt = p.visited_at ? _liFmtTime(p.visited_at) : '–';
+    return `<tr class="li-profile-row">
+        <td class="li-td-check">
+            <input type="checkbox" class="li-check" ${checked} onchange="liToggleSelect('${escapeHtml(profKey)}','${source}',${campaignId})">
+        </td>
+        <td>
+            <div class="li-profile-name-cell">
+                <img class="li-profile-avatar" src="${p.photo}" alt="" loading="lazy" onerror="this.style.background='var(--s3)';this.src='data:image/svg+xml;utf8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot;/>'">
+                <div style="min-width:0">
+                    <a href="${p.profile_url}" target="_blank" rel="noopener" class="li-profile-name li-hover-trigger" data-profile-url="${p.profile_url||''}" onclick="event.stopPropagation()">
+                        ${escapeHtml(p.name)}<span class="li-profile-degree">${p.degree || '3rd'}</span>
+                    </a>
+                    <div class="li-profile-headline">${escapeHtml(p.headline||'')}</div>
+                </div>
+            </div>
+        </td>
+        <td>
+            <div class="li-company-cell">
+                ${p.company_logo ? `<img class="li-company-logo" src="${p.company_logo}" alt="" loading="lazy" onerror="this.outerHTML='<span class=&quot;li-company-logo-fallback&quot;>&#8226;</span>'">` : '<span class="li-company-logo-fallback">·</span>'}
+                <span style="font-size:12px;color:var(--text-2)">${escapeHtml(p.current_company||'')}</span>
+            </div>
+        </td>
+        <td style="font-size:12px;color:var(--text-2)">${escapeHtml(p.location||'–')}</td>
+        <td>
+            <span class="li-mutual-badge">
+                <svg style="width:11px;height:11px"><use href="#i-users"/></svg>
+                ${p.mutual_count || 0}
+            </span>
+        </td>
+        <td style="font-size:11px;color:var(--text-3)">${visitedAt}</td>
+        <td>
+            <a class="li-profile-link-btn" href="${p.profile_url}" target="_blank" rel="noopener" title="Abrir no LinkedIn">
+                <svg style="width:13px;height:13px"><use href="#i-external-link"/></svg>
+            </a>
+        </td>
+    </tr>`;
+}
+
+function liSelectAllInTable(checkbox, campaignId, source) {
+    const table = checkbox.closest('table');
+    const checks = table.querySelectorAll('tbody .li-check');
+    checks.forEach(cb => {
+        cb.checked = checkbox.checked;
+        const profKey = cb.getAttribute('onchange').match(/'([^']+)'/)[1];
+        if (checkbox.checked) _liSelected.add(profKey); else _liSelected.delete(profKey);
+    });
+    _liSelectedSource = source;
+    _liUpdateBatchBar();
+}
+
+// ── ENGAGE campaign rendering ───────────────────────────────────────────
+function _renderLiEngageCampaign(c) {
+    const posts = c.results?.posts || [];
+    if (!posts.length) return `<div class="li-section-empty">Nenhum post engajado ainda</div>`;
+
+    const stats = `<div class="li-campaign-stats">
+        <div><strong>${posts.length}</strong><span>Posts</span></div>
+        <div><strong>${c.results.liked || 0}</strong><span>Curtidos</span></div>
+        <div><strong>${c.results.commented || 0}</strong><span>Comentados</span></div>
+    </div>`;
+
+    const cards = posts.map(po => _renderLiEngageCard(po, c.id)).join('');
+    return stats + `<div class="li-engage-list">${cards}</div>`;
+}
+
+function _renderLiEngageCard(po, campaignId) {
+    const author = po.author || {};
+    const expanded = _liExpandedPosts.has(`${campaignId}:${po.id}`) ? 'expanded' : '';
+    return `<div class="li-engage-card">
+        <div class="li-engage-author">
+            <img class="li-profile-avatar" src="${author.photo}" alt="" loading="lazy">
+            <div class="li-engage-author-info">
+                <div class="li-engage-author-name li-hover-trigger" data-profile-url="${author.profile_url || po.author_url || ''}">
+                    ${escapeHtml(author.name||'')}
+                </div>
+                <div class="li-engage-author-headline">${escapeHtml(author.headline||'')}</div>
+                <div class="li-engage-meta">
+                    <span>Postado ${escapeHtml(po.date_label||'')}</span>
+                    <span><svg style="width:11px;height:11px;display:inline-block;vertical-align:middle"><use href="#i-heart"/></svg> ${po.engagement?.likes||0}</span>
+                    <span><svg style="width:11px;height:11px;display:inline-block;vertical-align:middle"><use href="#i-message-circle"/></svg> ${po.engagement?.comments||0}</span>
+                </div>
+            </div>
+            <a class="li-profile-link-btn" href="${po.post_url}" target="_blank" rel="noopener" title="Ver post no LinkedIn">
+                <svg style="width:13px;height:13px"><use href="#i-external-link"/></svg>
+            </a>
+        </div>
+        <div class="li-post-text ${expanded}">${escapeHtml(po.text||'')}</div>
+        ${!expanded ? `<button class="li-post-expand-btn" onclick="liExpandPost(${campaignId},${po.id})">Ver post completo</button>` : ''}
+
+        <div class="li-engage-actions-summary">
+            <span class="li-engage-action-flag ${po.liked_at ? 'done' : ''}">
+                <svg><use href="#i-heart"/></svg>
+                ${po.liked_at ? `Curtido às ${po.liked_at}` : 'Não curtido'}
+            </span>
+            <span class="li-engage-action-flag ${po.comment_generated ? 'done' : ''}">
+                <svg><use href="#i-message-circle"/></svg>
+                ${po.comment_generated ? 'Comentado' : 'Não comentado'}
+            </span>
+        </div>
+
+        ${po.comment_generated ? `<div class="li-comment-block">
+            <div class="li-comment-block-header">
+                <span>Comentário gerado</span>
+                <span class="li-comment-block-tone">${escapeHtml(po.comment_tone || 'Profissional')}</span>
+            </div>
+            <div class="li-comment-text">${escapeHtml(po.comment_generated)}</div>
+            <div class="li-comment-meta">
+                <div class="li-comment-meta-row">↳ por <strong>Ollama ${escapeHtml(po.ollama_model||'')}</strong></div>
+                <div class="li-comment-meta-row">↳ Claude: <span class="li-validation-score">APROVADO ${po.claude_validation_score?.toFixed(2)||''}</span></div>
+                <div class="li-comment-meta-tooltip">
+                    <strong>Validação Claude:</strong><br>
+                    ${escapeHtml(po.claude_validation_note||'')}<br><br>
+                    <strong>Tentativas:</strong> ${po.generation_attempts || 1}<br>
+                    <strong>Comment ID:</strong> ${escapeHtml(po.comment_id||'–')}
+                </div>
+            </div>
+        </div>` : ''}
+
+        <div class="li-comment-actions">
+            ${po.comment_generated ? `
+                <button class="btn btn-ghost btn-sm" onclick="liEditComment(${campaignId},${po.id})">
+                    <svg style="width:12px;height:12px"><use href="#i-edit"/></svg> Editar
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="liDeleteComment(${campaignId},${po.id})">
+                    <svg style="width:12px;height:12px"><use href="#i-trash"/></svg> Excluir
+                </button>
+            ` : ''}
+            <a class="btn btn-ghost btn-sm" href="${po.post_url}" target="_blank" rel="noopener" style="margin-left:auto">
+                <svg style="width:12px;height:12px"><use href="#i-external-link"/></svg> Ver no LinkedIn
+            </a>
+        </div>
+    </div>`;
+}
+
+function liExpandPost(campaignId, postId) {
+    _liExpandedPosts.add(`${campaignId}:${postId}`);
+    _renderLiMonitor();
+}
+
+// ── CONNECT campaign rendering ──────────────────────────────────────────
+function _renderLiConnectCampaign(c) {
+    const conns = c.results?.connections || [];
+    if (!conns.length && c.status !== 'error') return `<div class="li-section-empty">Nenhuma conexão enviada ainda</div>`;
+    if (c.status === 'error') return '';
+
+    const r = c.results;
+    const total = r.connections_sent || conns.length;
+    const accepted = r.accepted || 0;
+    const acceptRate = total ? (accepted / total) : 0;
+    const rateClass = acceptRate >= 0.30 ? 'good' : acceptRate >= 0.15 ? 'medium' : 'poor';
+
+    const stats = `<div class="li-campaign-stats">
+        <div><strong>${total}</strong><span>Enviadas</span></div>
+        <div><strong style="color:#22c55e">${accepted}</strong><span>Aceitas</span></div>
+        <div><strong style="color:#f59e0b">${r.pending||0}</strong><span>Pendentes</span></div>
+        <div><strong style="color:#ef4444">${r.rejected||0}</strong><span>Recusadas</span></div>
+        <div style="margin-left:auto"><span class="li-acceptance-rate ${rateClass}">Taxa de aceite ${(acceptRate*100).toFixed(0)}%</span></div>
+    </div>`;
+
+    const filterKey = `connect_${c.id}`;
+    const activeFilter = _liFilters[filterKey] || {};
+    const filtersRow = `<div class="li-filters-row">
+        <span class="li-filter-label">Status:</span>
+        <span class="li-mini-chip ${!activeFilter.status ? 'active' : ''}" onclick="liSetFilter('${filterKey}','status','')">Todas</span>
+        <span class="li-mini-chip ${activeFilter.status === 'accepted' ? 'active' : ''}" onclick="liSetFilter('${filterKey}','status','accepted')">Aceitas</span>
+        <span class="li-mini-chip ${activeFilter.status === 'pending' ? 'active' : ''}" onclick="liSetFilter('${filterKey}','status','pending')">Pendentes</span>
+        <span class="li-mini-chip ${activeFilter.status === 'rejected' ? 'active' : ''}" onclick="liSetFilter('${filterKey}','status','rejected')">Recusadas</span>
+        <span class="li-mini-chip ${activeFilter.status === 'ignored' ? 'active' : ''}" onclick="liSetFilter('${filterKey}','status','ignored')">Ignoradas</span>
+    </div>`;
+
+    let filtered = conns;
+    if (activeFilter.status) filtered = filtered.filter(p => p.status === activeFilter.status);
+
+    const rows = filtered.map(p => _renderLiConnectRow(p, c.id)).join('');
+
+    return stats + filtersRow + `<table class="li-profile-table">
+        <thead><tr>
+            <th class="li-th-check"><input type="checkbox" class="li-check" onchange="liSelectAllInTable(this, ${c.id}, 'connect')"></th>
+            <th>Perfil</th>
+            <th>Empresa</th>
+            <th>Status</th>
+            <th>Nota IA</th>
+            <th>Enviada</th>
+            <th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function _renderLiConnectRow(p, campaignId) {
+    const profKey = `${campaignId}:${p.profile_url}`;
+    const checked = _liSelected.has(profKey) ? 'checked' : '';
+    const statusLabels = { accepted: 'Aceita', pending: 'Pendente', rejected: 'Recusada', ignored: 'Ignorada' };
+    return `<tr class="li-profile-row">
+        <td class="li-td-check">
+            <input type="checkbox" class="li-check" ${checked} onchange="liToggleSelect('${escapeHtml(profKey)}','connect',${campaignId})">
+        </td>
+        <td>
+            <div class="li-profile-name-cell">
+                <img class="li-profile-avatar" src="${p.photo}" alt="" loading="lazy">
+                <div style="min-width:0">
+                    <a href="${p.profile_url}" target="_blank" rel="noopener" class="li-profile-name li-hover-trigger" data-profile-url="${p.profile_url||''}" onclick="event.stopPropagation()">
+                        ${escapeHtml(p.name)}
+                    </a>
+                    <div class="li-profile-headline">${escapeHtml(p.headline||'')}</div>
+                </div>
+            </div>
+        </td>
+        <td>
+            <div class="li-company-cell">
+                ${p.company_logo ? `<img class="li-company-logo" src="${p.company_logo}" alt="" loading="lazy">` : ''}
+                <span style="font-size:12px;color:var(--text-2)">${escapeHtml(p.current_company||'')}</span>
+            </div>
+        </td>
+        <td><span class="li-status-pill ${p.status}">${statusLabels[p.status] || p.status}</span></td>
+        <td>
+            ${p.note_sent ? `<span class="li-note-cell"><svg><use href="#i-message-circle"/></svg>
+                <span class="li-note-tooltip">${escapeHtml(p.note_sent)}</span>
+            </span>` : '<span style="color:var(--text-3);font-size:11px">—</span>'}
+        </td>
+        <td style="font-size:11px;color:var(--text-3)">${p.sent_at ? _liFmtTime(p.sent_at) : '–'}</td>
+        <td>
+            <a class="li-profile-link-btn" href="${p.profile_url}" target="_blank" rel="noopener" title="Abrir no LinkedIn">
+                <svg style="width:13px;height:13px"><use href="#i-external-link"/></svg>
+            </a>
+        </td>
+    </tr>`;
+}
+
+// ── DISCOVER campaign rendering ─────────────────────────────────────────
+function _renderLiDiscoverCampaign(c) {
+    const byCompany = c.results?.by_company || {};
+    const entries = Object.entries(byCompany);
+    if (!entries.length) return `<div class="li-section-empty">Nenhuma empresa descoberta</div>`;
+
+    const total = entries.reduce((s, [, list]) => s + list.length, 0);
+    const stats = `<div class="li-campaign-stats">
+        <div><strong>${total}</strong><span>Encontrados</span></div>
+        <div><strong>${entries.length}</strong><span>Empresas</span></div>
+        <div><strong>${c.config?.scope === 'recruiters_only' ? 'Recrutadores' : 'RH Completo'}</strong><span>Filtro</span></div>
+    </div>`;
+
+    const groups = entries.map(([companyName, profiles]) => {
+        const firstP = profiles[0];
+        const companyLogo = firstP?.company_logo || '';
+        const allSelected = profiles.every(p => _liSelected.has(`${c.id}:${p.profile_url}`));
+        return `<div class="li-discover-company-group">
+            <div class="li-discover-company-header">
+                ${companyLogo ? `<img class="li-discover-company-logo" src="${companyLogo}" alt="" onerror="this.style.display='none'">` : '<span class="li-discover-company-logo" style="display:flex;align-items:center;justify-content:center;color:var(--text-3)"><svg style="width:16px;height:16px"><use href=&quot;#i-briefcase&quot;/></svg></span>'}
+                <div>
+                    <div class="li-discover-company-name">${escapeHtml(companyName)}</div>
+                    <div class="li-discover-company-count">${profiles.length} ${profiles.length === 1 ? 'recrutador encontrado' : 'recrutadores encontrados'}</div>
+                </div>
+                <div class="li-discover-company-actions">
+                    <label class="li-toggle-row" style="font-size:11px;color:var(--text-2)">
+                        <input type="checkbox" class="li-check" ${allSelected ? 'checked' : ''} onchange="liSelectAllInCompany(this, ${c.id}, '${escapeHtml(companyName)}')">
+                        Selecionar todos
+                    </label>
+                </div>
+            </div>
+            <div class="li-discover-grid">
+                ${profiles.map(p => _renderLiDiscoverCard(p, c.id)).join('')}
+            </div>
+        </div>`;
+    }).join('');
+
+    return stats + groups;
+}
+
+function _renderLiDiscoverCard(p, campaignId) {
+    const profKey = `${campaignId}:${p.profile_url}`;
+    const isSelected = _liSelected.has(profKey);
+    return `<div class="li-discover-card ${isSelected ? 'selected' : ''} li-hover-trigger" data-profile-url="${p.profile_url||''}"
+        onclick="liDiscoverCardClick(event, '${escapeHtml(profKey)}', '${p.profile_url}', ${campaignId})">
+        <input type="checkbox" class="li-check li-discover-card-check" ${isSelected ? 'checked' : ''}
+            onclick="event.stopPropagation()"
+            onchange="liToggleSelect('${escapeHtml(profKey)}','discover',${campaignId})">
+        <img class="li-discover-card-avatar" src="${p.photo}" alt="" loading="lazy">
+        <div class="li-discover-card-name">${escapeHtml(p.name)}</div>
+        <div class="li-discover-card-role">${escapeHtml(p.current_role||'')}</div>
+    </div>`;
+}
+
+function liDiscoverCardClick(ev, profKey, url, campaignId) {
+    // If clicked on checkbox area, ignore (handled by checkbox)
+    if (ev.target.tagName === 'INPUT') return;
+    // If shift/ctrl, toggle selection
+    if (ev.shiftKey || ev.ctrlKey || ev.metaKey) {
+        liToggleSelect(profKey, 'discover', campaignId);
+        const cb = ev.currentTarget.querySelector('input.li-check');
+        if (cb) cb.checked = _liSelected.has(profKey);
+        ev.currentTarget.classList.toggle('selected', _liSelected.has(profKey));
+        return;
+    }
+    // Otherwise open profile
+    window.open(url, '_blank', 'noopener');
+}
+
+function liSelectAllInCompany(checkbox, campaignId, companyName) {
+    const c = _liAllCampaigns.find(x => x.id === campaignId);
+    if (!c) return;
+    const profiles = c.results?.by_company?.[companyName] || [];
+    profiles.forEach(p => {
+        const k = `${campaignId}:${p.profile_url}`;
+        if (checkbox.checked) _liSelected.add(k); else _liSelected.delete(k);
+    });
+    _liSelectedSource = 'discover';
+    _renderLiMonitor();
+    _liUpdateBatchBar();
+}
+
+// ── Multi-select & batch action bar ─────────────────────────────────────
+function liToggleSelect(profKey, source, campaignId) {
+    if (_liSelected.has(profKey)) _liSelected.delete(profKey);
+    else _liSelected.add(profKey);
+    _liSelectedSource = source;
+    _liUpdateBatchBar();
+    // Update visual state for discover cards
+    document.querySelectorAll(`.li-discover-card`).forEach(card => {
+        const cb = card.querySelector('input.li-check');
+        if (cb) card.classList.toggle('selected', cb.checked);
+    });
+}
+
+function _liUpdateBatchBar() {
+    const bar = document.getElementById('li-batch-bar');
+    const num = document.getElementById('li-batch-count-num');
+    if (!bar || !num) return;
+    if (_liSelected.size === 0) {
+        bar.style.display = 'none';
+    } else {
+        bar.style.display = 'flex';
+        num.textContent = _liSelected.size;
+    }
+}
+
+function liBatchClear() {
+    _liSelected.clear();
+    document.querySelectorAll('.li-check').forEach(cb => { cb.checked = false; });
+    document.querySelectorAll('.li-discover-card.selected').forEach(c => c.classList.remove('selected'));
+    _liUpdateBatchBar();
+}
+
+async function liBatchAction(action) {
+    const urls = [..._liSelected].map(k => k.split(':').slice(1).join(':'));
+    if (!urls.length) return;
+    if (action === 'view') {
+        try {
+            const r = await api('/api/linkedin/campaigns/view', {
+                method: 'POST',
+                body: { target_urls: urls, mode: 'urls', max_profiles: urls.length },
+            });
+            toast(`Campanha view criada (#${r.campaign_id}) — ${urls.length} URLs`, 'success');
+            liBatchClear();
+            loadLinkedInCampaigns();
+        } catch (e) {
+            toast('Erro: ' + (e.message || e), 'error');
+        }
+    } else if (action === 'connect') {
+        document.getElementById('li-batch-connect-count').textContent = urls.length;
+        document.getElementById('li-batch-connect-modal').style.display = 'flex';
+    }
+}
+
+function liCloseBatchConnectModal() {
+    document.getElementById('li-batch-connect-modal').style.display = 'none';
+}
+
+async function liConfirmBatchConnect() {
+    const urls = [..._liSelected].map(k => k.split(':').slice(1).join(':'));
+    const sendNote = document.getElementById('li-batch-connect-note').checked;
+    const template = document.getElementById('li-batch-connect-template').value;
+    try {
+        const r = await api('/api/linkedin/campaigns/connect', {
+            method: 'POST',
+            body: {
+                mode: 'urls',
+                profile_urls: urls,
+                send_note: sendNote,
+                note_template: template,
+                max_count: urls.length,
+            },
+        });
+        toast(`Campanha connect criada (#${r.campaign_id}) — ${urls.length} convites`, 'success');
+        liCloseBatchConnectModal();
+        liBatchClear();
+        loadLinkedInCampaigns();
+    } catch (e) {
+        toast('Erro: ' + (e.message || e), 'error');
+    }
+}
+
+// ── Comment edit / delete (placeholder) ─────────────────────────────────
+let _liCommentAction = null;
+
+function liEditComment(campaignId, postId) {
+    const c = _liAllCampaigns.find(x => x.id === campaignId);
+    const po = c?.results?.posts?.find(x => x.id === postId);
+    if (!po) return;
+    _liCommentAction = { type: 'edit', campaignId, postId };
+    document.getElementById('li-comment-modal-title').textContent = 'Editar Comentário';
+    document.getElementById('li-comment-modal-body').innerHTML = `
+        <p style="font-size:13px;color:var(--text-2);margin:0 0 10px">
+            <strong>Funcionalidade em desenvolvimento</strong> — o endpoint da VM para edição de comentários está em construção.
+            O frontend já está pronto.
+        </p>
+        <label style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Comentário atual</label>
+        <textarea style="width:100%;height:80px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--s1);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;margin-top:4px" id="li-comment-edit-text">${escapeHtml(po.comment_generated)}</textarea>
+    `;
+    document.getElementById('li-comment-modal-confirm').textContent = 'Salvar (placeholder)';
+    document.getElementById('li-comment-modal').style.display = 'flex';
+}
+
+function liDeleteComment(campaignId, postId) {
+    _liCommentAction = { type: 'delete', campaignId, postId };
+    document.getElementById('li-comment-modal-title').textContent = 'Excluir Comentário';
+    document.getElementById('li-comment-modal-body').innerHTML = `
+        <p style="font-size:13px;color:var(--text-2);margin:0">
+            <strong>Funcionalidade em desenvolvimento</strong> — o endpoint da VM para exclusão de comentários está em construção.
+        </p>
+        <p style="font-size:13px;color:var(--text-2);margin:10px 0 0">
+            Quando ativo, isso vai navegar até o post no LinkedIn (via Patchright stealth) e remover o comentário.
+        </p>
+    `;
+    document.getElementById('li-comment-modal-confirm').textContent = 'Confirmar (placeholder)';
+    document.getElementById('li-comment-modal').style.display = 'flex';
+}
+
+function liCloseCommentModal() {
+    document.getElementById('li-comment-modal').style.display = 'none';
+    _liCommentAction = null;
+}
+
+async function liConfirmCommentAction() {
+    const a = _liCommentAction;
+    if (!a) return liCloseCommentModal();
+    // Find post + comment_id from campaign
+    const c = _liAllCampaigns.find(x => x.id === a.campaignId);
+    const po = c?.results?.posts?.find(p => p.id === a.postId || p.post_url === a.postUrl);
+    if (!po) {
+        toast('Post não encontrado', 'error');
+        return liCloseCommentModal();
+    }
+    const post_url = po.post_url;
+    const comment_id = po.comment_id;
+    if (!comment_id) {
+        toast('Comment ID ausente — backend ainda não capturou', 'error');
+        return liCloseCommentModal();
+    }
+    try {
+        if (a.type === 'edit') {
+            const new_text = document.getElementById('li-comment-edit-text').value;
+            const r = await api('/api/linkedin/comment/edit', {
+                method: 'POST',
+                body: { post_url, comment_id, new_text },
+            });
+            if (r.ok) {
+                toast('Comentário editado', 'success');
+                loadLinkedInCampaigns();
+            } else {
+                toast('Erro: ' + (r.error || 'falha'), 'error');
+            }
+        } else {
+            const r = await api('/api/linkedin/comment/delete', {
+                method: 'POST',
+                body: { post_url, comment_id },
+            });
+            if (r.ok) {
+                toast('Comentário excluído', 'success');
+                loadLinkedInCampaigns();
+            } else {
+                toast('Erro: ' + (r.error || 'falha'), 'error');
+            }
+        }
+    } catch (e) {
+        toast('Erro: ' + (e.message || e), 'error');
+    }
+    liCloseCommentModal();
+}
+
+// ── Hover card (rich profile preview) ───────────────────────────────────
+function _renderLiHoverCardContent(p) {
+    const card = document.getElementById('li-hover-card');
+    if (!card) return;
+    const photo = p.photo || '/dashboard/avatar-default.svg';
+    card.innerHTML = `
+        <div class="li-hover-card-top">
+            <img class="li-hover-card-photo" src="${photo}" alt="" onerror="this.src='/dashboard/avatar-default.svg'">
+            <div class="li-hover-card-info">
+                <div class="li-hover-card-name">${escapeHtml(p.name || '–')}</div>
+                <div class="li-hover-card-role">${escapeHtml(p.current_role||p.headline||'')}</div>
+                <div class="li-hover-card-meta">
+                    ${p.current_company ? `<span><svg style="width:11px;height:11px;display:inline-block;vertical-align:middle"><use href="#i-briefcase"/></svg> ${escapeHtml(p.current_company)}</span>` : ''}
+                    ${p.location ? `<span><svg style="width:11px;height:11px;display:inline-block;vertical-align:middle"><use href="#i-map-pin"/></svg> ${escapeHtml(p.location)}</span>` : ''}
+                </div>
+            </div>
+        </div>
+        ${p.bio ? `<div class="li-hover-card-bio">${escapeHtml(p.bio)}</div>` : ''}
+        ${(p.mutual_count !== undefined || p.degree) ? `<div class="li-hover-card-row">
+            <svg><use href="#i-users"/></svg>
+            <span><strong>${p.mutual_count || 0}</strong> conexões mútuas${p.degree ? ` · Conexão de ${p.degree} grau` : ''}</span>
+        </div>` : ''}
+        ${(p.top_skills && p.top_skills.length) ? `<div class="li-hover-card-skills">
+            ${p.top_skills.slice(0,5).map(s => `<span class="li-hover-card-skill">${escapeHtml(s)}</span>`).join('')}
+        </div>` : ''}
+        ${p.last_activity ? `<div class="li-hover-card-row">
+            <svg><use href="#i-eye"/></svg>
+            <span>Última atividade: ${escapeHtml(p.last_activity)}</span>
+        </div>` : ''}
+        <div class="li-hover-card-footer">
+            <a class="li-hover-card-btn" href="${p.profile_url||'#'}" target="_blank" rel="noopener">
+                <svg style="width:12px;height:12px"><use href="#i-external-link"/></svg>
+                Ver perfil no LinkedIn
+            </a>
+        </div>`;
+}
+
+async function _showLiHoverCard(triggerEl, profileUrl) {
+    if (!profileUrl) return;
+    // 1) Try embedded cache (campaign results)
+    let p = _liFindProfileByUrl(profileUrl);
+    // 2) Try API cache (linkedin_profiles table on VM)
+    if (!p || !p.bio) {
+        try {
+            const cached = await api('/api/linkedin/profiles?url=' + encodeURIComponent(profileUrl));
+            if (cached && cached._cache_hit !== false) {
+                p = { ...(p || {}), ...cached };
+            } else if (cached && cached.status === 'hydrating') {
+                // 202 — hidratação assíncrona disparada; mostra o que temos + loader
+                p = p || { profile_url: profileUrl, name: 'Carregando...' };
+                p._hydrating = true;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    if (!p) return;
+    _renderLiHoverCardContent(p);
+    const card = document.getElementById('li-hover-card');
+    if (!card) return;
+
+    // Position
+    const rect = triggerEl.getBoundingClientRect();
+    const cardW = 320, cardH = 380;
+    const vpW = window.innerWidth, vpH = window.innerHeight;
+    let left = rect.right + 8 + window.scrollX;
+    let top = rect.top + window.scrollY;
+    if (rect.right + cardW + 8 > vpW) {
+        left = rect.left - cardW - 8 + window.scrollX;
+    }
+    if (rect.top + cardH > vpH) {
+        top = Math.max(8, vpH - cardH - 8) + window.scrollY;
+    }
+    card.style.left = Math.max(8, left) + 'px';
+    card.style.top = top + 'px';
+    card.style.display = 'block';
+}
+
+function _hideLiHoverCard() {
+    const card = document.getElementById('li-hover-card');
+    if (card) card.style.display = 'none';
+}
+
+// Delegated listener for hover triggers
+document.addEventListener('mouseenter', (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    const trigger = target.closest?.('.li-hover-trigger');
+    if (!trigger) return;
+    const profileUrl = trigger.getAttribute('data-profile-url');
+    if (!profileUrl) return;
+    clearTimeout(_liHoverHideTimer);
+    clearTimeout(_liHoverTimer);
+    _liHoverTimer = setTimeout(() => _showLiHoverCard(trigger, profileUrl), 300);
+}, true);
+
+document.addEventListener('mouseleave', (e) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    const trigger = target.closest?.('.li-hover-trigger');
+    if (!trigger) return;
+    clearTimeout(_liHoverTimer);
+    _liHoverHideTimer = setTimeout(_hideLiHoverCard, 200);
+}, true);
+
+// Keep card visible when hovering card itself
+document.addEventListener('mouseenter', (e) => {
+    if (e.target && e.target.id === 'li-hover-card') {
+        clearTimeout(_liHoverHideTimer);
+    }
+}, true);
+document.addEventListener('mouseleave', (e) => {
+    if (e.target && e.target.id === 'li-hover-card') {
+        _liHoverHideTimer = setTimeout(_hideLiHoverCard, 200);
+    }
+}, true);
+
+function liStopCampaignById(id) {
+    if (!confirm('Parar esta campanha?')) return;
+    if (LI_USE_MOCK) {
+        const c = _liAllCampaigns.find(x => x.id === id);
+        if (c) { c.status = 'stopped'; c.completed_at = new Date().toISOString(); }
+        _renderLiMonitor();
+        toast('Campanha parada', 'info');
+        return;
+    }
+    api(`/api/linkedin/campaigns/${id}/stop`, { method: 'POST' })
+        .then(() => { toast('Campanha parada', 'info'); loadLinkedInCampaigns(); });
+}
+
+function _liStatusBadge(status) {
+    const map = {
+        pending:   ['badge-amber', 'Pendente'],
+        running:   ['badge-blue',  'Rodando'],
+        done:      ['badge-lime',  'Concluída'],
+        error:     ['badge-red',   'Erro'],
+        stopped:   ['badge-gray',  'Parada'],
+        cooldown:  ['badge-amber', 'Bloqueada — cooldown'],
+        scheduled: ['badge-blue',  '📅 Agendada'],
+        cancelled: ['badge-gray',  '✕ Cancelada'],
+    };
+    const [cls, label] = map[status] || ['badge-gray', status];
+    return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function _liResultSummary(c) {
+    const r = c.results || {};
+    if (c.type === 'view') return `${r.profiles_visited ?? 0} visitados`;
+    if (c.type === 'engage') return `${r.liked ?? 0} curtidas · ${r.commented ?? 0} comentários`;
+    if (c.type === 'connect') return `${r.connections_sent ?? 0} enviadas`;
+    if (c.type === 'discover') return `${r.found ?? 0} encontrados`;
+    return '–';
+}
+
+// ── Log modal ──
+function openLiLogModal(campaignId, type) {
+    _liActiveCampaignId = campaignId;
+    document.getElementById('li-log-modal').style.display = 'flex';
+    document.getElementById('li-log-modal-title').textContent = `Log — ${_liTypeName(type)} #${campaignId}`;
+    document.getElementById('li-log-stream').innerHTML = '';
+    document.getElementById('li-log-profiles').innerHTML = '';
+    document.getElementById('li-log-summary').innerHTML = '';
+    _pollLiLog(campaignId);
+}
+
+function closeLiLogModal() {
+    document.getElementById('li-log-modal').style.display = 'none';
+    if (_liPollInterval) { clearInterval(_liPollInterval); _liPollInterval = null; }
+    _liActiveCampaignId = null;
+}
+
+function _pollLiLog(campaignId) {
+    if (_liPollInterval) clearInterval(_liPollInterval);
+    const fetch_ = async () => {
+        try {
+            const data = await api(`/api/linkedin/campaigns/${campaignId}/log`);
+            _renderLiLog(data);
+            if (['done', 'error', 'stopped'].includes(data.status)) {
+                clearInterval(_liPollInterval);
+                _liPollInterval = null;
+                document.getElementById('li-log-stop-btn').style.display = 'none';
+                loadLinkedInCampaigns();
+            }
+        } catch (e) { /* silent */ }
+    };
+    fetch_();
+    _liPollInterval = setInterval(fetch_, 3000);
+}
+
+function _renderLiLog(data) {
+    const stream = document.getElementById('li-log-stream');
+    const summary = document.getElementById('li-log-summary');
+    const profiles = document.getElementById('li-log-profiles');
+    if (!stream) return;
+
+    // log stream
+    const logs = data.log || [];
+    const phaseColors = {
+        starting: '#6366f1', connecting: '#3b82f6', authenticating: '#f59e0b',
+        planning: '#8b5cf6', searching: '#06b6d4', visiting: '#10b981',
+        generating: '#a855f7', monitoring: '#f59e0b', done: '#22c55e', error: '#ef4444',
+        warming: '#06b6d4', cooldown: '#f59e0b',
+    };
+    stream.innerHTML = logs.map(entry => {
+        const color = phaseColors[entry.phase] || 'var(--text-2)';
+        const time = entry.time ? new Date(entry.time).toLocaleTimeString('pt-BR') : '';
+        const raw = entry.msg || '';
+        // For error/cooldown phases, show friendly version + collapsed raw
+        const isErr = entry.phase === 'error' || entry.phase === 'cooldown';
+        const friendly = isErr ? humanizeLiError(raw) : raw;
+        const showRaw = isErr && friendly !== raw;
+        return `<div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:var(--text-3);flex-shrink:0;width:52px">${time}</span>
+            <span style="color:${color};flex-shrink:0;width:80px;font-size:11px">[${entry.phase||'info'}]</span>
+            <span style="color:var(--text);flex:1">
+                ${escapeHtml(friendly)}
+                ${showRaw ? `<details style="margin-top:4px;opacity:.55;font-size:10px">
+                    <summary style="cursor:pointer">técnico</summary>
+                    <code style="display:block;white-space:pre-wrap;padding:4px;background:rgba(0,0,0,.2);border-radius:3px">${escapeHtml(raw)}</code>
+                </details>` : ''}
+            </span>
+        </div>`;
+    }).join('');
+    stream.scrollTop = stream.scrollHeight;
+
+    // results summary
+    if (data.results) {
+        const r = data.results;
+        const items = [];
+        if (r.profiles_visited != null) items.push(`<strong>${r.profiles_visited}</strong> perfis visitados`);
+        if (r.liked != null) items.push(`<strong>${r.liked}</strong> curtidas`);
+        if (r.commented != null) items.push(`<strong>${r.commented}</strong> comentários`);
+        if (r.connections_sent != null) items.push(`<strong>${r.connections_sent}</strong> conexões enviadas`);
+        if (r.found != null) items.push(`<strong>${r.found}</strong> perfis encontrados`);
+        summary.innerHTML = items.map(i =>
+            `<div style="background:var(--s2);border-radius:6px;padding:6px 12px;font-size:12px;color:var(--text)">${i}</div>`
+        ).join('');
+
+        // profiles list
+        const profileList = r.profiles || r.connections || r.engagements || [];
+        if (profileList.length) {
+            profiles.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--text-2);margin:8px 0 6px">Perfis</div>` +
+                profileList.slice(0, 50).map(p => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+                        <div style="flex:1;min-width:0">
+                            <div style="font-size:12px;color:var(--text);font-weight:500">${escapeHtml(p.name || p.author || '–')}</div>
+                            <div style="font-size:11px;color:var(--text-2)">${escapeHtml(p.title || p.comment_text || p.post_url || '')}</div>
+                        </div>
+                        ${p.url ? `<a href="${p.url}" target="_blank" class="btn btn-ghost btn-sm" style="padding:3px 6px">
+                            <svg style="width:11px;height:11px"><use href="#i-external-link"/></svg>
+                        </a>` : ''}
+                    </div>`
+                ).join('');
+        }
+    }
+}
+
+async function liStopCampaign() {
+    if (!_liActiveCampaignId) return;
+    try {
+        await api(`/api/linkedin/campaigns/${_liActiveCampaignId}/stop`, { method: 'POST' });
+        showToast('Campanha parada', 'info');
+        closeLiLogModal();
+        loadLinkedInCampaigns();
+    } catch (e) {
+        showToast('Erro ao parar: ' + e.message, 'error');
+    }
+}
+
+// WebSocket handlers for LinkedIn real-time events
+const _origHandleWsEvent = typeof handleWsEvent === 'function' ? handleWsEvent : null;
+function handleWsEvent(event) {
+    if (_origHandleWsEvent) _origHandleWsEvent(event);
+    if (event.type === 'linkedin_campaign_done' && currentPage === 'linkedin') {
+        loadLinkedInCampaigns();
+        loadLinkedInStatus();
+        if (_liActiveCampaignId === event.campaign_id) {
+            _pollLiLog(event.campaign_id);
+        }
+    } else if (event.type === 'linkedin_campaign_created' && currentPage === 'linkedin') {
+        // Push new campaign into local cache + re-render immediately
+        const c = event.data;
+        if (c && !_liAllCampaigns.find(x => x.id === c.id)) {
+            _liAllCampaigns = [c, ..._liAllCampaigns];
+            _renderLiMonitor();
+        }
+    } else if (event.type === 'linkedin_health') {
+        _liHealth = event.data || {state: 'unknown'};
+        _renderLiHealth(_liHealth);
+        _applyLiHealthToButtons(_liHealth);
+        if (_liHealth.state === 'ok') {
+            showToast('LinkedIn liberado — campanhas habilitadas', 'success');
+        } else if (_liHealth.state === 'cooldown') {
+            const min = Math.ceil((_liHealth.retry_after_seconds || 0) / 60);
+            showToast(`LinkedIn em cooldown (HTTP ${_liHealth.http_code}) — retry em ~${min}min`, 'warning');
+        }
+    } else if (event.type === 'linkedin_progress' && currentPage === 'linkedin') {
+        const d = event.data || {};
+        const c = _liAllCampaigns.find(x => x.id === d.campaign_id);
+        if (c) {
+            const oldStatus = c.status;
+            if (d.status) c.status = d.status;
+            if (typeof d.progress === 'number') c.progress = d.progress;
+            if (d.partial_results) c.results = { ...(c.results || {}), ...d.partial_results };
+            if (d.scheduled_for !== undefined) c.scheduled_for = d.scheduled_for;
+            if (d.schedule_reason !== undefined) c.schedule_reason = d.schedule_reason;
+            _renderLiMonitor();
+            // Notify when scheduler fires
+            if (oldStatus === 'scheduled' && d.status === 'pending') {
+                showToast(`Agendamento da #${d.campaign_id} disparou agora!`, 'success');
+            }
+        } else {
+            loadLinkedInCampaigns();
+        }
+    }
+}

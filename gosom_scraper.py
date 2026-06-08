@@ -10,7 +10,7 @@ Usage:
     python3 gosom_scraper.py --categories "restaurante,pet shop"
     python3 gosom_scraper.py --resume                  # Resume from checkpoint
     python3 gosom_scraper.py --only-no-site            # Only scrape categories likely without websites
-    python3 gosom_scraper.py --proxy socks5://hermes:cuiaba2026@127.0.0.1:1081
+    python3 gosom_scraper.py --proxy socks5://hermes:cuiaba2026@127.0.0.1:55081
     python3 gosom_scraper.py --depth 3                 # Scroll depth (default 2)
     python3 gosom_scraper.py --concurrency 2           # Parallel browser tabs
 """
@@ -397,7 +397,7 @@ def main():
     parser.add_argument("--categories", type=str, default="", help="Comma-separated categories")
     parser.add_argument("--only-no-site", action="store_true", help="Only categories likely without websites")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
-    parser.add_argument("--proxy", type=str, default="socks5://hermes:cuiaba2026@127.0.0.1:1081")
+    parser.add_argument("--proxy", type=str, default="socks5://hermes:cuiaba2026@127.0.0.1:55081")
     parser.add_argument("--depth", type=int, default=2, help="Scroll depth (default 2)")
     parser.add_argument("--concurrency", type=int, default=1, help="Browser tabs (default 1)")
     parser.add_argument("--timeout", type=int, default=5, help="Timeout per query in minutes")

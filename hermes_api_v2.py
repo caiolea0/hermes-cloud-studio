@@ -3,6 +3,7 @@
 FastAPI server on the VM that serves prospect data, activity logs,
 pipeline status, scraper control, and photo references to the dashboard.
 """
+import asyncio
 import json
 import os
 import signal
@@ -12,7 +13,7 @@ import sys
 import threading
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List
 
@@ -1035,6 +1036,824 @@ def _get_disk_usage():
         }
     except Exception:
         return {}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LINKEDIN CAMPAIGN EXECUTION ENDPOINTS  (real Patchright execution on VM)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# In-memory tracker for running campaigns (campaign_id → asyncio.Task)
+_running_linkedin_campaigns: dict = {}
+
+
+def _build_li_config():
+    """Build LinkedInConfig — account_type prefers DOM-detected cache over env."""
+    from linkedin import LinkedInConfig
+    # Prefer detected type over env value (env is the seed; cache is the truth)
+    account_type = os.environ.get("LINKEDIN_ACCOUNT_TYPE", "free")
+    try:
+        from linkedin.account_detector import read_cached
+        cached = read_cached()
+        if cached and cached.get("account_type"):
+            account_type = cached["account_type"]
+    except Exception:
+        pass
+    return LinkedInConfig(
+        account_email=os.environ.get("LINKEDIN_EMAIL", ""),
+        account_type=account_type,
+        proxy_server=os.environ.get("LINKEDIN_PROXY"),
+        proxy_username=os.environ.get("LINKEDIN_PROXY_USER"),
+        proxy_password=os.environ.get("LINKEDIN_PROXY_PASS"),
+        headless=True,
+        use_system_chrome=False,
+    )
+
+
+def _get_li_db() -> sqlite3.Connection:
+    """Get DB connection, ensure linkedin_campaigns table exists."""
+    conn = get_db()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS linkedin_campaigns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            config TEXT NOT NULL DEFAULT '{}',
+            status TEXT DEFAULT 'pending',
+            progress INTEGER DEFAULT 0,
+            total INTEGER DEFAULT 0,
+            results TEXT,
+            log TEXT DEFAULT '[]',
+            started_at TEXT,
+            completed_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    return conn
+
+
+def _ensure_campaign_row(campaign_id: int, campaign_type: str, data: dict, conn) -> None:
+    """Ensure a campaign row exists in VM DB for this PC-owned id. Always sets status=running."""
+    existing = conn.execute(
+        "SELECT id FROM linkedin_campaigns WHERE id=?", (campaign_id,)
+    ).fetchone()
+    now = datetime.now(timezone.utc).isoformat()
+    if existing:
+        conn.execute(
+            "UPDATE linkedin_campaigns SET status='running', started_at=?, "
+            "type=?, config=? WHERE id=?",
+            (now, campaign_type, json.dumps(data), campaign_id)
+        )
+    else:
+        conn.execute(
+            "INSERT INTO linkedin_campaigns (id, type, config, status, started_at) "
+            "VALUES (?, ?, ?, 'running', ?)",
+            (campaign_id, campaign_type, json.dumps(data), now)
+        )
+    conn.commit()
+
+
+def _li_log(campaign_id: int, msg: str, phase: str = "info"):
+    """Append log entry to linkedin_campaigns.log."""
+    conn = _get_li_db()
+    try:
+        row = conn.execute("SELECT log FROM linkedin_campaigns WHERE id=?", (campaign_id,)).fetchone()
+        logs = json.loads(row["log"]) if row and row["log"] else []
+        logs.append({"time": datetime.now(timezone.utc).isoformat(), "msg": msg, "phase": phase})
+        conn.execute(
+            "UPDATE linkedin_campaigns SET log=? WHERE id=?",
+            (json.dumps(logs[-200:]), campaign_id)  # keep last 200 entries
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@app.post("/api/linkedin/auth")
+async def vm_linkedin_auth():
+    """Trigger LinkedIn session establishment (headless + manual verification window)."""
+    try:
+        config = _build_li_config()
+        from linkedin.stealth import launch_stealth_browser, save_session
+        # run auth attempt in background thread to avoid blocking
+        import asyncio
+        loop = asyncio.get_event_loop()
+
+        async def _auth():
+            browser, context, page = await launch_stealth_browser(config)
+            await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded")
+            import asyncio as aio
+            await aio.sleep(3)
+            if "/feed" in page.url:
+                await save_session(context, config)
+                return {"ok": True, "session": "already_active"}
+            # if login needed, save context and return — human resolves manually
+            await save_session(context, config)
+            return {"ok": False, "note": "Login page shown — resolve manually or re-check session"}
+
+        result = await _auth()
+        return result
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/linkedin/campaigns/view")
+async def vm_run_view_campaign(request: Request):
+    data = await request.json()
+    campaign_id = data.pop("campaign_id", None)
+
+    conn = _get_li_db()
+    try:
+        if not campaign_id:
+            cur = conn.execute(
+                "INSERT INTO linkedin_campaigns (type, config, status, started_at) VALUES (?,?,?,?)",
+                ("view", json.dumps(data), "running", datetime.now(timezone.utc).isoformat())
+            )
+            campaign_id = cur.lastrowid
+            conn.commit()
+        else:
+            _ensure_campaign_row(campaign_id, "view", data, conn)
+    finally:
+        conn.close()
+
+    async def _run():
+        try:
+            from linkedin import LinkedInViewer
+            config = _build_li_config()
+            config._targets = data
+            viewer = LinkedInViewer(config)
+            viewer.set_log_callback(lambda msg, phase="info", **kw: _li_log(campaign_id, msg, phase))
+            result = await viewer.start()
+            conn2 = _get_li_db()
+            try:
+                conn2.execute(
+                    "UPDATE linkedin_campaigns SET status='done', progress=100, results=?, completed_at=? WHERE id=?",
+                    (json.dumps(result), datetime.now(timezone.utc).isoformat(), campaign_id)
+                )
+                conn2.commit()
+            finally:
+                conn2.close()
+        except Exception as e:
+            conn3 = _get_li_db()
+            try:
+                conn3.execute(
+                    "UPDATE linkedin_campaigns SET status='error', completed_at=? WHERE id=?",
+                    (datetime.now(timezone.utc).isoformat(), campaign_id)
+                )
+                conn3.commit()
+            finally:
+                conn3.close()
+            _li_log(campaign_id, f"Erro: {str(e)}", "error")
+
+    task = asyncio.create_task(_run())
+    _running_linkedin_campaigns[campaign_id] = task
+    return {"ok": True, "campaign_id": campaign_id}
+
+
+@app.post("/api/linkedin/campaigns/engage")
+async def vm_run_engage_campaign(request: Request):
+    data = await request.json()
+    campaign_id = data.pop("campaign_id", None)
+
+    conn = _get_li_db()
+    try:
+        if not campaign_id:
+            cur = conn.execute(
+                "INSERT INTO linkedin_campaigns (type, config, status, started_at) VALUES (?,?,?,?)",
+                ("engage", json.dumps(data), "running", datetime.now(timezone.utc).isoformat())
+            )
+            campaign_id = cur.lastrowid
+            conn.commit()
+        else:
+            _ensure_campaign_row(campaign_id, "engage", data, conn)
+    finally:
+        conn.close()
+
+    async def _run():
+        try:
+            from linkedin import LinkedInEngager
+            config = _build_li_config()
+            engager = LinkedInEngager(config)
+            engager.set_log_callback(lambda msg, phase="info", **kw: _li_log(campaign_id, msg, phase))
+            result = await engager.start(data)
+            conn2 = _get_li_db()
+            try:
+                conn2.execute(
+                    "UPDATE linkedin_campaigns SET status='done', progress=100, results=?, completed_at=? WHERE id=?",
+                    (json.dumps(result), datetime.now(timezone.utc).isoformat(), campaign_id)
+                )
+                conn2.commit()
+            finally:
+                conn2.close()
+        except Exception as e:
+            conn3 = _get_li_db()
+            try:
+                conn3.execute(
+                    "UPDATE linkedin_campaigns SET status='error', completed_at=? WHERE id=?",
+                    (datetime.now(timezone.utc).isoformat(), campaign_id)
+                )
+                conn3.commit()
+            finally:
+                conn3.close()
+            _li_log(campaign_id, f"Erro: {str(e)}", "error")
+
+    task = asyncio.create_task(_run())
+    _running_linkedin_campaigns[campaign_id] = task
+    return {"ok": True, "campaign_id": campaign_id}
+
+
+@app.post("/api/linkedin/campaigns/connect")
+async def vm_run_connect_campaign(request: Request):
+    data = await request.json()
+    campaign_id = data.pop("campaign_id", None)
+
+    conn = _get_li_db()
+    try:
+        if not campaign_id:
+            cur = conn.execute(
+                "INSERT INTO linkedin_campaigns (type, config, status, started_at) VALUES (?,?,?,?)",
+                ("connect", json.dumps(data), "running", datetime.now(timezone.utc).isoformat())
+            )
+            campaign_id = cur.lastrowid
+            conn.commit()
+        else:
+            _ensure_campaign_row(campaign_id, "connect", data, conn)
+    finally:
+        conn.close()
+
+    async def _run():
+        try:
+            from linkedin import LinkedInConnector
+            config = _build_li_config()
+            connector = LinkedInConnector(config)
+            connector.set_campaign_id(campaign_id)
+            connector.set_log_callback(lambda msg, phase="info", **kw: _li_log(campaign_id, msg, phase))
+            result = await connector.start(data)
+            conn2 = _get_li_db()
+            try:
+                conn2.execute(
+                    "UPDATE linkedin_campaigns SET status='done', progress=100, results=?, completed_at=? WHERE id=?",
+                    (json.dumps(result), datetime.now(timezone.utc).isoformat(), campaign_id)
+                )
+                conn2.commit()
+            finally:
+                conn2.close()
+        except Exception as e:
+            conn3 = _get_li_db()
+            try:
+                conn3.execute(
+                    "UPDATE linkedin_campaigns SET status='error', completed_at=? WHERE id=?",
+                    (datetime.now(timezone.utc).isoformat(), campaign_id)
+                )
+                conn3.commit()
+            finally:
+                conn3.close()
+            _li_log(campaign_id, f"Erro: {str(e)}", "error")
+
+    task = asyncio.create_task(_run())
+    _running_linkedin_campaigns[campaign_id] = task
+    return {"ok": True, "campaign_id": campaign_id}
+
+
+@app.post("/api/linkedin/campaigns/discover")
+async def vm_run_discover_campaign(request: Request):
+    data = await request.json()
+    campaign_id = data.pop("campaign_id", None)
+
+    conn = _get_li_db()
+    try:
+        if not campaign_id:
+            cur = conn.execute(
+                "INSERT INTO linkedin_campaigns (type, config, status, started_at) VALUES (?,?,?,?)",
+                ("discover", json.dumps(data), "running", datetime.now(timezone.utc).isoformat())
+            )
+            campaign_id = cur.lastrowid
+            conn.commit()
+        else:
+            _ensure_campaign_row(campaign_id, "discover", data, conn)
+    finally:
+        conn.close()
+
+    async def _run():
+        try:
+            from linkedin import CompanyFinder
+            config = _build_li_config()
+            finder = CompanyFinder(config)
+            finder.set_log_callback(lambda msg, phase="info", **kw: _li_log(campaign_id, msg, phase))
+            result = await finder.start(data)
+            conn2 = _get_li_db()
+            try:
+                conn2.execute(
+                    "UPDATE linkedin_campaigns SET status='done', progress=100, results=?, completed_at=? WHERE id=?",
+                    (json.dumps(result), datetime.now(timezone.utc).isoformat(), campaign_id)
+                )
+                conn2.commit()
+            finally:
+                conn2.close()
+        except Exception as e:
+            conn3 = _get_li_db()
+            try:
+                conn3.execute(
+                    "UPDATE linkedin_campaigns SET status='error', completed_at=? WHERE id=?",
+                    (datetime.now(timezone.utc).isoformat(), campaign_id)
+                )
+                conn3.commit()
+            finally:
+                conn3.close()
+            _li_log(campaign_id, f"Erro: {str(e)}", "error")
+
+    task = asyncio.create_task(_run())
+    _running_linkedin_campaigns[campaign_id] = task
+    return {"ok": True, "campaign_id": campaign_id}
+
+
+@app.post("/api/linkedin/campaigns/{campaign_id}/stop")
+async def vm_stop_campaign(campaign_id: int):
+    task = _running_linkedin_campaigns.get(campaign_id)
+    if task and not task.done():
+        task.cancel()
+        del _running_linkedin_campaigns[campaign_id]
+
+    conn = _get_li_db()
+    try:
+        conn.execute(
+            "UPDATE linkedin_campaigns SET status='stopped', completed_at=? WHERE id=?",
+            (datetime.now(timezone.utc).isoformat(), campaign_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"ok": True, "campaign_id": campaign_id}
+
+
+@app.get("/api/linkedin/campaigns")
+async def vm_list_linkedin_campaigns(limit: int = 50, offset: int = 0, status: Optional[str] = None):
+    """List LinkedIn campaigns from VM DB. Used by PC's sync_linkedin_campaigns loop."""
+    conn = _get_li_db()
+    try:
+        if status:
+            rows = conn.execute(
+                "SELECT * FROM linkedin_campaigns WHERE status=? "
+                "ORDER BY id DESC LIMIT ? OFFSET ?",
+                (status, limit, offset)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM linkedin_campaigns ORDER BY id DESC LIMIT ? OFFSET ?",
+                (limit, offset)
+            ).fetchall()
+        campaigns = []
+        for r in rows:
+            c = dict(r)
+            try:
+                c["config"] = json.loads(c["config"]) if c.get("config") else {}
+            except Exception:
+                pass
+            try:
+                c["results"] = json.loads(c["results"]) if c.get("results") else None
+            except Exception:
+                pass
+            try:
+                c["log"] = json.loads(c["log"]) if c.get("log") else []
+            except Exception:
+                c["log"] = []
+            campaigns.append(c)
+        total = conn.execute("SELECT COUNT(*) FROM linkedin_campaigns").fetchone()[0]
+        return {"campaigns": campaigns, "total": total}
+    finally:
+        conn.close()
+
+
+@app.get("/api/linkedin/campaigns/{campaign_id}/log")
+async def vm_get_campaign_log(campaign_id: int):
+    conn = _get_li_db()
+    try:
+        row = conn.execute(
+            "SELECT id, type, status, progress, total, log, results FROM linkedin_campaigns WHERE id=?",
+            (campaign_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Campaign not found")
+        c = dict(row)
+        c["log"] = json.loads(c["log"]) if c.get("log") else []
+        c["results"] = json.loads(c["results"]) if c.get("results") else None
+        return c
+    finally:
+        conn.close()
+
+
+# ─── LinkedIn Fase 2: extra endpoints ────────────────────────────────────────
+
+def _apply_linkedin_migration():
+    """Apply 2026_06_linkedin_full.sql to the local DB if tables are missing."""
+    sql_path = Path(__file__).parent / "migrations" / "2026_06_linkedin_full.sql"
+    if not sql_path.exists():
+        # Try VM path
+        sql_path = Path.home() / ".hermes" / "scripts" / "migrations" / "2026_06_linkedin_full.sql"
+    if not sql_path.exists():
+        return
+    try:
+        conn = get_db()
+        conn.executescript(sql_path.read_text(encoding="utf-8"))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[migration] LinkedIn migration error: {e}")
+
+# Apply at startup
+_apply_linkedin_migration()
+
+
+@app.get("/api/linkedin/rate-limits")
+async def vm_linkedin_rate_limits():
+    """Return real rate limiter stats from LinkedInLimiter."""
+    try:
+        from linkedin.limiter import RateLimiter
+        from linkedin import LinkedInConfig
+        config = _build_li_config()
+        limiter = RateLimiter(config)
+        return limiter.get_stats()
+    except Exception as e:
+        return {"error": str(e), "warmup_complete": False}
+
+
+@app.get("/api/linkedin/session-check")
+async def vm_linkedin_session_check():
+    """Check session validity + proxy state + auto-detect account type from LinkedIn DOM.
+
+    Uses cached account_type if fresh (<24h); triggers background re-detection if stale.
+    """
+    try:
+        from linkedin import LinkedInConfig
+        from linkedin.account_detector import read_cached, detect_and_cache
+        config = _build_li_config()
+        session_file = Path(config.session_file)
+        li_at = os.environ.get("LI_AT", "").strip()
+        proxy_url = os.environ.get("LINKEDIN_PROXY", "").strip()
+        proxy_configured = bool(proxy_url)
+        # Proxy liveness check
+        proxy_alive = False
+        if proxy_configured:
+            try:
+                from urllib.parse import urlparse
+                p = urlparse(proxy_url)
+                import socket
+                with socket.create_connection((p.hostname, p.port), timeout=2):
+                    proxy_alive = True
+            except Exception:
+                proxy_alive = False
+        else:
+            proxy_alive = True
+
+        session_ok = session_file.exists() or bool(li_at)
+
+        # Account type: prefer cached detection over env config
+        cached = read_cached()
+        account_type = (cached or {}).get("account_type") or config.account_type or "free"
+        account_type_source = "cache" if cached else "env"
+
+        # If no cache or stale and session_ok, trigger async re-detect (fire-and-forget)
+        if session_ok and not cached:
+            async def _bg():
+                try:
+                    await detect_and_cache(config)
+                except Exception as e:
+                    pass
+            try:
+                asyncio.create_task(_bg())
+            except RuntimeError:
+                pass
+
+        return {
+            "ok": session_ok,
+            "email": config.account_email,
+            "account_type": account_type,
+            "account_type_source": account_type_source,
+            "account_type_evidence": (cached or {}).get("evidence", []),
+            "account_type_detected_at": (cached or {}).get("detected_at"),
+            "proxy_configured": proxy_configured,
+            "proxy_url": proxy_url if proxy_configured else None,
+            "proxy_alive": proxy_alive,
+            "session_file_exists": session_file.exists(),
+            "has_li_at_env": bool(li_at),
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/internal/account_type_set")
+async def vm_account_type_set(request: Request):
+    """Receive account_type detected by the browser extension (no Patchright needed).
+    Writes directly to the cache file used by read_cached().
+    Auth: X-Hermes-Token header.
+    """
+    expected = os.environ.get("HERMES_VM_AUTH_TOKEN", "")
+    presented = request.headers.get("X-Hermes-Token", "")
+    if not expected or presented != expected:
+        raise HTTPException(403, "invalid token")
+    body = await request.json()
+    account_type = (body.get("account_type") or "").strip()
+    if account_type not in ("free", "premium", "sales_navigator"):
+        raise HTTPException(400, "invalid account_type")
+    try:
+        from linkedin.account_detector import write_cache
+        evidence = body.get("evidence", []) + [f"src:{body.get('detected_from', 'extension')}"]
+        if body.get("page_url"):
+            evidence.append(f"page:{body['page_url'][:80]}")
+        write_cache(account_type, evidence)
+        return {"ok": True, "account_type": account_type, "updated_at": datetime.now(timezone.utc).isoformat()}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/linkedin/detect-account-type")
+async def vm_linkedin_detect_account_type():
+    """Force a fresh auto-detection of account type (premium/free/sales_navigator)."""
+    try:
+        from linkedin.account_detector import detect_and_cache
+        from linkedin import LinkedInConfig
+        config = _build_li_config()
+        result = await detect_and_cache(config)
+        return {"ok": True, **result}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/api/linkedin/health")
+async def vm_linkedin_health(force_refresh: bool = Query(False)):
+    """Probe LinkedIn /feed/ via SOCKS5 + LI_AT and return cached health.
+    Used by PC's pre-dispatch precheck so a user can't launch a campaign
+    while LinkedIn is throttling — saves quota and avoids deepening the cooldown.
+    """
+    try:
+        from linkedin.cooldown import check_health
+        result = await check_health(force_refresh=force_refresh)
+        return result
+    except Exception as e:
+        return {"state": "blocked", "reason": f"probe_exception:{e}"}
+
+
+@app.post("/api/linkedin/health/clear")
+async def vm_linkedin_health_clear():
+    """Manually clear the cooldown cache (admin / debugging)."""
+    try:
+        from linkedin.cooldown import CACHE_FILE
+        if CACHE_FILE.exists():
+            CACHE_FILE.unlink()
+        return {"ok": True, "note": "cache cleared — next request will probe live"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.get("/api/linkedin/visited")
+async def vm_linkedin_visited(limit: int = Query(100, ge=1, le=500),
+                              days: int = Query(30, ge=1, le=180)):
+    """List recently visited profile URLs (from linkedin_profiles cache)."""
+    conn = get_db()
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        rows = conn.execute("""
+            SELECT profile_url, name, current_role, current_company, photo, last_seen_at, visit_count
+            FROM linkedin_profiles
+            WHERE last_seen_at >= ?
+            ORDER BY last_seen_at DESC
+            LIMIT ?
+        """, (cutoff, limit)).fetchall()
+        return {"profiles": [dict(r) for r in rows]}
+    except Exception as e:
+        return {"profiles": [], "error": str(e)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/linkedin/profiles")
+async def vm_linkedin_profile_by_url(url: str = Query(...)):
+    """Return cached profile by URL. If missing, trigger async hydration and return 202."""
+    canonical = url.split("?")[0].rstrip("/")
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM linkedin_profiles WHERE profile_url=?",
+            (canonical,)
+        ).fetchone()
+        if row:
+            r = dict(row)
+            if r.get("top_skills"):
+                try:
+                    r["top_skills"] = json.loads(r["top_skills"])
+                except Exception:
+                    r["top_skills"] = []
+            r["_cache_hit"] = True
+            return r
+    finally:
+        conn.close()
+
+    # Cache miss — schedule async hydration
+    async def _hydrate():
+        try:
+            from linkedin.company_finder import hydrate_profile
+            await hydrate_profile(canonical, _build_li_config())
+        except Exception as e:
+            print(f"[profile hydrate] failed: {e}")
+
+    asyncio.create_task(_hydrate())
+    return JSONResponse(
+        status_code=202,
+        content={"_cache_hit": False, "status": "hydrating", "profile_url": canonical}
+    )
+
+
+@app.get("/api/linkedin/companies/lookup")
+async def vm_linkedin_company_lookup(name: str = Query(...)):
+    """Aggregate profiles in cache by current_company to help lookup slug."""
+    conn = get_db()
+    try:
+        # Fuzzy match on current_company
+        rows = conn.execute("""
+            SELECT current_company, current_role, COUNT(*) as n,
+                   MAX(company_domain) as company_domain
+            FROM linkedin_profiles
+            WHERE LOWER(current_company) LIKE '%' || LOWER(?) || '%'
+            GROUP BY current_company
+            ORDER BY n DESC
+            LIMIT 10
+        """, (name,)).fetchall()
+        return {"matches": [dict(r) for r in rows]}
+    finally:
+        conn.close()
+
+
+@app.post("/api/linkedin/comment/edit")
+async def vm_linkedin_comment_edit(request: Request):
+    body = await request.json()
+    post_url = body.get("post_url")
+    comment_id = body.get("comment_id")
+    new_text = body.get("new_text", "")
+    if not (post_url and comment_id and new_text):
+        raise HTTPException(400, "post_url, comment_id, new_text required")
+    try:
+        from linkedin import LinkedInEngager
+        engager = LinkedInEngager(_build_li_config())
+        result = await engager.edit_comment(post_url, comment_id, new_text)
+        # Update DB
+        if result.get("ok"):
+            conn = get_db()
+            try:
+                conn.execute("""
+                    UPDATE linkedin_engagements
+                    SET comment_text=?, edited_at=?
+                    WHERE comment_id=?
+                """, (new_text, result.get("edited_at"), comment_id))
+                conn.commit()
+            finally:
+                conn.close()
+        return result
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/linkedin/comment/delete")
+async def vm_linkedin_comment_delete(request: Request):
+    body = await request.json()
+    post_url = body.get("post_url")
+    comment_id = body.get("comment_id")
+    if not (post_url and comment_id):
+        raise HTTPException(400, "post_url, comment_id required")
+    try:
+        from linkedin import LinkedInEngager
+        engager = LinkedInEngager(_build_li_config())
+        result = await engager.delete_comment(post_url, comment_id)
+        if result.get("ok"):
+            conn = get_db()
+            try:
+                conn.execute("""
+                    UPDATE linkedin_engagements
+                    SET deleted_at=?
+                    WHERE comment_id=?
+                """, (result.get("deleted_at"), comment_id))
+                conn.commit()
+            finally:
+                conn.close()
+        return result
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/internal/li_at_update")
+async def vm_li_at_update(request: Request):
+    """Receive a new li_at cookie from the PC (forwarded by server.py).
+    Writes to ~/.hermes/.env so next browser launch picks it up via
+    `os.environ.get("LI_AT")` in stealth.py.
+    Auth: X-Hermes-Token header must match HERMES_VM_AUTH_TOKEN env.
+    """
+    expected = os.environ.get("HERMES_VM_AUTH_TOKEN", "")
+    presented = request.headers.get("X-Hermes-Token", "")
+    if not expected or presented != expected:
+        raise HTTPException(403, "invalid token")
+    body = await request.json()
+    li_at = (body.get("li_at") or "").strip()
+    if not li_at or len(li_at) < 30:
+        raise HTTPException(400, "li_at missing or too short")
+    env_path = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / ".env"
+    try:
+        if env_path.exists():
+            lines = env_path.read_text(encoding="utf-8").splitlines()
+        else:
+            lines = []
+        seen = False
+        new_lines = []
+        for ln in lines:
+            if ln.startswith("LI_AT="):
+                new_lines.append(f"LI_AT={li_at}")
+                seen = True
+            else:
+                new_lines.append(ln)
+        if not seen:
+            new_lines.append(f"LI_AT={li_at}")
+        env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+        # Update current process env so the very next browser launch sees it
+        os.environ["LI_AT"] = li_at
+        # Also delete any stored session file (forces re-create with new cookie)
+        try:
+            sess = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / "data" / "sessions"
+            for f in sess.glob("*.json"):
+                f.unlink()
+        except Exception:
+            pass
+        return {"ok": True, "updated_at": datetime.now(timezone.utc).isoformat()}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@app.post("/api/linkedin/connection/refresh")
+async def vm_linkedin_connection_refresh(request: Request):
+    """Trigger refresh of pending connection statuses (visit each profile)."""
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    max_per_run = int(body.get("max", 30))
+    try:
+        from linkedin.connector import refresh_connection_statuses
+        result = await refresh_connection_statuses(_build_li_config(), max_per_run=max_per_run)
+        return result
+    except Exception as e:
+        return {"checked": 0, "updated": 0, "error": str(e)}
+
+
+# ─── Push progress events to PC (real-time) ──────────────────────────────────
+
+PC_EVENT_URL = os.environ.get("HERMES_PC_EVENT_URL", "http://127.0.0.1:55000/api/internal/linkedin/event")
+
+async def _push_event_to_pc(campaign_id: int, msg: str, phase: str = "info",
+                            progress: Optional[int] = None,
+                            partial_results: Optional[dict] = None):
+    """Fire-and-forget HTTP POST to PC's internal event endpoint."""
+    try:
+        import httpx
+        payload = {
+            "campaign_id": campaign_id,
+            "msg": msg,
+            "phase": phase,
+            "progress": progress,
+            "partial_results": partial_results,
+            "ts": datetime.now(timezone.utc).isoformat(),
+        }
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            await client.post(PC_EVENT_URL, json=payload)
+    except Exception:
+        # Silent — push is best-effort
+        pass
+
+
+# Monkey-patch _li_log to also push to PC
+_original_li_log = _li_log
+
+def _li_log_with_push(campaign_id: int, msg: str, phase: str = "info"):
+    _original_li_log(campaign_id, msg, phase)
+    # Read partial results to send progress
+    try:
+        conn = _get_li_db()
+        row = conn.execute(
+            "SELECT progress, results FROM linkedin_campaigns WHERE id=?",
+            (campaign_id,)
+        ).fetchone()
+        conn.close()
+        progress = row["progress"] if row else None
+        partial = json.loads(row["results"]) if row and row["results"] else None
+    except Exception:
+        progress = None
+        partial = None
+    # Fire-and-forget
+    try:
+        loop = asyncio.get_event_loop()
+        loop.create_task(_push_event_to_pc(campaign_id, msg, phase, progress, partial))
+    except RuntimeError:
+        # Not in a running loop — skip push
+        pass
+
+
+_li_log = _li_log_with_push
 
 
 if __name__ == "__main__":

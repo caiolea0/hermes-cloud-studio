@@ -32,10 +32,10 @@ load_dotenv(BASE_DIR / ".env")
 
 VM_USER = os.environ.get("VM_USER", "hermes-gcp")
 VM_HOST = os.environ.get("VM_HOST", "")
-PROXY_PORT = int(os.environ.get("PROXY_PORT", "1081"))
+PROXY_PORT = int(os.environ.get("PROXY_PORT", "55081"))
 PROXY_USER = os.environ.get("PROXY_USER", "")
 PROXY_PASS = os.environ.get("PROXY_PASS", "")
-DASHBOARD_PORT = int(os.environ.get("DASHBOARD_PORT", "8500"))
+DASHBOARD_PORT = int(os.environ.get("DASHBOARD_PORT", "55000"))
 DASHBOARD_URL = f"http://localhost:{DASHBOARD_PORT}"
 
 LOG_FILE = BASE_DIR / "hermes_desktop.log"

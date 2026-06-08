@@ -25,7 +25,7 @@ logger = logging.getLogger("hermes.daemon")
 
 # --- Configuration ---
 VM_API_URL = os.environ.get("HERMES_VM_API", "http://localhost:8420")
-LOCAL_API_URL = os.environ.get("HERMES_LOCAL_API", "http://localhost:8500")
+LOCAL_API_URL = os.environ.get("HERMES_LOCAL_API", "http://localhost:55000")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")

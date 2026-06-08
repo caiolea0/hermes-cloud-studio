@@ -187,7 +187,7 @@ fn spawn_hidden(cmd: &str, args: &[&str], cwd: Option<&PathBuf>) -> Result<Child
 // ===========================================================================
 
 fn launch_server(services: &AppServices) -> Result<(), String> {
-    if is_port_open(8500) {
+    if is_port_open(55000) {
         return Ok(());
     }
     let dir = services.project_dir.lock().unwrap().clone();
@@ -206,7 +206,7 @@ fn launch_server(services: &AppServices) -> Result<(), String> {
 }
 
 fn launch_proxy(services: &AppServices) -> Result<(), String> {
-    if is_port_open(1081) {
+    if is_port_open(55081) {
         return Ok(());
     }
     let dir = services.project_dir.lock().unwrap().clone();
@@ -216,7 +216,7 @@ fn launch_proxy(services: &AppServices) -> Result<(), String> {
     }
     let child = spawn_hidden(
         "python",
-        &[proxy_py.to_str().unwrap(), "1081"],
+        &[proxy_py.to_str().unwrap(), "55081"],
         Some(&dir),
     )?;
     *services.proxy_proc.lock().unwrap() = Some(child);
@@ -233,7 +233,8 @@ fn launch_tunnel(services: &AppServices) -> Result<(), String> {
             "-o", "StrictHostKeyChecking=no",
             "-o", "ServerAliveInterval=30",
             "-o", "ServerAliveCountMax=3",
-            "-R", "127.0.0.1:1081:127.0.0.1:1081",
+            "-R", "127.0.0.1:55081:127.0.0.1:55081",
+            "-R", "127.0.0.1:11434:127.0.0.1:11434",  // Ollama GPU → VM
             "-N", "hermes-gcp@136.115.74.69",
         ],
         None,
@@ -262,7 +263,7 @@ fn spawn_health_loop(app_handle: AppHandle) {
             }
 
             // --- Server health ---
-            if is_port_open(8500) {
+            if is_port_open(55000) {
                 services.server_tracker.lock().unwrap().mark_healthy();
             } else {
                 let mut tracker = services.server_tracker.lock().unwrap();
@@ -273,7 +274,7 @@ fn spawn_health_loop(app_handle: AppHandle) {
             }
 
             // --- Proxy health ---
-            if is_port_open(1081) {
+            if is_port_open(55081) {
                 services.proxy_tracker.lock().unwrap().mark_healthy();
             } else {
                 let mut tracker = services.proxy_tracker.lock().unwrap();
@@ -318,7 +319,7 @@ fn wait_and_show_window(app_handle: AppHandle) {
         let interval = Duration::from_millis(500);
 
         while start.elapsed() < max_wait {
-            if is_port_open(8500) {
+            if is_port_open(55000) {
                 // Small extra delay for server to be fully ready
                 std::thread::sleep(Duration::from_millis(500));
                 if let Some(w) = app_handle.get_webview_window("main") {
@@ -345,8 +346,8 @@ fn wait_and_show_window(app_handle: AppHandle) {
 #[tauri::command]
 fn get_status(services: State<AppServices>) -> ServiceStatus {
     ServiceStatus {
-        server: is_port_open(8500),
-        proxy: is_port_open(1081),
+        server: is_port_open(55000),
+        proxy: is_port_open(55081),
         tunnel: is_process_alive(&services.tunnel_proc),
         server_status: services.server_tracker.lock().unwrap().status_text().to_string(),
         proxy_status: services.proxy_tracker.lock().unwrap().status_text().to_string(),

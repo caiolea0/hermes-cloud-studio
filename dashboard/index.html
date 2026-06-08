@@ -240,6 +240,10 @@
                 <svg><use href="#i-zap"/></svg>
                 <span class="nav-label">Skills</span>
             </div>
+            <div class="nav-item" data-page="linkedin" onclick="navigate('linkedin')">
+                <svg><use href="#i-linkedin"/></svg>
+                <span class="nav-label">LinkedIn</span>
+            </div>
             <div class="nav-item" data-page="memory" onclick="navigate('memory')">
                 <svg><use href="#i-database"/></svg>
                 <span class="nav-label">Memoria</span>
@@ -283,9 +287,42 @@
                     <svg><use href="#i-refresh"/></svg>
                 </button>
             </div>
-            <div class="topbar-status" id="hermes-status">
+            <div class="topbar-status" id="hermes-status" onclick="toggleServerMenu(event)" style="cursor:pointer">
                 <span class="status-dot" id="status-dot"></span>
                 <span id="status-text">Conectando...</span>
+                <svg style="width:10px;height:10px;color:var(--text-3);margin-left:2px"><use href="#i-chevron-right" style="transform:rotate(90deg)"/></svg>
+            </div>
+            <!-- SERVER CONTROL DROPDOWN -->
+            <div id="server-menu" class="server-menu" style="display:none">
+                <div class="server-menu-header">
+                    <span class="server-menu-label">SERVIDOR</span>
+                </div>
+                <div class="server-menu-row">
+                    <span class="status-dot" id="server-menu-dot"></span>
+                    <span id="server-menu-status">Verificando...</span>
+                </div>
+                <div class="server-menu-row server-menu-sub" id="server-menu-vm-row">
+                    <span class="status-dot" id="server-menu-vm-dot"></span>
+                    <span id="server-menu-vm-status">VM: verificando...</span>
+                </div>
+                <div class="server-menu-divider"></div>
+                <button class="server-menu-item" onclick="serverAction('restart-local')">
+                    <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg>
+                    Reiniciar Servidor Local
+                </button>
+                <button class="server-menu-item" onclick="serverAction('restart-vm')">
+                    <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg>
+                    Reiniciar Hermes VM
+                </button>
+                <button class="server-menu-item" onclick="serverAction('restart-all')">
+                    <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg>
+                    Reiniciar Tudo
+                </button>
+                <div class="server-menu-divider"></div>
+                <button class="server-menu-item server-menu-item-danger" onclick="serverAction('shutdown-local')">
+                    <svg style="width:13px;height:13px"><use href="#i-x"/></svg>
+                    Desligar Servidor Local
+                </button>
             </div>
         </header>
 
@@ -1181,6 +1218,342 @@
 
 
 
+            <!-- ========================== PAGE: LINKEDIN ========================== -->
+            <div class="page" id="page-linkedin">
+
+                <!-- STATUS PANEL -->
+                <div class="li-status-panel card" id="li-status-panel">
+                    <div class="li-status-left">
+                        <div class="li-status-row">
+                            <span class="status-dot" id="li-session-dot" style="background:var(--text-3)"></span>
+                            <span class="li-status-account" id="li-status-account">Verificando sessão...</span>
+                            <span class="li-status-badge" id="li-account-type-badge">–</span>
+                            <span class="li-proxy-badge" id="li-proxy-badge">
+                                <span class="status-dot" id="li-proxy-dot" style="background:var(--text-3);width:7px;height:7px"></span>
+                                Proxy –
+                            </span>
+                            <span class="li-health-badge" id="li-health-badge" title="Estado do LinkedIn (probe a cada 1-3 min)" style="display:none">
+                                <span class="status-dot" id="li-health-dot" style="width:7px;height:7px"></span>
+                                <span id="li-health-label">–</span>
+                                <span id="li-health-retry" style="color:var(--text-3);font-size:10px"></span>
+                            </span>
+                            <span class="li-health-badge" id="li-hours-badge" title="Horário comercial configurado" style="display:none">
+                                <span class="status-dot" id="li-hours-dot" style="width:7px;height:7px"></span>
+                                <span id="li-hours-label">–</span>
+                            </span>
+                            <span class="li-health-badge" id="li-lurking-badge" title="Fase de aquecimento — só browsing passivo" style="display:none">
+                                <span class="status-dot" style="width:7px;height:7px;background:#06b6d4"></span>
+                                <span id="li-lurking-label">Lurking</span>
+                            </span>
+                        </div>
+                        <div class="li-warmup-row" id="li-warmup-row">
+                            <span style="font-size:11px;color:var(--text-2)">Warm-up:</span>
+                            <div class="li-warmup-bar">
+                                <div class="li-warmup-fill" id="li-warmup-fill" style="width:0%"></div>
+                            </div>
+                            <span class="li-warmup-label" id="li-warmup-label">–</span>
+                        </div>
+                    </div>
+                    <div class="li-status-stats" id="li-status-stats">
+                        <div class="li-stat-item"><span class="li-stat-num" id="li-stat-views">–</span><span class="li-stat-lbl">views hoje</span></div>
+                        <div class="li-stat-sep"></div>
+                        <div class="li-stat-item"><span class="li-stat-num" id="li-stat-connects">–</span><span class="li-stat-lbl">conexões</span></div>
+                        <div class="li-stat-sep"></div>
+                        <div class="li-stat-item"><span class="li-stat-num" id="li-stat-likes">–</span><span class="li-stat-lbl">curtidas</span></div>
+                        <div class="li-stat-sep"></div>
+                        <div class="li-stat-item"><span class="li-stat-num" id="li-stat-comments">–</span><span class="li-stat-lbl">comentários</span></div>
+                    </div>
+                    <div class="li-status-actions">
+                        <button class="btn btn-ghost btn-sm" onclick="liReconnect()">
+                            <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg> Reconectar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CAMPAIGN CARDS -->
+                <div class="li-campaigns-grid">
+
+                    <!-- CARD 1: Visitar Perfis -->
+                    <div class="li-campaign-card card">
+                        <div class="li-card-header">
+                            <div class="li-card-icon" style="background:rgba(59,130,246,.15);color:#3b82f6">
+                                <svg style="width:18px;height:18px"><use href="#i-eye"/></svg>
+                            </div>
+                            <div>
+                                <div class="li-card-title">Visitar Perfis</div>
+                                <div class="li-card-desc">Ghost view → trigger reciprocidade</div>
+                            </div>
+                        </div>
+                        <div class="li-card-body">
+                            <label class="li-field-label">Tipo de recrutador</label>
+                            <div class="li-chips" id="li-chips-roles">
+                                <div class="li-chip selected" data-val="Tech Recruiter">Tech Recruiter</div>
+                                <div class="li-chip" data-val="HR Generalist">HR Generalist</div>
+                                <div class="li-chip" data-val="Talent Acquisition">Talent Acquisition</div>
+                                <div class="li-chip" data-val="Headhunter">Headhunter</div>
+                                <div class="li-chip" data-val="Diretor de RH">Diretor de RH</div>
+                                <div class="li-chip" data-val="CEO PME">CEO PME</div>
+                                <div class="li-chip" data-val="Gerente de Contratação">Ger. Contratação</div>
+                                <div class="li-chip li-chip-custom" onclick="liAddCustomRole('view')">+ Custom</div>
+                            </div>
+                            <div class="li-row-2">
+                                <div>
+                                    <label class="li-field-label">Localização</label>
+                                    <div class="li-tabs" id="li-view-loc-tabs">
+                                        <button class="li-tab active" data-val="Brazil" onclick="liSelectTab(this,'li-view-loc-tabs')">Brasil</button>
+                                        <button class="li-tab" data-val="Global" onclick="liSelectTab(this,'li-view-loc-tabs')">Global</button>
+                                        <button class="li-tab" data-val="custom" onclick="liSelectTab(this,'li-view-loc-tabs')">Custom</button>
+                                    </div>
+                                    <input class="li-input" id="li-view-loc-custom" placeholder="Ex: Portugal" style="display:none;margin-top:6px">
+                                </div>
+                                <div>
+                                    <label class="li-field-label">Modo</label>
+                                    <div class="li-toggle-row">
+                                        <label class="li-toggle-label">
+                                            <input type="radio" name="li-view-mode" value="ghost" checked> Ghost View
+                                        </label>
+                                        <label class="li-toggle-label">
+                                            <input type="radio" name="li-view-mode" value="interact"> View + Interação
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="li-field-label">Max perfis: <span id="li-view-max-label">25</span></label>
+                                <input type="range" class="li-slider" id="li-view-max" min="1" max="100" value="25"
+                                    oninput="document.getElementById('li-view-max-label').textContent=this.value">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-sm li-launch-btn" onclick="liStartCampaign('view')">
+                            <svg style="width:13px;height:13px"><use href="#i-play"/></svg> Iniciar
+                        </button>
+                    </div>
+
+                    <!-- CARD 2: Engajar Posts -->
+                    <div class="li-campaign-card card">
+                        <div class="li-card-header">
+                            <div class="li-card-icon" style="background:rgba(16,185,129,.15);color:#10b981">
+                                <svg style="width:18px;height:18px"><use href="#i-message-circle"/></svg>
+                            </div>
+                            <div>
+                                <div class="li-card-title">Engajar Posts</div>
+                                <div class="li-card-desc">Ler → comentar (AI) → curtir</div>
+                            </div>
+                        </div>
+                        <div class="li-card-body">
+                            <label class="li-field-label">Keywords / hashtags</label>
+                            <div class="li-tag-input-wrap">
+                                <div class="li-tags" id="li-engage-tags"></div>
+                                <input class="li-tag-input" id="li-engage-tag-inp" placeholder="Digite e pressione Enter"
+                                    onkeydown="liAddTag(event,'li-engage-tags','li-engage-tag-inp')">
+                            </div>
+                            <label class="li-field-label" style="margin-top:10px">Indústrias</label>
+                            <div class="li-chips" id="li-chips-industries">
+                                <div class="li-chip selected" data-val="Tecnologia">Tech</div>
+                                <div class="li-chip selected" data-val="Recrutamento">RH/Recrutamento</div>
+                                <div class="li-chip" data-val="Startups">Startups</div>
+                                <div class="li-chip" data-val="Agile">Agile</div>
+                                <div class="li-chip" data-val="Inovação">Inovação</div>
+                                <div class="li-chip" data-val="Carreira">Carreira</div>
+                            </div>
+                            <div class="li-row-2" style="margin-top:10px">
+                                <div>
+                                    <label class="li-field-label">Ações</label>
+                                    <div style="display:flex;flex-direction:column;gap:4px">
+                                        <label class="li-checkbox-label">
+                                            <input type="checkbox" id="li-engage-like" checked> Curtir
+                                        </label>
+                                        <label class="li-checkbox-label">
+                                            <input type="checkbox" id="li-engage-comment" checked> Comentar (AI)
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="li-field-label">Tom</label>
+                                    <select class="li-select" id="li-engage-tone">
+                                        <option value="professional">Profissional</option>
+                                        <option value="casual">Casual</option>
+                                        <option value="technical">Técnico</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="margin-top:8px">
+                                <label class="li-field-label">Max posts: <span id="li-engage-max-label">10</span></label>
+                                <input type="range" class="li-slider" id="li-engage-max" min="1" max="20" value="10"
+                                    oninput="document.getElementById('li-engage-max-label').textContent=this.value">
+                            </div>
+                        </div>
+                        <button class="btn btn-green btn-sm li-launch-btn" onclick="liStartCampaign('engage')">
+                            <svg style="width:13px;height:13px"><use href="#i-play"/></svg> Iniciar
+                        </button>
+                    </div>
+
+                    <!-- CARD 3: Enviar Conexões -->
+                    <div class="li-campaign-card card">
+                        <div class="li-card-header">
+                            <div class="li-card-icon" style="background:rgba(245,158,11,.15);color:#f59e0b">
+                                <svg style="width:18px;height:18px"><use href="#i-users"/></svg>
+                            </div>
+                            <div>
+                                <div class="li-card-title">Enviar Conexões</div>
+                                <div class="li-card-desc">Conectar com recrutadores-alvo</div>
+                            </div>
+                        </div>
+                        <div class="li-card-body">
+                            <label class="li-field-label">Baseado em</label>
+                            <div class="li-tabs" id="li-connect-mode-tabs">
+                                <button class="li-tab active" data-val="search" onclick="liSelectTab(this,'li-connect-mode-tabs');liConnectModeChange()">Busca</button>
+                                <button class="li-tab" data-val="urls" onclick="liSelectTab(this,'li-connect-mode-tabs');liConnectModeChange()">Lista URLs</button>
+                                <button class="li-tab" data-val="visited" onclick="liSelectTab(this,'li-connect-mode-tabs');liConnectModeChange()">Já visitados</button>
+                            </div>
+                            <div id="li-connect-search-fields" style="margin-top:8px">
+                                <label class="li-field-label">Função alvo</label>
+                                <input class="li-input" id="li-connect-query" placeholder="Ex: Senior Recruiter tech" value="Tech Recruiter">
+                                <label class="li-field-label" style="margin-top:6px">Localização</label>
+                                <input class="li-input" id="li-connect-location" placeholder="Brazil" value="Brazil">
+                            </div>
+                            <div id="li-connect-urls-fields" style="display:none;margin-top:8px">
+                                <label class="li-field-label">URLs de perfil (uma por linha)</label>
+                                <textarea class="li-textarea" id="li-connect-urls" placeholder="https://linkedin.com/in/...&#10;https://linkedin.com/in/..." rows="4"></textarea>
+                            </div>
+                            <div style="margin-top:10px">
+                                <label class="li-checkbox-label">
+                                    <input type="checkbox" id="li-connect-note"> Enviar nota personalizada (AI)
+                                </label>
+                                <textarea class="li-textarea" id="li-connect-note-template" placeholder="Template opcional: Oi {nome}, vi que você é {titulo} na {empresa}..."
+                                    style="margin-top:6px;display:none" rows="3"></textarea>
+                            </div>
+                            <div style="margin-top:8px">
+                                <label class="li-field-label">Max conexões: <span id="li-connect-max-label">15</span></label>
+                                <input type="range" class="li-slider" id="li-connect-max" min="1" max="30" value="15"
+                                    oninput="document.getElementById('li-connect-max-label').textContent=this.value">
+                            </div>
+                        </div>
+                        <button class="btn btn-sm li-launch-btn" style="background:var(--amber);color:#000" onclick="liStartCampaign('connect')">
+                            <svg style="width:13px;height:13px"><use href="#i-play"/></svg> Iniciar
+                        </button>
+                    </div>
+
+                    <!-- CARD 4: Descobrir por Empresa -->
+                    <div class="li-campaign-card card">
+                        <div class="li-card-header">
+                            <div class="li-card-icon" style="background:rgba(168,85,247,.15);color:#a855f7">
+                                <svg style="width:18px;height:18px"><use href="#i-building"/></svg>
+                            </div>
+                            <div>
+                                <div class="li-card-title">Descobrir por Empresa</div>
+                                <div class="li-card-desc">Encontrar recrutadores em empresas</div>
+                            </div>
+                        </div>
+                        <div class="li-card-body">
+                            <label class="li-field-label">Empresas (nome ou URL LinkedIn)</label>
+                            <textarea class="li-textarea" id="li-discover-companies"
+                                placeholder="Nubank&#10;Mercado Livre&#10;https://linkedin.com/company/stone&#10;TOTVS" rows="5"></textarea>
+                            <div class="li-row-2" style="margin-top:10px">
+                                <div>
+                                    <label class="li-field-label">O que buscar</label>
+                                    <div style="display:flex;flex-direction:column;gap:4px">
+                                        <label class="li-radio-label">
+                                            <input type="radio" name="li-discover-scope" value="recruiters_only" checked> Só Recrutadores
+                                        </label>
+                                        <label class="li-radio-label">
+                                            <input type="radio" name="li-discover-scope" value="hr_full"> RH Completo
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="li-field-label">Após encontrar</label>
+                                    <div style="display:flex;flex-direction:column;gap:4px">
+                                        <label class="li-radio-label">
+                                            <input type="radio" name="li-discover-action" value="save" checked> Só salvar
+                                        </label>
+                                        <label class="li-radio-label">
+                                            <input type="radio" name="li-discover-action" value="view"> Visitar perfil
+                                        </label>
+                                        <label class="li-radio-label">
+                                            <input type="radio" name="li-discover-action" value="connect"> Solicitar conexão
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Max por empresa slider (mesmo padrão dos demais cards) -->
+                            <div class="li-field">
+                                <label class="li-field-label">Max perfis por empresa: <span id="li-discover-max-label">10</span></label>
+                                <input type="range" class="li-slider" id="li-discover-max" min="1" max="50" value="10"
+                                    oninput="document.getElementById('li-discover-max-label').textContent=this.value">
+                            </div>
+                        </div>
+                        <button class="btn btn-sm li-launch-btn" style="background:#a855f7;color:#fff" onclick="liStartCampaign('discover')">
+                            <svg style="width:13px;height:13px"><use href="#i-play"/></svg> Iniciar
+                        </button>
+                    </div>
+
+                </div><!-- /li-campaigns-grid -->
+
+                <!-- CAMPAIGNS MONITOR (hierarchical, tabs + collapsible sections) -->
+                <div class="card" id="li-campaigns-monitor" style="margin-top:16px;padding:0">
+                    <div class="li-monitor-header">
+                        <div class="li-monitor-tabs" id="li-monitor-tabs">
+                            <button class="li-monitor-tab active" data-tab="active" onclick="liSwitchTab('active')">
+                                <span class="li-monitor-tab-label">Ativas</span>
+                                <span class="li-monitor-tab-count" id="li-tab-count-active">0</span>
+                            </button>
+                            <button class="li-monitor-tab" data-tab="scheduled" onclick="liSwitchTab('scheduled')">
+                                <span class="li-monitor-tab-label">📅 Agendadas</span>
+                                <span class="li-monitor-tab-count" id="li-tab-count-scheduled">0</span>
+                            </button>
+                            <button class="li-monitor-tab" data-tab="completed" onclick="liSwitchTab('completed')">
+                                <span class="li-monitor-tab-label">Concluídas</span>
+                                <span class="li-monitor-tab-count" id="li-tab-count-completed">0</span>
+                            </button>
+                            <button class="li-monitor-tab" data-tab="all" onclick="liSwitchTab('all')">
+                                <span class="li-monitor-tab-label">Todas</span>
+                                <span class="li-monitor-tab-count" id="li-tab-count-all">0</span>
+                            </button>
+                        </div>
+                        <div class="li-monitor-actions">
+                            <button class="btn btn-ghost btn-sm" onclick="loadLinkedInCampaigns()" title="Atualizar">
+                                <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="li-monitor-body" id="li-monitor-body">
+                        <div class="li-monitor-empty">
+                            <svg style="width:32px;height:32px;stroke:var(--text-3)"><use href="#i-inbox"/></svg>
+                            <p>Nenhuma campanha ainda</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /page-linkedin -->
+
+            <!-- LINKEDIN LOG MODAL -->
+            <div class="modal-overlay" id="li-log-modal" style="display:none" onclick="if(event.target===this)closeLiLogModal()">
+                <div class="modal-box" style="width:680px;max-width:95vw">
+                    <div class="modal-header">
+                        <span id="li-log-modal-title">Log da Campanha</span>
+                        <button class="btn btn-ghost btn-sm" onclick="closeLiLogModal()">
+                            <svg style="width:14px;height:14px"><use href="#i-x"/></svg>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding:0">
+                        <!-- stats summary -->
+                        <div id="li-log-summary" style="display:flex;gap:16px;padding:12px 16px;background:var(--s1);border-bottom:1px solid var(--border)"></div>
+                        <!-- log stream -->
+                        <div id="li-log-stream" style="max-height:320px;overflow-y:auto;padding:12px 16px;font-family:monospace;font-size:12px;display:flex;flex-direction:column;gap:4px"></div>
+                        <!-- profiles list -->
+                        <div id="li-log-profiles" style="max-height:200px;overflow-y:auto;padding:0 16px 12px"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-ghost" id="li-log-stop-btn" onclick="liStopCampaign()">
+                            <svg style="width:13px;height:13px"><use href="#i-stop"/></svg> Parar
+                        </button>
+                        <button class="btn btn-primary" onclick="closeLiLogModal()">Fechar</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- ========================== PAGE: CLAUDE CODE ========================== -->
             <div class="page" id="page-claude">
                 <div class="grid-2">
@@ -1532,6 +1905,70 @@
 
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toast-container"></div>
+
+<!-- LINKEDIN HOVER CARD (shared overlay) -->
+<div id="li-hover-card" class="li-hover-card" style="display:none"></div>
+
+<!-- LINKEDIN BATCH ACTION BAR (floating, appears on multi-select) -->
+<div id="li-batch-bar" class="li-batch-bar" style="display:none">
+    <span class="li-batch-count"><strong id="li-batch-count-num">0</strong> selecionados</span>
+    <button class="btn btn-sm" onclick="liBatchAction('view')">
+        <svg style="width:13px;height:13px"><use href="#i-eye"/></svg> Visitar todos
+    </button>
+    <button class="btn btn-sm" onclick="liBatchAction('connect')">
+        <svg style="width:13px;height:13px"><use href="#i-users"/></svg> Solicitar conexão
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="liBatchClear()">
+        <svg style="width:13px;height:13px"><use href="#i-x"/></svg> Limpar
+    </button>
+</div>
+
+<!-- LINKEDIN COMMENT EDIT MODAL (placeholder) -->
+<div class="modal-overlay" id="li-comment-modal" style="display:none" onclick="if(event.target===this)liCloseCommentModal()">
+    <div class="modal-box" style="width:520px;max-width:95vw">
+        <div class="modal-header">
+            <span id="li-comment-modal-title">Editar Comentário</span>
+            <button class="btn btn-ghost btn-sm" onclick="liCloseCommentModal()">
+                <svg style="width:14px;height:14px"><use href="#i-x"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="li-comment-modal-body"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="liCloseCommentModal()">Fechar</button>
+            <button class="btn btn-primary" id="li-comment-modal-confirm" onclick="liConfirmCommentAction()">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- LINKEDIN BATCH CONNECT MODAL -->
+<div class="modal-overlay" id="li-batch-connect-modal" style="display:none" onclick="if(event.target===this)liCloseBatchConnectModal()">
+    <div class="modal-box" style="width:480px;max-width:95vw">
+        <div class="modal-header">
+            <span>Solicitar conexão em lote</span>
+            <button class="btn btn-ghost btn-sm" onclick="liCloseBatchConnectModal()">
+                <svg style="width:14px;height:14px"><use href="#i-x"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p style="margin:0 0 12px;font-size:13px;color:var(--text-2)">
+                Você está prestes a enviar <strong id="li-batch-connect-count">0</strong> solicitações de conexão.
+            </p>
+            <label class="li-toggle-row" style="margin-bottom:12px">
+                <input type="checkbox" id="li-batch-connect-note" checked>
+                Enviar nota personalizada (IA)
+            </label>
+            <textarea id="li-batch-connect-template"
+                style="width:100%;height:80px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--s1);color:var(--text);font-size:12px;font-family:inherit;resize:vertical"
+                placeholder="Template (use {nome} e {empresa})">Olá {nome}, vi seu trabalho em {empresa} e adoraria conectar para trocar ideias. Abraço!</textarea>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="liCloseBatchConnectModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="liConfirmBatchConnect()">Enviar</button>
+        </div>
+    </div>
+</div>
 
 <!-- ============================================================
      JAVASCRIPT
