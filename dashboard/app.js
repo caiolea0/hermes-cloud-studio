@@ -26,6 +26,32 @@ function escapeHtml(str) {
     return d.innerHTML;
 }
 
+/* ============================================================
+   MERGED-019 — XSS sanitization (DOMPurify)
+   Allowlist restritivo pra markdown render do Claude (renderMarkdownTerminal).
+   Bloqueia <script>, on*=, javascript: URLs, etc. mesmo se algum bug em
+   formatInline/renderMarkdownTerminal escapar mal um payload.
+   ============================================================ */
+const CLAUDE_ALLOWED_TAGS = [
+    'div', 'span', 'p', 'br', 'hr',
+    'strong', 'em', 'b', 'i', 'u', 'code', 'pre',
+    'svg', 'use', 'a',
+    'ul', 'ol', 'li',
+];
+const CLAUDE_ALLOWED_ATTR = ['style', 'class', 'href', 'use'];
+
+function sanitizeClaudeHtml(html) {
+    if (typeof DOMPurify === 'undefined') {
+        console.warn('DOMPurify ausente; sanitization bypassed (fail-open dev only)');
+        return html;
+    }
+    return DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: CLAUDE_ALLOWED_TAGS,
+        ALLOWED_ATTR: CLAUDE_ALLOWED_ATTR,
+        ALLOW_DATA_ATTR: false,
+    });
+}
+
 function formatDate(dateStr) {
     if (!dateStr) return '--';
     try {
@@ -2657,14 +2683,16 @@ function renderMarkdownTerminal(text) {
     if (inCodeBlock && codeLines.length) {
         html += `<div class="log-line" style="background:var(--s3);border-radius:var(--r-sm);padding:8px 12px;margin:4px 0;font-family:monospace;font-size:11px;white-space:pre-wrap;border-left:3px solid var(--lime)">${codeLines.map(l => escapeHtml(l)).join('\n')}</div>`;
     }
-    return html;
+    // MERGED-019: defesa em profundidade — sanitize final antes do innerHTML.
+    return sanitizeClaudeHtml(html);
 }
 
 function formatInline(text) {
-    return escapeHtml(text)
+    const html = escapeHtml(text)
         .replace(/`([^`]+)`/g, '<code style="background:var(--s3);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--lime)">$1</code>')
         .replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--text);font-weight:700">$1</strong>')
         .replace(/\*([^*]+)\*/g, '<em style="color:var(--text-2)">$1</em>');
+    return sanitizeClaudeHtml(html);
 }
 
 async function sendClaudeCommand() {
