@@ -742,6 +742,79 @@ async def linkedin_health_monitor_loop():
         await asyncio.sleep(delay)
 
 
+async def vm_health_watchdog_loop():
+    """Monitora hermes_api_v2 na VM. Probe /api/_ping a cada 30s.
+
+    Recovery:
+      - 3 falhas consecutivas (90s sem responder) -> tenta restart via SSH
+      - 6 falhas (180s) -> alerta Telegram + continua tentando
+      - Reset contador apos sucesso
+
+    Comando restart na VM (configurável via env HERMES_VM_RESTART_CMD):
+      systemctl --user restart hermes-api    (se systemd unit existe)
+      OR fallback: pkill -f hermes_api_v2 + nohup python3 hermes_api_v2.py
+    """
+    consecutive_fail = 0
+    alerted = False
+    RESTART_CMD = os.environ.get(
+        "HERMES_VM_RESTART_CMD",
+        "systemctl --user restart hermes-api 2>/dev/null || "
+        "(pkill -f hermes_api_v2 2>/dev/null; sleep 2; "
+        "cd ~ && nohup python3 hermes_api_v2.py > logs/api.log 2>&1 & echo restarted)"
+    )
+    SSH_KEY = os.environ.get("USERPROFILE", "") + r"\.ssh\id_ed25519"
+    vm_user = os.environ.get("VM_USER", "hermes-gcp")
+    vm_host = os.environ.get("VM_HOST", "136.115.74.69")
+
+    await asyncio.sleep(30)  # warmup
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=3) as client:
+                r = await client.get(f"{VM_API_URL}/api/_ping")
+                if r.status_code == 200:
+                    if consecutive_fail > 0:
+                        logger.info(f"vm_watchdog: VM voltou apos {consecutive_fail} falhas")
+                    consecutive_fail = 0
+                    alerted = False
+                else:
+                    consecutive_fail += 1
+                    logger.warning(f"vm_watchdog: ping status={r.status_code} (fail #{consecutive_fail})")
+        except Exception as e:
+            consecutive_fail += 1
+            logger.warning(f"vm_watchdog: ping erro {type(e).__name__} (fail #{consecutive_fail})")
+
+        # 3 falhas seguidas (90s) — tenta restart via SSH
+        if consecutive_fail == 3:
+            logger.error("vm_watchdog: 3 falhas consecutivas — tentando restart via SSH")
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "ssh", "-i", SSH_KEY,
+                    "-o", "ConnectTimeout=10", "-o", "BatchMode=yes",
+                    f"{vm_user}@{vm_host}", RESTART_CMD,
+                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+                logger.info(f"vm_watchdog: restart SSH rc={proc.returncode} "
+                            f"out={stdout.decode()[:200]} err={stderr.decode()[:200]}")
+            except Exception as e:
+                logger.error(f"vm_watchdog: SSH restart falhou: {e}")
+
+        # 6 falhas (180s) — alerta Telegram
+        if consecutive_fail == 6 and not alerted:
+            try:
+                await _telegram_notify(
+                    f"VM Hermes ({vm_host}:8420) sem responder ha {consecutive_fail*30}s. "
+                    f"Restart SSH tentado mas sem efeito. Verificar manualmente:\n"
+                    f"  ssh {vm_user}@{vm_host}\n"
+                    f"  ps aux | grep hermes_api"
+                )
+                alerted = True
+            except Exception as e:
+                logger.warning(f"vm_watchdog: telegram alert falhou: {e}")
+
+        await asyncio.sleep(30)
+
+
 async def linkedin_session_monitor_loop():
     """Every 1h: GET /api/linkedin/status. If session_ok flips False, alert via Telegram.
     Avoids spamming — only notifies on transitions True→False (or every 12h while broken).

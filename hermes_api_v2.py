@@ -201,11 +201,23 @@ app.add_middleware(
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
+    # /api/_ping eh probe leve pro PC health-check, sem auth pra evitar timeout em datasets grandes
+    if request.url.path == "/api/_ping":
+        return await call_next(request)
     if request.url.path.startswith("/api/"):
         token = request.headers.get("X-Hermes-Token", "")
         if not secrets.compare_digest(token, VM_AUTH_TOKEN):
             return JSONResponse(status_code=401, content={"detail": "Token invalido"})
     return await call_next(request)
+
+
+@app.get("/api/_ping")
+async def vm_ping():
+    """Probe leve (~5ms). Usado pelo PC server.py em vm_health_loop +
+    /api/hermes/status pra evitar timeout em /api/dashboard (agregacao pesada).
+    Sem auth — apenas confirma processo vivo."""
+    import time as _t
+    return {"ok": True, "ts": _t.time(), "service": "hermes_api_v2"}
 
 
 # --- Models ---
