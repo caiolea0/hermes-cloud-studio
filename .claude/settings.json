@@ -1,8 +1,8 @@
 {
-  "model": "claude-opus-4-8",
+  "model": "claude-opus-4-7",
   "outputConfig": {
-    "effort": "max"
+    "effort": "high"
   },
   "dangerouslySkipPermissions": true,
-  "$schema_note": "Settings local (settings.local.json) tem allowlist + MCP. Este versionado cobre defaults model/effort/permissions pro projeto. Opus 4.8 max effort = melhor qualidade absoluta (Opus 4.7 nao disponivel no Console UI)."
+  "$schema_note": "Opus 4.7 (legado) + high effort. Se Console UI nao listar 4.7, ele cai pra 4.8 default — nao quebra. Settings.local.json tem allowlist+MCP separado."
 }
