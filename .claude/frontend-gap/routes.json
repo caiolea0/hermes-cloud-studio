@@ -1,0 +1,1390 @@
+{
+  "generated_at": 1780960412.3466525,
+  "total": 138,
+  "pc_count": 91,
+  "vm_count": 47,
+  "ws_count": 1,
+  "internal_count": 5,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/",
+      "file": "api/dashboard.py",
+      "line": 14,
+      "function": "serve_dashboard",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/_bootstrap",
+      "file": "api/bootstrap.py",
+      "line": 18,
+      "function": "bootstrap_tokens",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/activities",
+      "file": "api/activities.py",
+      "line": 15,
+      "function": "list_activities",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/activities",
+      "file": "api/activities.py",
+      "line": 37,
+      "function": "create_activity",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/agent-zero/chat",
+      "file": "api/agent_zero.py",
+      "line": 43,
+      "function": "agent_zero_chat",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent-zero/status",
+      "file": "api/agent_zero.py",
+      "line": 15,
+      "function": "agent_zero_status",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/audit/prospect/{prospect_id}",
+      "file": "api/audit.py",
+      "line": 41,
+      "function": "audit_single_prospect",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/audit/start",
+      "file": "api/audit.py",
+      "line": 13,
+      "function": "start_audit",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/audit/status",
+      "file": "api/audit.py",
+      "line": 28,
+      "function": "audit_status",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/claude/execute",
+      "file": "api/claude.py",
+      "line": 12,
+      "function": "execute_claude_command_endpoint",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/daemon/broadcast",
+      "file": "api/daemon.py",
+      "line": 145,
+      "function": "daemon_broadcast",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/daemon/channels",
+      "file": "api/daemon.py",
+      "line": 103,
+      "function": "get_daemon_channels",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/daemon/decisions",
+      "file": "api/daemon.py",
+      "line": 83,
+      "function": "get_daemon_decisions",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/daemon/log",
+      "file": "api/daemon.py",
+      "line": 55,
+      "function": "get_daemon_log",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/daemon/pause",
+      "file": "api/daemon.py",
+      "line": 33,
+      "function": "pause_daemon",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/daemon/resume",
+      "file": "api/daemon.py",
+      "line": 44,
+      "function": "resume_daemon",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/daemon/state",
+      "file": "api/daemon.py",
+      "line": 14,
+      "function": "get_daemon_state",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/daemon/timeline",
+      "file": "api/daemon.py",
+      "line": 117,
+      "function": "get_daemon_timeline",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard",
+      "file": "api/dashboard.py",
+      "line": 19,
+      "function": "get_dashboard",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/hermes/memory",
+      "file": "api/hermes.py",
+      "line": 144,
+      "function": "get_memory",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/hermes/memory",
+      "file": "api/hermes.py",
+      "line": 161,
+      "function": "create_memory",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/hermes/memory/{item_id}",
+      "file": "api/hermes.py",
+      "line": 178,
+      "function": "delete_memory",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/hermes/skills",
+      "file": "api/hermes.py",
+      "line": 118,
+      "function": "get_skills",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/hermes/skills/{name}",
+      "file": "api/hermes.py",
+      "line": 131,
+      "function": "toggle_skill",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/hermes/status",
+      "file": "api/hermes.py",
+      "line": 24,
+      "function": "hermes_status",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/hermes/sync",
+      "file": "api/hermes.py",
+      "line": 111,
+      "function": "trigger_sync",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/account_type_set",
+      "file": "api/internal.py",
+      "line": 21,
+      "function": "account_type_set",
+      "side": "pc",
+      "internal_only": true,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/li_at_rotate",
+      "file": "api/internal.py",
+      "line": 57,
+      "function": "rotate_li_at",
+      "side": "pc",
+      "internal_only": true,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/linkedin/event",
+      "file": "api/internal.py",
+      "line": 92,
+      "function": "receive_linkedin_event",
+      "side": "pc",
+      "internal_only": true,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/auth",
+      "file": "api/linkedin.py",
+      "line": 138,
+      "function": "linkedin_trigger_auth",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/campaigns",
+      "file": "api/linkedin.py",
+      "line": 149,
+      "function": "list_linkedin_campaigns",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/connect",
+      "file": "api/linkedin.py",
+      "line": 405,
+      "function": "start_connect_campaign",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/discover",
+      "file": "api/linkedin.py",
+      "line": 411,
+      "function": "start_discover_campaign",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/engage",
+      "file": "api/linkedin.py",
+      "line": 399,
+      "function": "start_engage_campaign",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/view",
+      "file": "api/linkedin.py",
+      "line": 393,
+      "function": "start_view_campaign",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/{campaign_id}/cancel",
+      "file": "api/linkedin.py",
+      "line": 99,
+      "function": "linkedin_cancel_scheduled",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/{campaign_id}/dismiss-error",
+      "file": "api/linkedin.py",
+      "line": 383,
+      "function": "dismiss_error_campaign",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/campaigns/{campaign_id}/log",
+      "file": "api/linkedin.py",
+      "line": 170,
+      "function": "get_campaign_log",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/{campaign_id}/stop",
+      "file": "api/linkedin.py",
+      "line": 188,
+      "function": "stop_linkedin_campaign",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/comment/delete",
+      "file": "api/linkedin.py",
+      "line": 437,
+      "function": "linkedin_comment_delete",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/comment/edit",
+      "file": "api/linkedin.py",
+      "line": 431,
+      "function": "linkedin_comment_edit",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/companies/lookup",
+      "file": "api/linkedin.py",
+      "line": 455,
+      "function": "linkedin_company_lookup",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/connection/refresh",
+      "file": "api/linkedin.py",
+      "line": 481,
+      "function": "linkedin_connection_refresh",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/detect-account-type",
+      "file": "api/linkedin.py",
+      "line": 461,
+      "function": "linkedin_detect_account_type",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/health",
+      "file": "_health_ep.py",
+      "line": 1,
+      "function": "vm_linkedin_health",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/health",
+      "file": "api/linkedin.py",
+      "line": 466,
+      "function": "linkedin_health",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/health/clear",
+      "file": "_health_ep.py",
+      "line": 15,
+      "function": "vm_linkedin_health_clear",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/health/clear",
+      "file": "api/linkedin.py",
+      "line": 476,
+      "function": "linkedin_health_clear",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/profiles",
+      "file": "api/linkedin.py",
+      "line": 449,
+      "function": "linkedin_profile_by_url",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/rate-limits",
+      "file": "api/linkedin.py",
+      "line": 29,
+      "function": "linkedin_rate_limits",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/status",
+      "file": "api/linkedin.py",
+      "line": 45,
+      "function": "linkedin_status",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/visited",
+      "file": "api/linkedin.py",
+      "line": 443,
+      "function": "linkedin_visited",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/outreach/generate/{prospect_id}",
+      "file": "api/outreach.py",
+      "line": 12,
+      "function": "generate_outreach_for_prospect",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/photos/{photo_ref:path}",
+      "file": "api/photos.py",
+      "line": 15,
+      "function": "proxy_photo",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipeline-executions/active",
+      "file": "api/pipelines.py",
+      "line": 443,
+      "function": "get_active_executions",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipeline-executions/{exec_id}",
+      "file": "api/pipelines.py",
+      "line": 474,
+      "function": "get_execution",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipelines",
+      "file": "api/pipelines.py",
+      "line": 20,
+      "function": "list_pipelines",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/pipelines",
+      "file": "api/pipelines.py",
+      "line": 41,
+      "function": "create_pipeline",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/pipelines/{pipeline_id}",
+      "file": "api/pipelines.py",
+      "line": 117,
+      "function": "delete_pipeline",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipelines/{pipeline_id}",
+      "file": "api/pipelines.py",
+      "line": 63,
+      "function": "get_pipeline",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/pipelines/{pipeline_id}",
+      "file": "api/pipelines.py",
+      "line": 83,
+      "function": "update_pipeline",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/pipelines/{pipeline_id}/execute",
+      "file": "api/pipelines.py",
+      "line": 129,
+      "function": "execute_pipeline",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipelines/{pipeline_id}/executions",
+      "file": "api/pipelines.py",
+      "line": 424,
+      "function": "list_executions",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/prospects",
+      "file": "api/prospects.py",
+      "line": 16,
+      "function": "list_prospects",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/prospects",
+      "file": "api/prospects.py",
+      "line": 109,
+      "function": "create_prospect",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/prospects/bulk",
+      "file": "api/prospects.py",
+      "line": 173,
+      "function": "bulk_prospect_action",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/prospects/categories",
+      "file": "api/prospects.py",
+      "line": 81,
+      "function": "list_categories",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/prospects/cities",
+      "file": "api/prospects.py",
+      "line": 69,
+      "function": "list_cities",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/prospects/{prospect_id}",
+      "file": "api/prospects.py",
+      "line": 93,
+      "function": "get_prospect",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/prospects/{prospect_id}",
+      "file": "api/prospects.py",
+      "line": 134,
+      "function": "update_prospect",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/prospects/{prospect_id}/resolve-conflict",
+      "file": "api/prospects.py",
+      "line": 156,
+      "function": "resolve_prospect_conflict",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/prospects/{prospect_id}/strategy",
+      "file": "api/prospects.py",
+      "line": 195,
+      "function": "generate_strategy",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/scraper/history",
+      "file": "api/scraper.py",
+      "line": 121,
+      "function": "scraper_history",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/scraper/parse-prompt",
+      "file": "api/scraper.py",
+      "line": 134,
+      "function": "parse_scraper_prompt",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/scraper/start",
+      "file": "api/scraper.py",
+      "line": 95,
+      "function": "start_scraper",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/scraper/status",
+      "file": "api/scraper.py",
+      "line": 50,
+      "function": "scraper_status",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/scraper/stop",
+      "file": "api/scraper.py",
+      "line": 108,
+      "function": "stop_scraper",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/restart-all",
+      "file": "api/server_ctrl.py",
+      "line": 80,
+      "function": "server_restart_all",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/restart-local",
+      "file": "api/server_ctrl.py",
+      "line": 22,
+      "function": "server_restart_local",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/restart-vm",
+      "file": "api/server_ctrl.py",
+      "line": 54,
+      "function": "server_restart_vm",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/shutdown-local",
+      "file": "api/server_ctrl.py",
+      "line": 36,
+      "function": "server_shutdown_local",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/stats",
+      "file": "api/stats.py",
+      "line": 11,
+      "function": "get_stats",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks",
+      "file": "api/tasks.py",
+      "line": 16,
+      "function": "list_tasks",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/tasks",
+      "file": "api/tasks.py",
+      "line": 35,
+      "function": "create_task",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/tasks/bulk",
+      "file": "api/tasks.py",
+      "line": 93,
+      "function": "bulk_task_action",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/tasks/{task_id}",
+      "file": "api/tasks.py",
+      "line": 54,
+      "function": "update_task",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/tasks/{task_id}/send-to-claude",
+      "file": "api/tasks.py",
+      "line": 76,
+      "function": "send_task_to_claude",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/tunnel/control",
+      "file": "api/tunnel.py",
+      "line": 80,
+      "function": "tunnel_control",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/tunnel/status",
+      "file": "api/tunnel.py",
+      "line": 40,
+      "function": "tunnel_status",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/workqueue",
+      "file": "api/audit.py",
+      "line": 54,
+      "function": "get_work_queue",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "WS",
+      "path": "/ws",
+      "file": "server.py",
+      "line": 154,
+      "function": "websocket_endpoint",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/_ping",
+      "file": "hermes_api_v2.py",
+      "line": 88,
+      "function": "vm_ping",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/activities",
+      "file": "vm_api/routes.py",
+      "line": 239,
+      "function": "list_activities",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/activities",
+      "file": "vm_api/routes.py",
+      "line": 258,
+      "function": "create_activity",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/audit/batch",
+      "file": "vm_api/routes.py",
+      "line": 701,
+      "function": "audit_batch",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/audit/prospect/{prospect_id}",
+      "file": "vm_api/routes.py",
+      "line": 658,
+      "function": "audit_single",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/audit/start",
+      "file": "vm_api/routes.py",
+      "line": 563,
+      "function": "start_audit",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/audit/status",
+      "file": "vm_api/routes.py",
+      "line": 652,
+      "function": "audit_status",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard",
+      "file": "vm_api/routes.py",
+      "line": 108,
+      "function": "get_dashboard",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/hermes/skills",
+      "file": "vm_api/routes.py",
+      "line": 843,
+      "function": "list_skills",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/hermes/skills/{skill_name}",
+      "file": "vm_api/routes.py",
+      "line": 864,
+      "function": "toggle_skill",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/hermes/status",
+      "file": "vm_api/routes.py",
+      "line": 885,
+      "function": "hermes_status",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/account_type_set",
+      "file": "vm_api/routes.py",
+      "line": 1445,
+      "function": "vm_account_type_set",
+      "side": "vm",
+      "internal_only": true,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/internal/li_at_update",
+      "file": "vm_api/routes.py",
+      "line": 1643,
+      "function": "vm_li_at_update",
+      "side": "vm",
+      "internal_only": true,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/auth",
+      "file": "vm_api/routes.py",
+      "line": 1024,
+      "function": "vm_linkedin_auth",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/campaigns",
+      "file": "vm_api/routes.py",
+      "line": 1289,
+      "function": "vm_list_linkedin_campaigns",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/connect",
+      "file": "vm_api/routes.py",
+      "line": 1161,
+      "function": "vm_run_connect_campaign",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/discover",
+      "file": "vm_api/routes.py",
+      "line": 1216,
+      "function": "vm_run_discover_campaign",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/engage",
+      "file": "vm_api/routes.py",
+      "line": 1107,
+      "function": "vm_run_engage_campaign",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/view",
+      "file": "vm_api/routes.py",
+      "line": 1052,
+      "function": "vm_run_view_campaign",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/campaigns/{campaign_id}/log",
+      "file": "vm_api/routes.py",
+      "line": 1327,
+      "function": "vm_get_campaign_log",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/campaigns/{campaign_id}/stop",
+      "file": "vm_api/routes.py",
+      "line": 1270,
+      "function": "vm_stop_campaign",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/comment/delete",
+      "file": "vm_api/routes.py",
+      "line": 1616,
+      "function": "vm_linkedin_comment_delete",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/comment/edit",
+      "file": "vm_api/routes.py",
+      "line": 1587,
+      "function": "vm_linkedin_comment_edit",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/companies/lookup",
+      "file": "vm_api/routes.py",
+      "line": 1567,
+      "function": "vm_linkedin_company_lookup",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/connection/refresh",
+      "file": "vm_api/routes.py",
+      "line": 1689,
+      "function": "vm_linkedin_connection_refresh",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/detect-account-type",
+      "file": "vm_api/routes.py",
+      "line": 1470,
+      "function": "vm_linkedin_detect_account_type",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/health",
+      "file": "vm_api/routes.py",
+      "line": 1483,
+      "function": "vm_linkedin_health",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/health/clear",
+      "file": "vm_api/routes.py",
+      "line": 1497,
+      "function": "vm_linkedin_health_clear",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/profiles",
+      "file": "vm_api/routes.py",
+      "line": 1530,
+      "function": "vm_linkedin_profile_by_url",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/rate-limits",
+      "file": "vm_api/routes.py",
+      "line": 1368,
+      "function": "vm_linkedin_rate_limits",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/session-check",
+      "file": "vm_api/routes.py",
+      "line": 1381,
+      "function": "vm_linkedin_session_check",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/visited",
+      "file": "vm_api/routes.py",
+      "line": 1509,
+      "function": "vm_linkedin_visited",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/outreach/batch",
+      "file": "vm_api/routes.py",
+      "line": 777,
+      "function": "outreach_batch",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/pipeline/execute",
+      "file": "vm_api/routes.py",
+      "line": 824,
+      "function": "execute_pipeline",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/prospects",
+      "file": "vm_api/routes.py",
+      "line": 147,
+      "function": "list_prospects",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/prospects",
+      "file": "vm_api/routes.py",
+      "line": 189,
+      "function": "create_prospect",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/prospects/{prospect_id}",
+      "file": "vm_api/routes.py",
+      "line": 173,
+      "function": "get_prospect",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/prospects/{prospect_id}",
+      "file": "vm_api/routes.py",
+      "line": 214,
+      "function": "update_prospect",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/prospects/{prospect_id}/outreach",
+      "file": "vm_api/routes.py",
+      "line": 738,
+      "function": "generate_prospect_outreach",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/scraper/history",
+      "file": "vm_api/routes.py",
+      "line": 530,
+      "function": "scraper_history",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/scraper/start",
+      "file": "vm_api/routes.py",
+      "line": 450,
+      "function": "start_scraper",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/scraper/status",
+      "file": "vm_api/routes.py",
+      "line": 344,
+      "function": "scraper_status",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/scraper/stop",
+      "file": "vm_api/routes.py",
+      "line": 504,
+      "function": "stop_scraper",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/stats",
+      "file": "vm_api/routes.py",
+      "line": 330,
+      "function": "get_stats",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks",
+      "file": "vm_api/routes.py",
+      "line": 275,
+      "function": "list_tasks",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/tasks",
+      "file": "vm_api/routes.py",
+      "line": 294,
+      "function": "create_task",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/tasks/{task_id}",
+      "file": "vm_api/routes.py",
+      "line": 313,
+      "function": "update_task",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    }
+  ]
+}

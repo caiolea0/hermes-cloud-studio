@@ -416,3 +416,15 @@ Toda task Fase F que toque código MADURO exige:
 ---
 
 Última edição: 2026-06-08 (Fase F empoderamento no-code — F.1 a F.9 + áreas MADURAS atualizadas com core/brain.py, core/tools.py, core/observability/*, mcps/gateway/server.py, mcps/hermes-*).
+
+## ✅ Regra GUARDRAILS pós-F.1 (CONCLUÍDO 2026-06-08)
+
+**Backend novo SEM consumo frontend = débito imediato.** Toda PR que adiciona `@router.<verb>` em `api/*.py` ou `vm_api/routes.py` SEM consumo correspondente em `dashboard/app.js` DEVE:
+
+1. Rodar `python .claude/skills/hermes-frontend-gap/scripts/{parse_routes,grep_frontend,rank_gaps}.py` ANTES de mergear
+2. Conferir que endpoint aparece em `.claude/FRONTEND-GAP.md` §3 (órfãos) com `chapter_destino` atribuído
+3. Se sem chapter destino claro = parar, decidir antes de mergear (não acumular débito sem dono)
+
+**Re-rodar skill ao fechar QUALQUER chapter F.2-F.9** — `.claude/frontend-gap/diff-vs-known.md` mostra vitórias UX (orphans→consumed) e regressões (consumed→orphans). Sem isso, perde-se termômetro de progresso.
+
+**Baseline F.1 (referência)**: 138 rotas total · 93 consumed (69.9%) · 40 órfãos · 10 priorizados por owner_pain_score. Repetir periodicamente compara contra este baseline.

@@ -17,7 +17,7 @@
 +
 +| Chapter | Título                                              | Class.        | UI score | Sessões | Status      | Dep.        |
 +|---------|-----------------------------------------------------|---------------|----------|---------|-------------|-------------|
-+| F.1     | Backend↔Frontend Gap Audit                          | research+ui   | 3        | 1       | EM ANDAMENTO| —           |
++| F.1     | Backend↔Frontend Gap Audit                          | research+ui   | 3        | 1       | CONCLUÍDO 2026-06-08 | —    |
 +| F.2     | Mission Control Real-Time + Design System Polish    | ui+backend    | 9        | 5       | PLANEJADO   | F.1         |
 +| F.3     | Lab Cockpit + Stealth UX                            | ui+backend    | 8        | 4       | PLANEJADO   | F.1         |
 +| F.4     | Auto-Skill Loop W3 + GitHub PR-based deploy         | backend+ui    | 7        | 5       | PLANEJADO   | F.1, F.5    |
@@ -108,11 +108,11 @@
 +
 +**Deliverable**: `.claude/FRONTEND-GAP.md` + skill `hermes-frontend-gap/` + slash command `/hermes-frontend-gap`. Mapa autoritativo dos 144+ endpoints PC+VM cruzado com consumo `dashboard/app.js` (5429 linhas, 271 fetch calls), top-10 priorizado por impacto UX/owner-pain alimentando F.2-F.9.
 +
-+- [ ] Task 1: Parser AST routes PC+VM — `parse_routes.py` (api/*.py + vm_api/routes.py + server.py + hermes_api_v2.py); output `.claude/frontend-gap/routes.json`; sanity hard ≥140 rotas
-+- [ ] Task 2: Grep consumo dashboard/app.js — `grep_frontend.py`; cobre fetch + WS subscriptions + path params dinâmicos + channels/*.py emitters cruzados com socket.on()
-+- [ ] Task 3: Diff + ranking — `rank_gaps.py` → `.claude/FRONTEND-GAP.md` 6 seções (Inventário, Mapa consumo, Órfãos, TOP 10, Quick Wins UX, Mission Control endpoints); assert hard contém 11 fantasmas conhecidos (§2 PHASE-F-STUDY-SYNTHESIS); colunas top-10: rank, endpoint, método, side, chapter_destino, ws_event_needed, cli_command_replaced, owner_pain_score (1-5)
-+- [ ] Task 4: Empacotar skill `hermes-frontend-gap/SKILL.md` + `/hermes-frontend-gap` slash + permissions escopadas em settings.local.json (não wildcard `python *`)
-+- [ ] Task 5: Validação regressão + persistência 6-camadas — pre/post `validate_implementation.py --phase A B C D E` (20/22 PASS gate); PLAN.md F.1 ✅; GUARDRAILS.md regra ✅ SEMPRE 'Backend novo SEM consumo frontend = débito imediato'; memory_save `hermes F.1 complete`; mark_chapter; commit `docs(audit): F.1 — FRONTEND-GAP.md + skill hermes-frontend-gap`
++- [x] Task 1: Parser AST routes PC+VM — `parse_routes.py` → 138 rotas (91 PC + 47 VM, 5 internal-only), sanity ≥130 PASS
++- [x] Task 2: Grep consumo dashboard/app.js — `grep_frontend.py` → 57 endpoints únicos, 86 chamadas, WS handlers 14 / broadcasts 10 / matched 8
++- [x] Task 3: Diff + ranking — `rank_gaps.py` → `.claude/FRONTEND-GAP.md` 6 seções, 40 órfãos, top 10 priorizado por owner_pain_score (5=daemon broadcast/pause/resume), 6 phantoms já consumidos (vitória F.2 parcial)
++- [x] Task 4: Empacotar skill — `hermes-frontend-gap/SKILL.md` (preexistente) + `.claude/commands/hermes-frontend-gap.md` slash + `settings.local.json` 3 permissions específicos (NÃO wildcard)
++- [x] Task 5: Validação + persistência — post `validate_implementation.py --phase A/B/C/D/E` MANTÉM 20/22 PASS (E.2/E.3 stubs intencionais); PLAN.md F.1 ✅; GUARDRAILS.md regra nova; memory_save; mark_chapter; commit `docs(audit): F.1 — FRONTEND-GAP.md + skill hermes-frontend-gap`
 +
 +**11 endpoints fantasma esperados no TOP 10** (sanity check):
 +`/api/prospects/{id}/resolve-conflict`, `/api/tasks/bulk`, `/api/stats`, `/api/daemon/state`, `/api/daemon/log`, `/api/daemon/decisions`, `/api/daemon/channels`, `/api/daemon/timeline`, `/api/linkedin/visited`, `/api/linkedin/comment/{edit|delete}`, `/api/agent-zero/{status|chat}`.

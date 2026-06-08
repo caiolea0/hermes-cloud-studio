@@ -1,0 +1,153 @@
+{
+  "generated_at": 1780960412.5458124,
+  "handlers_in_app_js": [
+    "activity",
+    "alert",
+    "audit_done",
+    "channel_update",
+    "daemon_state",
+    "decision",
+    "linkedin_campaign_created",
+    "linkedin_campaign_done",
+    "linkedin_health",
+    "linkedin_progress",
+    "pipeline_progress",
+    "reply_received",
+    "scraper_update",
+    "sync"
+  ],
+  "broadcasts_in_backend": {
+    "activity": [
+      {
+        "file": "daemon/orchestrator.py",
+        "line": 250,
+        "snippet": "await self._broadcast({"
+      }
+    ],
+    "channel_update": [
+      {
+        "file": "daemon/orchestrator.py",
+        "line": 564,
+        "snippet": "await self._broadcast({"
+      }
+    ],
+    "daemon_state": [
+      {
+        "file": "api/daemon.py",
+        "line": 40,
+        "snippet": "await ws_manager.broadcast({\"type\": \"daemon_state\", \"state\": \"paused\", \"detail\": f\"Paused for {minutes}m\"})"
+      },
+      {
+        "file": "api/daemon.py",
+        "line": 51,
+        "snippet": "await ws_manager.broadcast({\"type\": \"daemon_state\", \"state\": \"idle\", \"detail\": \"Resumed\"})"
+      },
+      {
+        "file": "daemon/orchestrator.py",
+        "line": 228,
+        "snippet": "await self._broadcast({"
+      }
+    ],
+    "decision": [
+      {
+        "file": "daemon/orchestrator.py",
+        "line": 279,
+        "snippet": "await self._broadcast({"
+      }
+    ],
+    "linkedin_account_type_updated": [
+      {
+        "file": "api/internal.py",
+        "line": 51,
+        "snippet": "await ws_manager.broadcast({\"type\": \"linkedin_account_type_updated\", \"account_type\": account_type})"
+      }
+    ],
+    "linkedin_campaign_created": [
+      {
+        "file": "api/linkedin.py",
+        "line": 289,
+        "snippet": "await ws_manager.broadcast({"
+      }
+    ],
+    "linkedin_health": [
+      {
+        "file": "loops/linkedin_health.py",
+        "line": 56,
+        "snippet": "await ws_manager.broadcast({\"type\": \"linkedin_health\", \"data\": health})"
+      }
+    ],
+    "linkedin_progress": [
+      {
+        "file": "api/internal.py",
+        "line": 122,
+        "snippet": "await ws_manager.broadcast({\"type\": \"linkedin_progress\", \"data\": body})"
+      },
+      {
+        "file": "api/linkedin.py",
+        "line": 128,
+        "snippet": "await ws_manager.broadcast({"
+      },
+      {
+        "file": "api/linkedin.py",
+        "line": 323,
+        "snippet": "await ws_manager.broadcast({"
+      },
+      {
+        "file": "api/linkedin.py",
+        "line": 372,
+        "snippet": "await ws_manager.broadcast({"
+      },
+      {
+        "file": "loops/linkedin_scheduler.py",
+        "line": 63,
+        "snippet": "await ws_manager.broadcast({"
+      },
+      {
+        "file": "loops/linkedin_scheduler.py",
+        "line": 85,
+        "snippet": "await ws_manager.broadcast({"
+      },
+      {
+        "file": "loops/linkedin_sync.py",
+        "line": 75,
+        "snippet": "await ws_manager.broadcast({"
+      }
+    ],
+    "linkedin_session_rotated": [
+      {
+        "file": "api/internal.py",
+        "line": 86,
+        "snippet": "await ws_manager.broadcast({\"type\": \"linkedin_session_rotated\"})"
+      }
+    ],
+    "sync": [
+      {
+        "file": "loops/sync.py",
+        "line": 229,
+        "snippet": "await ws_manager.broadcast({\"type\": \"sync\", \"data\": result})"
+      }
+    ]
+  },
+  "matched": [
+    "activity",
+    "channel_update",
+    "daemon_state",
+    "decision",
+    "linkedin_campaign_created",
+    "linkedin_health",
+    "linkedin_progress",
+    "sync"
+  ],
+  "orphan_broadcasts": [
+    "linkedin_account_type_updated",
+    "linkedin_session_rotated"
+  ],
+  "dead_handlers": [
+    "alert",
+    "audit_done",
+    "linkedin_campaign_done",
+    "pipeline_progress",
+    "reply_received",
+    "scraper_update"
+  ]
+}
