@@ -23,9 +23,9 @@ checks:
 ### MERGED-001 — WebSocket /ws auth
 - phase: A
 - checks:
-  - grep_present: server.py / "websocket\.close\(code=1008" / WS handshake reject impl
-  - grep_present: server.py / "compare_digest" / timing-safe compare in WS handler
-  - grep_present: dashboard/app.js / `?token=` / WS URL carries token
+  - grep_present: server.py / `websocket\.close\(code=1008` / WS handshake reject impl
+  - grep_present: server.py / `compare_digest` / timing-safe compare in WS handler
+  - grep_present: dashboard/app.js / `\?token=` / WS URL carries token
 
 ### MERGED-002 — Fail-closed AUTH_TOKEN
 - phase: A

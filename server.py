@@ -815,6 +815,10 @@ ws_manager = WSManager()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    token = websocket.query_params.get("token", "") or websocket.headers.get("x-hermes-token", "")
+    if not token or not secrets.compare_digest(token, AUTH_TOKEN):
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
     await ws_manager.connect(websocket)
     try:
         while True:

@@ -2650,7 +2650,8 @@ let ws = null;
 function connectWS() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = localStorage.getItem('hermes_api')?.replace(/^https?:\/\//, '').replace(/\/+$/, '') || location.host;
-    ws = new WebSocket(`${protocol}//${host}/ws`);
+    const token = localStorage.getItem('hermes_token') || '';
+    ws = new WebSocket(`${protocol}//${host}/ws?token=${encodeURIComponent(token)}`);
     ws.onmessage = (e) => {
         try {
             const event = JSON.parse(e.data);
