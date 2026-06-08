@@ -35,6 +35,17 @@ if not VM_AUTH_TOKEN:
 DB_PATH = HERMES_HOME / "data" / "command_center.db"
 DATA_DIR = HERMES_HOME / "data"
 
+# Background task registry — previne GC de tasks "soltas" (MERGED-015)
+_background_tasks: set = set()
+
+
+def spawn(coro) -> asyncio.Task:
+    """Cria asyncio.Task com referência forte para evitar coleta pelo GC."""
+    task = spawn(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return task
+
 
 def get_db():
     conn = sqlite3.connect(str(DB_PATH))
@@ -1208,7 +1219,7 @@ async def vm_run_view_campaign(request: Request):
                 conn3.close()
             _li_log(campaign_id, f"Erro: {str(e)}", "error")
 
-    task = asyncio.create_task(_run())
+    task = spawn(_run())
     _running_linkedin_campaigns[campaign_id] = task
     return {"ok": True, "campaign_id": campaign_id}
 
@@ -1260,7 +1271,7 @@ async def vm_run_engage_campaign(request: Request):
                 conn3.close()
             _li_log(campaign_id, f"Erro: {str(e)}", "error")
 
-    task = asyncio.create_task(_run())
+    task = spawn(_run())
     _running_linkedin_campaigns[campaign_id] = task
     return {"ok": True, "campaign_id": campaign_id}
 
@@ -1313,7 +1324,7 @@ async def vm_run_connect_campaign(request: Request):
                 conn3.close()
             _li_log(campaign_id, f"Erro: {str(e)}", "error")
 
-    task = asyncio.create_task(_run())
+    task = spawn(_run())
     _running_linkedin_campaigns[campaign_id] = task
     return {"ok": True, "campaign_id": campaign_id}
 
@@ -1365,7 +1376,7 @@ async def vm_run_discover_campaign(request: Request):
                 conn3.close()
             _li_log(campaign_id, f"Erro: {str(e)}", "error")
 
-    task = asyncio.create_task(_run())
+    task = spawn(_run())
     _running_linkedin_campaigns[campaign_id] = task
     return {"ok": True, "campaign_id": campaign_id}
 
@@ -1523,7 +1534,7 @@ async def vm_linkedin_session_check():
                 except Exception as e:
                     pass
             try:
-                asyncio.create_task(_bg())
+                spawn(_bg())
             except RuntimeError:
                 pass
 
@@ -1659,7 +1670,7 @@ async def vm_linkedin_profile_by_url(url: str = Query(...)):
         except Exception as e:
             print(f"[profile hydrate] failed: {e}")
 
-    asyncio.create_task(_hydrate())
+    spawn(_hydrate())
     return JSONResponse(
         status_code=202,
         content={"_cache_hit": False, "status": "hydrating", "profile_url": canonical}

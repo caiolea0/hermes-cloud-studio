@@ -64,6 +64,17 @@ _agent_zero_context_id: Optional[str] = None
 
 PHOTO_CACHE_DIR.mkdir(exist_ok=True)
 
+# Background task registry — previne GC de tasks "soltas" (MERGED-015)
+_background_tasks: set = set()
+
+
+def spawn(coro) -> asyncio.Task:
+    """Cria asyncio.Task com referência forte para evitar coleta pelo GC."""
+    task = spawn(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return task
+
 
 def get_db():
     conn = sqlite3.connect(str(DB_PATH))
@@ -656,7 +667,7 @@ async def linkedin_scheduler_loop():
                             conn_e.commit()
                         finally:
                             conn_e.close()
-                asyncio.create_task(_fire())
+                spawn(_fire())
         except Exception as e:
             logger.warning(f"linkedin_scheduler_loop error: {e}")
         await asyncio.sleep(30)
@@ -765,11 +776,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"LinkedIn migration failed: {e}")
     logger.info("Starting server — sync will run in background")
-    task = asyncio.create_task(sync_loop())
-    li_task = asyncio.create_task(linkedin_sync_loop())
-    li_monitor_task = asyncio.create_task(linkedin_session_monitor_loop())
-    li_health_task = asyncio.create_task(linkedin_health_monitor_loop())
-    li_scheduler_task = asyncio.create_task(linkedin_scheduler_loop())
+    task = spawn(sync_loop())
+    li_task = spawn(linkedin_sync_loop())
+    li_monitor_task = spawn(linkedin_session_monitor_loop())
+    li_health_task = spawn(linkedin_health_monitor_loop())
+    li_scheduler_task = spawn(linkedin_scheduler_loop())
     yield
     task.cancel()
     li_task.cancel()
@@ -848,8 +859,8 @@ async def websocket_endpoint(websocket: WebSocket):
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
     # /api/internal/* tem auth proprio via _check_internal (X-Internal-Token + loopback bind).
-    # Middleware geral usa X-Hermes-Token; pular pra nao bloquear chamadas da extension/li_at_sync.
-    if path.startswith("/api/internal/"):
+    # /api/_bootstrap tem check loopback proprio no endpoint, sem token (retorna tokens pra clientes locais).
+    if path.startswith("/api/internal/") or path.startswith("/api/_bootstrap"):
         return await call_next(request)
     if path.startswith("/api/"):
         token = request.headers.get("X-Hermes-Token", "")
@@ -2030,7 +2041,7 @@ async def execute_pipeline(pipeline_id: int, body: PipelineExecuteRequest = None
     finally:
         conn.close()
 
-    asyncio.create_task(_run_pipeline_async(pipeline_id, exec_id, template, targets, prompt))
+    spawn(_run_pipeline_async(pipeline_id, exec_id, template, targets, prompt))
 
     return {"execution_id": exec_id, "status": "running", "pipeline_id": pipeline_id}
 
@@ -2774,7 +2785,7 @@ async def _proxy_linkedin_campaign(campaign_type: str, config_data: dict) -> dic
             except Exception:
                 pass
 
-    asyncio.create_task(_dispatch())
+    spawn(_dispatch())
     return {"ok": True, "campaign_id": campaign_id, "status": "dispatched"}
 
 
@@ -2955,7 +2966,7 @@ async def server_restart_local():
     async def _shutdown():
         await asyncio.sleep(0.5)
         os._exit(0)
-    asyncio.create_task(_shutdown())
+    spawn(_shutdown())
     return {"ok": True, "note": "processo encerrando — Tauri vai reiniciar em ~10s"}
 
 
@@ -2972,7 +2983,7 @@ async def server_shutdown_local():
     async def _shutdown():
         await asyncio.sleep(0.5)
         os._exit(0)
-    asyncio.create_task(_shutdown())
+    spawn(_shutdown())
     return {"ok": True, "note": "servidor desligando — fechar Tauri também"}
 
 
@@ -3010,7 +3021,7 @@ async def server_restart_all():
     async def _shutdown():
         await asyncio.sleep(1.0)
         os._exit(0)
-    asyncio.create_task(_shutdown())
+    spawn(_shutdown())
     return {"ok": True, "note": "VM reiniciada + local reiniciando"}
 
 
@@ -3321,12 +3332,62 @@ async def daemon_broadcast(request: Request):
     return {"ok": True}
 
 
+# ---------------------------------------------------------------------------
+# Bootstrap endpoint — loopback only, sem X-Hermes-Token, retorna tokens pra
+# clientes locais (Tauri webview, extension Chrome). NAO exposto via Cloudflare
+# tunnel (bind 127.0.0.1 + check client.host).
+#
+# Risco mitigado: clientes locais JA tem acesso ao .env diretamente (mesmo host).
+# Bootstrap so expoe pra quem ja conseguiria ler .env. Sem novo vetor de ataque.
+# ---------------------------------------------------------------------------
+
+@app.get("/api/_bootstrap")
+async def bootstrap_tokens(request: Request):
+    """Retorna tokens locais pra clientes loopback. NUNCA exposto remotamente."""
+    if request.client.host not in ("127.0.0.1", "::1", "localhost"):
+        raise HTTPException(403, "loopback only")
+    # Detectar porta atual via socket peer info
+    port_now = int(os.environ.get("DASHBOARD_PORT", "55000"))
+    try:
+        from scripts.port_allocator import _load_global_registry, _key
+        _reg = _load_global_registry()
+        _entry = _reg.get("allocations", {}).get(_key("dashboard"))
+        if _entry:
+            port_now = _entry.get("port", port_now)
+    except Exception:
+        pass
+    return {
+        "auth_token": AUTH_TOKEN,
+        "internal_token": INTERNAL_TOKEN,
+        "dashboard_port": port_now,
+        "project": "hermes-cloud-studio",
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
+    # Port allocator: idempotencia + alocacao livre cross-projeto
+    try:
+        from scripts.port_allocator import allocate_port, is_self_already_running
+        if is_self_already_running("dashboard"):
+            print("[hermes] server.py JA esta rodando em outra instancia. Saindo (idempotencia).")
+            sys.exit(0)
+        _DASHBOARD_PORT = allocate_port("dashboard", reserve=True)
+    except Exception as _e:
+        print(f"[hermes] WARN: port_allocator falhou ({_e}). Caindo no default 55000.")
+        _DASHBOARD_PORT = int(os.environ.get("DASHBOARD_PORT", "55000"))
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
     print("\n  Hermes Command Center v2")
-    print(f"  Dashboard:  http://localhost:55000")
+    print(f"  Dashboard:  http://localhost:{_DASHBOARD_PORT}")
     print(f"  VM API:     {VM_API_URL}")
     print(f"  Sync every: {SYNC_INTERVAL}s")
-    print(f"  API Docs:   http://localhost:55000/docs\n")
-    uvicorn.run(app, host="127.0.0.1", port=55000, log_level="info")
+    print(f"  API Docs:   http://localhost:{_DASHBOARD_PORT}/docs\n")
+    try:
+        uvicorn.run(app, host="127.0.0.1", port=_DASHBOARD_PORT, log_level="info")
+    finally:
+        try:
+            from scripts.port_allocator import release_port
+            release_port("dashboard")
+        except Exception:
+            pass
