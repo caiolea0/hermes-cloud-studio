@@ -119,7 +119,8 @@ checks:
 - checks:
   - line_count_max: server.py / 500 lines max (target after split)
   - line_count_max: hermes_api_v2.py / 500 lines max
-  - file_exists: api/__init__.py OR api/prospects.py / split done
+  - file_exists: api/__init__.py / split done
+  - file_exists: api/prospects.py / split done
   - file_exists: loops/__init__.py / loops separated
 
 ### MERGED-012 — Pipeline dedupe

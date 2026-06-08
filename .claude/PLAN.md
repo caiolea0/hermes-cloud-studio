@@ -245,12 +245,31 @@ Pipeline prospect→audit→proposta→site→entrega. Painel real-time consolid
 
 ### Pendentes Fase C (próxima sessão `/start-phase C`)
 - [ ] MERGED-014 — Ollama fallback router (decisão: estudar melhor modelo Ollama RTX 2060 PC + tunnel VM:11434 antes de implementar. Quando VM-GPU migrar, eliminar acoplamento naturalmente.)
-- [ ] MERGED-012 — Pipeline dedupe (core/pipeline.py compartilhado entre daemon e scripts)
+- [x] MERGED-012 — Pipeline dedupe (core/pipeline.py compartilhado entre daemon e scripts) ✅ 2026-06-08 (Chapter 16)
 - [ ] MERGED-011 — Split monolitos server.py + hermes_api_v2.py (effort L, vários sub-commits)
 
 ### Commits desta sessão
 - `fix(config): MERGED-013 — Settings central pydantic-settings`
 - `fix(config): MERGED-009 — IP VM via settings.vm_host`
+
+---
+
+## Chapter 16 — Fase C.6 MERGED-012 ✅ (2026-06-08)
+
+### MERGED-012 ✅ — Pipeline dedupe (core/pipeline.py)
+- `core/pipeline.py` novo: `PipelineRunner` async com `discovery()`, `audit_pending()`, `outreach_ready()`, `run_full()`. Encapsula HTTP plumb (headers auth, _request, _log_activity, dedupe via _existing_prospects_keys) e imports tardios de scraper/audit/outreach (não carrega scraper pesado no daemon)
+- `scripts/pipeline.py` reescrito como thin CLI: parse argparse → `asyncio.run(PipelineRunner.from_settings().run_full(...))`. Mesma interface (--mode full/discovery/audit-pending/outreach-ready)
+- `daemon/orchestrator.py`: import `from core.pipeline import PipelineRunner` + `self.pipeline = PipelineRunner(api_url=LOCAL_API_URL, ...)` no `__init__`. `_exec_batch_audit` agora delega pra `self.pipeline.audit_pending()`. `_exec_discovery` mantém `/api/scraper/start` (fluxo VM scraper distinto, não conflita)
+- `PipelineRunner.from_settings()`: helper que constrói a partir do `config.settings`
+
+**validate --finding MERGED-012**: PASS
+**validate --phase C**: 4/6 PASS (013, 009, 008, 012 ✓; 014, 011 pendentes)
+
+Commit: `bd3ecda fix(pipeline): MERGED-012 — extrai core/pipeline.py compartilhado` (push master)
+
+### Próxima sessão
+- MERGED-011 (split monolitos — effort L iterativo) — atacar isolado
+- MERGED-014 (Ollama router) — aguarda decisão VM-GPU
 
 ---
 
