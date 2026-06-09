@@ -1,0 +1,30 @@
+/* ============================================================
+   Hermes Cloud Studio — Light theme overrides (F.2.4)
+   ============================================================
+   Hermes é dark-first (tokens.css define dark default).
+   Light é opt-in via localStorage hermes_theme='light' OU prefers-color-scheme: light.
+   FOUC-prevention inline script em index.html seta data-theme ANTES paint.
+   ============================================================ */
+
+:root[data-theme="light"] {
+    /* === Color overrides === */
+    --color-bg: #ffffff;
+    --color-bg-2: #f6f8fa;
+    --color-bg-3: #eaeef2;
+    --color-fg: #1f2328;
+    --color-fg-muted: #656d76;
+    --color-accent: #0969da;
+    --color-success: #1a7f37;
+    --color-warn: #9a6700;
+    --color-error: #cf222e;
+    --color-info: #0969da;
+    --color-border: #d0d7de;
+    --color-border-focus: #0969da;
+
+    /* === Shadow overrides — lighter alpha em light theme === */
+    --shadow-sm: 0 1px 2px rgba(31, 35, 40, 0.08);
+    --shadow-md: 0 4px 8px rgba(31, 35, 40, 0.12);
+    --shadow-lg: 0 8px 24px rgba(31, 35, 40, 0.18);
+
+    /* Spacing/radii/typography/motion herdados do default (tokens.css) */
+}

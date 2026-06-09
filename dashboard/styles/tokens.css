@@ -1,0 +1,65 @@
+/* ============================================================
+   Hermes Cloud Studio — Design System Tokens (F.2.4)
+   ============================================================
+   DARK default (Hermes Command Center é dark-first).
+   Light theme overrides em styles/light.css sob :root[data-theme=light].
+
+   Regra anti-hex-literal:
+   - Hex/rgb literais ficam APENAS neste arquivo + light.css.
+   - styles.css + components/* DEVEM usar var(--*).
+   - Exceções pontuais (border decorativo único, debug temp) precisam comment justificando.
+
+   Ver dashboard/styles/README.md pra convenção completa + procedure axe-core.
+   ============================================================ */
+
+:root {
+    /* === Color tokens === */
+    --color-bg: #0d1117;
+    --color-bg-2: #161b22;
+    --color-bg-3: #21262d;
+    --color-fg: #e6edf3;
+    --color-fg-muted: #8b949e;
+    --color-accent: #58a6ff;
+    --color-success: #3fb950;
+    --color-warn: #d29922;
+    --color-error: #f85149;
+    --color-info: #58a6ff;
+    --color-border: #30363d;
+    --color-border-focus: #58a6ff;
+
+    /* === Spacing — base 4px === */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    /* === Radii === */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-full: 9999px;
+
+    /* === Typography === */
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    --text-xs: 11px;
+    --text-sm: 13px;
+    --text-base: 14px;
+    --text-lg: 16px;
+    --text-xl: 20px;
+    --text-2xl: 28px;
+
+    /* === Shadows === */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+
+    /* === Motion === */
+    --motion-fast: 120ms;
+    --motion-base: 200ms;
+    --motion-slow: 400ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+}
