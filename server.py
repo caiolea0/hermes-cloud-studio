@@ -219,6 +219,7 @@ from api.hermes import router as hermes_router
 from api.daemon import router as daemon_router
 from api.tunnel import router as tunnel_router
 from api.bootstrap import router as bootstrap_router
+from api.user_prefs import router as user_prefs_router  # F.2.5b
 
 app.include_router(pipelines_router)
 app.include_router(linkedin_router)
@@ -228,6 +229,7 @@ app.include_router(hermes_router)
 app.include_router(daemon_router)
 app.include_router(tunnel_router)
 app.include_router(bootstrap_router)
+app.include_router(user_prefs_router)  # F.2.5b — /api/user-prefs GET/PUT
 
 
 if __name__ == "__main__":
