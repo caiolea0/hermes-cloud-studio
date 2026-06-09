@@ -2947,3 +2947,135 @@ select option { background: var(--s2); color: var(--text); }
     .li-sc-row { flex-direction: column; gap: 4px; }
     .li-sc-row-label { min-width: 0; }
 }
+
+/* ============================================================
+   F.2.5a — SubsystemTileGrid (Mission Control)
+   ============================================================
+   Tokens canonical (--color-*/--space-*/--radius-*/--motion-*/--font-*) F.2.4.
+   Channels legacy (.ch-*, .channel-card) ficam orphan, tracked F.future cleanup.
+   ============================================================ */
+.subsystem-grid-section {
+    padding: var(--space-md) 0;
+}
+.subsystem-grid-title {
+    margin: 0 0 var(--space-sm) 0;
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.subsystem-tile-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+}
+@media (max-width: 900px) {
+    .subsystem-tile-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+    .subsystem-tile-grid { grid-template-columns: 1fr; }
+}
+.subsystem-tile {
+    background: var(--color-bg-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    transition: border-color var(--motion-base) var(--ease-out);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+.subsystem-tile:hover { border-color: var(--color-border-focus); }
+.subsystem-tile[data-status="paused"] { border-color: var(--color-warn); }
+.subsystem-tile[data-status="warn"] { border-color: var(--color-warn); }
+.subsystem-tile[data-status="error"] { border-color: var(--color-error); }
+.subsystem-tile[data-status="healthy"] { border-color: var(--color-success); }
+
+.tile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+.tile-icon {
+    font-size: var(--text-lg);
+    line-height: 1;
+}
+.tile-name {
+    flex: 1;
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--color-fg);
+}
+.tile-badge {
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.tile-badge-healthy { background: var(--color-success); color: var(--color-bg); }
+.tile-badge-paused  { background: var(--color-warn);    color: var(--color-bg); }
+.tile-badge-warn    { background: var(--color-warn);    color: var(--color-bg); }
+.tile-badge-error   { background: var(--color-error);   color: var(--color-bg); }
+.tile-badge-offline { background: var(--color-bg-3);    color: var(--color-fg-muted); }
+
+.tile-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+.tile-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-sm);
+}
+.tile-metric-label {
+    color: var(--color-fg-muted);
+    font-size: var(--text-xs);
+}
+.tile-metric-value {
+    color: var(--color-fg);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.tile-footer {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-top: var(--space-xs);
+}
+.tile-action {
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-3);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    transition: background var(--motion-fast) var(--ease-out),
+                border-color var(--motion-fast) var(--ease-out);
+}
+.tile-action:hover:not(:disabled) {
+    background: var(--color-border);
+    border-color: var(--color-border-focus);
+}
+.tile-action:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+}
+.tile-action:disabled { opacity: 0.5; cursor: wait; }
+.tile-action[hidden] { display: none; }
+
+.tile-countdown {
+    font-family: var(--font-mono);
+    color: var(--color-warn);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+}
+.tile-countdown[hidden] { display: none; }
+

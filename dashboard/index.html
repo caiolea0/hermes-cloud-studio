@@ -23,6 +23,7 @@
 <script src="/dashboard/vendor/axe.min.js" defer></script>
 <script src="/dashboard/components/toast.js" defer></script>
 <script src="/dashboard/components/skeleton.js" defer></script>
+<script src="/dashboard/components/subsystem_tile.js" defer></script>
 </head>
 <body>
 
@@ -412,33 +413,11 @@
 
                     <!-- Center: Channel Health + Timeline -->
                     <div class="control-center">
-                        <!-- Channel Health Cards -->
-                        <div class="channel-cards" id="channel-cards">
-                            <div class="channel-card" data-channel="email" id="ch-email">
-                                <div class="ch-header"><span class="ch-icon">📧</span><span class="ch-name">Email</span></div>
-                                <div class="ch-progress"><div class="ch-bar"><div class="ch-fill" id="ch-email-fill" style="width:0%"></div></div><span class="ch-ratio" id="ch-email-ratio">0/75</span></div>
-                                <div class="ch-sparkline" id="ch-email-spark"></div>
-                                <div class="ch-footer"><span class="ch-health" id="ch-email-health">●●●●●</span><span class="ch-last" id="ch-email-last">—</span></div>
-                            </div>
-                            <div class="channel-card" data-channel="linkedin" id="ch-linkedin">
-                                <div class="ch-header"><span class="ch-icon">💼</span><span class="ch-name">LinkedIn</span></div>
-                                <div class="ch-progress"><div class="ch-bar"><div class="ch-fill" id="ch-linkedin-fill" style="width:0%"></div></div><span class="ch-ratio" id="ch-linkedin-ratio">0/70</span></div>
-                                <div class="ch-sparkline" id="ch-linkedin-spark"></div>
-                                <div class="ch-footer"><span class="ch-health" id="ch-linkedin-health">●●●●●</span><span class="ch-last" id="ch-linkedin-last">—</span></div>
-                            </div>
-                            <div class="channel-card" data-channel="whatsapp" id="ch-whatsapp">
-                                <div class="ch-header"><span class="ch-icon">💬</span><span class="ch-name">WhatsApp</span></div>
-                                <div class="ch-progress"><div class="ch-bar"><div class="ch-fill" id="ch-whatsapp-fill" style="width:0%"></div></div><span class="ch-ratio" id="ch-whatsapp-ratio">0/25</span></div>
-                                <div class="ch-sparkline" id="ch-whatsapp-spark"></div>
-                                <div class="ch-footer"><span class="ch-health" id="ch-whatsapp-health">●●●●●</span><span class="ch-last" id="ch-whatsapp-last">—</span></div>
-                            </div>
-                            <div class="channel-card" data-channel="instagram" id="ch-instagram">
-                                <div class="ch-header"><span class="ch-icon">📸</span><span class="ch-name">Instagram</span></div>
-                                <div class="ch-progress"><div class="ch-bar"><div class="ch-fill" id="ch-instagram-fill" style="width:0%"></div></div><span class="ch-ratio" id="ch-instagram-ratio">0/50</span></div>
-                                <div class="ch-sparkline" id="ch-instagram-spark"></div>
-                                <div class="ch-footer"><span class="ch-health" id="ch-instagram-health">●●●●●</span><span class="ch-last" id="ch-instagram-last">—</span></div>
-                            </div>
-                        </div>
+                        <!-- F.2.5a — SubsystemTileGrid (substitui channel-cards legacy) -->
+                        <section class="subsystem-grid-section" aria-labelledby="subsystem-grid-title">
+                            <h3 id="subsystem-grid-title" class="subsystem-grid-title">Subsistemas</h3>
+                            <div data-component="subsystem-tile-grid"></div>
+                        </section>
 
                         <!-- 24h Timeline -->
                         <div class="card timeline-card">

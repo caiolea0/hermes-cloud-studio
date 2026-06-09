@@ -2791,6 +2791,47 @@ function saveConfig() {
    ============================================================ */
 let ws = null;
 
+// F.2.5a — polling fallback ≥30s pra /api/daemon/subsystems quando WS down.
+// _wsAlive toggled em ws.onopen/onclose/onerror. Polling NUNCA roda com WS up.
+let _wsAlive = false;
+let _subsystemsPollingTimer = null;
+
+function startSubsystemsPollingFallback() {
+    if (_subsystemsPollingTimer) return; // idempotent
+    _subsystemsPollingTimer = setInterval(() => {
+        if (_wsAlive) {
+            // Safety: WS recovered fora do onopen path — para imediato
+            clearInterval(_subsystemsPollingTimer);
+            _subsystemsPollingTimer = null;
+            return;
+        }
+        if (currentPage === 'control') {
+            fetchAndRenderSubsystems().catch(() => {});
+        }
+    }, 30000); // 30s mínimo preserva WS-first principle
+}
+
+function stopSubsystemsPollingFallback() {
+    if (_subsystemsPollingTimer) {
+        clearInterval(_subsystemsPollingTimer);
+        _subsystemsPollingTimer = null;
+    }
+}
+
+async function fetchAndRenderSubsystems() {
+    try {
+        const data = await api('/api/daemon/subsystems');
+        if (!data || !Array.isArray(data.subsystems)) return;
+        if (!window.SubsystemTileGrid) return;
+        data.subsystems.forEach(s => {
+            if (s && s.name) window.SubsystemTileGrid.update(s.name, s);
+        });
+    } catch (e) {
+        console.error('fetchAndRenderSubsystems failed:', e);
+        if (window.hermesToast) window.hermesToast.error('Falha ao carregar subsistemas');
+    }
+}
+
 function connectWS() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = localStorage.getItem('hermes_api')?.replace(/^https?:\/\//, '').replace(/\/+$/, '') || location.host;
@@ -2803,16 +2844,24 @@ function connectWS() {
         } catch (err) {}
     };
     ws.onopen  = () => {
+        _wsAlive = true;
+        stopSubsystemsPollingFallback();
         document.getElementById('status-dot').className = 'status-dot';
         document.getElementById('status-text').textContent = 'Online';
     };
     ws.onclose = () => {
+        _wsAlive = false;
+        startSubsystemsPollingFallback();
         document.getElementById('status-dot').className = 'status-dot offline';
         document.getElementById('status-text').textContent = 'Offline';
         ws = null;
         setTimeout(connectWS, 3000);
     };
-    ws.onerror = () => { ws?.close(); };
+    ws.onerror = () => {
+        _wsAlive = false;
+        startSubsystemsPollingFallback();
+        ws?.close();
+    };
 }
 
 function handleWSEvent(event) {
@@ -3080,12 +3129,17 @@ let _controlInterval = null;
 
 async function loadMissionControl() {
     if (_controlInterval) clearInterval(_controlInterval);
+    // F.2.5a — SubsystemTileGrid init + fetch inicial (WS atualiza depois).
+    if (window.SubsystemTileGrid) {
+        window.SubsystemTileGrid.init('[data-component="subsystem-tile-grid"]');
+    }
     await Promise.all([
         loadDaemonState(),
         loadDaemonChannels(),
         loadDaemonTimeline(),
         loadDaemonDecisions(),
         loadDaemonFeed(),
+        fetchAndRenderSubsystems(),
     ]);
     initOrbitCanvas();
     _controlInterval = setInterval(loadDaemonState, 10000);
