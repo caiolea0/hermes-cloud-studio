@@ -3062,11 +3062,37 @@ function handleWSEvent(event) {
         if (window._missionControl && typeof window._missionControl.appendLog === 'function') {
             try { window._missionControl.appendLog(event); } catch (e) { console.warn('mission_control appendLog failed', e); }
         }
+        // F.2.5c — LiveLogTail consume real (stub F.2.5a → render virtualizado).
+        if (window.HermesLiveLogTail && typeof window.HermesLiveLogTail.append === 'function') {
+            try {
+                window.HermesLiveLogTail.append({
+                    ts: event.ts || Date.now(),
+                    level: event.level || 'info',
+                    emitter: event.emitter || 'daemon',
+                    event_type: 'log',
+                    message: event.message || '',
+                    payload: event.payload || null,
+                });
+            } catch (e) { console.warn('LiveLogTail append (log_event) failed', e); }
+        }
     }
     if (event.type === 'daemon.decision') {
         // legacy `decision` ainda renderiza decisions-list; canonical é hook futuro
         if (window._missionControl && typeof window._missionControl.appendDecision === 'function') {
             try { window._missionControl.appendDecision(event); } catch (e) { console.warn('mission_control appendDecision failed', e); }
+        }
+        // F.2.5c — LiveLogTail consume real (decision_event renderiza inline com payload).
+        if (window.HermesLiveLogTail && typeof window.HermesLiveLogTail.append === 'function') {
+            try {
+                window.HermesLiveLogTail.append({
+                    ts: event.ts || Date.now(),
+                    level: event.level || 'info',
+                    emitter: event.emitter || 'daemon',
+                    event_type: 'decision',
+                    message: `Decision: ${event.decision_event || event.message || 'unknown'}`,
+                    payload: event,
+                });
+            } catch (e) { console.warn('LiveLogTail append (decision) failed', e); }
         }
     }
 }
@@ -3316,6 +3342,10 @@ async function loadMissionControl() {
     _mountMissionControlHeaderActions();
     if (window.HermesPrefPanel && typeof window.HermesPrefPanel.init === 'function') {
         window.HermesPrefPanel.init().catch(() => { /* offline OK */ });
+    }
+    // F.2.5c — LiveLogTail mount (idempotente — init checa _initialized).
+    if (window.HermesLiveLogTail && typeof window.HermesLiveLogTail.init === 'function') {
+        try { window.HermesLiveLogTail.init('[data-component="live-log-tail"]'); } catch (e) { console.warn('LiveLogTail init failed', e); }
     }
     await Promise.all([
         loadDaemonState(),
