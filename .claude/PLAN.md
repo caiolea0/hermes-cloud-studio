@@ -19,7 +19,7 @@
 +|---------|-----------------------------------------------------|---------------|----------|---------|-------------|-------------|
 +| F.1     | Backend↔Frontend Gap Audit                          | research+ui   | 3        | 1       | CONCLUÍDO 2026-06-08 | —    |
 +| F.2     | Mission Control Real-Time + Design System Polish    | ui+backend    | 9        | 7       | **CONCLUÍDO 2026-06-08** | F.1         |
-+| F.3     | Lab Cockpit + Stealth UX                            | ui+backend    | 8        | 4       | PLANEJADO   | F.1         |
++| F.3     | Lab Cockpit + Stealth UX                            | ui+backend    | 8        | 4       | **EM ANDAMENTO 2026-06-08** (F.3.1 [x]) | F.1         |
 +| F.4     | Auto-Skill Loop W3 + GitHub PR-based deploy         | backend+ui    | 7        | 5       | PLANEJADO   | F.1, F.5    |
 +| F.5     | MCP Gateway + Discovery + Custom MCPs               | backend+infra | 4        | 4       | PLANEJADO   | F.1         |
 +| F.6     | Cérebro Hermes (Brain orchestrator)                 | backend+ui    | 9        | 6       | PLANEJADO   | F.1, F.5    |
@@ -217,7 +217,7 @@
 +
 +### Chapter F.3 — Lab Cockpit + Stealth UX
 +
-+**Classification**: ui+backend · **UI score**: 8 · **Estimated sessions**: 4 · **Status**: **UNBLOCKED** (deps F.1 satisfeitas, F.2 closeout 2026-06-08 — pode iniciar sessão dedicada quando owner pronto) · **Dependencies**: F.1
++**Classification**: ui+backend · **UI score**: 8 · **Estimated sessions**: 4 · **Status**: **EM ANDAMENTO 2026-06-08** (F.3.1 [x] commits a8e4a08 + 406c239, F.3.2/3/4 próximas sessões dedicadas) · **Dependencies**: F.1
 +
 +**Deliverable**: Página `dashboard/lab` nova. Owner roda `lab_runner.py` sem CLI: botões "test fingerprint", "test login", "test viewer flow"; live screenshot polling 2s; compliance score + delta vs baseline; runs históricos com diff fingerprint; cobaia descartável workflow integrado.
 +
@@ -227,15 +227,38 @@
 +
 +**MCP integração**: Microsoft Playwright MCP (fallback QA descartável, NUNCA conta Caio) + custom `linkedin-lab` MCP (decisão F.5).
 +
-+**Tasks**:
-+- [ ] Task 1: Backend `lab_runner.py` HTTP wrapper — POST start enfileira run, retorna run_id; subprocess.Popen com timeout 5min; PID tracking
-+- [ ] Task 2: Backend WS progress — broadcast steps (fingerprint_init, login_attempt, viewer_navigate, ...) + screenshot path por step
-+- [ ] Task 3: Backend compliance scorer — compara fingerprint atual vs baseline (`linkedin/stealth_compliance.py` extensão); output JSON score 0-100 + breakdown 8 dimensões
-+- [ ] Task 4: UI página `/lab` — 3 botões action, painel live screenshot, sidebar histórico runs, modal compare 2 runs
-+- [ ] Task 5: UI compliance dashboard — gauge score atual + sparkline 30d + breakdown 8 dimensões em radar chart
-+- [ ] Task 6: Validação regressão + persistência — phase A B C D E (toca linkedin/stealth_compliance.py MADURO); 20/22 PASS; PLAN.md F.3 ✅; commit `feat(lab): F.3 — Lab Cockpit + compliance scorer`
++**Sub-sessões dedicadas (4)**:
 +
-+**Done criteria F.3**: owner valida stealth de cobaia nova sem terminar · compliance regression visível antes de toque produção · screenshot history pra debug DOM LinkedIn mudou · 20/22 PASS preservado.
++**F.3.1 — Backend Lab API + DB schema + SSH async** (2026-06-08 ☒ commits a8e4a08 + 406c239)
++- [x] core/state.py: lab_runs table migration + helpers (lab_run_create/update/get/list/is_running)
++- [x] api/lab.py NOVO: POST /start (SSH async via asyncio.create_subprocess_exec + xvfb-run python3 -m linkedin.lab.lab_runner), POST /runs/{id}/abort (terminate+kill 3s), GET /runs paginated, GET /runs/{id} detail+artifacts, GET /runs/{id}/artifacts/{filename} FileResponse path-sanitized
++- [x] server.py include_router(lab_router)
++- [x] WS broadcasts namespace lab.* (run_started, step_progress, compliance_score, fingerprint, run_completed, run_failed, run_aborted)
++- [x] Concurrent gate 409 (cobaia single profile) + rate-limit 3/min POST start
++- [x] Smoke: empty list 200, invalid flow 400, 404, path traversal sanitized, no token 401, validate phases A-E 20/22 preserved
++
++**F.3.2 — VM-side lab_runner.py emit JSON events** (próxima sessão dedicada)
++- [ ] linkedin/lab/lab_runner.py MATURE — emit `{"event":...,...}` em stdout (run_started, step_progress, screenshot_captured, compliance_score, fingerprint, run_completed)
++- [ ] linkedin/lab/flows/*.py MATURE — emit screenshot_captured após cada artifact write
++- [ ] Validate stealth.py/human.py/limiter.py/preflight.py NÃO modified
++- [ ] Smoke: `python -m linkedin.lab.lab_runner --flow fingerprint` emite N JSON events stdout
++
++**F.3.3 — Frontend Lab Cockpit page + components** (próxima sessão dedicada)
++- [ ] dashboard/components/lab_cockpit.js NOVO — window.HermesLabCockpit.{init,startRun,abortRun,renderHistory,renderDiff,destroy}
++- [ ] dashboard/components/lab_gauge.js NOVO — SVG semicircular 0-100 + cor tokens --color-success/warn/error
++- [ ] dashboard/components/lab_fingerprint_diff.js NOVO — table side-by-side 18 signals + green/red/yellow tokens
++- [ ] dashboard/app.js MATURE — page routing #lab + WS handlers lab.*
++- [ ] dashboard/index.html MATURE — sidebar link + script imports
++- [ ] dashboard/styles.css MATURE — APPEND .lab-* selectors var(--color-*) tokens F.2.4
++- [ ] Reviewer agent frontend-ux-reviewer PASS pré-commit (gate inviolável)
++
++**F.3.4 — Auto-cleanup + smoke E2E + closeout** (próxima sessão dedicada)
++- [ ] scripts/lab_cleanup.py NOVO — delete artifacts/<run_id>/ com started_at < now-30d (preserva pinned=1)
++- [ ] daemon/orchestrator.py MATURE — APScheduler add cleanup task 03:00 daily
++- [ ] Smoke E2E browser: click "Run fingerprint flow" → WS live progress → gauge atualiza → history list → fingerprint diff → abort durante run
++- [ ] PLAN.md F.3 ☒ + memory_save + mark_chapter "F.3 COMPLETE"
++
++**Done criteria F.3**: owner valida stealth de cobaia nova sem terminar · compliance regression visível antes de toque produção · screenshot history pra debug DOM LinkedIn mudou · 20/22 PASS preservado · 4 sub-sessões ☒.
 +
 +### Chapter F.4 — Auto-Skill Loop W3 + GitHub PR-based deploy
 +
