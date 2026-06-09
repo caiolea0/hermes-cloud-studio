@@ -331,6 +331,25 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_li_campaigns_status ON linkedin_campaigns(status);
         CREATE INDEX IF NOT EXISTS idx_li_campaigns_type ON linkedin_campaigns(type);
 
+        CREATE TABLE IF NOT EXISTS lab_runs (
+            id TEXT PRIMARY KEY,
+            run_id TEXT UNIQUE NOT NULL,
+            flow TEXT NOT NULL,
+            started_at REAL NOT NULL,
+            completed_at REAL,
+            status TEXT NOT NULL DEFAULT 'running',
+            compliance_score INTEGER,
+            fingerprint_hash TEXT,
+            artifacts_path TEXT,
+            error_message TEXT,
+            duration_ms INTEGER,
+            pinned INTEGER DEFAULT 0,
+            created_at REAL DEFAULT (strftime('%s', 'now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_lab_runs_started ON lab_runs (started_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_lab_runs_status ON lab_runs (status);
+
         INSERT OR IGNORE INTO daemon_state (id, state, started_at, last_heartbeat)
         VALUES (1, 'idle', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
@@ -360,6 +379,125 @@ def init_db() -> None:
         logger.info("Migration: added version/last_synced_version/conflict_at to prospects (MERGED-006)")
 
     conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Lab runs helpers (F.3.1 — Lab Cockpit backend)
+# ---------------------------------------------------------------------------
+
+def lab_run_create(
+    run_id: str,
+    flow: str,
+    started_at: float,
+    artifacts_path: Optional[str] = None,
+) -> str:
+    """Insere row 'running' em lab_runs. Retorna id (UUID)."""
+    import uuid
+    row_id = uuid.uuid4().hex
+    db = get_db()
+    try:
+        db.execute(
+            "INSERT INTO lab_runs (id, run_id, flow, started_at, status, artifacts_path) "
+            "VALUES (?, ?, ?, ?, 'running', ?)",
+            (row_id, run_id, flow, started_at, artifacts_path),
+        )
+        db.commit()
+        return row_id
+    finally:
+        db.close()
+
+
+def lab_run_update(
+    run_id: str,
+    *,
+    status: Optional[str] = None,
+    completed_at: Optional[float] = None,
+    compliance_score: Optional[int] = None,
+    fingerprint_hash: Optional[str] = None,
+    error_message: Optional[str] = None,
+    duration_ms: Optional[int] = None,
+    pinned: Optional[bool] = None,
+) -> None:
+    """Update parcial por run_id. Apenas campos não-None aplicados."""
+    fields: list[str] = []
+    values: list[Any] = []
+    if status is not None:
+        fields.append("status=?"); values.append(status)
+    if completed_at is not None:
+        fields.append("completed_at=?"); values.append(completed_at)
+    if compliance_score is not None:
+        fields.append("compliance_score=?"); values.append(int(compliance_score))
+    if fingerprint_hash is not None:
+        fields.append("fingerprint_hash=?"); values.append(fingerprint_hash)
+    if error_message is not None:
+        fields.append("error_message=?"); values.append(error_message)
+    if duration_ms is not None:
+        fields.append("duration_ms=?"); values.append(int(duration_ms))
+    if pinned is not None:
+        fields.append("pinned=?"); values.append(1 if pinned else 0)
+    if not fields:
+        return
+    values.append(run_id)
+    db = get_db()
+    try:
+        db.execute(f"UPDATE lab_runs SET {', '.join(fields)} WHERE run_id=?", values)
+        db.commit()
+    finally:
+        db.close()
+
+
+def lab_run_get(run_id: str) -> Optional[dict]:
+    """Retorna dict da row ou None se run_id inexistente."""
+    db = get_db()
+    try:
+        row = db.execute(
+            "SELECT id, run_id, flow, started_at, completed_at, status, compliance_score, "
+            "fingerprint_hash, artifacts_path, error_message, duration_ms, pinned, created_at "
+            "FROM lab_runs WHERE run_id=?",
+            (run_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        db.close()
+
+
+def lab_runs_list(
+    limit: int = 50,
+    offset: int = 0,
+    status: Optional[str] = None,
+) -> list[dict]:
+    """Lista paginada DESC by started_at. status='all'|None devolve tudo."""
+    limit = max(1, min(int(limit), 200))
+    offset = max(0, int(offset))
+    db = get_db()
+    try:
+        if status and status != "all":
+            rows = db.execute(
+                "SELECT id, run_id, flow, started_at, completed_at, status, compliance_score, "
+                "fingerprint_hash, artifacts_path, error_message, duration_ms, pinned, created_at "
+                "FROM lab_runs WHERE status=? ORDER BY started_at DESC LIMIT ? OFFSET ?",
+                (status, limit, offset),
+            ).fetchall()
+        else:
+            rows = db.execute(
+                "SELECT id, run_id, flow, started_at, completed_at, status, compliance_score, "
+                "fingerprint_hash, artifacts_path, error_message, duration_ms, pinned, created_at "
+                "FROM lab_runs ORDER BY started_at DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        db.close()
+
+
+def lab_run_is_running() -> bool:
+    """True se há ao menos 1 run com status='running' (gate concurrent)."""
+    db = get_db()
+    try:
+        row = db.execute("SELECT 1 FROM lab_runs WHERE status='running' LIMIT 1").fetchone()
+        return bool(row)
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
