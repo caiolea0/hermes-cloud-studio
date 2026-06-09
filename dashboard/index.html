@@ -21,6 +21,8 @@
 <link rel="stylesheet" href="/dashboard/styles.css">
 <!-- F.2.4 — vendor axe-core 4.10 (WCAG audit manual via DevTools), components (window.hermesToast/window.skeleton) -->
 <script src="/dashboard/vendor/axe.min.js" defer></script>
+<!-- F.2.5b prep — shared utils carregado ANTES dos componentes (safeMerge usado em PrefPanel + LiveLogTail + F.6) -->
+<script src="/dashboard/components/_utils.js" defer></script>
 <script src="/dashboard/components/toast.js" defer></script>
 <script src="/dashboard/components/skeleton.js" defer></script>
 <script src="/dashboard/components/subsystem_tile.js" defer></script>
