@@ -246,7 +246,8 @@ class HermesDaemon:
         conn.commit()
         conn.close()
 
-        # Broadcast for live feed
+        # Broadcast for live feed (legacy 'activity' + F.2.3 canonical 'daemon.log_event')
+        ts = datetime.now(timezone.utc).isoformat()
         await self._broadcast({
             "type": "activity",
             "category": category,
@@ -254,7 +255,16 @@ class HermesDaemon:
             "level": level,
             "metadata": metadata or {},
             "visual_event": visual_event,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": ts,
+        })
+        await self._broadcast({
+            "type": "daemon.log_event",
+            "category": category,
+            "message": message,
+            "level": level,
+            "metadata": metadata or {},
+            "visual_event": visual_event,
+            "timestamp": ts,
         })
 
     async def log_decision(self, action: str, reason: str, context: dict = None):
@@ -276,10 +286,20 @@ class HermesDaemon:
 
         self.stats_today.decisions += 1
 
+        # Legacy 'decision' + F.2.3 canonical 'daemon.decision' (decision_event tag pro grep_present harness)
+        ts = datetime.now(timezone.utc).isoformat()
         await self._broadcast({
             "type": "decision",
             "action": action,
             "reason": reason,
+        })
+        await self._broadcast({
+            "type": "daemon.decision",
+            "event": "decision_event",
+            "action": action,
+            "reason": reason,
+            "context": context or {},
+            "timestamp": ts,
         })
 
     # --- Core Loop ---
