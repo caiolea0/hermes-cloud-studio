@@ -56,6 +56,24 @@ async def linkedin_health_monitor_loop():
                 await ws_manager.broadcast({"type": "linkedin_health", "data": health})
             except Exception:  # noqa: silenciado intencional — WS/broadcast opcional
                 pass
+            # F.2.3 — daemon.log_event paralelo pra Mission Control timeline ver health transitions.
+            try:
+                await ws_manager.broadcast({
+                    "type": "daemon.log_event",
+                    "category": "linkedin_health",
+                    "level": "info" if new_state == "ok" else "warning",
+                    "message": f"LinkedIn health → {new_state}",
+                    "metadata": {
+                        "state": new_state,
+                        "previous_state": state._LI_HEALTH_LAST_STATE,
+                        "reason": health.get("reason"),
+                        "http_code": health.get("http_code"),
+                        "retry_after_seconds": health.get("retry_after_seconds"),
+                    },
+                    "timestamp": time.time(),
+                })
+            except Exception:  # noqa: silenciado intencional — WS/broadcast opcional
+                pass
             state._LI_HEALTH_LAST_STATE = new_state
             state._LI_HEALTH_NOTIFIED_AT = time.time()
             set_runtime_state("li_health_last_state", state._LI_HEALTH_LAST_STATE)
