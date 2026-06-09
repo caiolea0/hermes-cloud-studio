@@ -2836,6 +2836,34 @@ function handleWSEvent(event) {
             addFeedItem({...event, category: 'system', action: event.message}, event.level === 'error');
         }
     }
+
+    // F.2.3 — canonical dot-notation handlers (paralelos a `activity`/`decision` legacy).
+    // Render fica no legacy até F.2.future cleanup; canonical aqui faz toast UX + hook
+    // pra Mission Control v2 (F.2.5a SubsystemTileGrid se montar window._missionControl).
+    if (event.type === 'daemon.subsystem_status') {
+        const sub = String(event.subsystem || '').replace(/[^a-z0-9_-]/gi, '');
+        const status = String(event.status || '').replace(/[^a-z]/gi, '');
+        if (window._missionControl && typeof window._missionControl.updateSubsystem === 'function') {
+            try { window._missionControl.updateSubsystem(event); } catch (e) { console.warn('mission_control updateSubsystem failed', e); }
+        }
+        if (currentPage === 'control' && sub && status && typeof toast === 'function') {
+            // toast() conhece success|error|info (styles.css §toast-*); paused→info pra ficar coerente
+            const tone = status === 'healthy' ? 'success' : 'info';
+            toast(`Subsistema ${sub} → ${status}`, tone);
+        }
+    }
+    if (event.type === 'daemon.log_event') {
+        // legacy `activity` ainda renderiza feed/orbit/timeline; canonical é hook futuro
+        if (window._missionControl && typeof window._missionControl.appendLog === 'function') {
+            try { window._missionControl.appendLog(event); } catch (e) { console.warn('mission_control appendLog failed', e); }
+        }
+    }
+    if (event.type === 'daemon.decision') {
+        // legacy `decision` ainda renderiza decisions-list; canonical é hook futuro
+        if (window._missionControl && typeof window._missionControl.appendDecision === 'function') {
+            try { window._missionControl.appendDecision(event); } catch (e) { console.warn('mission_control appendDecision failed', e); }
+        }
+    }
 }
 
 /* ============================================================
