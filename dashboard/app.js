@@ -295,9 +295,19 @@ async function checkAuth() {
 
 /* ============================================================
    TOAST SYSTEM
+   ============================================================
+   F.2.4 — delega pra window.toast.* (components/toast.js) quando disponível.
+   Fallback preserva 100% comportamento legacy pra callers existentes (~30+ chamadas
+   espalhadas usando 'success'|'error'|'info'). 'warn' adicionado em F.2.4 (novo path).
+   F.2.future cleanup: remover wrapper + migrar callers diretos pra window.toast.*
+   após Mission Control v2 (F.2.5a) e telas restantes adotarem padrão novo.
    ============================================================ */
 function toast(msg, type = 'info') {
+    if (window.hermesToast && typeof window.hermesToast[type] === 'function') {
+        return window.hermesToast[type](msg);
+    }
     const c = document.getElementById('toast-container');
+    if (!c) return;
     const icons = { success: '#i-check', error: '#i-x', info: '#i-lightbulb' };
     const el = document.createElement('div');
     el.className = `toast toast-${type}`;
@@ -2847,8 +2857,8 @@ function handleWSEvent(event) {
             try { window._missionControl.updateSubsystem(event); } catch (e) { console.warn('mission_control updateSubsystem failed', e); }
         }
         if (currentPage === 'control' && sub && status && typeof toast === 'function') {
-            // toast() conhece success|error|info (styles.css §toast-*); paused→info pra ficar coerente
-            const tone = status === 'healthy' ? 'success' : 'info';
+            // F.2.4 — .toast-warn agora existe (window.hermesToast). Reverte hotfix F.2.3 'info'→'warn'.
+            const tone = status === 'healthy' ? 'success' : (status === 'paused' ? 'warn' : 'info');
             toast(`Subsistema ${sub} → ${status}`, tone);
         }
     }

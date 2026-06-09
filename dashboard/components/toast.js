@@ -2,7 +2,12 @@
    Hermes Cloud Studio — Toast component (F.2.4c)
    ============================================================
    Standalone — carregado via <script src="components/toast.js" defer>.
-   Expõe window.toast = { success, warn, error, info }.
+   Expõe window.hermesToast = { success, warn, error, info, dismiss }.
+
+   Namespace prefixado pra NÃO colidir com função legacy `toast()` em app.js (declaração
+   top-level cria window.toast). Wrapper compat em app.js delega `toast(msg, type)` pra
+   `window.hermesToast[type](msg)` quando disponível. F.2.future cleanup: remover wrapper
+   + migrar callers diretos pra window.hermesToast.*.
 
    Cada método: toast.<type>(msg, opts?) onde opts = {
      duration: ms (default 4000),
@@ -228,5 +233,5 @@
     });
     api.dismiss = _dismiss;
 
-    window.toast = api;
+    window.hermesToast = api;
 })();
