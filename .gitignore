@@ -51,7 +51,8 @@ linkedin/lab/_parse_artifacts.py
 .claude/_*.json
 .claude/_*.txt
 .claude/*.WORKFLOW-PROPOSED
-.claude/screenshots/
+.claude/screenshots/*
+!.claude/screenshots/baseline/
 
 # Server startup logs (test helpers, gerados ad-hoc)
 server_startup.log
@@ -83,3 +84,6 @@ desktop.ini
 
 # MCP config (may contain secrets)
 .mcp.json
+
+# F.2 closeout helper (Edge headless screenshot bootstrap, local-only)
+dashboard/dev-bootstrap.html
