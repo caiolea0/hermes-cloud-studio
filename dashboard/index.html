@@ -29,6 +29,8 @@
 <!-- F.2.5b — panic button + preferências panel (header Mission Control) -->
 <script src="/dashboard/components/panic_button.js" defer></script>
 <script src="/dashboard/components/pref_panel.js" defer></script>
+<!-- F.2.5c — live log tail (consume daemon.log_event + daemon.decision WS) -->
+<script src="/dashboard/components/live_log_tail.js" defer></script>
 </head>
 <body>
 
@@ -457,6 +459,11 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- F.2.5c — LiveLogTail (consume daemon.log_event + daemon.decision via WS) -->
+                <section class="mc-bottom-section" aria-label="Live log tail">
+                    <div data-component="live-log-tail"></div>
+                </section>
             </div>
 
             <!-- ========================== PAGE: DASHBOARD ========================== -->
