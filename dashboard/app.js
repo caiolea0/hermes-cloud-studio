@@ -317,6 +317,152 @@ function toast(msg, type = 'info') {
 }
 
 /* ============================================================
+   F.2.5b — User preferences helpers + badge counter + sound notification
+   ============================================================
+   - getUserPref(key, default): sync read de cache localStorage 'hermes_user_prefs'
+     (canonical = HermesPrefPanel cache, atualizado via fetch on open/init).
+   - setUserPref(key, value): patch local + PUT idempotente via debounce
+     (HermesPrefPanel já gerencia debounce quando aberto; chamada externa flush imediato).
+   - Web Audio API beep sintetizado em error (660Hz, 150ms, volume 0.3, ADSR envelope):
+     * Lazy init AudioContext após primeiro user gesture (browser autoplay policy)
+     * SOMENTE toast.error toca beep (success/warn/info silent — anti-fadiga)
+     * Zero binary no repo (substitui notification.mp3 vendor — arquitetura strictly cleaner)
+   - Badge counter document.title text-safe:
+     * Increment em hermesToast.error()
+     * Clear via window.clearHermesErrorBadge() (chamado por click no error tile / PrefPanel)
+   ============================================================ */
+const ORIGINAL_DOC_TITLE = document.title || 'Hermes Command Center';
+let _hermesErrorsUnread = 0;
+let _audioCtx = null;
+let _audioGestureBound = false;
+
+function getUserPref(key, fallback) {
+    try {
+        const raw = localStorage.getItem('hermes_user_prefs');
+        if (!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        const data = parsed && parsed.data ? parsed.data : parsed;
+        if (data && Object.prototype.hasOwnProperty.call(data, key)) {
+            const v = data[key];
+            return v === undefined ? fallback : v;
+        }
+    } catch { /* noop */ }
+    return fallback;
+}
+
+function setUserPref(key, value) {
+    try {
+        const raw = localStorage.getItem('hermes_user_prefs');
+        const parsed = raw ? JSON.parse(raw) : { version: 0, data: {} };
+        const data = parsed.data && typeof parsed.data === 'object' ? parsed.data : {};
+        data[key] = value;
+        parsed.data = data;
+        localStorage.setItem('hermes_user_prefs', JSON.stringify(parsed));
+    } catch { /* noop */ }
+    // Best-effort PUT em background (last-wins; HermesPrefPanel cuida do flush principal)
+    const base = (typeof VM_API !== 'undefined' && VM_API) || localStorage.getItem('hermes_api') || '';
+    const token = localStorage.getItem('hermes_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['X-Hermes-Token'] = token;
+    fetch(base + '/api/user-prefs', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ [key]: value }),
+    }).catch(() => { /* offline OK, localStorage já patched */ });
+}
+
+function _ensureAudioCtx() {
+    if (_audioCtx) return _audioCtx;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    try { _audioCtx = new Ctx(); } catch { return null; }
+    return _audioCtx;
+}
+
+function _bindAudioGesture() {
+    if (_audioGestureBound) return;
+    _audioGestureBound = true;
+    const handler = () => {
+        const ctx = _ensureAudioCtx();
+        if (ctx && ctx.state === 'suspended') {
+            ctx.resume().catch(() => { /* noop */ });
+        }
+    };
+    document.addEventListener('click', handler, { once: false, passive: true });
+    document.addEventListener('keydown', handler, { once: false, passive: true });
+}
+
+function playErrorBeep() {
+    const ctx = _ensureAudioCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') {
+        // Ainda sem user gesture confirmado — silent skip.
+        ctx.resume().catch(() => { /* noop */ });
+        return;
+    }
+    try {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain).connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 660; // Hz médio, não estridente
+        const now = ctx.currentTime;
+        const duration = 0.15;
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.3, now + 0.01); // attack rápido
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration); // decay suave (evita click)
+        osc.start(now);
+        osc.stop(now + duration);
+    } catch { /* noop */ }
+}
+
+function updateBadgeTitle() {
+    const enabled = getUserPref('badge_counter_unread_errors', true);
+    if (!enabled || _hermesErrorsUnread <= 0) {
+        document.title = ORIGINAL_DOC_TITLE;
+        return;
+    }
+    // document.title é string text-safe — sem innerHTML, sem sanitize concern.
+    document.title = `(${_hermesErrorsUnread}) ${ORIGINAL_DOC_TITLE}`;
+}
+
+function clearHermesErrorBadge() {
+    _hermesErrorsUnread = 0;
+    updateBadgeTitle();
+}
+window.clearHermesErrorBadge = clearHermesErrorBadge;
+window.getUserPref = getUserPref;
+window.setUserPref = setUserPref;
+window.playErrorBeep = playErrorBeep;
+window.updateBadgeTitle = updateBadgeTitle;
+
+function _installErrorHook() {
+    if (!window.hermesToast || typeof window.hermesToast.error !== 'function') return false;
+    if (window.hermesToast.__f25b_hooked) return true;
+    const originalError = window.hermesToast.error.bind(window.hermesToast);
+    window.hermesToast.error = function (msg, opts) {
+        _hermesErrorsUnread++;
+        updateBadgeTitle();
+        if (getUserPref('sound_notifications', false)) {
+            playErrorBeep();
+        }
+        return originalError(msg, opts);
+    };
+    window.hermesToast.__f25b_hooked = true;
+    return true;
+}
+
+// Bind audio gesture imediato + tenta hookar error toast assim que carregar
+_bindAudioGesture();
+(function _hookWhenReady() {
+    if (_installErrorHook()) return;
+    let tries = 0;
+    const id = setInterval(() => {
+        if (_installErrorHook() || ++tries >= 50) clearInterval(id); // 5s max
+    }, 100);
+})();
+
+/* ============================================================
    NAVIGATION
    ============================================================ */
 function navigate(page) {
@@ -3127,11 +3273,49 @@ async function createMission() {
 let _feedFilter = 'all';
 let _controlInterval = null;
 
+// F.2.5b — Idempotente mount PanicButton + Preferências ⚙ no header MC.
+function _mountMissionControlHeaderActions() {
+    const host = document.getElementById('metrics-bar');
+    if (!host) return;
+    let actions = host.querySelector('.mc-header-actions');
+    if (!actions) {
+        actions = document.createElement('div');
+        actions.className = 'mc-header-actions';
+        actions.dataset.f25b = 'header-actions';
+        host.appendChild(actions);
+    }
+    // Panic button (uma vez)
+    if (window.HermesPanicButton && !actions.querySelector('[data-component="panic-button"]')) {
+        try { window.HermesPanicButton.init(actions); } catch (e) { console.warn('panic init failed', e); }
+    }
+    // Preferências ⚙ btn (uma vez)
+    if (!actions.querySelector('[data-role="pref-trigger"]')) {
+        const prefBtn = document.createElement('button');
+        prefBtn.type = 'button';
+        prefBtn.className = 'pref-trigger';
+        prefBtn.dataset.role = 'pref-trigger';
+        prefBtn.setAttribute('aria-label', 'Abrir preferências');
+        prefBtn.title = 'Preferências (Ctrl+,)';
+        prefBtn.textContent = '⚙';
+        prefBtn.addEventListener('click', () => {
+            if (window.HermesPrefPanel && typeof window.HermesPrefPanel.open === 'function') {
+                window.HermesPrefPanel.open();
+            }
+        });
+        actions.appendChild(prefBtn);
+    }
+}
+
 async function loadMissionControl() {
     if (_controlInterval) clearInterval(_controlInterval);
     // F.2.5a — SubsystemTileGrid init + fetch inicial (WS atualiza depois).
     if (window.SubsystemTileGrid) {
         window.SubsystemTileGrid.init('[data-component="subsystem-tile-grid"]');
+    }
+    // F.2.5b — Panic button + PrefPanel init no header MC (idempotente).
+    _mountMissionControlHeaderActions();
+    if (window.HermesPrefPanel && typeof window.HermesPrefPanel.init === 'function') {
+        window.HermesPrefPanel.init().catch(() => { /* offline OK */ });
     }
     await Promise.all([
         loadDaemonState(),
