@@ -42,7 +42,6 @@
     let _initialized = false;
     let _previousFocus = null;
     let _cache = { version: 0, data: {} };
-    let _pageTitle = null;
     let _listeners = [];
 
     function _toast(type, msg) {

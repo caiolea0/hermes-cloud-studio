@@ -25,7 +25,6 @@
     const MINUTES_OPTIONS = [1, 5, 15, 30, 60, 120, 240, 720];
 
     let _btn = null;
-    let _modal = null;
     let _overlay = null;
     let _confirmBtn = null;
     let _cancelBtn = null;
@@ -192,7 +191,7 @@
     }
 
     function _open() {
-        if (!_modal) _overlay = _buildModal();
+        if (!_overlay) _overlay = _buildModal();
         _previousFocus = document.activeElement;
         _failedRegion.hidden = true;
         _failedRegion.replaceChildren();
@@ -289,7 +288,6 @@
         document.removeEventListener("keydown", _onKeyDown);
         _btn = null;
         _overlay = null;
-        _modal = null;
         _confirmBtn = null;
         _cancelBtn = null;
         _minutesSelect = null;
