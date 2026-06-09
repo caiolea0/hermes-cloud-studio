@@ -4,8 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hermes Command Center</title>
+<!-- F.2.4 — FOUC-prevention: setar data-theme ANTES de qualquer <link rel=stylesheet> -->
+<script>
+(function(){
+    try {
+        var t = localStorage.getItem('hermes_theme') || 'auto';
+        var dark = t === 'dark' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+})();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- F.2.4 — design system tokens (DARK default em tokens.css; light overrides em light.css) -->
+<link rel="stylesheet" href="/dashboard/styles/tokens.css">
+<link rel="stylesheet" href="/dashboard/styles/light.css">
 <link rel="stylesheet" href="/dashboard/styles.css">
+<!-- F.2.4 — vendor axe-core 4.10 (WCAG audit manual via DevTools), components (window.hermesToast/window.skeleton) -->
+<script src="/dashboard/vendor/axe.min.js" defer></script>
+<script src="/dashboard/components/toast.js" defer></script>
+<script src="/dashboard/components/skeleton.js" defer></script>
 </head>
 <body>
 
