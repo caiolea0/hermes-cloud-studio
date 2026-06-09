@@ -18,6 +18,29 @@ from core.state import (
 )
 
 
+# F.2.3 — scheduler defers WS emission to linkedin_sync (canonical emitter pro subsystem='linkedin').
+# Aqui só logger.info na transição pra trilha de audit; broadcast WS sai do linkedin_sync_loop.
+# Razão: se ambos emitem `daemon.subsystem_status {name:'linkedin'}`, dashboard recebe events duplicados.
+_paused_state: bool = False
+
+
+def _log_subsystem_transition(now_paused: bool) -> None:
+    global _paused_state
+    if now_paused == _paused_state:
+        return
+    _paused_state = now_paused
+    logger.info(
+        "linkedin_scheduler subsystem transition",
+        extra={
+            "category": "subsystem_pause",
+            "subsystem": "linkedin",
+            "emitter": "scheduler",
+            "status": "paused" if now_paused else "healthy",
+            "note": "defers WS broadcast to linkedin_sync (canonical emitter)",
+        },
+    )
+
+
 async def linkedin_scheduler_loop():
     """Every 30s: find scheduled campaigns whose scheduled_for has elapsed AND
     all gates are clear, then dispatch them. Postpones (recomputes scheduled_for)
@@ -26,7 +49,10 @@ async def linkedin_scheduler_loop():
     while True:
         try:
             # F.2.2 — Skip iteration quando subsistema 'linkedin' pausado.
-            if is_subsystem_paused("linkedin"):
+            # F.2.3 — log-only transition; broadcast WS é emitido por linkedin_sync_loop.
+            paused = is_subsystem_paused("linkedin")
+            _log_subsystem_transition(paused)
+            if paused:
                 logger.info(
                     "linkedin_scheduler_loop skip — linkedin paused",
                     extra={"category": "subsystem_pause", "subsystem": "linkedin"},
