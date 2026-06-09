@@ -237,15 +237,40 @@ async def sync_from_vm():
         conn.close()
 
 
+# F.2.3 — transition tracking pra broadcast daemon.subsystem_status SOMENTE em mudança
+# (evita flood WS toda iter de 60s). Canonical emitter pro subsystem='daemon'.
+_paused_state: bool = False
+
+
+async def _emit_subsystem_transition(now_paused: bool) -> None:
+    global _paused_state
+    if now_paused == _paused_state:
+        return
+    _paused_state = now_paused
+    try:
+        await ws_manager.broadcast({
+            "type": "daemon.subsystem_status",
+            "subsystem": "daemon",
+            "status": "paused" if now_paused else "healthy",
+            "emitter": "sync_loop",
+            "ts": time.time(),
+        })
+    except Exception:
+        logger.exception("sync_loop: ws broadcast subsystem_status falhou")
+
+
 async def sync_loop():
     """Background loop that syncs from VM every SYNC_INTERVAL seconds.
 
     F.2.2 — Skip iteration quando subsistema 'daemon' pausado via
     /api/daemon/subsystems/daemon/pause (runtime_state.subsystem_pauses).
+    F.2.3 — broadcast daemon.subsystem_status SOMENTE em transição (idle↔paused).
     """
     await asyncio.sleep(2)
     while True:
-        if is_subsystem_paused("daemon"):
+        paused = is_subsystem_paused("daemon")
+        await _emit_subsystem_transition(paused)
+        if paused:
             logger.info(
                 "sync_loop skip — daemon paused",
                 extra={"category": "subsystem_pause", "subsystem": "daemon"},

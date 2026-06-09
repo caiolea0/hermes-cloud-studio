@@ -1,8 +1,13 @@
-"""Hermes Cloud Studio — LinkedIn campaigns sync loop (10s) — MERGED-011."""
+"""Hermes Cloud Studio — LinkedIn campaigns sync loop (10s) — MERGED-011.
+
+F.2.3 — canonical emitter pro subsystem='linkedin' (linkedin_scheduler defers WS broadcast aqui
+pra evitar double-emit; ver loops/linkedin_scheduler.py).
+"""
 from __future__ import annotations
 
 import asyncio
 import json
+import time
 
 import httpx
 
@@ -90,15 +95,40 @@ async def sync_linkedin_campaigns():
         conn.close()
 
 
+# F.2.3 — transition tracking pra broadcast daemon.subsystem_status SOMENTE em mudança.
+# Canonical emitter pro subsystem='linkedin' (linkedin_scheduler é log-only).
+_paused_state: bool = False
+
+
+async def _emit_subsystem_transition(now_paused: bool) -> None:
+    global _paused_state
+    if now_paused == _paused_state:
+        return
+    _paused_state = now_paused
+    try:
+        await ws_manager.broadcast({
+            "type": "daemon.subsystem_status",
+            "subsystem": "linkedin",
+            "status": "paused" if now_paused else "healthy",
+            "emitter": "linkedin_sync_loop",
+            "ts": time.time(),
+        })
+    except Exception:
+        logger.exception("linkedin_sync_loop: ws broadcast subsystem_status falhou")
+
+
 async def linkedin_sync_loop():
     """10s LinkedIn campaigns sync. Lighter than the 60s general sync.
 
     F.2.2 — Skip iteration quando subsistema 'linkedin' pausado.
+    F.2.3 — broadcast daemon.subsystem_status SOMENTE em transição (idle↔paused).
     """
     await asyncio.sleep(5)
     while True:
         try:
-            if is_subsystem_paused("linkedin"):
+            paused = is_subsystem_paused("linkedin")
+            await _emit_subsystem_transition(paused)
+            if paused:
                 logger.info(
                     "linkedin_sync_loop skip — linkedin paused",
                     extra={"category": "subsystem_pause", "subsystem": "linkedin"},
