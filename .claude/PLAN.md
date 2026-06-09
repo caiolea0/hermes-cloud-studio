@@ -18,7 +18,7 @@
 +| Chapter | Título                                              | Class.        | UI score | Sessões | Status      | Dep.        |
 +|---------|-----------------------------------------------------|---------------|----------|---------|-------------|-------------|
 +| F.1     | Backend↔Frontend Gap Audit                          | research+ui   | 3        | 1       | CONCLUÍDO 2026-06-08 | —    |
-+| F.2     | Mission Control Real-Time + Design System Polish    | ui+backend    | 9        | 5       | PLANEJADO   | F.1         |
++| F.2     | Mission Control Real-Time + Design System Polish    | ui+backend    | 9        | 7       | **CONCLUÍDO 2026-06-08** | F.1         |
 +| F.3     | Lab Cockpit + Stealth UX                            | ui+backend    | 8        | 4       | PLANEJADO   | F.1         |
 +| F.4     | Auto-Skill Loop W3 + GitHub PR-based deploy         | backend+ui    | 7        | 5       | PLANEJADO   | F.1, F.5    |
 +| F.5     | MCP Gateway + Discovery + Custom MCPs               | backend+infra | 4        | 4       | PLANEJADO   | F.1         |
@@ -119,9 +119,9 @@
 +
 +**Done criteria F.1**: skill re-rodável <90s end-to-end · FRONTEND-GAP.md tem `last_updated` + `phase_baseline` (vira termômetro de progresso UX) · diff-vs-known.md gerado em re-execuções pra detectar drift · 20/22 PASS preservado.
 +
-+### Chapter F.2 — Mission Control Real-Time + Design System Polish
++### Chapter F.2 — Mission Control Real-Time + Design System Polish ✅
 +
-+**Classification**: ui+backend · **UI score**: 9 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.1 (top-10 daemon/* fantasmas)
++**Classification**: ui+backend · **UI score**: 9 · **Real sessions**: 7 (planned 5, +40% expansão por bug catches + axe tech-debt mapeado + reviewer gate overhead + fatiamento qualidade) · **Status**: **CONCLUÍDO 2026-06-08** · **Dependencies**: F.1 (top-10 daemon/* fantasmas)
 +
 +**Deliverable**: `dashboard/control` real-time completo. Owner vê todos os 6 subsistemas (linkedin/email/scraper/audit/daemon/tunnel) com status WS live, pause/resume individual, live tail logs (rolling buffer WS), timeline de decisões últimas 24h, indicadores semafóricos saudável/warning/erro. Design system polido (CSS tokens + dark mode + toast component reutilizável).
 +
@@ -164,13 +164,60 @@
 +    4. **WARN #4 chip keydown handler redundante** (live_log_tail.js:165-171) — `<button>` nativos disparam click em Enter/Space; handler `_onFilterKey` em `.live-log-filters` é redundante mas tem preventDefault, então não double-toggle (verificado manualmente reviewer). Pode remover em refactor cleanup pra reduzir noise.
 +    5. **WARN #5 re-mount idempotency** (live_log_tail.js:309-326) — init() early-return em _initialized=true; safe enquanto app.js NÃO faz swap innerHTML do <div data-component=live-log-tail>. Anotar se F.future outra page mexer no mount point.
 +- [ ] ~~Task 9: User prefs persistence~~ — SUPERSEDIDO por **F.2.5b** (commit 98b7770 entrega `/api/user-prefs` + Pydantic strict + runtime_state.user_prefs embedded).
-+- [ ] Task 12: Validação regressão + persistência final F.2 — pre/post phase A B C D E após F.2.5c; 20/22 PASS preservado; PLAN.md F.2 ✅ (todo chapter); mark_chapter; commit `feat(mission-control): F.2 — real-time subsystems + design polish (closeout)`
++- [x] **Task 12 (F.2 closeout)** 2026-06-08 commits 8305c4c + (PLAN_SHA) — Closeout autônomo docs-only. G6.2 6 screenshots baseline 1440x900 capturados via Edge headless + dashboard/dev-bootstrap.html helper LOCAL (gitignored, deletado pós-uso): control_dark/light, dashboard_dark/light, prospects_dark/light. Tamanhos 78-180KB. Mission Control renderiza com auth OK (sidebar + KPIs + Subsistemas + Activity Orbit + Live Feed). `.gitignore` adaptado: `.claude/screenshots/*` + negação `!.claude/screenshots/baseline/` (mantém ephemeral ignore + permite baseline commit). PLAN.md atualizado Task #1 [x] + retrospective 7 sessões + F.3 unblock explicit. memory_save workflow F.2 complete. mark_chapter "Phase F.2 COMPLETE". Push master 2 commits (8305c4c screenshots + PLAN_SHA docs). validate phase A B C D E SKIPPED (zero touch backend/frontend código — puro docs+screenshots).
 +
-+**Done criteria F.2**: owner abre `/control` e nunca mais precisa SSH pra ver state daemon · pause/resume linkedin individual sem matar email/scraper · live tail substitui `ssh vm 'tail -f /var/hermes/log'` · dark mode persistido entre sessões · 20/22 PASS preservado.
++**Done criteria F.2**: owner abre `/control` e nunca mais precisa SSH pra ver state daemon · pause/resume linkedin individual sem matar email/scraper · live tail substitui `ssh vm 'tail -f /var/hermes/log'` · dark mode persistido entre sessões · 20/22 PASS preservado. ✅ ATINGIDO.
++
++**F.2 Closeout retrospective 2026-06-08** (7 sessões reais, planned 5, +40%, ~24 commits push master):
++- F.2.1 backend pause/resume (e125681)
++- F.2.2 loops gate (d0a8cc2)
++- F.2.3 WS broadcasts canonical daemon.* 5 commits (7acd0b7 + b086501 + 17508c5 + 367e6af + 41188fa + 905395b)
++- F.2.4 design system 6 commits (13aa8c8..032b3dc)
++- F.2.5a SubsystemTileGrid + WS handlers + polling fallback (7e862d9 + 717ffff)
++- F.2.5b _utils + panic + PrefPanel + Web Audio + badge counter 6 commits (e62a2ea + 5f398c4 + 98b7770 + 87c13d7 + 1eb5bfa + 1999a25)
++- F.2.5c LiveLogTail virtualizada + filters + CSV + ring buffer 200 4 commits (99aafb5 + 10d9d34 + c9e8881 + 8622185)
++- F.2 closeout 2 commits (8305c4c screenshots + PLAN_SHA docs)
++
++Validate phase A B C D E: **20/22 PASS preservado em TODOS commits maduros** (E.2/E.3 stubs WhatsApp/Instagram intencionais).
++Axe contrast nodes /control: 22 → 18 (-4 canais removidos F.2.5a confirmed sub-effect). Zero novas violations F.2.5b/F.2.5c (WARN #1 contraste debug PATCHED pré-commit).
++G6 smoke E2E F.2.5c: **27/27 assertions PASS** (memory mem_mq62e015). Pause-on-hover funciona REAL.
++G6.2 screenshots baseline 1440x900: **6 capturados** via Edge headless automatizado (zero owner manual capture).
++frontend-ux-reviewer agent: PASS/PASS-WITH-NOTES em F.2.4 + F.2.5a + F.2.5b + F.2.5c — **zero BLOCKERS, 11 notes documentadas F.2.future**.
++
++**Deliverables visíveis owner Mission Control real-time** (zero CLI necessário):
++- 6 SubsystemTiles status badges (healthy/paused/warn/error) + última ação timestamp + Pause/Resume individual com countdown MM:SS aria-live
++- Panic button header + confirmation modal 2s anti-acidente + ESC + focus trap + minutes selector 1/5/15/30/60/120/240/720
++- PrefPanel ⚙ header + 5 sections (Theme/Mission Control/Notificações/Tiles/Advanced) + auto-save debounced 500ms + status "Salvo às HH:MM:SS"
++- LiveLogTail bottom section live daemon events + filters chips levels+emitters AND combine + JSON payload expand inline + CSV export ISO filename + ring buffer 200 cap FIFO + pause-on-hover
++- Badge counter document.title `(N) Hermes` quando errors unread (clear on PrefPanel toggle OR error tile click)
++- Sound notification Web Audio synthesized beep em toast.error (NÃO mp3 vendor — strictly cleaner zero binary repo)
++- Dark/Light theme toggle + FOUC prevention inline head script
++
++**Decisões arquiteturais validadas pra F.6+**:
++- `core/brain.py` NOVO pra F.6 (NÃO estender daemon)
++- Web Audio synthesized > .mp3 vendor (strictly cleaner, reviewer validated)
++- Wrapper compat `showToast()` pre F.future migration
++- Append-only `styles.css` (zero refactor legacy 2949 linhas — chapter próprio)
++- Subagent project-local `frontend-ux-reviewer` direto (sem workaround pós-F.2.4)
++- Edge headless + bootstrap helper local pra screenshots automatizados (G6.2 zero owner action)
++
++**Tech-debt F.2.future tracked** (NÃO bloqueia F.3+, rastreado em PLAN.md):
++- [ ] Channels legacy CSS `.ch-*` selectors orphan (F.2.5a removeu HTML, CSS órfão)
++- [ ] `styles.css` legacy 2949 linhas migração progressiva pra `var(--color-*)` tokens (chapter próprio)
++- [ ] 18 axe contrast nodes restantes /control (daemon-badge + metric-label x4 + energy-label + timeline-labels x4+) — bulk migration F.future
++- [ ] NOTE 1 reviewer: overlay tokens consolidação 13 rgba 9 valores diferentes (chapter próprio, 30-45min)
++- [ ] NOTE 2 reviewer F.2.5b: aria-modal=false intentional (slide-in pattern, doc fix only)
++- [ ] NOTE 4 reviewer F.2.5b: setInterval → requestIdleCallback micro-optim
++- [ ] NOTE 6 reviewer F.2.5b: PrefPanel onChange consumer ausente (F.6 Brain integrate)
++- [ ] WARN #2 reviewer F.2.5c: init order live_log_tail depende app.js loadMissionControl
++- [ ] WARN #3 reviewer F.2.5c: ring buffer .shift() O(n) acceptable até 200 (F.future deque se scale)
++- [ ] WARN #4 reviewer F.2.5c: filter chip keydown redundante (Enter/Space)
++- [ ] WARN #5 reviewer F.2.5c: re-mount idempotency edge case
++- [ ] `showToast()` wrapper compat remover após callers migrarem 100% pra `window.hermesToast.*`
 +
 +### Chapter F.3 — Lab Cockpit + Stealth UX
 +
-+**Classification**: ui+backend · **UI score**: 8 · **Estimated sessions**: 4 · **Status**: PLANEJADO · **Dependencies**: F.1
++**Classification**: ui+backend · **UI score**: 8 · **Estimated sessions**: 4 · **Status**: **UNBLOCKED** (deps F.1 satisfeitas, F.2 closeout 2026-06-08 — pode iniciar sessão dedicada quando owner pronto) · **Dependencies**: F.1
 +
 +**Deliverable**: Página `dashboard/lab` nova. Owner roda `lab_runner.py` sem CLI: botões "test fingerprint", "test login", "test viewer flow"; live screenshot polling 2s; compliance score + delta vs baseline; runs históricos com diff fingerprint; cobaia descartável workflow integrado.
 +
