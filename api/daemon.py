@@ -296,23 +296,76 @@ def _assert_known_subsystem(name: str) -> None:
         )
 
 
+async def _pause_subsystem_core(name: str, minutes: int) -> float:
+    """Core pause logic — set runtime_state + broadcast WS daemon.subsystem_status.
+
+    Idempotente: re-pause SUBSTITUI paused_until_ts (não estende cumulative).
+    Reusado pelo endpoint individual F.2.1 e pelo panic F.2.5b (all/pause).
+    Retorna until_ts (epoch seconds). Não valida `name` — caller deve validar.
+    """
+    pauses = _load_pauses()
+    until_ts = time.time() + (minutes * 60)
+    pauses[name] = until_ts
+    _save_pauses(pauses)
+    await ws_manager.broadcast(
+        {
+            "type": "daemon.subsystem_status",
+            "subsystem": name,
+            "status": "paused",
+            "paused_until_ts": until_ts,
+            "minutes": minutes,
+        }
+    )
+    return until_ts
+
+
+@router.post("/api/daemon/subsystems/all/pause")
+@limiter.limit("5/minute")
+async def pause_all_subsystems(request: Request, minutes: int = Query(default=5, ge=1, le=720)):
+    """Panic button — pausa TODOS os 6 subsistemas por N minutos (best-effort sequential).
+
+    F.2.5b. Reusa `_pause_subsystem_core` em loop, captura exceções per-subsistema,
+    NÃO atomic (se 3º falhar, primeiros 2 ficam pausados — owner vê failed[] e decide retry).
+
+    Idempotente: re-panic SUBSTITUI paused_until_ts existente (não estende cumulative).
+    Re-panic 5min sobre pausa antiga 10min = ficam todos pausados 5min a partir de NOW.
+
+    Broadcasts: 1 daemon.subsystem_status por subsistema pausado com sucesso (sequencial).
+    Frontend SubsystemTileGrid F.2.5a faz update incremental per-tile.
+
+    Rate-limit baixo (5/min) porque panic não deve ser alta frequência — anti-abuse.
+
+    NÃO incluso (defer F.2.future ou F.6 Brain audit):
+    - Telegram notification panic event
+    - Audit trail em activities table
+    """
+    paused: list[str] = []
+    failed: list[dict] = []
+    last_until_ts: Optional[float] = None
+    for name in SUBSYSTEMS:
+        try:
+            until_ts = await _pause_subsystem_core(name, minutes)
+            paused.append(name)
+            last_until_ts = until_ts
+        except Exception as exc:  # noqa: best-effort partial success — logado e retornado
+            import logging
+            logging.getLogger(__name__).exception("panic pause %s failed", name)
+            failed.append({"name": name, "error": str(exc)[:200]})
+    return {
+        "ok": len(paused) > 0,
+        "minutes": minutes,
+        "paused_until_ts": last_until_ts,
+        "paused": paused,
+        "failed": failed,
+    }
+
+
 @router.post("/api/daemon/subsystems/{name}/pause")
 @limiter.limit("30/minute")
 async def pause_subsystem(request: Request, name: str, minutes: int = Query(default=60, ge=1, le=720)):
     """Pausa um subsistema por N minutos. Persiste em runtime_state.subsystem_pauses."""
     _assert_known_subsystem(name)
-    pauses = _load_pauses()
-    until_ts = time.time() + (minutes * 60)
-    pauses[name] = until_ts
-    _save_pauses(pauses)
-    event = {
-        "type": "daemon.subsystem_status",
-        "subsystem": name,
-        "status": "paused",
-        "paused_until_ts": until_ts,
-        "minutes": minutes,
-    }
-    await ws_manager.broadcast(event)
+    until_ts = await _pause_subsystem_core(name, minutes)
     return {"ok": True, "name": name, "paused_until_ts": until_ts, "minutes": minutes}
 
 
