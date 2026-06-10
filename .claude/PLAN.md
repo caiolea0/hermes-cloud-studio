@@ -217,7 +217,7 @@
 +
 +### Chapter F.3 — Lab Cockpit + Stealth UX
 +
-+**Classification**: ui+backend · **UI score**: 8 · **Estimated sessions**: 4 · **Status**: **EM ANDAMENTO 2026-06-08** (F.3.1 [x] commits a8e4a08 + 406c239, F.3.2/3/4 próximas sessões dedicadas) · **Dependencies**: F.1
++**Classification**: ui+backend · **UI score**: 8 · **Estimated sessions**: 4 · **Status**: **EM ANDAMENTO 2026-06-09** (F.3.1 [x] commits a8e4a08 + 406c239, F.3.2 [x] commits 1d1de24 + 930d09f + 881ff58, F.3.3/4 próximas sessões dedicadas) · **Dependencies**: F.1
 +
 +**Deliverable**: Página `dashboard/lab` nova. Owner roda `lab_runner.py` sem CLI: botões "test fingerprint", "test login", "test viewer flow"; live screenshot polling 2s; compliance score + delta vs baseline; runs históricos com diff fingerprint; cobaia descartável workflow integrado.
 +
@@ -237,13 +237,17 @@
 +- [x] Concurrent gate 409 (cobaia single profile) + rate-limit 3/min POST start
 +- [x] Smoke: empty list 200, invalid flow 400, 404, path traversal sanitized, no token 401, validate phases A-E 20/22 preserved
 +
-+**F.3.2 — VM-side lab_runner.py emit JSON events** (próxima sessão dedicada)
-+- [ ] linkedin/lab/lab_runner.py MATURE — emit `{"event":...,...}` em stdout (run_started, step_progress, screenshot_captured, compliance_score, fingerprint, run_completed)
-+- [ ] linkedin/lab/flows/*.py MATURE — emit screenshot_captured após cada artifact write
-+- [ ] Validate stealth.py/human.py/limiter.py/preflight.py NÃO modified
-+- [ ] Smoke: `python -m linkedin.lab.lab_runner --flow fingerprint` emite N JSON events stdout
++**F.3.2 — VM-side lab_runner.py emit JSON events** (2026-06-09 ☒ commits 1d1de24 + 930d09f + 881ff58)
++- [x] linkedin/lab/_event_emit.py NOVO — sanitizer recursivo SENSITIVE_KEYS (li_at/token/cookie/password/auth/jsessionid/csrf/api_key/secret/bearer/li_rm/lidc/bcookie/bscookie/x-li-track) + ALLOWED_EVENTS whitelist 7 types + mask_email + emit() try/except BrokenPipe+generic
++- [x] linkedin/lab/lab_runner.py MATURE — emit run_started (flow + account_email_masked + profile_name + run_id) / run_completed (duration_ms + summary[:200]) / run_failed (error[:500]). Prints [lab] legacy preservados pra debug humano SSH stdout.
++- [x] linkedin/lab/flows/{fingerprint_baseline,login,viewer_test}.py MATURE — emit step_progress (started/success/failed) + screenshot_captured (filename/site/step) + fingerprint_dump (signals + sha256[:16] hash). Lógica stealth.launch_stealth_browser / human.type_human / profile.record_* / _is_authwall INTACTA.
++- [x] BLACKLIST R2 validado: zero touch em stealth.py/human.py/limiter.py/preflight.py/stealth_compliance.py/account_profile.py/config.py/cooldown.py/db_utils.py/ollama_router.py (git diff --name-only blacklist regex zero matches)
++- [x] Smoke VM fingerprint flow CreepJS (xvfb-run python3 -m linkedin.lab.lab_runner --flow fingerprint --sites creepjs): 6 events emit, 5 distinct types (run_started + step_progress + screenshot_captured + fingerprint_dump + run_completed), schema strict PASS, zero SENSITIVE_KEYS leak in JSON payload
++- [x] code-reviewer agent: PASS-WITH-NOTES (zero BLOCKERS). Notes follow-up F.3.2-future (não bloqueia F.3.3): (a) expandir SENSITIVE_KEYS pra cobrir liap/usermatchhistory/analyticssynchistory defense-in-depth; (b) sanitize key check adicionar .strip() pra blindar trailing whitespace tricks
++- [x] Deploy VM via scp seletivo (5 files: _event_emit.py + lab_runner.py + 3 flows). VM imports OK pós cada commit.
++- [x] validate phases A-E 20/22 PASS preservado em TODOS 3 commits MATURE
 +
-+**F.3.3 — Frontend Lab Cockpit page + components** (próxima sessão dedicada)
++**F.3.3 — Frontend Lab Cockpit page + components** (UNBLOCKED 2026-06-09, próxima sessão dedicada)
 +- [ ] dashboard/components/lab_cockpit.js NOVO — window.HermesLabCockpit.{init,startRun,abortRun,renderHistory,renderDiff,destroy}
 +- [ ] dashboard/components/lab_gauge.js NOVO — SVG semicircular 0-100 + cor tokens --color-success/warn/error
 +- [ ] dashboard/components/lab_fingerprint_diff.js NOVO — table side-by-side 18 signals + green/red/yellow tokens
