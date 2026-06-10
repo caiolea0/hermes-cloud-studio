@@ -390,12 +390,21 @@ Toda task Fase F que toque `dashboard/*` (app.js, components/*, index.html, styl
 ### F.7 — Cobaia Live Ops (warmup 14d outreach real)
 
 🚫 **NUNCA**
+- **Iniciar F.7 sessão dedicada SEM ter lido `.claude/F7-SCHEDULE-ARCH-DECISION.md`** (decisão arquitetural canônica schedule infra — workflow f7-schedule-arch-analysis 2026-06-10 commit a0d3eb0). Sem essa leitura, owner Claude vai improvisar e potencialmente regredir 20/22 PASS.
+- Implementar Tasks 2/3/4 schedule infra ad-hoc (asyncio.sleep até hora absoluta, cron-style manual, etc) — Primary B APScheduler está cristalizado. Fallback D-híbrido só se Primary falhar.
+- Upgradar `apscheduler` para 4.0aX em produção (4.x alpha 2026, pin `<4.0` em requirements.txt).
+- Callables APScheduler instanciar `AccountProfile.load()` ou `Settings()` nova — reusar `self.account_profile`/`self.settings` do daemon (anti state drift).
+- Remover inline `_check_stop_gates()` do P1-P7 loop body daemon — APScheduler 30min é double-check fallback, NÃO substitui inline.
 - Acelerar warmup day-by-day. Daemon executa schedule documentado. Owner PAUSA, NUNCA pula dias.
 - Reusar `linkedin_data/profiles/lab_*` pra cobaia live ops. Cobaia live tem perfil próprio + sticky_session_id + AccountProfile próprio.
 - Enviar outreach cobaia sem Hunter.io verifier passar. Bounce mata reputação de domínio em 7d.
 - Misturar Apollo enrichment de cobaia com prospects da conta Caio. Cross-contamination de dados.
 
 ✅ **SEMPRE**
+- **F.7 session start pre-req OBRIGATÓRIO**: (1) Read `.claude/F7-SCHEDULE-ARCH-DECISION.md` completo, (2) marcar Approval Checklist section 13 (4 itens), (3) confirm `requirements.txt` tem `apscheduler>=3.11.0,<4.0` + `tzdata>=2024.1`, (4) confirm PLAN.md F.7 bloco reflete decisão final (não placeholder antigo).
+- Tasks 2/3/4 schedule infra implementadas conforme DECISION.md section 5 (pseudo-code copy-paste-adapt) + section 6 (migration checklist 12 steps). NÃO improvisar.
+- Pre-deploy gate: `validate_implementation.py phases A B C D E` 20/22 PASS preservado; se cair <20 ROLLBACK + migrate fallback D-híbrido (section 11 DECISION.md).
+- Canary 2h prod pós-deploy: `journalctl --user -fu hermes-daemon` grep "scheduler|cobaia" sem ERROR primeiras 2h.
 - Cobaia tem inbox próprio via AgentMail (se budget permitir) OU subdomínio email isolado (`hermes@cobaia.dominio.tld`). Caixa Caio inviolada.
 - Warmup dia 0 = 10% daily_cap (50/dia se cap=500). Ramp linear até dia 14 = 80%. Após 14d = 100% cap.
 - Working hours enabled = TRUE em prod cobaia. Sinal anti-spam pra provedor.

@@ -406,38 +406,52 @@
 +
 +**Done criteria F.7**: cobaia opera 14d completos sem owner ssh · daily report Telegram 19h sem falha · stop gates previnem ban antes humano notar · 20/22 PASS preservado.
 +
-+**🚨 DECISÃO ARQUITETURAL PENDENTE — Schedule Infrastructure** (descoberta F.3.4 2026-06-10):
++### ✅ Schedule Infrastructure — Decisão Final (workflow f7-schedule-arch-analysis 2026-06-10, commit a0d3eb0)
 +
-+F.7 Tasks 2/3/4 dependem de schedule infra (1h coleta métricas, 30min stop gates check, 19h daily Telegram). Discovery durante F.3.4: `daemon/orchestrator.py` NÃO tem APScheduler nem cron pattern atual (grep zero matches). F.3.4 resolveu pra cleanup script via **Linux crontab VM standalone** (cobaia cleanup mensal). MAS F.7 precisa schedule infra MAIS RICO (in-process state, métricas live, Telegram bot integration, stop gate trigger immediate).
++**📖 DOCUMENTO CANÔNICO**: `.claude/F7-SCHEDULE-ARCH-DECISION.md` (30k chars, 13 sections — owner Claude da sessão F.7 DEVE ler ANTES de qualquer task)
 +
-+**Opções F.7 schedule infra** (decidir em pre-flight F.7, NÃO ad-hoc):
++**Primary**: **B) APScheduler in-process daemon** (`AsyncIOScheduler` embedded em `daemon/orchestrator.py` + `hermes_api_v2.py` lifespan). 3 tasks F.7 (métricas 1h, stop gates 30min, Telegram 19h) compartilham state com daemon (warmup_state cache, `linkedin/limiter.acceptance_cooldown` PATCH-014 singleton, cobaia_daily_metrics) e in-process elimina IPC/HTTP bridge. `CronTrigger(timezone=ZoneInfo('America/Cuiaba'))` resolve constraint "NUNCA `asyncio.sleep` até 19h DST-fragile" em 1 linha. Observability `add_listener(EVENT_JOB_ERROR|EXECUTED|MISSED)` integra F.5 Sentry + F.8 Cost&Perf grátis. Zero infra nova (aproveita `hermes-daemon.service` systemd unit existente), única dep ~600KB tolerável (13→14 deps).
 +
-+| Opção | Pros | Cons | Recommendation |
-+|---|---|---|---|
-+| **A) Linux crontab VM** (F.3.4 pattern) | Zero dependency, simples, owner conhece | Cross-process, sem state in-memory, hard observability | OK pra tasks isoladas tipo cleanup. Insuficiente F.7 (state cross-checks) |
-+| **B) APScheduler in-process daemon** | State shared com daemon, observability nativa, async-friendly | Nova dependency Python, mature touch daemon/orchestrator.py | RECOMENDADO se F.7 precisar coordenar state daemon+schedule |
-+| **C) FastAPI BackgroundTasks** | Built-in FastAPI, sem dependency | Per-request lifecycle, NÃO daemon-like persistent | INADEQUADO (tasks F.7 são long-running daemon-side) |
-+| **D) asyncio.create_task + sleep loop** | Zero dependency, pattern existente daemon | Manual error recovery + restart logic | Aceitável simples, complica se >3 tasks scheduled |
-+| **E) Celery + Redis** | Production-grade, distributed | Overkill solo owner, infra heavy | NÃO usar (over-engineering) |
-+| **F) MCP scheduled-tasks** | Externo daemon, audit trail | MCP server precisa rodar 24/7 separado | Avaliar quando MCP Gateway F.5 maduro |
-+| **G) systemd timers Linux** | Cross-process nativo VM | Linux-only, sem state in-memory | OK alternativa crontab |
-+| **H) Daemon main loop time-check** | Zero dependency, daemon-native | Acoplado loop principal, hard isolation | Quick win <3 tasks |
++**Fallback**: **D-híbrido** asyncio loop check 60s inline daemon (Tasks 2+3a) + systemd --user timer VM (Task 4 Telegram 19h `OnCalendar='19:00:00' Persistent=true`) — acionado se APScheduler 3.x mostrar bug crítico durante F.7 (conflito event loop com loops MERGED-015 spawn, tzdata Windows flake, EVENT_JOB_MISSED race). Custo: +1 sessão F.7 reescrever 3 callables + perde observability nativa.
 +
-+**Critérios decisão F.7 pre-flight**:
-+1. Quantas scheduled tasks total F.7 introduz? (estimado 3: 1h métricas, 30min stop gate, 19h Telegram)
-+2. Tasks precisam state shared com daemon (sim — métricas escrevem cobaia_daily_metrics, stop gate lê linkedin/limiter state)
-+3. Tasks precisam restart automático se crash? (sim — daemon supervisor já restart, herda)
-+4. Owner aceita nova dependency Python APScheduler? (sim, se ROI claro)
-+5. F.8 Observability vai querer perf metrics scheduled tasks? (provável)
++**Long-term migration**: B → migração futura F.future pra APScheduler 4.x quando estável (post-2026) OU Temporal.io se Hermes escalar multi-tenant (10+ schedulers concurrent). Migração 3.11→4.x é mecânica. Solo owner F.7→F.9 não precisa Temporal.
 +
-+**Tentativa recomendação default** (subject to workflow F7-schedule-arch-analysis decision):
-+- **APScheduler in-process daemon (Opção B)** se F.7 confirmar 3+ scheduled tasks com state shared
-+- **Linux crontab VM (Opção A)** se F.7 reduzir pra 1-2 tasks isoladas standalone
-+- Decisão FINAL via workflow background `f7-schedule-arch-analysis.js` (rodado 2026-06-10) → output `.claude/F7-SCHEDULE-ARCH-DECISION.md`
++**Dependencies novas** (adicionar requirements.txt ANTES F.7):
++- `apscheduler>=3.11.0,<4.0` (pin explícito anti 4.0aX alpha)
++- `tzdata>=2024.1` (Windows tz fallback robusto)
 +
-+**Cross-ref**: F.3.4 commits (mem_mq7eyrio) + workflow F7 arch analysis output.
++**F.7 sessions impact**: base 5 → **6 sessões reais** (+1 sessão dedicada `core/scheduler.py` singleton + wire-up `HermesDaemon.start/shutdown` + endpoints `/api/scheduler/jobs`).
 +
-+**ANTES de iniciar F.7 sessão dedicada**: revisar `.claude/F7-SCHEDULE-ARCH-DECISION.md` + incorporar decisão arquitetural nas Tasks 2/3/4 F.7. Sem isso, owner Claude da sessão F.7 vai improvisar ad-hoc e potencialmente regredir.
++**F.7 Tasks 2/3/4 implementation**: ver `.claude/F7-SCHEDULE-ARCH-DECISION.md` sections 5-6 (pseudo-code completo copy-paste-adapt + migration checklist 12 steps).
++
++**Success criteria**: ver `.claude/F7-SCHEDULE-ARCH-DECISION.md` section 10 (8 critérios mensuráveis — smoke prod 3 jobs registered, 24h métricas streak, gate trigger <30min, Telegram 7d streak, regression 20/22 PASS preservada, daemon heartbeat <60s, fail-closed verificado, Sentry capture verified).
++
++**Rollback plan**: ver `.claude/F7-SCHEDULE-ARCH-DECISION.md` section 11 (procedimento 15-30min preservando warmup state cobaia 14d intacto — remove_job runtime + git revert seletivo + migrate fallback D-híbrido +1 sessão).
++
++**Rank 8 alternativas avaliadas** (lower score = melhor; ≥3/4 lenses valid = accepted):
++1. 🥇 **B APScheduler in-process daemon** (score 16) ✅ accepted
++2. 🥈 G systemd --user timers VM (18) ✅ accepted
++3. 🥉 A Linux crontab VM F.3.4 pattern (21) ❌ rejected (2/4)
++4. H Daemon main loop time-check (22) ❌
++5. D asyncio.create_task + sleep loop (23) ❌
++6. F MCP scheduled-tasks server (24) ❌
++7. C FastAPI BackgroundTasks (28) ❌
++8. E Celery + Redis (32, overkill confirmado) ❌
++
++**Guardrails adicionados** (incorporados GUARDRAILS.md § F.7 + HOW-TO-START-PHASE.md F.7):
++- NUNCA upgradar `apscheduler` para 4.0aX em produção (pin `<4.0` em requirements.txt)
++- Callables NUNCA instanciam `AccountProfile.load()` ou `Settings()` nova — reusar `self.account_profile`/`self.settings` do daemon (anti state drift)
++- Inline `_check_stop_gates()` no P1-P7 loop body PRESERVADO — APScheduler 30min é double-check fallback, NÃO substitui inline
++
++**Cross-refs**: F.3.4 discovery commit c3c24d3 + memory mem_mq7eyrio + mem_mq7fh8qa + mem_mq7g4rw5 + workflow `.claude/workflows/f7-schedule-arch-analysis.js` (48 agents, 2.47M tokens, 13min execução).
++
++**⚠️ ANTES de iniciar F.7 sessão dedicada — OWNER ACTION OBRIGATÓRIO**:
++1. Read `.claude/F7-SCHEDULE-ARCH-DECISION.md` completo (~15 min leitura)
++2. Marcar Approval Checklist (section 13 do DECISION.md) — 4 itens
++3. Confirm `requirements.txt` tem `apscheduler>=3.11.0,<4.0` + `tzdata>=2024.1` (Primary B requer)
++4. Use Tasks 2/3/4 implementation plan section 5 do DECISION.md como base canônica — NÃO improvisar callables
++5. Pre-deploy gate: `bash scripts/validate_implementation.py phases A B C D E` 20/22 PASS preservado; se cair <20 ROLLBACK + migrate fallback D-híbrido
++6. Canary 2h prod pós-deploy: `ssh hermes-gcp 'journalctl --user -fu hermes-daemon -n 100 | grep -E "(scheduler|cobaia)"'` — abort se ERROR no listener nas primeiras 2h
 +
 +### Chapter F.8 — Cost & Performance Observability
 +

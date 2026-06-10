@@ -345,18 +345,27 @@ F.1 → F.8 → F.2 → F.5 → F.6 → F.9 → F.4 → F.3 → F.7
 - **Risco**: lab run trava sem timeout — gate `--timeout 600s` obrigatório no lab_runner.py
 
 #### F.7 — Cobaia Live Ops
-- **Tempo**: 1 sessão setup + monitor contínuo daily
-- **Tokens**: ~80k setup + ~20-40k/dia monitor
-- **Sequência tasks**:
+- **Tempo**: 6 sessões reais (+1 vs base 5 pra `core/scheduler.py` singleton APScheduler — ver DECISION.md)
+- **Tokens**: ~80k/sessão + ~20-40k/dia monitor pós-setup
+- **🚨 PRÉ-REQUISITO INVIOLÁVEL ANTES de qualquer task**:
+  1. **Read** `.claude/F7-SCHEDULE-ARCH-DECISION.md` completo (30k chars, 13 sections — decisão arquitetural canônica workflow f7-schedule-arch-analysis 2026-06-10 commit a0d3eb0)
+  2. **Marcar** Approval Checklist section 13 do DECISION.md (4 itens)
+  3. **Confirmar** PLAN.md F.7 bloco "Schedule Infrastructure — Decisão Final" reflete decisão real (Primary B APScheduler — NÃO placeholder antigo "DECISÃO PENDENTE")
+  4. **Confirmar** `requirements.txt` contém `apscheduler>=3.11.0,<4.0` + `tzdata>=2024.1` (Primary B requer); se ausente: adicionar como Step 1 da sessão
+  5. **Use** Tasks 2/3/4 implementation plan section 5 do DECISION.md como base canônica — NÃO improvisar callables, NÃO recalcular `acceptance_cooldown` (PATCH-014 fonte canônica), NÃO remover inline `_check_stop_gates()` do P1-P7 loop body
+- **Sequência tasks** (6 sessões):
+  0. **Sessão setup APScheduler**: `core/scheduler.py` singleton + wire-up `HermesDaemon.start/shutdown` + endpoints `/api/scheduler/jobs` (ver DECISION.md section 5)
   1. Plano warmup 14d documentado com gates diários
-  2. Daemon auto-executa: dia 0-6 só lurking (views), dia 7-13 ramp connects, dia 14+ outreach
-  3. Métricas: acceptance_rate (PATCH-014 já implementado), reply_rate, ban_probability
-  4. Stop gates: burned_flag / compliance<70 / acceptance<40%
-  5. Daily Telegram report (skill `hermes-cobaia-status`)
-  6. Dashboard `/cobaia` com timeline + métricas (consome F.8 + WS F.2)
+  2. Daemon auto-executa via APScheduler CronTrigger Cuiabá tz: dia 0-6 só lurking (views), dia 7-13 ramp connects, dia 14+ outreach
+  3. Métricas job (1h interval): acceptance_rate (PATCH-014 já implementado), reply_rate, ban_probability → escreve `cobaia_daily_metrics`
+  4. Stop gates job (30min interval, double-check fallback): burned_flag / compliance<70 / acceptance<40% — inline P1-P7 preservado
+  5. Daily Telegram report job (CronTrigger 19h Cuiabá tz, Persistent=true) via skill `hermes-cobaia-status`
+  6. Dashboard `/cobaia` com timeline + métricas (consome F.8 + WS F.2) + dashboard `/scheduler/jobs` (next_run + last_error realtime)
   7. Subagent `warmup-coach` (conhece PATCH-007/008/014 + janelas operacionais)
 - **Cuidados**: conta `milgrauz.exe@gmail.com` é COBAIA — pode queimar. Conta Caio NUNCA tocada até cobaia 30d clean. Stop gates auto-disparam, NUNCA owner manual
 - **Risco principal**: warmup pulado / acelerado por ansiedade owner. Gate técnico obriga dias mínimos no schema
+- **Pre-deploy gate**: `bash scripts/validate_implementation.py phases A B C D E` 20/22 PASS preservado; se cair <20 ROLLBACK + migrate fallback D-híbrido (DECISION.md section 11)
+- **Canary 2h prod pós-deploy**: `ssh hermes-gcp 'journalctl --user -fu hermes-daemon -n 100 | grep -E "(scheduler|cobaia)"'` — abort se ERROR no listener primeiras 2h
 
 ---
 
