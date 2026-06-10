@@ -50,6 +50,7 @@ linkedin/lab/_parse_artifacts.py
 .claude/validation-flags.json
 .claude/_*.json
 .claude/_*.txt
+.claude/_snapshots/
 .claude/*.WORKFLOW-PROPOSED
 .claude/screenshots/*
 !.claude/screenshots/baseline/
