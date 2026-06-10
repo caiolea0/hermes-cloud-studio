@@ -22,10 +22,12 @@ from __future__ import annotations
 import json
 import logging
 import os
+import secrets
 import sqlite3
 import sys
 import time
 import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -156,10 +158,43 @@ def build_app(config_path: Path | None = None) -> FastAPI:
         except Exception as exc:
             logger.warning("Gateway shutdown pool close failed: %s", exc)
 
+    _OAUTH_BYPASS_PATHS = frozenset({"/health", "/docs", "/openapi.json", "/redoc"})
+
+    @app.middleware("http")
+    async def oauth_bearer_check(request: Request, call_next):
+        """F.5.3 — OAuth Bearer ESPECÍFICO pra /api/mcp/* coverage endpoints.
+
+        Allowlist bypass STRICT (set literal, NÃO regex amplo).
+        /api/mcp/* paths SEMPRE requerem Bearer token (independente de loopback).
+        Outros paths passam pra auth_loopback handler abaixo.
+        """
+        if request.url.path in _OAUTH_BYPASS_PATHS:
+            return await call_next(request)
+        if not request.url.path.startswith("/api/mcp/"):
+            return await call_next(request)
+        # /api/mcp/* — Bearer required (NÃO bypass loopback aqui)
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return JSONResponse(
+                status_code=401,
+                content={"error": "missing_bearer", "path": request.url.path},
+            )
+        token = auth.removeprefix("Bearer ").strip()
+        expected = os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
+        if not expected or not secrets.compare_digest(token, expected):
+            return JSONResponse(
+                status_code=401,
+                content={"error": "invalid_bearer"},
+            )
+        return await call_next(request)
+
     @app.middleware("http")
     async def auth_loopback(request: Request, call_next):
         # /health probe sem auth pra startup gate hermes_api_v2 conseguir consultar.
         if request.url.path == "/health":
+            return await call_next(request)
+        # /api/mcp/* tratado por oauth_bearer_check acima — skip aqui
+        if request.url.path.startswith("/api/mcp/"):
             return await call_next(request)
         if oauth_enabled:
             if oauth_bypass_loopback and _is_loopback(request) and not strict_mode:
@@ -336,7 +371,123 @@ def build_app(config_path: Path | None = None) -> FastAPI:
         """Pool debugging endpoint (loopback only via auth middleware)."""
         return pool.stats()
 
+    # F.5.3 — MCP coverage endpoints (Bearer required via oauth_bearer_check)
+    @app.get("/api/mcp/coverage/latest")
+    async def mcp_coverage_latest() -> dict[str, Any]:
+        """Live query mcp_calls last 30d + tier classification real-time."""
+        return _coverage_latest(db_path)
+
+    @app.post("/api/mcp/coverage/publish")
+    async def mcp_coverage_publish() -> JSONResponse:
+        """Stub manual trigger F.5.5 audit cron mensal."""
+        logger.info("mcp_coverage_publish stub called (F.5.5 entrega cron mensal)")
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "accepted",
+                "next_step": "F.5.5 implementa mcp_coverage_audit.py cron mensal dia 15 9h BRT",
+                "output_path_template": ".claude/audits/mcp-coverage/MCP-COVERAGE-{YYYY-MM}.md",
+            },
+        )
+
     return app
+
+
+def _classify_tiers_realtime(call_rows: list[dict], registry_rows: list[dict]) -> dict:
+    """Tier classification:
+    - active: last_call < 7d
+    - warning: 7d <= last_call < 30d
+    - orphan: tool registered (active tier) sem call last 30d
+    - registry_tier preservado: deprecated/quarantine/reserved override
+    """
+    now = datetime.utcnow()
+    week_ago = now - timedelta(days=7)
+    call_map = {(r["server"], r["tool"]): r for r in call_rows}
+    result = []
+    for reg in registry_rows:
+        try:
+            tools = json.loads(reg.get("tools") or "[]")
+        except (ValueError, TypeError):
+            tools = []
+        registry_tier = reg.get("tier", "active")
+        for tool in tools:
+            key = (reg["server"], tool)
+            if key in call_map:
+                r = call_map[key]
+                try:
+                    last_call_dt = datetime.fromisoformat(r["last_call"].replace(" ", "T"))
+                except (ValueError, AttributeError):
+                    last_call_dt = None
+                tier = "active" if (last_call_dt and last_call_dt > week_ago) else "warning"
+                result.append({
+                    "server": reg["server"], "tool": tool, "calls": r["calls"],
+                    "avg_ms": r["avg_ms"], "last_call": r["last_call"], "errors": r["errors"],
+                    "tier": tier, "registry_tier": registry_tier,
+                    "chapter_owner": reg.get("chapter_owner"),
+                })
+            else:
+                tier = "orphan" if registry_tier == "active" else registry_tier
+                result.append({
+                    "server": reg["server"], "tool": tool, "calls": 0,
+                    "avg_ms": None, "last_call": None, "errors": 0,
+                    "tier": tier, "registry_tier": registry_tier,
+                    "chapter_owner": reg.get("chapter_owner"),
+                })
+    summary = {
+        "total_tools": len(result),
+        "active": sum(1 for i in result if i["tier"] == "active"),
+        "warning": sum(1 for i in result if i["tier"] == "warning"),
+        "orphan": sum(1 for i in result if i["tier"] == "orphan"),
+        "deprecated": sum(1 for i in result if i["registry_tier"] == "deprecated"),
+        "quarantine": sum(1 for i in result if i["registry_tier"] == "quarantine"),
+        "reserved": sum(1 for i in result if i["registry_tier"] == "reserved"),
+    }
+    return {"summary": summary, "items": result}
+
+
+def _coverage_latest(db_path: Path) -> dict[str, Any]:
+    """Live query mcp_calls + tier classify. Graceful degrade se migrations ausentes."""
+    if not db_path.exists():
+        return {
+            "period_days": 30,
+            "summary": {"total_tools": 0, "active": 0, "warning": 0, "orphan": 0,
+                        "deprecated": 0, "quarantine": 0, "reserved": 0},
+            "items": [],
+            "note": f"DB not found: {db_path}",
+        }
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    try:
+        existing = {
+            r["name"] for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        if "mcp_calls" not in existing or "mcp_registry" not in existing:
+            return {
+                "period_days": 30,
+                "summary": {"total_tools": 0, "active": 0, "warning": 0, "orphan": 0,
+                            "deprecated": 0, "quarantine": 0, "reserved": 0},
+                "items": [],
+                "note": "mcp_registry/mcp_calls table missing — apply F.5.3 migrations",
+            }
+        call_rows = [dict(r) for r in conn.execute("""
+            SELECT server, tool, COUNT(*) as calls,
+                   ROUND(AVG(duration_ms), 1) as avg_ms,
+                   MAX(created_at) as last_call,
+                   SUM(CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END) as errors
+            FROM mcp_calls
+            WHERE created_at > datetime('now', '-30 days')
+            GROUP BY server, tool
+            ORDER BY calls DESC
+        """).fetchall()]
+        registry_rows = [dict(r) for r in conn.execute(
+            "SELECT server, tools, tier, chapter_owner FROM mcp_registry"
+        ).fetchall()]
+        classification = _classify_tiers_realtime(call_rows, registry_rows)
+        return {"period_days": 30, **classification}
+    finally:
+        conn.close()
 
 
 def _log_mcp_call(

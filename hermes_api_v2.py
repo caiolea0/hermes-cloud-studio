@@ -29,6 +29,7 @@ from vm_core.state import (
 )
 import time
 from vm_api.routes import router as vm_router
+from vm_api.mcp_coverage import router as mcp_coverage_router
 
 
 async def _f5_strict_mcp_gate() -> None:
@@ -107,15 +108,48 @@ app.add_middleware(
 )
 
 
+_F53_OAUTH_BYPASS_PATHS = frozenset({"/health", "/docs", "/openapi.json", "/redoc"})
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     # /api/_ping eh probe leve pro PC health-check, sem auth pra evitar timeout em datasets grandes
     if request.url.path == "/api/_ping":
         return await call_next(request)
+    # F.5.3 — /api/mcp/* gerenciado por oauth_bearer_check (Bearer required, NÃO X-Hermes-Token)
+    if request.url.path.startswith("/api/mcp/"):
+        return await call_next(request)
     if request.url.path.startswith("/api/"):
         token = request.headers.get("X-Hermes-Token", "")
         if not secrets.compare_digest(token, VM_AUTH_TOKEN):
             return JSONResponse(status_code=401, content={"detail": "Token invalido"})
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def oauth_bearer_check(request: Request, call_next):
+    """F.5.3 — OAuth Bearer middleware específico pra /api/mcp/* endpoints.
+
+    Allowlist bypass: STRICT set literal (NÃO regex amplo) — /health, /docs etc.
+    Outros endpoints (não /api/mcp/*) passam sem checagem (auth_middleware lida).
+    """
+    if request.url.path in _F53_OAUTH_BYPASS_PATHS:
+        return await call_next(request)
+    if not request.url.path.startswith("/api/mcp/"):
+        return await call_next(request)
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return JSONResponse(
+            status_code=401,
+            content={"error": "missing_bearer", "path": request.url.path},
+        )
+    token = auth.removeprefix("Bearer ").strip()
+    expected = os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
+    if not expected or not secrets.compare_digest(token, expected):
+        return JSONResponse(
+            status_code=401,
+            content={"error": "invalid_bearer"},
+        )
     return await call_next(request)
 
 
@@ -128,6 +162,7 @@ async def vm_ping():
 
 
 app.include_router(vm_router)
+app.include_router(mcp_coverage_router)
 
 
 if __name__ == "__main__":
