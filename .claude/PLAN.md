@@ -335,8 +335,9 @@
 +- Decisão arquitetural F.7 schedule infra: PENDENTE (descoberta F.3.4 documentada acima — owner decide quando ativar F.7)
 +- F.3.followup F.future tracked (NÃO bloqueia F.3 closeout):
 +  - F.3.3 WARNs: AUTH-IMG-TOKEN + A11Y-NATIVE-CONFIRM + RESP-NO-MOBILE-MEDIA + PERF-FP-DIFF-N1
-+  - F.3.4 FOLLOWUPs: event parsing extension (4 types missing) + artifacts_path mismatch reconciliation + compliance_score extraction + fingerprint_hash computation
++  - F.3.4 FOLLOWUPs: ~~event parsing extension (4 types missing)~~ **RESOLVED F.3.5 hotfix 2026-06-10 commits c407b4a + 2045e1f (api/lab.py _stream_run switch case ALLOWED_EVENT_TYPES whitelist + BUG #1 fingerprint_dump handler rename + BUG #3 payload spread conflict run_id key — smoke E2E real CreepJS 5/5 distinct types capturados, fingerprint_hash=ecd146eae16f3f9d DB populated)** · artifacts_path mismatch reconciliation (PENDENTE F.future) · compliance_score extraction (PENDENTE — flow fingerprint NÃO emite compliance_score, design choice) · fingerprint_hash computation (RESOLVED via mesmo hotfix)
 +  - F.3.2 notes: expandir SENSITIVE_KEYS (liap/usermatchhistory/analyticssynchistory) + sanitize key .strip()
++- **F.3.5 hotfix 2026-06-10** (sessão dedicada autônoma, 3 commits c407b4a + 2045e1f + SHA-final): backend parsing gap 5/5 distinct event types capturados WS produção real. F.3 inteira FUNCIONAL PRODUÇÃO REAL (não apenas mock smoke browser F.3.3 G6). Lab Cockpit F.3.3 frontend recebe screenshot_captured + fingerprint_dump + run_completed em tempo real. linkedin/lab/* + dashboard/* INTACTOS.
 +
 +### Chapter F.4 — Auto-Skill Loop W3 + GitHub PR-based deploy
 +
