@@ -31,6 +31,9 @@
 <script src="/dashboard/components/pref_panel.js" defer></script>
 <!-- F.2.5c — live log tail (consume daemon.log_event + daemon.decision WS) -->
 <script src="/dashboard/components/live_log_tail.js" defer></script>
+<script src="/dashboard/components/lab_gauge.js" defer></script>
+<script src="/dashboard/components/lab_fingerprint_diff.js" defer></script>
+<script src="/dashboard/components/lab_cockpit.js" defer></script>
 </head>
 <body>
 
@@ -268,6 +271,10 @@
             <div class="nav-item" data-page="linkedin" onclick="navigate('linkedin')">
                 <svg><use href="#i-linkedin"/></svg>
                 <span class="nav-label">LinkedIn</span>
+            </div>
+            <div class="nav-item" data-page="lab" onclick="navigate('lab')">
+                <svg><use href="#i-eye"/></svg>
+                <span class="nav-label">Lab</span>
             </div>
             <div class="nav-item" data-page="memory" onclick="navigate('memory')">
                 <svg><use href="#i-database"/></svg>
@@ -1622,6 +1629,11 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- ========================== PAGE: LAB COCKPIT (F.3.3) ========================== -->
+            <div class="page" id="page-lab">
+                <div data-component="lab-cockpit"></div>
             </div>
 
         </main>
