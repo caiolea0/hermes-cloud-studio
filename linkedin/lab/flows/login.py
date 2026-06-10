@@ -19,6 +19,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from linkedin.lab._event_emit import emit
+
 
 async def run(config, manual_password: bool = False) -> dict:
     """Login flow no LinkedIn.
@@ -56,6 +58,7 @@ async def run(config, manual_password: bool = False) -> dict:
     try:
         # Detecta se ja logado: navega direto pra /feed/, se nao redirecionar -> ok
         print("[lab/login] Tentando /feed/ direto (caso ja logado em sessao anterior)...")
+        emit("step_progress", step="check_session_reuse", status="started")
         await page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=30000)
         await asyncio.sleep(3)
         url_now = page.url
@@ -66,13 +69,18 @@ async def run(config, manual_password: bool = False) -> dict:
             print("[lab/login] JA LOGADO. Capturando li_at e exit.")
             result["logged_in"] = True
             result["path"] = "session_reuse"
+            emit("step_progress", step="check_session_reuse", status="success", message="already_logged_in")
         else:
             print("[lab/login] Nao logado. Fazendo login fresh...")
+            emit("step_progress", step="check_session_reuse", status="success", message="needs_fresh_login")
+            emit("step_progress", step="navigate_login_page", status="started")
             await page.goto("https://www.linkedin.com/uas/login", wait_until="domcontentloaded", timeout=30000)
             await asyncio.sleep(3)
 
             # Debug screenshot pre-login pra inspecionar layout LinkedIn
-            await page.screenshot(path=str(out_dir / "00_login_page.png"), full_page=False)
+            login_screenshot = str(out_dir / "00_login_page.png")
+            await page.screenshot(path=login_screenshot, full_page=False)
+            emit("screenshot_captured", filename=login_screenshot, step="navigate_login_page")
             (out_dir / "00_login_url.txt").write_text(page.url, encoding="utf-8")
 
             # SDUI 2026: LinkedIn re-renderizou login com React IDs randomicos.
@@ -123,39 +131,53 @@ async def run(config, manual_password: bool = False) -> dict:
                 return result
 
             print(f"[lab/login] username selector: {user_sel}")
+            emit("step_progress", step="navigate_login_page", status="success", message="form_visible")
+            emit("step_progress", step="type_username", status="started")
             await human.type_human(page, user_sel, email)
             await human.random_delay(0.5, 1.5)
+            emit("step_progress", step="type_username", status="success")
 
             # Type password
             if manual_password:
                 print("[lab/login] >>> DIGITE A SENHA MANUALMENTE NO BROWSER E PRESSIONE Enter <<<")
                 print("[lab/login] (60s timeout)")
+                emit("step_progress", step="manual_password_wait", status="started")
                 try:
                     await page.wait_for_url(lambda u: "/login" not in u and "/uas/login" not in u, timeout=60000)
+                    emit("step_progress", step="manual_password_wait", status="success")
                 except Exception:
-                    pass
+                    emit("step_progress", step="manual_password_wait", status="failed", message="timeout_60s")
             else:
+                emit("step_progress", step="type_password", status="started")
                 pw_sel = await first_visible(PASSWORD_SELECTORS, timeout_each=3000)
                 if not pw_sel:
                     result["error"] = "password field NOT FOUND"
-                    await page.screenshot(path=str(out_dir / "00_no_password.png"), full_page=True)
+                    no_pw_path = str(out_dir / "00_no_password.png")
+                    await page.screenshot(path=no_pw_path, full_page=True)
+                    emit("screenshot_captured", filename=no_pw_path, step="type_password")
                     print(f"[lab/login] FAIL password selector")
+                    emit("step_progress", step="type_password", status="failed", message="selector_not_found")
                     return result
                 print(f"[lab/login] password selector: {pw_sel}")
                 await human.type_human(page, pw_sel, password)
                 await human.random_delay(0.5, 1.5)
+                emit("step_progress", step="type_password", status="success")
                 # Submit
+                emit("step_progress", step="submit_login", status="started")
                 submit_sel = await first_visible(SUBMIT_SELECTORS, timeout_each=2000)
                 if submit_sel:
                     print(f"[lab/login] submit selector: {submit_sel}")
                     await human.click_human(page, submit_sel)
+                    emit("step_progress", step="submit_login", status="success", message="button_click")
                 else:
                     # Fallback: Enter no campo de senha
                     print("[lab/login] sem submit button visivel — Enter no password")
                     await page.keyboard.press("Enter")
+                    emit("step_progress", step="submit_login", status="success", message="enter_fallback")
 
             # Aguarda redirecionamento
             print("[lab/login] Aguardando redirect pos-login (ate 90s)...")
+            emit("step_progress", step="wait_redirect", status="started")
             try:
                 await page.wait_for_load_state("networkidle", timeout=30000)
             except Exception:
@@ -165,15 +187,20 @@ async def run(config, manual_password: bool = False) -> dict:
             result["redirect_chain"].append(url_after)
             print(f"[lab/login]   URL pos-submit: {url_after}")
 
+            emit("step_progress", step="wait_redirect", status="success", message=url_after)
+
             if "/checkpoint" in url_after or "challenge" in url_after:
                 if profile:
                     profile.record_challenge()
                 print("[lab/login] !! CHALLENGE detectado. Esperando 180s usuario resolver manualmente...")
+                emit("step_progress", step="challenge_resolve", status="started", message="awaiting_manual_180s")
                 try:
                     await page.wait_for_url(lambda u: "/checkpoint" not in u and "challenge" not in u, timeout=180000)
                     print("[lab/login]   Challenge resolvido.")
+                    emit("step_progress", step="challenge_resolve", status="success")
                 except Exception:
                     print("[lab/login]   Timeout 180s. Verificar manualmente.")
+                    emit("step_progress", step="challenge_resolve", status="failed", message="timeout_180s")
                 await asyncio.sleep(3)
                 result["redirect_chain"].append(page.url)
 
@@ -200,7 +227,9 @@ async def run(config, manual_password: bool = False) -> dict:
             print(f"[lab/login] Session salva em {config.session_file}")
 
         # Screenshot final
-        await page.screenshot(path=str(out_dir / "post_login.png"), full_page=True)
+        post_login_path = str(out_dir / "post_login.png")
+        await page.screenshot(path=post_login_path, full_page=True)
+        emit("screenshot_captured", filename=post_login_path, step="post_login")
 
         # Save result
         (out_dir / "result.json").write_text(json.dumps(result, indent=2, default=str), encoding="utf-8")

@@ -12,9 +12,12 @@ NAO toca LinkedIn. Validacao antes de qualquer login real.
 """
 from __future__ import annotations
 import asyncio
+import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
+
+from linkedin.lab._event_emit import emit
 
 SITES = [
     {"name": "creepjs", "url": "https://abrahamjuliot.github.io/creepjs/", "wait": 8.0},
@@ -121,28 +124,36 @@ async def run(config, headful: bool = True, sites: list | None = None) -> dict:
         for site in target_sites:
             name = site["name"]
             print(f"[lab/fp] visiting {name} -> {site['url']}")
+            emit("step_progress", step=f"visit_{name}", status="started", message=site["url"])
             site_dir = out_dir / name
             site_dir.mkdir(exist_ok=True)
             try:
                 await page.goto(site["url"], wait_until="domcontentloaded", timeout=30000)
                 await asyncio.sleep(site["wait"])
                 # Screenshot
-                await page.screenshot(path=str(site_dir / "screenshot.png"), full_page=True)
+                screenshot_path = str(site_dir / "screenshot.png")
+                await page.screenshot(path=screenshot_path, full_page=True)
+                emit("screenshot_captured", filename=screenshot_path, site=name, step=f"visit_{name}")
                 # HTML
                 html = await page.content()
                 (site_dir / "body.html").write_text(html, encoding="utf-8")
                 # Fingerprint dump
                 fp = await page.evaluate(FINGERPRINT_DUMP_JS)
                 (site_dir / "fingerprint.json").write_text(json.dumps(fp, indent=2, default=str), encoding="utf-8")
+                fp_json = json.dumps(fp, sort_keys=True, default=str)
+                fp_hash = hashlib.sha256(fp_json.encode("utf-8")).hexdigest()[:16]
+                emit("fingerprint_dump", site=name, signals=fp, hash=fp_hash)
                 results["sites"][name] = {
                     "ok": True,
                     "fingerprint": fp,
-                    "screenshot": str(site_dir / "screenshot.png"),
+                    "screenshot": screenshot_path,
                 }
                 print(f"[lab/fp]   OK ({name})")
+                emit("step_progress", step=f"visit_{name}", status="success", message=f"hash={fp_hash}")
             except Exception as e:
                 results["sites"][name] = {"ok": False, "error": str(e)}
                 print(f"[lab/fp]   FAIL ({name}): {e}")
+                emit("step_progress", step=f"visit_{name}", status="failed", message=str(e)[:200])
 
         # Salva resumo
         (out_dir / "summary.json").write_text(json.dumps(results, indent=2, default=str), encoding="utf-8")
