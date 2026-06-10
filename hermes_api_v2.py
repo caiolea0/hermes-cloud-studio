@@ -5,11 +5,13 @@ pipeline status, scraper control, and photo references to the dashboard.
 
 Routes movidas para vm_api/routes.py. Helpers compartilhados em vm_core/state.py.
 """
+import os
 import secrets
 import sys
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -29,9 +31,41 @@ import time
 from vm_api.routes import router as vm_router
 
 
+async def _f5_strict_mcp_gate() -> None:
+    """F.5.1 startup gate — STRICT_MODE FAIL-OPEN dev / FAIL-CLOSED prod.
+
+    HERMES_STRICT_MCP=0 (default, dev local): warn-only se gateway down, continua.
+    HERMES_STRICT_MCP=1 (VM prod): RuntimeError se gateway down, lifespan abort.
+
+    Probes gateway /health endpoint (loopback bypass auth). 5s timeout.
+    Cross-ref: mcps/gateway/server.py, MCP-ENFORCEMENT-STRATEGY.md s4.
+    """
+    strict = os.getenv("HERMES_STRICT_MCP") == "1"
+    gateway_url = os.getenv("HERMES_GATEWAY_URL", "http://localhost:55401")
+    health_url = f"{gateway_url.rstrip('/')}/health"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(health_url)
+            r.raise_for_status()
+            data = r.json()
+            logger.info(
+                "F.5.1 STRICT_MCP gate: gateway OK v%s upstream=%d strict=%s",
+                data.get("version", "?"),
+                data.get("upstream_count", 0),
+                strict,
+            )
+    except Exception as exc:
+        msg = f"F.5.1 STRICT_MCP gate: gateway probe failed at {health_url}: {exc}"
+        if strict:
+            logger.critical(msg + " — FAIL-CLOSED, aborting lifespan")
+            raise RuntimeError(msg) from exc
+        logger.warning(msg + " — FAIL-OPEN (dev mode, HERMES_STRICT_MCP=0)")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    await _f5_strict_mcp_gate()
     # Reconciliar campaign_runs: heartbeat parado > 5min = orphaned (MERGED-004)
     db = get_db()
     try:

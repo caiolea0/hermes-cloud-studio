@@ -1,0 +1,40 @@
+{
+  "_note": "F.5.1 template — copy to .mcp.json (gitignored) and fill env values. Hermes Claude Code MCP wiring.",
+  "mcpServers": {
+    "agentmemory": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@agentmemory/mcp"],
+      "env": {
+        "AGENTMEMORY_URL": "http://localhost:3141",
+        "AGENTMEMORY_TOOLS": "all",
+        "AGENT_ID": "hermes-cloud-studio",
+        "AGENTMEMORY_AGENT_SCOPE": "isolated",
+        "CLAUDE_MEMORY_BRIDGE": "true",
+        "AGENTMEMORY_INJECT_CONTEXT": "true",
+        "GRAPH_EXTRACTION_ENABLED": "true",
+        "CONSOLIDATION_ENABLED": "true",
+        "LLM_PROVIDER": "ollama",
+        "OLLAMA_BASE_URL": "http://localhost:11434",
+        "OLLAMA_MODEL": "qwen3:8b"
+      }
+    },
+    "hermes-control": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./mcps/hermes-control/dist/index.js"],
+      "env": {
+        "HERMES_API_URL": "http://localhost:8500",
+        "HERMES_AUTH_TOKEN": "${HERMES_AUTH_TOKEN}"
+      }
+    },
+    "hermes-gateway": {
+      "_note": "F.5.1 ContextForge gateway scaffold. Loopback VM-side; PC consumes via SSH reverse tunnel (F.5.3). OAuth bypass localhost when HERMES_STRICT_MCP=0 (dev). Bearer required when STRICT=1 (prod). Real upstream MCP dispatch lands F.5.2.",
+      "type": "http",
+      "url": "http://localhost:55401",
+      "env": {
+        "HERMES_GATEWAY_OAUTH_SECRET": "${HERMES_GATEWAY_OAUTH_SECRET}"
+      }
+    }
+  }
+}
