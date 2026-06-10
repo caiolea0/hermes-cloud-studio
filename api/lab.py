@@ -197,12 +197,16 @@ async def _stream_run(run_id: str, proc: asyncio.subprocess.Process, started_at:
                         evt_name,
                     )
                     ws_event_type = "lab.step_progress"
-                # Payload completo broadcast (sanitizer F.3.2 ja strip sensitive emit-side)
+                # F.3.5: Payload completo broadcast — filter reserved kwargs pra evitar
+                # TypeError "got multiple values for keyword argument" (emit pode incluir
+                # run_id="" do envelope lab_runner que colide com run_id=<spawn_id>).
+                # Sanitizer F.3.2 ja strip sensitive emit-side.
+                _reserved = {"event", "run_id", "stream", "type", "timestamp"}
                 await _broadcast(
                     ws_event_type,
                     run_id=run_id,
                     stream="stderr" if is_stderr else "stdout",
-                    **{k: v for k, v in event_payload.items() if k != "event"},
+                    **{k: v for k, v in event_payload.items() if k not in _reserved},
                 )
             else:
                 # Texto plano viraprogress generico (F.3.1 fallback)
