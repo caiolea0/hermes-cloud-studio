@@ -1,0 +1,109 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "created": "2026-06-10",
+    "purpose": "F.5.3 source-of-truth mcp_registry seed. Owner edita JSON, re-roda scripts/seed_mcp_registry.py — INSERT idempotente ON CONFLICT updates.",
+    "cross_ref": ".claude/MCP-ENFORCEMENT-STRATEGY.md section 5.2 + PLAN.md F.5.3 D3"
+  },
+  "rows": [
+    {
+      "server": "hermes-linkedin",
+      "tools": ["get_health", "get_rate_limits", "get_warmup_status", "get_account_profile", "assert_account_safe", "preflight_check", "probe_cooldown", "start_campaign"],
+      "status": "active",
+      "chapter_owner": "F.5.2",
+      "required_by_dc": ["F.7", "F.9"],
+      "tier": "active",
+      "oauth_required": 1
+    },
+    {
+      "server": "hermes-prospects",
+      "tools": ["search_prospects", "score_lead", "mark_converted", "get_campaign_stats", "enrich_pipeline", "list_top_scored", "get_by_status"],
+      "status": "active",
+      "chapter_owner": "F.5.2",
+      "required_by_dc": ["F.6", "F.7", "F.9"],
+      "tier": "active",
+      "oauth_required": 1
+    },
+    {
+      "server": "hermes-skills",
+      "tools": ["list_skills", "get_skill", "toggle_active", "propose_skill_yaml_stub", "test_skill_dryrun", "get_metrics"],
+      "status": "active",
+      "chapter_owner": "F.5.2",
+      "required_by_dc": ["F.4", "F.6", "F.9"],
+      "tier": "active",
+      "oauth_required": 1
+    },
+    {
+      "server": "github",
+      "tools": ["create_pull_request", "list_pull_requests", "get_pr", "merge_pr", "create_issue"],
+      "status": "reserved",
+      "chapter_owner": "F.5.6",
+      "required_by_dc": ["F.4"],
+      "tier": "reserved",
+      "oauth_required": 1
+    },
+    {
+      "server": "sentry",
+      "tools": ["list_issues", "capture_exception", "resolve_issue", "trigger_seer_root_cause"],
+      "status": "reserved",
+      "chapter_owner": "F.5.6",
+      "required_by_dc": ["F.4", "F.7"],
+      "tier": "reserved",
+      "oauth_required": 1
+    },
+    {
+      "server": "postgres",
+      "tools": ["query", "execute", "list_schemas", "describe_table"],
+      "status": "reserved",
+      "chapter_owner": "F.5.6",
+      "required_by_dc": ["F.6", "F.7"],
+      "tier": "reserved",
+      "oauth_required": 1
+    },
+    {
+      "server": "playwright_ms",
+      "tools": ["browser_navigate", "browser_click", "browser_snapshot", "browser_screenshot"],
+      "status": "reserved",
+      "chapter_owner": "F.5.6",
+      "required_by_dc": ["F.3"],
+      "tier": "reserved",
+      "oauth_required": 1
+    },
+    {
+      "server": "omnisearch",
+      "tools": ["search_brave", "search_kagi", "search_exa", "fetch_firecrawl"],
+      "status": "reserved",
+      "chapter_owner": "F.5.6",
+      "required_by_dc": ["F.7"],
+      "tier": "reserved",
+      "oauth_required": 1
+    },
+    {
+      "server": "hunter",
+      "tools": ["verify_email", "domain_search", "email_finder"],
+      "status": "reserved",
+      "chapter_owner": "F.5.6",
+      "required_by_dc": ["F.7"],
+      "tier": "reserved",
+      "oauth_required": 1
+    },
+    {
+      "server": "filesystem",
+      "tools": ["read_file", "write_file", "list_directory"],
+      "status": "reserved",
+      "chapter_owner": "F.5.6",
+      "required_by_dc": [],
+      "tier": "reserved",
+      "oauth_required": 1
+    },
+    {
+      "server": "git",
+      "tools": ["git_status", "git_diff", "git_log", "git_show"],
+      "status": "reserved",
+      "chapter_owner": "F.5.6",
+      "required_by_dc": [],
+      "tier": "reserved",
+      "oauth_required": 1
+    }
+  ]
+}

@@ -98,6 +98,18 @@ async def lifespan(app: FastAPI):
             logger.info("LinkedIn migration applied")
     except Exception as e:
         logger.warning(f"LinkedIn migration failed: {e}")
+    # F.5.3 Apply MCP registry+calls migrations (idempotent)
+    try:
+        for mig_name in ("2026_06_mcp_registry.sql", "2026_06_mcp_calls.sql"):
+            mig_path = PROJECT_ROOT / "migrations" / mig_name
+            if mig_path.exists():
+                conn = get_db()
+                conn.executescript(mig_path.read_text(encoding="utf-8"))
+                conn.commit()
+                conn.close()
+        logger.info("F.5.3 MCP migrations applied (registry + calls)")
+    except Exception as e:
+        logger.warning(f"F.5.3 MCP migrations failed: {e}")
     # Restaurar globals persistidos em runtime_state (MERGED-004 / MERGED-016)
     state._LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
     state._LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)
