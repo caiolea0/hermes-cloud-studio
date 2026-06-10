@@ -1,0 +1,67 @@
+# Hermes ContextForge Gateway — upstream MCPs config
+# F.5.1 scaffold — 3 custom placeholders (F.5.2 entrega real implementation)
+# Status taxonomy: pending (not deployed) / active / deprecated / quarantine
+
+gateway:
+  bind_host: 127.0.0.1
+  bind_port: 55401
+  version: "0.1.0-f5.1"
+  # OAuth 2.1 default ON for custom MCPs. Localhost loopback bypass (dev mode).
+  # Production VM enforces OAuth even loopback when HERMES_STRICT_MCP=1.
+  oauth_enabled: true
+  oauth_bypass_loopback: true
+  audit_log_path: "~/.hermes/logs/gateway_audit.jsonl"
+
+# 3 custom MCPs — F.5.2 sub-session entrega real servers + tools
+# Placeholders aqui pra evitar refactor config.yaml depois.
+upstream_mcps:
+  - name: hermes-linkedin
+    status: pending           # F.5.2 — implements lab_run, fingerprint_dump, stealth_probe
+    kind: custom
+    chapter_owner: F.7
+    required_by_dc: [F.7.done, F.9.done]
+    transport: stdio
+    command: null             # filled F.5.2
+    args: []
+    tools_preview:
+      - lab_run
+      - fingerprint_dump
+      - stealth_probe
+      - campaign_status
+
+  - name: hermes-prospects
+    status: pending           # F.5.2 — CRUD prospects + scoring + bulk ops
+    kind: custom
+    chapter_owner: F.7
+    required_by_dc: [F.7.done, F.9.done]
+    transport: stdio
+    command: null
+    args: []
+    tools_preview:
+      - list_prospects
+      - get_prospect
+      - bulk_update_stage
+      - score_prospect
+
+  - name: hermes-skills
+    status: pending           # F.5.2 — skill registry + toggle + lab-test trigger
+    kind: custom
+    chapter_owner: F.4
+    required_by_dc: [F.4.done, F.9.done]
+    transport: stdio
+    command: null
+    args: []
+    tools_preview:
+      - list_skills
+      - toggle_skill
+      - test_skill
+      - propose_skill
+
+# F.5.6 entrega — public MCPs integration (GitHub/Sentry/Postgres/Playwright/Omnisearch/Hunter)
+public_mcps_planned:
+  - github            # F.4 PR-based deploy
+  - sentry            # F.4 auto-disable + F.7 monitoring
+  - postgres_pro      # F.6 Brain.decide read-only
+  - playwright_ms     # F.3 QA fallback
+  - omnisearch        # F.7 discovery PME Cuiaba
+  - hunter            # F.7 email verifier
