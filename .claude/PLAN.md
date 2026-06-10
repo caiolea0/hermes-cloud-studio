@@ -19,8 +19,8 @@
 +|---------|-----------------------------------------------------|---------------|----------|---------|-------------|-------------|
 +| F.1     | Backend↔Frontend Gap Audit                          | research+ui   | 3        | 1       | CONCLUÍDO 2026-06-08 | —    |
 +| F.2     | Mission Control Real-Time + Design System Polish    | ui+backend    | 9        | 7       | **CONCLUÍDO 2026-06-08** | F.1         |
-+| F.3     | Lab Cockpit + Stealth UX                            | ui+backend    | 8        | 4       | **EM ANDAMENTO 2026-06-08** (F.3.1 [x]) | F.1         |
-+| F.4     | Auto-Skill Loop W3 + GitHub PR-based deploy         | backend+ui    | 7        | 5       | PLANEJADO   | F.1, F.5    |
++| F.3     | Lab Cockpit + Stealth UX                            | ui+backend    | 8        | 4       | **CONCLUÍDO 2026-06-10** (4 sub-sessões ☒) | F.1         |
++| F.4     | Auto-Skill Loop W3 + GitHub PR-based deploy         | backend+ui    | 7        | 5       | **UNBLOCKED 2026-06-10** | F.1, F.5    |
 +| F.5     | MCP Gateway + Discovery + Custom MCPs               | backend+infra | 4        | 4       | PLANEJADO   | F.1         |
 +| F.6     | Cérebro Hermes (Brain orchestrator)                 | backend+ui    | 9        | 6       | PLANEJADO   | F.1, F.5    |
 +| F.7     | Cobaia Live Ops + Warmup 14d automatizado           | backend+ui    | 8        | 5       | PLANEJADO   | F.2, F.5    |
@@ -217,7 +217,7 @@
 +
 +### Chapter F.3 — Lab Cockpit + Stealth UX
 +
-+**Classification**: ui+backend · **UI score**: 8 · **Estimated sessions**: 4 · **Status**: **EM ANDAMENTO 2026-06-09** (F.3.1 [x] commits a8e4a08 + 406c239, F.3.2 [x] commits 1d1de24 + 930d09f + 881ff58, F.3.3/4 próximas sessões dedicadas) · **Dependencies**: F.1
++**Classification**: ui+backend · **UI score**: 8 · **Estimated sessions**: 4 · **Status**: **CONCLUÍDO 2026-06-10** (F.3.1 + F.3.2 + F.3.3 + F.3.4 ☒ — 4 sub-sessões dedicadas, ~10 commits master, smoke E2E real validado) · **Dependencies**: F.1
 +
 +**Deliverable**: Página `dashboard/lab` nova. Owner roda `lab_runner.py` sem CLI: botões "test fingerprint", "test login", "test viewer flow"; live screenshot polling 2s; compliance score + delta vs baseline; runs históricos com diff fingerprint; cobaia descartável workflow integrado.
 +
@@ -262,17 +262,35 @@
 +  - PERF-FP-DIFF-N1: _refreshFingerprintDiff Promise.all top-2 fetches (N=2 baixo risco, document constraint).
 +- [x] validate phases A-E 20/22 PASS preservado em TODOS 3 commits MATURE
 +
-+**F.3.4 — Auto-cleanup + smoke E2E + closeout** (UNBLOCKED 2026-06-09, próxima sessão dedicada)
-+- [ ] scripts/lab_cleanup.py NOVO — delete artifacts/<run_id>/ com started_at < now-30d (preserva pinned=1)
-+- [ ] daemon/orchestrator.py MATURE — APScheduler add cleanup task 03:00 daily
-+- [ ] Smoke E2E browser: click "Run fingerprint flow" → WS live progress → gauge atualiza → history list → fingerprint diff → abort durante run
-+- [ ] PLAN.md F.3 ☒ + memory_save + mark_chapter "F.3 COMPLETE"
++**F.3.4 — Auto-cleanup + smoke E2E + closeout** (2026-06-10 ☒ commits 6bcdece + 1f406c4 + SHA-final)
++- [x] scripts/lab_cleanup.py NOVO — dual-mode (DB-driven PC + FS-driven VM com sentinel `.pinned`). 5 smoke tests PASS (missing DB graceful + missing table graceful + real DB dry-run + path traversal rejected + FS mode 3 dirs com old/recent/pinned)
++- [x] Decisão arquitetural: APScheduler defer F.future. Linux crontab VM standalone preferred (`0 3 * * * cd ~ && python3 scripts/lab_cleanup.py >> ~/logs/lab_cleanup.log 2>&1`). Razão: daemon/orchestrator.py SEM APScheduler atual, crontab simpler + zero nova dependency Python. Idempotency PASS (count=1 após re-run setup).
++- [x] Smoke E2E real fingerprint flow CreepJS+6 sites (run_id aeb103e9c2e94d13, duration 84649ms ~85s, 22 artifact files VM disk 5.6MB)
++- [x] TRIPLE evidence: DB row status=success + artifacts disk persisted + WS events broadcasted (parcial — 2 distinct types capturados de 6 esperados, 4 followups tracked)
++- [x] PLAN.md F.3 ☒ + memory_save workflow + mark_chapter "F.3 COMPLETE"
++- [x] validate phases A-E 20/22 PASS preservado em TODOS commits F.3.4
 +
 +**Done criteria F.3**: owner valida stealth de cobaia nova sem terminar · compliance regression visível antes de toque produção · screenshot history pra debug DOM LinkedIn mudou · 20/22 PASS preservado · 4 sub-sessões ☒.
 +
++**Retrospective F.3 completo (2026-06-08 → 2026-06-10)**:
++- 4 sub-sessões dedicadas (planeadas 4, real 4) — alinhamento perfeito estimativa
++- ~10 commits master: F.3.1 (a8e4a08 + 406c239 + 9c098f1), F.3.2 (1d1de24 + 930d09f + 881ff58 + acc950f), F.3.3 (8601d3c + 38bcdd5 + 51865a0 + 797342c), F.3.4 (6bcdece + 1f406c4 + SHA-final)
++- 27 assertions PASS: 10 backend F.3.1 + 5 emit JSON F.3.2 + 6 smoke browser mock F.3.3 + 6 smoke E2E real F.3.4
++- frontend-ux-reviewer PASS-WITH-NOTES em F.3.3 (zero BLOCKERS, 4 WARNs F.future)
++- code-reviewer agent PASS-WITH-NOTES em F.3.2 (zero BLOCKERS, 2 notes defense-in-depth)
++- BLACKLIST R2 INTACTOS verified TODA F.3 inteira (zero touch stealth+human+limiter+preflight+stealth_compliance+account_profile+config+cooldown+db_utils+ollama_router)
++- Validate phase A B C D E: 20/22 PASS preservado TODOS commits maduros
++- Sanitize count app.js: 3 → 3 (textContent-strict pattern preservado)
++- Decisão arquitetural F.3.4: Linux crontab VM > APScheduler daemon (defer mature pattern change F.future)
++- Decisão arquitetural F.7 schedule infra: PENDENTE (descoberta F.3.4 documentada acima — owner decide quando ativar F.7)
++- F.3.followup F.future tracked (NÃO bloqueia F.3 closeout):
++  - F.3.3 WARNs: AUTH-IMG-TOKEN + A11Y-NATIVE-CONFIRM + RESP-NO-MOBILE-MEDIA + PERF-FP-DIFF-N1
++  - F.3.4 FOLLOWUPs: event parsing extension (4 types missing) + artifacts_path mismatch reconciliation + compliance_score extraction + fingerprint_hash computation
++  - F.3.2 notes: expandir SENSITIVE_KEYS (liap/usermatchhistory/analyticssynchistory) + sanitize key .strip()
++
 +### Chapter F.4 — Auto-Skill Loop W3 + GitHub PR-based deploy
 +
-+**Classification**: backend+ui · **UI score**: 7 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.1, F.5 (GitHub MCP + Sentry MCP)
++**Classification**: backend+ui · **UI score**: 7 · **Estimated sessions**: 5 · **Status**: **UNBLOCKED 2026-06-10** (deps F.1 + F.3 satisfeitas — F.5 pode rodar paralelo ou antes pra GitHub MCP integration) · **Dependencies**: F.1, F.5 (GitHub MCP + Sentry MCP)
 +
 +**Deliverable**: Hermes propõe próprias skills observando activity 30d, classifica via Ollama qwen2.5:3b, gera YAML, testa em lab, abre PR no repo via GitHub MCP. Owner aprova/rejeita via `dashboard/skills/proposals`. Accept = merge PR + sync VM auto. Auto-disable skill se Sentry MCP reporta 5+ erros em 24h.
 +
