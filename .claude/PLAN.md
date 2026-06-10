@@ -412,8 +412,9 @@
 +**Tasks**:
 +- [~] Task 1: Deploy ContextForge Gateway na VM via Docker; config Redis cache + OpenTelemetry → Sentry; admin UI loopback-only
 +      **F.5.1 PARTIAL 2026-06-10** (commits f9bff1a + 0700142): FastMCP 3.0 scaffold (picked over Docker ContextForge — rationale mcps/gateway/README.md), bind loopback 127.0.0.1:55401 VM-side, 5 endpoints (/health, /tools, /upstream, /audit-log, /dispatch placeholder), STRICT_MODE startup gate hermes_api_v2 FAIL-OPEN dev/FAIL-CLOSED prod. Pending F.5.6: Redis cache + OTel→Sentry + admin UI (defer if ContextForge needed for multiplex >10 MCPs).
-+- [ ] Task 2: Scaffold 3 MCPs custom em `mcps/hermes-{linkedin,prospects,skills}/` com FastMCP 3.0; OAuth 2.1 + JWT audience validation
-+      **F.5.1 PREP**: config.yaml lista 3 placeholders status=pending (hermes-linkedin F.7, hermes-prospects F.7, hermes-skills F.4) com tools_preview + chapter_owner + required_by_dc. F.5.2 entrega implementação real.
++- [~] Task 2: Scaffold 3 MCPs custom em `mcps/hermes-{linkedin,prospects,skills}/` com FastMCP 3.0; OAuth 2.1 + JWT audience validation
++      **F.5.1 PREP**: config.yaml lista 3 placeholders status=pending (hermes-linkedin F.7, hermes-prospects F.7, hermes-skills F.4) com tools_preview + chapter_owner + required_by_dc.
++      **F.5.2 DONE 2026-06-10** (commits 2c9578a + c84b11e + 9ff2d71 + SHA-final): 3 custom MCPs FastMCP 3.0 scaffold deployed VM ~/.hermes/mcps/. 21 tools total (8 hermes-linkedin + 7 hermes-prospects + 6 hermes-skills). Gateway config.yaml 3 upstreams status=active com command/args wired. VM gateway restartado /upstream lista 3 active (era pending). BLACKLIST R2 INVIOLAVEL preservado git diff HEAD~4 linkedin/ → ZERO. Smoke isolado per MCP 3/3 PASS local (fastmcp stub fallback). code-reviewer agent verdict PASS-WITH-NOTES zero BLOCKERS + 8 follow-ups F.future. validate phases A B C D E 20/22 PASS preservado em TODOS commits. Pending F.5.3: gateway dispatch real fastmcp.Client (atualmente 503 placeholder) + mcp_registry table seed. Pending F.5.6: install fastmcp VM + integration test Brain dispatch (F.6 future).
 +- [ ] Task 3: Integrar 6 MCPs públicos prioritários (GitHub, Sentry, Postgres Pro, Playwright, Omnisearch, Hunter.io) via gateway; testar tool discovery
 +- [ ] Task 4: Decisão go/no-go WhatsApp Business MCP (validar Meta Cloud API credentials owner) + Firecrawl (se Omnisearch já cobrir)
 +- [ ] Task 5: UI `/mcp/gateway` minimal — status gateway, lista 9-12 MCPs ativos, audit log últimas 24h (read-only)
@@ -449,6 +450,25 @@
 +- `.mcp.json` MATURE update — 3 entries adicionados (hermes-linkedin/prospects/skills VM loopback)
 +
 +**🚨 BLACKLIST CRÍTICO F.5.2**: NÃO MODIFICAR linkedin/{stealth,human,limiter,cooldown,preflight,account_profile,config}.py — APENAS importar e wrap. hermes-linkedin é WRAPPER, NÃO refactor. Qualquer touch BLACKLIST R2 = REVERT IMEDIATO.
++
++**F.5.2 STATUS COMPLETE 2026-06-10 (commits 2c9578a + c84b11e + 9ff2d71 + SHA-final)**:
++- 4 commits push master: hermes-linkedin (8 tools wrap stealth) + hermes-prospects (7 tools D3 scoring local + Postgres delegate) + hermes-skills (6 tools YAML mgmt D4 hybrid) + gateway config wire-up + reviewer + docs
++- VM gateway PID rotação: 3113463 (F.5.1) → 3589929 (F.5.2 restart) — /upstream: 3/3 active
++- BLACKLIST R2 INVIOLAVEL: zero touch linkedin/* verified `git diff HEAD~4 --name-only linkedin/` ZERO matches
++- Smoke isolado per MCP: hermes-linkedin (8 tools + sanitize 7 cases + .strip defense + uppercase + nested list) + hermes-prospects (7 tools + score_lead deterministic full=100/sparse=45) + hermes-skills (6 tools + path traversal 7 bad/1 good + list_skills count=6 + propose stub 11 keys) ALL PASS local
++- code-reviewer agent verdict: PASS-WITH-NOTES, zero BLOCKERS, 8 WARNs/NOTES F.future tracked abaixo
++- validate phases A B C D E 20/22 PASS preservado em TODOS commits F.5.2 (E.2/E.3 stubs intentional WhatsApp/Instagram)
++- F.5.3 PREP: gateway dispatch real fastmcp.Client substitui placeholder 503 + seed mcp_registry table 11 rows (com chapter_owner + required_by_dc[] cristalizadas MCP-ENFORCEMENT-STRATEGY § 5.2)
++
++**F.5.2 reviewer notes (PASS-WITH-NOTES, code-reviewer agentId a4d6ce115ff6d81ba)** — 8 follow-ups F.future tracked:
++    1. **WARN F.5.3 — gateway dispatch ainda 503 placeholder**: mcps/gateway/server.py dispatch_placeholder retorna HTTPException(503) mesmo pros 3 upstreams agora `active`. Config diz "active", runtime diz "not yet wired". F.5.3/F.5.4 deve implementar fastmcp.Client dispatch real OU clarificar comentário que `active` = spawn-ready.
++    2. **WARN F.future — sticky_session_id exposure**: assert_account_safe retorna sticky_session_id raw. Deterministic hash (não credencial direta) mas cross-ref identifier. Considerar mask ou retornar apenas boolean.
++    3. **WARN F.future — hermes-prospects sanitize coverage menor**: 11 keys vs 17 hermes-linkedin. Se prospects.notes/outreach_message acumular sensível, expandir SENSITIVE_KEYS OU unificar mcps/_shared/sanitize.py.
++    4. **WARN F.future — start_campaign é stub control plane**: Não dispatcha campanha real, só echo + next_step pointing hermes_api_v2. Tool name sugere ação. Considerar renomear plan_campaign ou preview_campaign_dispatch F.5.3+.
++    5. **NOTE — propose_skill_yaml_stub system_prompt placeholder**: Texto literal "TODO owner review...". F.4 substitui com LLM-gerado rico.
++    6. **NOTE — _smoke.py introspection fragility hermes-linkedin**: callable(getattr(server, name, None)) fallback funciona com stub mas pode dar falsos positivos se módulo importar função homônima. F.5.4 com fastmcp real, usar mcp_obj._tool_manager.list_tools() padronizada.
++    7. **NOTE — .mcp.example.json prefix `_` documentation**: Elegante pra entries documentados sem habilitar PC accidentally. Garantir docs F.5.3 mencione remover prefix antes habilitar local dev.
++    8. **NOTE — is_within_working_hours() return tuple shape**: get_rate_limits assume tuple shape estável. Se BLACKLIST R2 limiter.py mudar API F.future, wrapper quebra silent (smoke não cobre). Adicionar try/except defensivo OU contract test gateway-side F.5.4.
 +
 +### Chapter F.6 — Cérebro Hermes (Brain orchestrator)
 +

@@ -1,5 +1,5 @@
 {
-  "_note": "F.5.1 template — copy to .mcp.json (gitignored) and fill env values. Hermes Claude Code MCP wiring.",
+  "_note": "F.5.1+F.5.2 template — copy to .mcp.json (gitignored) and fill env values. Hermes Claude Code MCP wiring.",
   "mcpServers": {
     "agentmemory": {
       "type": "stdio",
@@ -29,11 +29,41 @@
       }
     },
     "hermes-gateway": {
-      "_note": "F.5.1 ContextForge gateway scaffold. Loopback VM-side; PC consumes via SSH reverse tunnel (F.5.3). OAuth bypass localhost when HERMES_STRICT_MCP=0 (dev). Bearer required when STRICT=1 (prod). Real upstream MCP dispatch lands F.5.2.",
+      "_note": "F.5.1 ContextForge gateway scaffold. Loopback VM-side; PC consumes via SSH reverse tunnel (F.5.3). OAuth bypass localhost when HERMES_STRICT_MCP=0 (dev). Bearer required when STRICT=1 (prod). F.5.2 wired 3 custom MCPs (hermes-linkedin/prospects/skills) as upstreams active.",
       "type": "http",
       "url": "http://localhost:55401",
       "env": {
         "HERMES_GATEWAY_OAUTH_SECRET": "${HERMES_GATEWAY_OAUTH_SECRET}"
+      }
+    },
+    "_hermes-linkedin": {
+      "_note": "F.5.2 scaffold — VM-only execution (depends on linkedin/* + patchright + fastmcp). PC Claude Code accesses via hermes-gateway dispatch, NOT direct spawn. Entry retained com prefix _ pra documentation. Habilitar (remover _) somente se rodar PC com fastmcp + patchright instalados.",
+      "type": "stdio",
+      "command": "python",
+      "args": ["mcps/hermes-linkedin/server.py"],
+      "env": {
+        "HERMES_GATEWAY_OAUTH_SECRET": "${HERMES_GATEWAY_OAUTH_SECRET}",
+        "HERMES_MCP_TRANSPORT": "stdio"
+      }
+    },
+    "_hermes-prospects": {
+      "_note": "F.5.2 scaffold — VM-prefer execution (acessa command_center.db). PC Claude Code via hermes-gateway. Habilitar local com fastmcp instalado pra dev.",
+      "type": "stdio",
+      "command": "python",
+      "args": ["mcps/hermes-prospects/server.py"],
+      "env": {
+        "HERMES_GATEWAY_URL": "http://localhost:55401",
+        "HERMES_GATEWAY_OAUTH_SECRET": "${HERMES_GATEWAY_OAUTH_SECRET}",
+        "HERMES_PROSPECTS_USE_POSTGRES_MCP": "0"
+      }
+    },
+    "_hermes-skills": {
+      "_note": "F.5.2 scaffold — skills/*.yaml mgmt. Roda VM (skills/ deployed) ou PC (repo skills/ fallback). Habilitar local com fastmcp.",
+      "type": "stdio",
+      "command": "python",
+      "args": ["mcps/hermes-skills/server.py"],
+      "env": {
+        "HERMES_MCP_TRANSPORT": "stdio"
       }
     }
   }
