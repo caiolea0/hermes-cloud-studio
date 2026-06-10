@@ -364,6 +364,17 @@
 +
 +**Done criteria F.4**: Hermes propõe ≥1 skill útil/semana sem owner pedir · PR-based deploy substitui scp+restart manual · auto-disable previne skill bugada queimar cobaia · 20/22 PASS preservado.
 +
++**🧰 MCP HARD REQUIREMENTS (F.4)** — incorporado 2026-06-10:
++- Task 2 `skill_proposals` CRUD via `mcp.hermes-skills.*` (F.5 gateway)
++- Task 3 PR-based deploy via `mcp.github.create_pull_request` (**PROIBIDO** `subprocess gh` CLI + `requests api.github.com`)
++- Task 7 auto-disable via `mcp.sentry.list_issues` (**PROIBIDO** `sentry-sdk` Python direto em `core/auto_skill_*.py`)
++- Primeira skill proposal ponta-a-ponta invoca **≥2 MCPs distintos** (prova orchestration real)
++- `mcp_coverage.calls_7d > 0` para `github + sentry + hermes-skills` ANTES marcar done
++- `scripts/validate_implementation.py phase F` grep-audit bloqueia merge se detectar imports/subprocess banidos em: `core/skill_proposals.py, core/auto_skill_runner.py, core/auto_skill_promoter.py`
++- BANNED_PATTERNS declarativo em `.claude/MCP-BANNED-PATTERNS.json`
++
++**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 5 F.4 patches.
++
 +### Chapter F.5 — MCP Gateway + Discovery + Custom MCPs
 +
 +**Classification**: backend+infra · **UI score**: 4 · **Estimated sessions**: 4 · **Status**: PLANEJADO · **Dependencies**: F.1
@@ -408,6 +419,16 @@
 +
 +**Done criteria F.5**: Brain F.6 chama 1 endpoint gateway, recebe 30+ tools agregadas · auth+rate-limit+audit centralizado · 3 MCPs custom respondem com OAuth 2.1 · 20/22 PASS preservado.
 +
++**🧰 MCP HARD REQUIREMENTS (F.5)** — incorporado via PLAN-MCP-ENFORCEMENT-PATCH 2026-06-10:
++- **Task 5b NOVA**: seed `mcp_registry` idempotente 9-12 rows com `chapter_owner` + `required_by_dc[]` (ContextForge=infra, GitHub=F.4, Sentry=F.4+F.7, Postgres MCP Pro=F.6+F.7, Playwright=F.3, Omnisearch=F.7, Hunter=F.7, WhatsApp=F.7, hermes-linkedin=F.7+F.9, hermes-prospects=F.7+F.9, hermes-skills=F.4+F.9)
++- **Task 5c NOVA**: editar PLAN.md done_criteria F.4/F.6/F.7/F.8/F.9 com cláusulas MCP HARD REQUIREMENTS literais ✅ DONE (este commit) + implementar `scripts/validate_implementation.py phase F` (grep banned patterns + coverage assertion auto-derivada regex parse PLAN.md, NÃO hardcoded) + criar `.claude/MCP-BANNED-PATTERNS.json` declarativo
++- **Task 7 NOVA**: deploy `scripts/mcp_coverage_audit.py` + cron scheduled-tasks MCP `0 9 15 * *` (dia 15 09h BRT evita janela cobaia semana 1) + endpoints `GET /api/mcp/coverage/latest` + `POST /api/mcp/coverage/publish` + endpoint `GET /api/mcp/gateway/tools` (consumido F.8 + F.9)
++- Runtime startup gate `hermes_api_v2.py` lifespan: `STRICT_MODE default=False`, ativa apenas `HERMES_STRICT_MCP=1` (VM prod) — dev local não trava
++- Audit mensal gera `.claude/audits/mcp-coverage/MCP-COVERAGE-{YYYY-MM}.md` versionado git com tier classification
++- F.5 sessions impact: base 4 → **6 reais** (+2 Tasks 5b/5c/7 NOVAS)
++
++**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` (documento canônico, 10 sections) + `.claude/PLAN-MCP-ENFORCEMENT-PATCH.md` (patches) + GUARDRAILS § "🧰 MCP usage coverage" + memory mem_mq7jalw7.
++
 +### Chapter F.6 — Cérebro Hermes (Brain orchestrator)
 +
 +**Classification**: backend+ui · **UI score**: 9 · **Estimated sessions**: 6 · **Status**: PLANEJADO · **Dependencies**: F.1, F.5 (gateway operacional)
@@ -433,6 +454,18 @@
 +
 +**Done criteria F.6**: owner digita "pause linkedin 2h" e Hermes executa via tool router · "quantos prospects warm Cuiabá?" retorna número via Postgres MCP · 80% operações CLI eliminadas · 20/22 PASS preservado.
 +
++**🧰 MCP HARD REQUIREMENTS (F.6)** — incorporado 2026-06-10:
++- `core/tools.py ToolRegistry.invoke()` wrap middleware **FAIL-CLOSED** INSERT `mcp_calls(server, tool, args_hash, latency_ms, error, context_id, turn_idx, caller_chapter)` try/except próprio — se INSERT falhar: `log.critical + sentry_sdk.capture_exception` MAS NÃO propaga erro caller (audit não pode quebrar Brain decisão)
++- Decorator `@instrumented` OBRIGATÓRIO em todo dispatch emite OTel GenAI spans (`gen_ai.tool.execute, gen_ai.tool.name, mcp.server.name`) — assert via integration test obrigatório
++- Schema `brain_decisions` ganha coluna `otel_trace_id` cross-ref `mcp_calls.context_id+turn_idx`
++- `Brain.decide()` schema output validado pydantic ANTES dispatch: `{intent, tool_name, args, confidence}`
++- Confidence floor configurável PrefPanel + DB `pref_keys` (default 0.7) — `< threshold skip auto-execute → enfileira owner_confirm`
++- Postgres MCP read-only via `mcp.postgres.query` (**PROIBIDO** `sqlite3.connect` bare)
++- Phase F validator pass: ZERO bypass `core/` (`sentry_sdk import, subprocess gh, requests api.*`)
++- F.6 sessions impact: zero overhead (middleware é fixture natural)
++
++**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 4 (S2 details) + memory mem_mq7jalw7.
++
 +### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
 +**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)
@@ -456,6 +489,20 @@
 +- [ ] Task 8: Validação regressão + persistência — phase A B C D E (toca daemon/orchestrator.py + linkedin/limiter.py MADUROS); 20/22 PASS; PLAN.md F.7 ✅; commit `feat(cobaia): F.7 — warmup 14d auto + live ops`
 +
 +**Done criteria F.7**: cobaia opera 14d completos sem owner ssh · daily report Telegram 19h sem falha · stop gates previnem ban antes humano notar · 20/22 PASS preservado.
++
++**🧰 MCP HARD REQUIREMENTS (F.7)** — incorporado 2026-06-10:
++- Task 6 Hunter.io: `mcp.hunter.verify_email` via gateway ANTES warmup email (**PROIBIDO** `requests.get api.hunter.io`)
++- **Task 6b NOVA Omnisearch**: `mcp.omnisearch.search` discovery PMEs Cuiabá
++- **Task 6c NOVA Plan B Hunter** documentado GUARDRAILS.md ANTES Task 6 virar hard: cache 30d verificações + degrade gracioso skip warmup se quota free 25/mês saturou OU rate-limit prospects 5/dia (=150/mês)
++- Task 7 Sentry: `mcp.sentry.capture_exception` via gateway (NÃO `sentry-sdk` direto)
++- **Task 9 NOVA Postgres MCP Pro**: `cobaia_metrics_collector.py` via `mcp.postgres.query` read-only (**PROIBIDO** `sqlite3.connect` bare)
++- Daemon F.7 dispara LinkedIn via `mcp.hermes-linkedin.*` (**NÃO** patchright direto)
++- `mcp_coverage.calls_7d > 0` para: `hunter + sentry + omnisearch + postgres + hermes-linkedin`
++- Phase F grep-audit pass (`errors_inbox category='mcp_bypass' count = 0`)
++- Widget cobaia-status mostra link latest `MCP-COVERAGE-{YYYY-MM}.md`
++- Hunter quota MTD < 22/25 sustentado 6 meses (gate Plan B fallback)
++
++**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 5 F.7 + `.claude/F7-SCHEDULE-ARCH-DECISION.md` (APScheduler Tasks 2/3/4).
 +
 +### ✅ Schedule Infrastructure — Decisão Final (workflow f7-schedule-arch-analysis 2026-06-10, commit a0d3eb0)
 +
@@ -527,6 +574,19 @@
 +
 +**Done criteria F.8**: owner vê custo Claude Max consumido por skill/dia · slow queries identificadas auto · error inbox substitui `ssh vm 'tail -f' | grep ERROR` · audit Brain decisions navegável · 20/22 PASS preservado.
 +
++**🧰 MCP HARD REQUIREMENTS (F.8)** — incorporado 2026-06-10:
++- Schema migration: tabelas `mcp_registry` + `mcp_calls` + mat view `mcp_coverage` (refresh 5min) + `PARTITION BY RANGE(called_at)` mensal + retention 90d auto-drop (pg_partman)
++- Cron 6h `detect_zombies` AUTO-flagga `deprecated_at` (NUNCA remove — npm deprecate pattern)
++- Endpoints: `GET /api/observability/mcp-coverage` · `GET /api/observability/mcp-coverage/history?months=6` · `GET /api/observability/mcp-coverage/audits` · `POST /api/mcp/registry/unflag`
++- **Task 5d NOVA TabMcpCoverage** 5ª tab observability shell: SummaryRow 5 cards (TotalMCPs/Active/Drift/Quarantine/PaidIdle$) + MatrixCoveragePanel heatmap Phase × MCP (verde/vermelho/cinza) + MCP List Table sortable/filterable + SparklineHistory 6 meses tier transitions. Reusa Chart.js vendor local + SummaryWidget pattern + TabCosts grid
++- Estender WS `obs.*` namespace: `obs.mcp_coverage_gap` event (startup gate detecta MCPs faltando OU phase F bloqueia commit)
++- Phase F violations gravar `errors_inbox category='mcp_bypass'` (reusa `ErrorInboxHandler` cross-tab Errors)
++- SummaryWidget badge `mcp_required_missing`
++- Sentry alert WEEKLY DIGEST (NÃO 1 capture por MCP — reduz noise)
++- Done criteria add: "painel MCP coverage por chapter · audit mensal histórico navegável · drift count > 3 = Sentry warning · ZERO write bypass detectado phase F últimos 30d"
++
++**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 7 dashboard widget spec.
++
 +### Chapter F.9 — Pipeline Studio Visual (form-driven)
 +
 +**Classification**: ui+backend · **UI score**: 9 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.1, F.6 (Brain + tools registry)
@@ -551,6 +611,17 @@
 +- [ ] Task 8: Validação regressão + persistência — phase A B C D E (toca core/pipeline.py MADURO); 20/22 PASS; PLAN.md F.9 ✅; commit `feat(pipeline-studio): F.9 — visual builder + A/B + templates`
 +
 +**Done criteria F.9**: owner cria pipeline nova sem editar YAML manual · live monitor mostra step travado em real-time · A/B compara duas estratégias outreach lado-a-lado · 20/22 PASS preservado.
++
++**🧰 MCP HARD REQUIREMENTS (F.9)** — incorporado 2026-06-10:
++- **Task 1b NOVA**: tool registry SOURCE = F.5 gateway audit-log `GET /api/mcp/gateway/tools` (**NÃO** scan local `skills/` dir)
++- Step library JOIN `mcp_registry` exibir MCPs como steps com badge `chapter_owner + last_used + tier` (badge "idle 60d+" WARN — NÃO bloqueia, industry passive flag)
++- Substituir critério numérico ≥6 hard por métrica orgânica: smoke test mede MCPs usados em pipelines REAIS owner cria primeiras 2 semanas, gate fail apenas se < 3 (evita gaming step library com noise tipo `mcp.sentry` decorativo)
++- Smoke test pipeline-studio: pipeline owner-built expõe ≥6 MCPs como first-class steps (3 custom hermes-linkedin/prospects/skills + 3 públicos github/postgres/sentry)
++- Skill forge runner REJECT promotion se skill referencia tool `tier=quarantine` OR `tier=orphan`
++- Pipeline run grava `mcp_calls.caller_chapter='F.9'` (rastreabilidade)
++- Done criteria add: "ZERO tool hardcoded local — todas source = F.5 gateway /tools"
++
++**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 5 F.9 + section 7 step library JOIN.
 +
 +---
 +
