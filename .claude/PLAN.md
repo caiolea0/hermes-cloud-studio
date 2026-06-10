@@ -30,6 +30,56 @@
 +**Total estimado**: 38 sessões (1 + 5 + 4 + 5 + 4 + 6 + 5 + 3 + 5). Banda histórica 50-150k tokens/sessão = 4-6 semanas calendário owner solo, ritmo 1-2 sessões/dia.
 +
 +**Gate inegociável cross-chapter**: `validate_implementation.py --phase A B C D E` deve continuar 20/22 PASS antes E depois de cada chapter que toca código MADURO. Falha = REVERT.
++
++## 🔢 ORDEM EXECUÇÃO FASE F — REGRA INVIOLÁVEL (cristalizada 2026-06-10)
++
++**Sequência ÚNICA aprovada owner**: **F.1 → F.2 → F.3 → F.5 → F.6 → F.8 → F.9 → F.4 → F.7**
++
++**Status atual pós F.3.4** (F.1+F.2+F.3 ✅ done): próximas 6 chapters em ordem **F.5 → F.6 → F.8 → F.9 → F.4 → F.7**.
++
++### Justificativa objetiva por position (NÃO subjetiva — critérios documentados)
++
++| Position | Chapter | Sessões | Justificativa (critérios objetivos) |
++|---|---|---|---|
++| **4** (próximo) | **F.5** MCP Gateway + Custom MCPs | 4 | UNBLOCKED (deps F.1 ✓). **Destrava cascata**: F.6 (tool registry source) + F.4 (GitHub MCP deploy) + F.7 (Hunter/Apollo/Omnisearch MCPs cobaia). Fundação ecosystem. |
++| **5** | **F.6** Cérebro Brain.py | 6 | Depende F.5 tool registry. **Core feature transformador** — Brain orquestra TODAS chapters seguintes via ToolRegistry.invoke(). |
++| **6** | **F.8** Observability | 3 | Depende F.2+F.6. **Instrumenta cedo** F.4/F.7/F.9 — sem F.8 medir cobaia warmup vira cego, F.4 skill performance cego, F.9 pipeline cost cego. F.8 ANTES F.4/F.7/F.9 = alavanca observability todas chapters seguintes. |
++| **7** | **F.9** Pipeline Studio | 5 | Depende F.5 (MCP tools step library) + F.6 (Brain tools.invoke). **Reusa F.6 brain + F.5 tools + F.8 observability** — não pode entrar antes. |
++| **8** | **F.4** Auto-Skill Loop W3 | 5 | Depende F.1+F.5+F.6+F.3+F.8. **Mais arriscado** (meta-recursivo: Hermes propõe próprias skills). Exige F.5/F.6 maduros pra Brain decidir skill quality + F.8 pra medir skill performance pós-deploy + F.3 lab sandbox testar. F.4 ANTES F.7 porque skill loop pode beneficiar cobaia warmup tuning. |
++| **9** (último) | **F.7** Cobaia Live Ops | 6 | Depende F.2+F.5+ DECISION.md APScheduler. **Operacionalização final** — merece TUDO maduro (Brain + MCPs + Observability + Pipeline Studio + Auto-Skill) pra monitor 14d sem CLI. F.7 SEM F.6 Brain = warmup decisões manuais owner = não autônomo. F.7 SEM F.8 = cego pra performance gates. F.7 SEM F.4 = sem auto-tune skills cobaia. |
++
++### 5 critérios objetivos (NÃO subjetivos)
++
++1. **Dependencies graph**: respeitar `blockedBy` declarado em cada chapter PLAN.md (F.6 blocked F.5, F.8 blocked F.2+F.6, F.4 blocked F.5+F.6+F.3+F.8 implícito, F.7 blocked F.2+F.5)
++2. **Foundation-first**: chapters que destravam mais cascata vão primeiro (F.5 destrava 4 chapters; F.6 destrava 3 chapters)
++3. **Risk-last**: chapters meta-recursivos OR cobaia-real vão por último com tudo maduro (F.4 + F.7)
++4. **Observability-early**: F.8 antes consumers (F.4/F.7/F.9) — alavanca cross-chapter
++5. **DECISION.md compliance**: F.7 já tem decisão arquitetural cristalizada (commit a0d3eb0) — última posição respeitando pre-req
++
++### Sequências REJEITADAS (documentadas pra evitar reconsidera)
++
++- ❌ `F.1 → F.8 → F.2 → F.5 → F.6 → F.9 → F.4 → F.3 → F.7` (HOW-TO velha pré-2026-06-10) — VIOLA dependency F.8 blocked F.6
++- ❌ `F.1 → (F.2 ∥ F.5) → F.3 → (F.6 ∥ F.4) → (F.7 ∥ F.9) → F.8` (PLAN velha) — VIOLA dependency F.4 blocked F.5+F.6, paralelismo impossível
++- ❌ Revenue-first `F.5 → F.7` skip Brain — gera retrabalho F.7 quando F.6 entrar, cobaia sem auto-decisor
++
++### Quando essa ordem PODE mudar
++
++APENAS se uma destas condições for satisfeita (NÃO opinião subjetiva):
++1. Owner descobre nova dependency crítica não-mapeada (cross-ref obrigatória em PLAN.md + memory)
++2. Workflow dedicado análise (igual `f7-schedule-arch-analysis.js`) propõe ordem alternativa com recommendation PASS adversarial verify
++3. Bloqueador externo impede chapter atual (ex: API externa down) — pular pra próxima UNBLOCKED + tracker explícito
++
++**Mudança ordem requer**: commit PLAN.md + GUARDRAILS.md + HOW-TO-START-PHASE.md + memory_save + cross-ref aqui (não silencioso ad-hoc).
++
++### Esta sessão Claude (PC orquestrador) — responsabilidade
++
++Claude no PC (cwd `C:\Users\cleao`) é o **orquestrador cross-session** — audita sessões dedicadas + prepara prompts. **DEVE** confirmar ordem antes entregar próximo prompt:
++1. Read PLAN.md tabela "Visão consolidada FASE F" + "Sequência ÚNICA aprovada"
++2. memory_smart_search "hermes ordem execução fase F" → mem persistido
++3. TaskList — próxima task pending NÃO blocked
++4. Se owner pedir chapter fora ordem → exigir justificativa (3 condições acima) + atualizar docs antes entregar prompt
++
++**Cross-refs**: HOW-TO-START-PHASE.md F.X cuidados + GUARDRAILS.md § Ordem execução + memory mem_<próximo SHA>.
  
  ### Chapter F.1 — Backend↔Frontend Gap Audit
 -- [ ] Skill `hermes-frontend-gap`: parser `api/*.py` + `vm_api/routes.py` → 144 rotas

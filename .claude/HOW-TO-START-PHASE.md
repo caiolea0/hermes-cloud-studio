@@ -173,11 +173,13 @@ Substituir `{X}` por `A`, `B`, `C`, `D`, `E`, ou `F`.
   - F.3: ~200k (2 sessões, Lab Cockpit)
   - F.7: ~80k (1 sessão setup + monitor contínuo daily ~20-40k)
 
-**Sequência OBRIGATÓRIA dos chapters** (vem de `coherence.execution_order_recommended` — cada um habilita o próximo):
+**Sequência OBRIGATÓRIA dos chapters** (CRISTALIZADA 2026-06-10 — substitui ordem velha que violava deps F.8):
 
 ```
-F.1 → F.8 → F.2 → F.5 → F.6 → F.9 → F.4 → F.3 → F.7
+F.1 → F.2 → F.3 → F.5 → F.6 → F.8 → F.9 → F.4 → F.7
 ```
+
+**⚠️ Ordem antiga `F.1 → F.8 → F.2 → F.5 → F.6 → F.9 → F.4 → F.3 → F.7` (workflow phase-orchestrator coherence original) FOI REJEITADA** — violava dependency F.8 blocked por F.6. Ver PLAN.md § "🔢 ORDEM EXECUÇÃO FASE F — REGRA INVIOLÁVEL" pra critérios objetivos + sequências rejeitadas documentadas + condições mudança.
 
 **Justificativa do encadeamento**:
 - **F.1 primeiro**: gap audit gera inventário 11 endpoints fantasma + ranking UX. Sem isso, F.2/F.9 ficam cegos pra prioridade

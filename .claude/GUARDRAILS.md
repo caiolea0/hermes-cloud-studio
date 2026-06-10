@@ -274,6 +274,35 @@ Toda task Fase F que toque código MADURO exige:
 
 **Razão**: 20/22 findings PASS (Fases A→E parcial) custaram 6+ sessões e ~7M tokens. Regressão silenciosa = retrabalho catastrófico. Pre/post test é barato, regressão não detectada é caro.
 
+## 🔢 Ordem execução FASE F — INVIOLÁVEL (cristalizada 2026-06-10)
+
+**Sequência ÚNICA aprovada**: `F.1 → F.2 → F.3 → F.5 → F.6 → F.8 → F.9 → F.4 → F.7`
+
+Status atual pós F.3.4: F.1+F.2+F.3 ✅ done. **Próximas 6 em ordem**: F.5 → F.6 → F.8 → F.9 → F.4 → F.7.
+
+🚫 **NUNCA**
+- Iniciar chapter F.X fora da ordem cristalizada acima sem justificativa documentada (3 condições mudança em PLAN.md § "Quando essa ordem PODE mudar")
+- Owner Claude da sessão dedicada propor chapter alternativo "porque parece mais rápido" — improviso ad-hoc bloqueado
+- Claude orquestrador (cwd PC `C:\Users\cleao`) entregar prompt próximo chapter SEM verificar ordem PLAN.md primeiro
+- Pular chapter pra "ganhar tempo" — F.7 dependendo F.4/F.8/F.9 maduros (cobaia warmup precisa Brain + Observability + Pipeline Studio + Auto-Skill)
+- Sequência antiga `F.1 → F.8 → F.2 → F.5 → F.6 → F.9 → F.4 → F.3 → F.7` (HOW-TO pré-2026-06-10) — REJEITADA, viola deps F.8
+
+✅ **SEMPRE**
+- Claude orquestrador PC valida ordem ANTES entregar prompt: Read PLAN.md tabela "Visão consolidada FASE F" + § "🔢 ORDEM EXECUÇÃO FASE F" + memory_smart_search "hermes ordem execução fase F"
+- Owner Claude da sessão dedicada confirma TaskList chapter pendente correto pela ordem (próximo = F.5 atualmente)
+- Mudança ordem requer commit PLAN.md + GUARDRAILS.md + HOW-TO-START-PHASE.md + memory_save + cross-ref (não silencioso)
+- Cross-chapter dependency descoberta nova → documentar igual F.3.4 discovery → F.7 DECISION.md pattern (commit explícito + 4 camadas anti-amnésia)
+- F.7 LAST mandatório — DECISION.md a0d3eb0 cristalizada precisa Brain+Observability+MCPs+Pipeline+AutoSkill maduros pra cobaia warmup autônomo
+
+**Critérios objetivos ordem** (NÃO subjetivos):
+1. Dependencies graph respeitado
+2. Foundation-first (F.5 destrava 4 chapters)
+3. Risk-last (F.4 meta-recursivo + F.7 cobaia)
+4. Observability-early (F.8 antes consumers F.4/F.7/F.9)
+5. DECISION.md compliance (F.7 cristalizada)
+
+**Razão regra**: discoveries cross-chapter (igual F.3.4 → F.7 schedule infra) podem aparecer durante implementação. Sem ordem cristalizada, owner Claude da sessão dedicada improvisa OR escolhe path of least resistance → quebra dependencies + retrabalho.
+
 ## 🎨 UI changes gate (Fase F+) — INVIOLÁVEL
 
 Toda task Fase F que toque `dashboard/*` (app.js, components/*, index.html, styles.css, vendor/) exige:
