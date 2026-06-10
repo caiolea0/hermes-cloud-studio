@@ -247,16 +247,22 @@
 +- [x] Deploy VM via scp seletivo (5 files: _event_emit.py + lab_runner.py + 3 flows). VM imports OK pós cada commit.
 +- [x] validate phases A-E 20/22 PASS preservado em TODOS 3 commits MATURE
 +
-+**F.3.3 — Frontend Lab Cockpit page + components** (UNBLOCKED 2026-06-09, próxima sessão dedicada)
-+- [ ] dashboard/components/lab_cockpit.js NOVO — window.HermesLabCockpit.{init,startRun,abortRun,renderHistory,renderDiff,destroy}
-+- [ ] dashboard/components/lab_gauge.js NOVO — SVG semicircular 0-100 + cor tokens --color-success/warn/error
-+- [ ] dashboard/components/lab_fingerprint_diff.js NOVO — table side-by-side 18 signals + green/red/yellow tokens
-+- [ ] dashboard/app.js MATURE — page routing #lab + WS handlers lab.*
-+- [ ] dashboard/index.html MATURE — sidebar link + script imports
-+- [ ] dashboard/styles.css MATURE — APPEND .lab-* selectors var(--color-*) tokens F.2.4
-+- [ ] Reviewer agent frontend-ux-reviewer PASS pré-commit (gate inviolável)
++**F.3.3 — Frontend Lab Cockpit page + components** (2026-06-09 ☒ commits 8601d3c + 38bcdd5 + 51865a0)
++- [x] dashboard/components/lab_cockpit.js NOVO — window.HermesLabCockpit.{init,destroy,refreshRuns,startRun,abortRun,openRunDetails,closeDrawer,appendEvent}
++- [x] dashboard/components/lab_gauge.js NOVO — SVG semicircular 0-100 animated tween + threshold 70 + cor tokens --color-success/warn/error
++- [x] dashboard/components/lab_fingerprint_diff.js NOVO — table side-by-side 18 signals + match/mismatch/missing status tokens
++- [x] dashboard/app.js MATURE — page routing #lab + 8 WS handlers lab.* (sanitize delta 3→3, zero new innerHTML +=)
++- [x] dashboard/index.html MATURE — sidebar nav item Lab (i-eye icon) + 3 script imports + mount point #page-lab
++- [x] dashboard/styles.css MATURE APPEND — .lab-* selectors var(--color-*) tokens F.2.4 (ZERO hex literal validated grep)
++- [x] Smoke browser Claude Preview: 6 mock events injected → gauge animou 0→78, 3 status rows (success/failed/aborted), drawer slide-in role=complementary aria-hidden toggle, fp diff empty state correto
++- [x] frontend-ux-reviewer agent: PASS-WITH-NOTES (zero BLOCKERS). 4 WARNs follow-up F.3.future (NÃO bloqueia F.3.4):
++  - AUTH-IMG-TOKEN: middleware auth não aceita ?token= query, screenshots <img src> com token query falham 401. Fix: extender middleware accept query token APENAS pra /api/lab/runs/*/artifacts/* paths.
++  - A11Y-NATIVE-CONFIRM: window.confirm() em login/viewer pre-start. Upgrade pra custom alertdialog modal (consistência abort pattern).
++  - RESP-NO-MOBILE-MEDIA: grid .lab-main + .lab-footer sem @media <768px stack fallback (Phase F target desktop owner-solo).
++  - PERF-FP-DIFF-N1: _refreshFingerprintDiff Promise.all top-2 fetches (N=2 baixo risco, document constraint).
++- [x] validate phases A-E 20/22 PASS preservado em TODOS 3 commits MATURE
 +
-+**F.3.4 — Auto-cleanup + smoke E2E + closeout** (próxima sessão dedicada)
++**F.3.4 — Auto-cleanup + smoke E2E + closeout** (UNBLOCKED 2026-06-09, próxima sessão dedicada)
 +- [ ] scripts/lab_cleanup.py NOVO — delete artifacts/<run_id>/ com started_at < now-30d (preserva pinned=1)
 +- [ ] daemon/orchestrator.py MATURE — APScheduler add cleanup task 03:00 daily
 +- [ ] Smoke E2E browser: click "Run fingerprint flow" → WS live progress → gauge atualiza → history list → fingerprint diff → abort durante run
