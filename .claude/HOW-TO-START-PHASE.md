@@ -181,6 +181,19 @@ F.1 → F.2 → F.3 → F.5 → F.6 → F.8 → F.9 → F.4 → F.7
 
 **⚠️ Ordem antiga `F.1 → F.8 → F.2 → F.5 → F.6 → F.9 → F.4 → F.3 → F.7` (workflow phase-orchestrator coherence original) FOI REJEITADA** — violava dependency F.8 blocked por F.6. Ver PLAN.md § "🔢 ORDEM EXECUÇÃO FASE F — REGRA INVIOLÁVEL" pra critérios objetivos + sequências rejeitadas documentadas + condições mudança.
 
+**🚨 DECISÕES ARQUITETURAIS CRISTALIZADAS — owner Claude DEVE Read ANTES sessão dedicada chapter respectivo**:
+
+| Chapter | Documento canônico | Pré-req owner |
+|---|---|---|
+| **F.5** | `.claude/MCP-ENFORCEMENT-STRATEGY.md` (combo S2+S1+S3, +2 Tasks 5b/5c/7) | Approval Checklist section 10 (12 itens) + aplicar `.claude/PLAN-MCP-ENFORCEMENT-PATCH.md` |
+| **F.7** | `.claude/F7-SCHEDULE-ARCH-DECISION.md` (APScheduler in-process daemon) | Approval Checklist section 13 (4 itens) + confirm requirements.txt apscheduler+tzdata |
+| F.6 | (consome F.5 ToolRegistry + F.8 brain_decisions schema) | Read MCP-ENFORCEMENT-STRATEGY.md section 4 (S2 fail-closed middleware) |
+| F.4 | (consome F.5 MCPs + F.6 Brain + F.8 sentry) | Read MCP-ENFORCEMENT-STRATEGY.md section 5 F.4 patches |
+| F.8 | (entrega Tab MCP Coverage + schema mcp_calls) | Read MCP-ENFORCEMENT-STRATEGY.md section 7 dashboard widget spec |
+| F.9 | (consome F.5 gateway tools + F.6 Brain) | Read MCP-ENFORCEMENT-STRATEGY.md section 5 F.9 step library source |
+
+**SEM consultar documento canônico ANTES sessão dedicada**: owner Claude improvisa decisões arquiteturais → potencial regressão + retrabalho catastrófico.
+
 **Justificativa do encadeamento**:
 - **F.1 primeiro**: gap audit gera inventário 11 endpoints fantasma + ranking UX. Sem isso, F.2/F.9 ficam cegos pra prioridade
 - **F.8 logo após**: observability é fundação pra MEDIR impacto das mudanças seguintes (custo, latência, decisões). Sem F.8, F.6/F.4 voam às cegas
