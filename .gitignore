@@ -88,3 +88,6 @@ desktop.ini
 
 # F.2 closeout helper (Edge headless screenshot bootstrap, local-only)
 dashboard/dev-bootstrap.html
+
+# Schedule lock
+.claude/scheduled_tasks.lock

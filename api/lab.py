@@ -63,6 +63,13 @@ ARTIFACTS_BASE.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_FLOWS = {"fingerprint", "login", "viewer"}
 
+# F.3.5: whitelist 7 event types (sync linkedin/lab/_event_emit.py ALLOWED_EVENTS).
+# Mapping 1:1 evt_name -> WS broadcast type lab.<evt_name>. Unknown -> step_progress + warn.
+ALLOWED_EVENT_TYPES = frozenset({
+    "run_started", "step_progress", "screenshot_captured",
+    "compliance_score", "fingerprint_dump", "run_completed", "run_failed",
+})
+
 # In-memory registry de processos SSH em execucao (abort target)
 _running_processes: dict[str, asyncio.subprocess.Process] = {}
 
@@ -170,17 +177,31 @@ async def _stream_run(run_id: str, proc: asyncio.subprocess.Process, started_at:
                     event_payload = None
             if event_payload:
                 evt_name = str(event_payload.get("event", "step_progress"))
+                # Captura state local pra DB persistencia (preserva comportamento existente)
                 if evt_name == "compliance_score":
                     score = event_payload.get("score")
                     if isinstance(score, (int, float)):
                         last_score = int(score)
-                elif evt_name == "fingerprint":
+                elif evt_name == "fingerprint_dump":
+                    # F.3.5 BUG #1 fix: era "fingerprint", emit usa "fingerprint_dump"
                     fp = event_payload.get("hash")
                     if isinstance(fp, str):
                         fingerprint_hash = fp
+                # F.3.5: WS broadcast 1:1 namespace mapping preservando event identity.
+                # Unknown event types -> fallback step_progress + warn (forward compat).
+                if evt_name in ALLOWED_EVENT_TYPES:
+                    ws_event_type = f"lab.{evt_name}"
+                else:
+                    logger.warning(
+                        "F.3.5 lab event_type fora whitelist: %s — fallback step_progress",
+                        evt_name,
+                    )
+                    ws_event_type = "lab.step_progress"
+                # Payload completo broadcast (sanitizer F.3.2 ja strip sensitive emit-side)
                 await _broadcast(
-                    f"lab.{evt_name}",
+                    ws_event_type,
                     run_id=run_id,
+                    stream="stderr" if is_stderr else "stdout",
                     **{k: v for k, v in event_payload.items() if k != "event"},
                 )
             else:
