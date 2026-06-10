@@ -460,6 +460,36 @@
 +- validate phases A B C D E 20/22 PASS preservado em TODOS commits F.5.2 (E.2/E.3 stubs intentional WhatsApp/Instagram)
 +- F.5.3 PREP: gateway dispatch real fastmcp.Client substitui placeholder 503 + seed mcp_registry table 11 rows (com chapter_owner + required_by_dc[] cristalizadas MCP-ENFORCEMENT-STRATEGY § 5.2)
 +
++**🎯 F.5.3 Decisões Cristalizadas (gateway dispatch real + seed mcp_registry + endpoints)** — incorporado 2026-06-10:
++- **D1 fastmcp.Client transport**: **stdio subprocess** (FastMCP 3.0 default, sem porta gerenciar, isolation per spawn). NÃO http loopback :55402+ (overhead porta gerenciar 3 custom MCPs).
++- **D2 Connection caching**: **pool connection per upstream server** (3 customs reusable cache em-memória process gateway). Evita overhead spawn 100-300ms/call. Pool com TTL 5min + auto-respawn on disconnect. NÃO spawn per request (latency proibitivo Brain F.6).
++- **D3 mcp_registry seed format**: **JSON file `.claude/mcp_registry_seed.json` + INSERT idempotente** (ON CONFLICT chapter_owner UPDATE). 11 rows (3 customs + 5 públicos previstos + 3 reserved). Versionável git, fácil owner editar. NÃO INSERT static Python literal (não versionável).
++- **D4 Endpoint `/api/mcp/coverage/latest`**: **live query mcp_calls table** (count by server/tool last 30d + tier classification em-tempo-real). F.5.5 entrega audit cron mensal separado (`mcp_coverage_audit.py` → MCP-COVERAGE-{YYYY-MM}.md persisted). Latest = mês corrente live (não snapshot). NÃO pull from S3 ou file cache (stale data).
++- **D5 OAuth Bearer check**: **middleware FastAPI** `@app.middleware("http")` aplica a TODOS endpoints `/api/mcp/*` + gateway endpoints. Allowlist bypass: `/health`, `/docs`, `/openapi.json`. DRY (F.5.3+ 4-5 endpoints). NÃO per-endpoint decorator repetitivo.
++
++**Files F.5.3** (4 NOVOS + 4 MATURE):
++- `mcps/gateway/server.py` MATURE — substituir `dispatch_placeholder` 503 por `_dispatch_real(server, tool, args)` usando `fastmcp.Client(transport="stdio", command=...)`. Pool cache global `_CLIENT_POOL: dict[str, Client]` TTL 5min.
++- `mcps/gateway/_pool.py` NOVO — `MCPClientPool` class (acquire/release/health_check/auto_respawn).
++- `.claude/mcp_registry_seed.json` NOVO — 11 rows source-of-truth (3 customs + 5 públicos F.5.6 + 3 reserved postgres/filesystem/git).
++- `scripts/seed_mcp_registry.py` NOVO — INSERT idempotente ON CONFLICT. Idempotente rerun.
++- `migrations/00X_mcp_registry.sql` NOVO — CREATE TABLE mcp_registry (server TEXT PK, tools TEXT[], status TEXT, chapter_owner TEXT, required_by_dc TEXT[], tier TEXT, oauth_required BOOL, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ).
++- `migrations/00Y_mcp_calls.sql` NOVO — CREATE TABLE mcp_calls (id UUID PK, server TEXT, tool TEXT, args JSONB, response JSONB, error TEXT NULL, duration_ms INT, requester TEXT, created_at TIMESTAMPTZ). Index on (server, tool, created_at DESC).
++- `hermes_api_v2.py` MATURE — adicionar middleware OAuth Bearer + 2 endpoints: `GET /api/mcp/coverage/latest` (live query mcp_calls) + `POST /api/mcp/coverage/publish` (manual trigger F.5.5 audit).
++- `mcps/gateway/config.yaml` MATURE — adicionar pool config (`pool_ttl_seconds: 300`, `pool_max_idle: 10`).
++
++**Sub-task split F.5.3** (3 commits sub-session):
++- **Commit 1 (migrations + seed)**: mcp_registry + mcp_calls tables + seed JSON + script idempotente. Validate phase E preserves stubs.
++- **Commit 2 (dispatch real + pool)**: gateway dispatch fastmcp.Client real + MCPClientPool + test smoke 3 customs dispatch. Substitui 503 placeholder.
++- **Commit 3 (endpoints + middleware + deploy + reviewer + docs)**: hermes_api_v2 middleware + 2 endpoints + deploy VM + code-reviewer + PLAN.md docs.
++
++**🚨 Riscos críticos F.5.3** (sessão "switching fabric"):
++- **Quebrar dispatch real** = todos MCP calls 503 downstream Brain F.6/F.7/F.4 paralisados
++- **Pool connection leak** = process gateway VM crash OOM após dias (TTL + max_idle obrigatórios)
++- **mcp_registry seed race** = INSERT não-idempotente duplica rows ao re-rodar (ON CONFLICT obrigatório)
++- **OAuth middleware bypass leak** = endpoint sensível exposto (allowlist deve ser allow-list strict, não regex amplo)
++
++**Cross-ref F.5.3**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 4 (S2 mcp_calls table) + section 5.2 (mcp_registry seed schema) + F.5.2 commits (8 reviewer WARNs, especialmente WARN #1 dispatch placeholder).
++
 +**F.5.2 reviewer notes (PASS-WITH-NOTES, code-reviewer agentId a4d6ce115ff6d81ba)** — 8 follow-ups F.future tracked:
 +    1. **WARN F.5.3 — gateway dispatch ainda 503 placeholder**: mcps/gateway/server.py dispatch_placeholder retorna HTTPException(503) mesmo pros 3 upstreams agora `active`. Config diz "active", runtime diz "not yet wired". F.5.3/F.5.4 deve implementar fastmcp.Client dispatch real OU clarificar comentário que `active` = spawn-ready.
 +    2. **WARN F.future — sticky_session_id exposure**: assert_account_safe retorna sticky_session_id raw. Deterministic hash (não credencial direta) mas cross-ref identifier. Considerar mask ou retornar apenas boolean.
