@@ -22,13 +22,37 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 
-def _check_fastmcp() -> bool:
+def _stub_fastmcp_if_missing() -> str:
     try:
         import fastmcp  # noqa: F401
-        return True
+        return "real"
     except ImportError:
-        print("[smoke] SKIP fastmcp not installed (VM-only dep, OK on PC)")
-        return False
+        import types
+        stub = types.ModuleType("fastmcp")
+
+        class _StubMCP:
+            def __init__(self, name: str):
+                self.name = name
+                self._registered: list[str] = []
+
+            def tool(self, *a, **kw):
+                def deco(fn):
+                    self._registered.append(fn.__name__)
+                    return fn
+                return deco
+
+            def run(self, **kw):  # noqa: ARG002
+                return None
+
+        stub.FastMCP = _StubMCP  # type: ignore
+        sys.modules["fastmcp"] = stub
+        return "stub"
+
+
+def _check_fastmcp() -> bool:
+    mode = _stub_fastmcp_if_missing()
+    print(f"[smoke] fastmcp mode = {mode}")
+    return True
 
 
 def _check_server_imports() -> bool:
@@ -130,10 +154,7 @@ def _check_sanitize() -> bool:
 
 def main() -> int:
     print("=== hermes-linkedin smoke (F.5.2) ===")
-    fastmcp_ok = _check_fastmcp()
-    if not fastmcp_ok:
-        # PC sem fastmcp = SKIP graceful (smoke real roda VM)
-        return 0
+    _check_fastmcp()  # injects stub if needed
     checks = [
         _check_server_imports,
         _check_tools_registered,
