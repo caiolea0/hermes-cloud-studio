@@ -274,6 +274,29 @@ Toda task Fase F que toque código MADURO exige:
 
 **Razão**: 20/22 findings PASS (Fases A→E parcial) custaram 6+ sessões e ~7M tokens. Regressão silenciosa = retrabalho catastrófico. Pre/post test é barato, regressão não detectada é caro.
 
+## 🧰 MCP usage coverage — REGRA INVIOLÁVEL (cristalizada 2026-06-10)
+
+F.5 entrega 8 MCPs (5 públicos + 3 customs) + Gateway. Risk identificado: MCPs "ficarem na gaveta" se F.6/F.7/F.4/F.9 não obrigam uso. Coverage enforcement OBRIGATÓRIO pra evitar registry zombie + ROI evaporado em deps pagas (Apollo/Hunter).
+
+🚫 **NUNCA**
+- Concluir F.5 sem F.8 observability hook `mcp_calls` table tracking (postpone F.8 = blind spot coverage)
+- Concluir F.7 sem Task 6 Hunter.io integration (cobaia email channel sem verifier = bounce risk reputação)
+- Concluir F.4 Auto-Skill sem hard requirement primeira skill auto-proposta combinar 2+ MCPs (força exercício registry)
+- Concluir F.9 Pipeline Studio sem step library listar TODOS MCPs registered (gateway tools dump → UI auto-populate)
+- Deactivate MCP gateway sem critério temporal documentado (sugestão: 60d zero calls + workflow audit recommendation)
+- Adicionar MCP novo F.future sem cross-ref em PLAN.md F.X chapter que vai consumir (sem owner explícito = orfão garantido)
+
+✅ **SEMPRE**
+- Workflow recurrent `mcp-coverage-audit.js` rodado mensalmente após F.8 maduro — output `.claude/MCP-COVERAGE-{YYYY-MM}.md` com lista zombie + sugestão deactivate/integrate
+- Dashboard tab `/observability/mcp-coverage` (F.8) mostra: tool name + calls 24h/7d/30d + last_used_at + chapter owner + status (active/zombie)
+- F.7/F.4/F.9 done_criteria EXPLÍCITO mencionar MCP usage minimum (não vago "consome MCPs")
+- Apollo/Hunter paid tiers: ativação CONDICIONADA F.7 cobaia validate ROI (free tier primeiro 30d, paid só se métricas justificarem)
+- Brain F.6 ToolRegistry expõe `tools.list()` endpoint pra dashboard exibir "Capabilities Hermes" — owner vê inventário visual
+
+**Razão regra**: 8 MCPs deployed sem coverage tracking = teatro arquitetural. Owner pagou Apollo $50/mês mas usado 2x/mês = ROI negativo. Ou Hunter free tier zerado por uso humano (não Hermes auto). Cobertura mensurável = decisões objetivas integrate/deactivate.
+
+**Workflow análise meticulosa**: `mcp-enforcement-strategy.js` (disparado 2026-06-10) → output `.claude/MCP-ENFORCEMENT-STRATEGY.md` com 6 fixes specific por chapter + workflow recurrent design + dashboard widget F.8 spec + hard requirements coverage matrix. **F.5 implementação DEVE incorporar recommendation desse workflow** ANTES marcar F.5 ✅ done.
+
 ## 🔢 Ordem execução FASE F — INVIOLÁVEL (cristalizada 2026-06-10)
 
 **Sequência ÚNICA aprovada**: `F.1 → F.2 → F.3 → F.5 → F.6 → F.8 → F.9 → F.4 → F.7`
