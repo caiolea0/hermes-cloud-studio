@@ -410,8 +410,10 @@
 +- Exa MCP standalone — redundante via Omnisearch
 +
 +**Tasks**:
-+- [ ] Task 1: Deploy ContextForge Gateway na VM via Docker; config Redis cache + OpenTelemetry → Sentry; admin UI loopback-only
++- [~] Task 1: Deploy ContextForge Gateway na VM via Docker; config Redis cache + OpenTelemetry → Sentry; admin UI loopback-only
++      **F.5.1 PARTIAL 2026-06-10** (commits f9bff1a + 0700142): FastMCP 3.0 scaffold (picked over Docker ContextForge — rationale mcps/gateway/README.md), bind loopback 127.0.0.1:55401 VM-side, 5 endpoints (/health, /tools, /upstream, /audit-log, /dispatch placeholder), STRICT_MODE startup gate hermes_api_v2 FAIL-OPEN dev/FAIL-CLOSED prod. Pending F.5.6: Redis cache + OTel→Sentry + admin UI (defer if ContextForge needed for multiplex >10 MCPs).
 +- [ ] Task 2: Scaffold 3 MCPs custom em `mcps/hermes-{linkedin,prospects,skills}/` com FastMCP 3.0; OAuth 2.1 + JWT audience validation
++      **F.5.1 PREP**: config.yaml lista 3 placeholders status=pending (hermes-linkedin F.7, hermes-prospects F.7, hermes-skills F.4) com tools_preview + chapter_owner + required_by_dc. F.5.2 entrega implementação real.
 +- [ ] Task 3: Integrar 6 MCPs públicos prioritários (GitHub, Sentry, Postgres Pro, Playwright, Omnisearch, Hunter.io) via gateway; testar tool discovery
 +- [ ] Task 4: Decisão go/no-go WhatsApp Business MCP (validar Meta Cloud API credentials owner) + Firecrawl (se Omnisearch já cobrir)
 +- [ ] Task 5: UI `/mcp/gateway` minimal — status gateway, lista 9-12 MCPs ativos, audit log últimas 24h (read-only)
