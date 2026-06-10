@@ -492,7 +492,8 @@ function navigate(page) {
         linkedin: 'LinkedIn Automation',
         memory: 'Memoria do Agente',
         missions: 'Missoes da Semana',
-        claude: 'AI Terminal'
+        claude: 'AI Terminal',
+        lab: 'Lab Cockpit'
     };
     if (page === 'linkedin') {
         loadLinkedInPage();
@@ -534,6 +535,12 @@ function navigate(page) {
         loadMissions();
     } else if (page === 'claude') {
         renderClaudeHistory();
+    } else if (page === 'lab') {
+        // F.3.3 — Lab Cockpit init (idempotent: re-entry no-op).
+        if (window.HermesLabCockpit && typeof window.HermesLabCockpit.init === 'function') {
+            try { window.HermesLabCockpit.init('[data-component="lab-cockpit"]'); }
+            catch (e) { console.warn('HermesLabCockpit init failed', e); }
+        }
     }
 }
 
@@ -3094,6 +3101,22 @@ function handleWSEvent(event) {
                 });
             } catch (e) { console.warn('LiveLogTail append (decision) failed', e); }
         }
+    }
+
+    // F.3.3 — Lab Cockpit WS handlers (8 events lab.*).
+    // Delega pra window.HermesLabCockpit.appendEvent (no-op se cockpit não inicializado).
+    // SE currentPage !== 'lab', cockpit ainda processa event pra manter state interno
+    // (history list + active run tracking) caso owner navegue pra lab depois.
+    const LAB_EVENT_TYPES = [
+        'lab.run_started', 'lab.step_progress', 'lab.screenshot_captured',
+        'lab.compliance_score', 'lab.fingerprint_dump', 'lab.run_completed',
+        'lab.run_failed', 'lab.run_aborted',
+    ];
+    if (LAB_EVENT_TYPES.indexOf(event.type) !== -1 &&
+        window.HermesLabCockpit &&
+        typeof window.HermesLabCockpit.appendEvent === 'function') {
+        try { window.HermesLabCockpit.appendEvent(event); }
+        catch (e) { console.warn('HermesLabCockpit appendEvent failed', event.type, e); }
     }
 }
 
