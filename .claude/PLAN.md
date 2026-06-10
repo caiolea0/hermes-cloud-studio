@@ -431,6 +431,25 @@
 +
 +**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` (documento canônico, 10 sections) + `.claude/PLAN-MCP-ENFORCEMENT-PATCH.md` (patches) + GUARDRAILS § "🧰 MCP usage coverage" + memory mem_mq7jalw7.
 +
++**🎯 F.5.2 Decisões Cristalizadas (3 custom MCPs scaffold)** — incorporado 2026-06-10:
++- **D1 Tools granularidade**: cada custom MCP expõe **6-8 tools médio** (granular suficiente Brain F.6 compor, sem fragmentar 15+ tools/MCP)
++- **D2 Imports strategy**: **direct imports** `from linkedin.connector import ...` dentro mcps/hermes-linkedin/server.py (gateway VM-side, evita HTTP overhead, simpler). NÃO proxy via VM API endpoint.
++- **D3 hermes-prospects scoring**: **delega Postgres MCP Pro** (`mcp.postgres.query` read-only) via gateway — single source of truth. Brain F.6 mesma rota.
++- **D4 hermes-skills storage**: **hybrid** — YAML reads agora (skills/*.yaml glob), DB writes deferred F.4 skill_proposals table (Brain F.6 propõe via DB, owner aprova → sync YAML).
++- **D5 OAuth 2.1 JWT rotação**: **manual mensal** (3 MCPs solo owner, auto cron é over-engineering F.future). Secret em .env `HERMES_GATEWAY_OAUTH_SECRET`.
++- **D6 Reviewer agent**: **code-reviewer direto** (sem custom subagent F.future). frontend-ux-reviewer não aplica (zero touch dashboard/* F.5.2).
++- **D7 Smoke E2E**: **isolado per MCP** (3 smoke tests separados) + integration test Brain dispatch **deferred F.6** (Brain ainda não existe).
++- **D8 Tools naming**: **simple `send_invite` (sem prefix)** — gateway já namespaces via server prefix (`hermes-linkedin.send_invite` no full path).
++
++**Files F.5.2** (3 NOVOS custom MCPs + gateway upstream config update):
++- `mcps/hermes-linkedin/{__init__,server,README}.py/md` — wrap stealth+human+limiter+cooldown como 6-8 tools (send_invite, scrape_profile, get_inbox, warmup_action, send_message, send_inmail, get_health, get_rate_limits)
++- `mcps/hermes-prospects/{__init__,server,README}.py/md` — wrap DB queries + scoring (search_prospects, score_lead, mark_converted, get_campaign_stats, enrich_pipeline, list_top_scored, get_by_status) — delega Postgres MCP Pro pra reads
++- `mcps/hermes-skills/{__init__,server,README}.py/md` — wrap skills/*.yaml management (list_skills, get_skill, toggle_active, propose_skill_yaml_stub, test_skill_dryrun, get_metrics) — hybrid YAML+DB
++- `mcps/gateway/config.yaml` MATURE update — 3 upstream MCPs status=active (era pending F.5.1)
++- `.mcp.json` MATURE update — 3 entries adicionados (hermes-linkedin/prospects/skills VM loopback)
++
++**🚨 BLACKLIST CRÍTICO F.5.2**: NÃO MODIFICAR linkedin/{stealth,human,limiter,cooldown,preflight,account_profile,config}.py — APENAS importar e wrap. hermes-linkedin é WRAPPER, NÃO refactor. Qualquer touch BLACKLIST R2 = REVERT IMEDIATO.
++
 +### Chapter F.6 — Cérebro Hermes (Brain orchestrator)
 +
 +**Classification**: backend+ui · **UI score**: 9 · **Estimated sessions**: 6 · **Status**: PLANEJADO · **Dependencies**: F.1, F.5 (gateway operacional)
