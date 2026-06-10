@@ -388,6 +388,39 @@
 +
 +**Done criteria F.7**: cobaia opera 14d completos sem owner ssh · daily report Telegram 19h sem falha · stop gates previnem ban antes humano notar · 20/22 PASS preservado.
 +
++**🚨 DECISÃO ARQUITETURAL PENDENTE — Schedule Infrastructure** (descoberta F.3.4 2026-06-10):
++
++F.7 Tasks 2/3/4 dependem de schedule infra (1h coleta métricas, 30min stop gates check, 19h daily Telegram). Discovery durante F.3.4: `daemon/orchestrator.py` NÃO tem APScheduler nem cron pattern atual (grep zero matches). F.3.4 resolveu pra cleanup script via **Linux crontab VM standalone** (cobaia cleanup mensal). MAS F.7 precisa schedule infra MAIS RICO (in-process state, métricas live, Telegram bot integration, stop gate trigger immediate).
++
++**Opções F.7 schedule infra** (decidir em pre-flight F.7, NÃO ad-hoc):
++
++| Opção | Pros | Cons | Recommendation |
++|---|---|---|---|
++| **A) Linux crontab VM** (F.3.4 pattern) | Zero dependency, simples, owner conhece | Cross-process, sem state in-memory, hard observability | OK pra tasks isoladas tipo cleanup. Insuficiente F.7 (state cross-checks) |
++| **B) APScheduler in-process daemon** | State shared com daemon, observability nativa, async-friendly | Nova dependency Python, mature touch daemon/orchestrator.py | RECOMENDADO se F.7 precisar coordenar state daemon+schedule |
++| **C) FastAPI BackgroundTasks** | Built-in FastAPI, sem dependency | Per-request lifecycle, NÃO daemon-like persistent | INADEQUADO (tasks F.7 são long-running daemon-side) |
++| **D) asyncio.create_task + sleep loop** | Zero dependency, pattern existente daemon | Manual error recovery + restart logic | Aceitável simples, complica se >3 tasks scheduled |
++| **E) Celery + Redis** | Production-grade, distributed | Overkill solo owner, infra heavy | NÃO usar (over-engineering) |
++| **F) MCP scheduled-tasks** | Externo daemon, audit trail | MCP server precisa rodar 24/7 separado | Avaliar quando MCP Gateway F.5 maduro |
++| **G) systemd timers Linux** | Cross-process nativo VM | Linux-only, sem state in-memory | OK alternativa crontab |
++| **H) Daemon main loop time-check** | Zero dependency, daemon-native | Acoplado loop principal, hard isolation | Quick win <3 tasks |
++
++**Critérios decisão F.7 pre-flight**:
++1. Quantas scheduled tasks total F.7 introduz? (estimado 3: 1h métricas, 30min stop gate, 19h Telegram)
++2. Tasks precisam state shared com daemon (sim — métricas escrevem cobaia_daily_metrics, stop gate lê linkedin/limiter state)
++3. Tasks precisam restart automático se crash? (sim — daemon supervisor já restart, herda)
++4. Owner aceita nova dependency Python APScheduler? (sim, se ROI claro)
++5. F.8 Observability vai querer perf metrics scheduled tasks? (provável)
++
++**Tentativa recomendação default** (subject to workflow F7-schedule-arch-analysis decision):
++- **APScheduler in-process daemon (Opção B)** se F.7 confirmar 3+ scheduled tasks com state shared
++- **Linux crontab VM (Opção A)** se F.7 reduzir pra 1-2 tasks isoladas standalone
++- Decisão FINAL via workflow background `f7-schedule-arch-analysis.js` (rodado 2026-06-10) → output `.claude/F7-SCHEDULE-ARCH-DECISION.md`
++
++**Cross-ref**: F.3.4 commits (mem_mq7eyrio) + workflow F7 arch analysis output.
++
++**ANTES de iniciar F.7 sessão dedicada**: revisar `.claude/F7-SCHEDULE-ARCH-DECISION.md` + incorporar decisão arquitetural nas Tasks 2/3/4 F.7. Sem isso, owner Claude da sessão F.7 vai improvisar ad-hoc e potencialmente regredir.
++
 +### Chapter F.8 — Cost & Performance Observability
 +
 +**Classification**: backend+ui · **UI score**: 7 · **Estimated sessions**: 3 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control base), F.6 (Brain audit trail)
