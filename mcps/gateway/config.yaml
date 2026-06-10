@@ -5,12 +5,15 @@
 gateway:
   bind_host: 127.0.0.1
   bind_port: 55401
-  version: "0.1.0-f5.2"
+  version: "0.2.0-f5.3"
   # OAuth 2.1 default ON for custom MCPs. Localhost loopback bypass (dev mode).
   # Production VM enforces OAuth even loopback when HERMES_STRICT_MCP=1.
   oauth_enabled: true
   oauth_bypass_loopback: true
   audit_log_path: "~/.hermes/logs/gateway_audit.jsonl"
+  # F.5.3 — MCPClientPool TTL + max idle. STDIO subprocess reused per upstream.
+  pool_ttl_seconds: 300
+  pool_max_idle: 10
 
 # F.5.2 entrega: 3 custom MCPs ACTIVE com command/args wired
 upstream_mcps:

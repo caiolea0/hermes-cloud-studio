@@ -8,31 +8,91 @@ F.5.1 scaffold deliverable:
 - Config loaded from config.yaml — upstream MCPs as `status: pending` placeholders
 - OAuth 2.1 bypass loopback (dev mode), enforced when HERMES_STRICT_MCP=1
 
-F.5.2 entrega real custom MCPs + tools dispatch via fastmcp.
-F.5.3 entrega mcp_registry table seed.
-F.5.4 entrega validate_implementation.py phase F.
+F.5.2 entrega real custom MCPs (3 customs ACTIVE).
+F.5.3 entrega dispatch real fastmcp.Client + MCPClientPool + S2 logging mcp_calls
+       + seed mcp_registry 11 rows.
+F.5.4 entrega validate_implementation.py phase F grep-audit.
 
-NOT IMPLEMENTED in F.5.1 (by design):
-- Actual upstream MCP dispatch (placeholders return 503)
-- mcp_calls audit DB writes (F.6 entrega via ToolRegistry.invoke middleware)
-- OAuth 2.1 token issuance (F.5.2 entrega when first custom MCP needs it)
+F.5.3 NOT YET IMPLEMENTED (by design):
+- OAuth 2.1 token issuance (F.5.6 quando primeiro MCP público demandar JWT)
+- ToolRegistry.invoke middleware F.6 (Brain wrap superset deste logging)
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import sqlite3
+import sys
 import time
+import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-GATEWAY_VERSION = "0.1.0-f5.1"
+from ._pool import MCPClientPool
+
+GATEWAY_VERSION = "0.2.0-f5.3"
 DEFAULT_BIND_HOST = "127.0.0.1"
 DEFAULT_BIND_PORT = 55401
+
+# Sensitive keys mask em mcp_calls.args/response (defense-in-depth — wrappers
+# já fazem sanitize per-tool, mas gateway é última camada antes DB persist).
+_SENSITIVE_KEYS = frozenset({
+    "li_at", "token", "cookie", "cookies", "password", "auth", "authorization",
+    "jsessionid", "csrf", "csrf_token", "api_key", "apikey", "secret", "bearer",
+    "li_rm", "lidc", "bcookie", "bscookie", "x-li-track", "x_li_track",
+    "liap", "usermatchhistory", "analyticssynchistory",
+})
+
+
+def _sanitize(value: Any) -> Any:
+    """Mask sensitive keys recursive (preserves structure)."""
+    if isinstance(value, dict):
+        out = {}
+        for k, v in value.items():
+            if str(k).strip().lower() in _SENSITIVE_KEYS:
+                out[k] = "[REDACTED]"
+            else:
+                out[k] = _sanitize(v)
+        return out
+    if isinstance(value, list):
+        return [_sanitize(item) for item in value]
+    return value
+
+
+def _truncate_json(value: Any, max_bytes: int = 10000) -> Optional[str]:
+    """Serialize + truncate pra evitar payloads gigantes em mcp_calls DB."""
+    if value is None:
+        return None
+    try:
+        s = json.dumps(_sanitize(value), default=str, ensure_ascii=False)
+    except Exception:
+        s = str(value)
+    if len(s.encode("utf-8")) > max_bytes:
+        return s[:max_bytes] + "...[TRUNCATED]"
+    return s
+
+
+def _resolve_db_path() -> Path:
+    """Locate mcp_calls SQLite DB.
+
+    VM: ~/.hermes/data/command_center.db (master).
+    Dev/PC: hermes_local.db at repo root.
+    Override: HERMES_MCP_CALLS_DB env var.
+    """
+    override = os.getenv("HERMES_MCP_CALLS_DB")
+    if override:
+        return Path(override)
+    vm_db = Path.home() / ".hermes" / "data" / "command_center.db"
+    if vm_db.exists():
+        return vm_db
+    # Fallback: repo root hermes_local.db (dev)
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    return repo_root / "hermes_local.db"
 
 logger = logging.getLogger("hermes.gateway")
 if not logger.handlers:
@@ -69,12 +129,32 @@ def build_app(config_path: Path | None = None) -> FastAPI:
     audit_path_raw = gw_cfg.get("audit_log_path", "~/.hermes/logs/gateway_audit.jsonl")
     audit_path = Path(os.path.expanduser(audit_path_raw))
 
+    # F.5.3 — connection pool (TTL + max_idle from config)
+    pool_ttl = int(gw_cfg.get("pool_ttl_seconds", 300))
+    pool_max_idle = int(gw_cfg.get("pool_max_idle", 10))
+    pool = MCPClientPool(ttl_seconds=pool_ttl, max_idle=pool_max_idle)
+    db_path = _resolve_db_path()
+    upstream_by_name = {m.get("name"): m for m in upstream}
+
     app = FastAPI(
         title="Hermes ContextForge Gateway",
         version=GATEWAY_VERSION,
         docs_url=None,
         redoc_url=None,
     )
+
+    # Store pool no app.state pra shutdown handler acessar
+    app.state.pool = pool
+    app.state.db_path = db_path
+
+    @app.on_event("shutdown")
+    async def _shutdown_close_pool():
+        # F.5.3 evita zombie subprocess VM quando uvicorn termina
+        try:
+            await pool.close_all()
+            logger.info("Gateway shutdown: pool closed")
+        except Exception as exc:
+            logger.warning("Gateway shutdown pool close failed: %s", exc)
 
     @app.middleware("http")
     async def auth_loopback(request: Request, call_next):
@@ -162,17 +242,131 @@ def build_app(config_path: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=500, detail=f"audit-log read failed: {exc}")
 
     @app.post("/dispatch/{server_name}/{tool_name}")
-    async def dispatch_placeholder(server_name: str, tool_name: str) -> dict[str, Any]:
-        """F.5.1 returns 503 — actual dispatch lands in F.5.2 via fastmcp.Client."""
-        matched = next((m for m in upstream if m.get("name") == server_name), None)
+    async def dispatch_real(
+        server_name: str,
+        tool_name: str,
+        request: Request,
+    ) -> dict[str, Any]:
+        """F.5.3 dispatch real via fastmcp.Client pool. Logs em mcp_calls (S2)."""
+        matched = upstream_by_name.get(server_name)
         if not matched:
             raise HTTPException(status_code=404, detail=f"Unknown server: {server_name}")
-        raise HTTPException(
-            status_code=503,
-            detail=f"{server_name}.{tool_name} not yet wired (status={matched.get('status')}). F.5.2 entrega.",
-        )
+        status = matched.get("status", "pending")
+        if status != "active":
+            raise HTTPException(
+                status_code=503,
+                detail=f"{server_name}.{tool_name} upstream status={status} (not active)",
+            )
+        if matched.get("transport", "stdio") != "stdio":
+            raise HTTPException(
+                status_code=501,
+                detail=f"{server_name} transport={matched.get('transport')} not implemented (F.5.6 http/sse)",
+            )
+
+        # Parse args body (JSON)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        args = body.get("args", {}) if isinstance(body, dict) else {}
+        requester = (body.get("requester") if isinstance(body, dict) else None) or "api"
+
+        call_id = str(uuid.uuid4())
+        start = time.monotonic()
+        response_payload: Any = None
+        err_msg: Optional[str] = None
+        status_code = 200
+
+        try:
+            command = matched.get("command", "python3")
+            # Custom MCPs precisam fastmcp instalado. Se config=='python3'/'python',
+            # usa sys.executable (mesmo Python do gateway — garante fastmcp disponível
+            # quando gateway rodando em venv). Override explícito (path absoluto) preservado.
+            if command in ("python", "python3"):
+                command = sys.executable
+            cmd_args = list(matched.get("args", []) or [])
+            cwd = matched.get("cwd")
+            client = await pool.acquire(server_name, command, cmd_args, cwd=cwd)
+            result = await client.call_tool(tool_name, args)
+            # fastmcp 3.x returns CallToolResult; extract content payload
+            if hasattr(result, "data"):
+                response_payload = result.data
+            elif hasattr(result, "content"):
+                response_payload = [
+                    {"type": getattr(c, "type", "?"), "text": getattr(c, "text", None)}
+                    for c in result.content
+                ]
+            else:
+                response_payload = str(result)
+            return {
+                "ok": True,
+                "call_id": call_id,
+                "server": server_name,
+                "tool": tool_name,
+                "response": response_payload,
+                "duration_ms": int((time.monotonic() - start) * 1000),
+            }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            err_msg = str(exc)
+            status_code = 500
+            logger.exception("dispatch %s.%s failed", server_name, tool_name)
+            raise HTTPException(status_code=500, detail=f"dispatch failed: {err_msg}")
+        finally:
+            duration_ms = int((time.monotonic() - start) * 1000)
+            # S2 fire-and-forget INSERT mcp_calls (DB fail NÃO bloqueia dispatch)
+            try:
+                _log_mcp_call(
+                    db_path,
+                    call_id=call_id,
+                    server=server_name,
+                    tool=tool_name,
+                    args=args,
+                    response=response_payload if err_msg is None else None,
+                    error=err_msg,
+                    duration_ms=duration_ms,
+                    requester=requester,
+                )
+            except Exception as log_exc:
+                logger.error("mcp_calls log failed: %s", log_exc)
+
+    @app.get("/pool/stats")
+    async def pool_stats() -> dict[str, Any]:
+        """Pool debugging endpoint (loopback only via auth middleware)."""
+        return pool.stats()
 
     return app
+
+
+def _log_mcp_call(
+    db_path: Path,
+    *,
+    call_id: str,
+    server: str,
+    tool: str,
+    args: Any,
+    response: Any,
+    error: Optional[str],
+    duration_ms: int,
+    requester: str,
+) -> None:
+    """Fire-and-forget INSERT em mcp_calls. Sanitized + truncated 10KB."""
+    if not db_path.exists():
+        # Skip silent se DB ausente — gateway pode subir antes server.py applicar migration
+        return
+    args_str = _truncate_json(args)
+    response_str = _truncate_json(response)
+    conn = sqlite3.connect(str(db_path), timeout=5.0)
+    try:
+        conn.execute(
+            """INSERT INTO mcp_calls (id, server, tool, args, response, error, duration_ms, requester)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (call_id, server, tool, args_str, response_str, error, duration_ms, requester),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def main() -> None:
