@@ -22,6 +22,7 @@ import argparse
 import asyncio
 import os
 import sys
+import time
 from pathlib import Path
 
 # Garante que rodando como modulo
@@ -30,6 +31,8 @@ if __name__ == "__main__" and __package__ is None:
     from linkedin.lab import lab_runner  # noqa
 else:
     pass
+
+from linkedin.lab._event_emit import emit, mask_email  # noqa: E402
 
 
 def build_lab_config(account_email: str, profile_name: str):
@@ -75,23 +78,49 @@ async def main_async(args):
     print(f"[lab] proxy={config.proxy_server or 'NONE (residential IP nativo)'}")
     print()
 
-    if args.flow == "fingerprint":
-        from linkedin.lab.flows import fingerprint_baseline
-        sites = args.sites.split(",") if args.sites else None
-        result = await fingerprint_baseline.run(config, sites=sites)
-    elif args.flow == "login":
-        from linkedin.lab.flows import login
-        result = await login.run(config, manual_password=args.manual_password)
-    elif args.flow == "viewer":
-        from linkedin.lab.flows import viewer_test
-        result = await viewer_test.run(config, search_term=args.search, profile_index=args.profile_index)
-    else:
-        raise SystemExit(f"flow invalido: {args.flow}")
+    emit(
+        "run_started",
+        flow=args.flow,
+        account_email_masked=mask_email(config.account_email),
+        profile_name=args.profile_name,
+        run_id=os.environ.get("HERMES_LAB_RUN_ID", ""),
+    )
 
+    t0 = time.time()
+    try:
+        if args.flow == "fingerprint":
+            from linkedin.lab.flows import fingerprint_baseline
+            sites = args.sites.split(",") if args.sites else None
+            result = await fingerprint_baseline.run(config, sites=sites)
+        elif args.flow == "login":
+            from linkedin.lab.flows import login
+            result = await login.run(config, manual_password=args.manual_password)
+        elif args.flow == "viewer":
+            from linkedin.lab.flows import viewer_test
+            result = await viewer_test.run(config, search_term=args.search, profile_index=args.profile_index)
+        else:
+            raise SystemExit(f"flow invalido: {args.flow}")
+    except Exception as e:
+        emit(
+            "run_failed",
+            flow=args.flow,
+            error=f"{type(e).__name__}: {str(e)[:500]}",
+            duration_ms=int((time.time() - t0) * 1000),
+        )
+        raise
+
+    duration_ms = int((time.time() - t0) * 1000)
     print()
     print("=" * 70)
     print(f"[lab] FLOW {args.flow.upper()} COMPLETO")
     print("=" * 70)
+    emit(
+        "run_completed",
+        flow=args.flow,
+        duration_ms=duration_ms,
+        status="success",
+        summary=str(result)[:200] if result else "",
+    )
     return result
 
 
@@ -111,6 +140,7 @@ def main():
         asyncio.run(main_async(args))
     except KeyboardInterrupt:
         print("\n[lab] interrompido")
+        emit("run_failed", flow=args.flow, error="interrupted_by_user")
         sys.exit(130)
 
 
