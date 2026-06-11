@@ -72,6 +72,27 @@ upstream_mcps:
       - get_metrics
 
   # F.5.6 D1 — 5 publics ACTIVE (Hunter deferred F.future per D1 cristalizado)
+  - name: playwright
+    status: active            # F.5.6d — Microsoft Playwright MCP (NON-LinkedIn ONLY scope per GUARDRAILS § F.5 BLACKLIST R2)
+    kind: public
+    chapter_owner: F.6
+    required_by_dc: [F.6]
+    transport: stdio
+    command: npx
+    args: ["-y", "@playwright/mcp", "--headless", "--isolated"]
+    cwd: null
+    auth_env: null
+    scope_notes: "🛑 CRITICAL SCOPE — NON-LinkedIn ONLY. F.6 Brain web research público sem login (research_competitor_site, scrape_marketplace_listing, etc). NUNCA LinkedIn flows (continuam linkedin/lab/ + linkedin/viewer.py Patchright VM-only — BLACKLIST R2 intact per GUARDRAILS § F.5). NUNCA scraping perfis LinkedIn (reserved mcp.hermes-linkedin.scrape_profile). --headless + --isolated session-scoped (sem cookies persist cross-call)."
+    tools_preview:
+      - browser_navigate
+      - browser_snapshot
+      - browser_screenshot
+      - browser_click
+      - browser_type
+      - browser_select_option
+      - browser_close
+      - browser_wait_for
+
   - name: postgres
     status: active            # F.5.6c D4 VALIDATION RESULT: FALLBACK self-host Docker (no hosted free tier exists; open-source IS the product)
     kind: public

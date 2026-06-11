@@ -61,13 +61,14 @@
       "oauth_required": 1
     },
     {
-      "server": "playwright_ms",
-      "tools": ["browser_navigate", "browser_click", "browser_snapshot", "browser_screenshot"],
-      "status": "reserved",
-      "chapter_owner": "F.5.6",
-      "required_by_dc": ["F.3"],
-      "tier": "reserved",
-      "oauth_required": 1
+      "server": "playwright",
+      "tools": ["browser_navigate", "browser_snapshot", "browser_screenshot", "browser_click", "browser_type", "browser_select_option", "browser_close", "browser_wait_for"],
+      "status": "active",
+      "chapter_owner": "F.6",
+      "required_by_dc": ["F.6"],
+      "tier": "active",
+      "oauth_required": 0,
+      "scope_critical": "NON-LinkedIn ONLY — BLACKLIST R2 intact per GUARDRAILS § F.5"
     },
     {
       "server": "omnisearch",
