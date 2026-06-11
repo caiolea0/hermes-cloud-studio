@@ -1,0 +1,802 @@
+{
+  "period": {
+    "start": "2026-06-01T00:00:00Z",
+    "end": "2026-06-30T23:59:59Z"
+  },
+  "generated_at": "2026-06-11T10:25:56.044371Z",
+  "summary": {
+    "total_tools": 52,
+    "by_tier": {
+      "total_tools": 52,
+      "active": 0,
+      "warning": 0,
+      "orphan": 21,
+      "deprecated": 0,
+      "quarantine": 0,
+      "reserved": 31
+    },
+    "drift_count": 21,
+    "total_calls_30d": 0,
+    "errors_30d": 0
+  },
+  "items": [
+    {
+      "server": "hermes-linkedin",
+      "tool": "get_health",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "get_rate_limits",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "get_warmup_status",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "get_account_profile",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "assert_account_safe",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "preflight_check",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "probe_cooldown",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "start_campaign",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "search_prospects",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "score_lead",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "mark_converted",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "get_campaign_stats",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "enrich_pipeline",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "list_top_scored",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "get_by_status",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "list_skills",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "get_skill",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "toggle_active",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "propose_skill_yaml_stub",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "test_skill_dryrun",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "get_metrics",
+      "tier": "orphan",
+      "registry_tier": "active",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": true,
+      "chapter_owner": "F.5.2"
+    },
+    {
+      "server": "github",
+      "tool": "create_pull_request",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "github",
+      "tool": "list_pull_requests",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "github",
+      "tool": "get_pr",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "github",
+      "tool": "merge_pr",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "github",
+      "tool": "create_issue",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "sentry",
+      "tool": "list_issues",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "sentry",
+      "tool": "capture_exception",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "sentry",
+      "tool": "resolve_issue",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "sentry",
+      "tool": "trigger_seer_root_cause",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "postgres",
+      "tool": "query",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "postgres",
+      "tool": "execute",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "postgres",
+      "tool": "list_schemas",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "postgres",
+      "tool": "describe_table",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "playwright_ms",
+      "tool": "browser_navigate",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "playwright_ms",
+      "tool": "browser_click",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "playwright_ms",
+      "tool": "browser_snapshot",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "playwright_ms",
+      "tool": "browser_screenshot",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "omnisearch",
+      "tool": "search_brave",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "omnisearch",
+      "tool": "search_kagi",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "omnisearch",
+      "tool": "search_exa",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "omnisearch",
+      "tool": "fetch_firecrawl",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "hunter",
+      "tool": "verify_email",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "hunter",
+      "tool": "domain_search",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "hunter",
+      "tool": "email_finder",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "filesystem",
+      "tool": "read_file",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "filesystem",
+      "tool": "write_file",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "filesystem",
+      "tool": "list_directory",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "git",
+      "tool": "git_status",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "git",
+      "tool": "git_diff",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "git",
+      "tool": "git_log",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    },
+    {
+      "server": "git",
+      "tool": "git_show",
+      "tier": "reserved",
+      "registry_tier": "reserved",
+      "calls": 0,
+      "avg_ms": null,
+      "errors": 0,
+      "last_call": null,
+      "drift": false,
+      "chapter_owner": "F.5.6"
+    }
+  ],
+  "drift_detected": [
+    {
+      "server": "hermes-linkedin",
+      "tool": "get_health",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "get_rate_limits",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "get_warmup_status",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "get_account_profile",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "assert_account_safe",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "preflight_check",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "probe_cooldown",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-linkedin",
+      "tool": "start_campaign",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "search_prospects",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "score_lead",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "mark_converted",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "get_campaign_stats",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "enrich_pipeline",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "list_top_scored",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-prospects",
+      "tool": "get_by_status",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "list_skills",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "get_skill",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "toggle_active",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "propose_skill_yaml_stub",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "test_skill_dryrun",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    },
+    {
+      "server": "hermes-skills",
+      "tool": "get_metrics",
+      "registry_tier": "active",
+      "runtime_tier": "orphan",
+      "reason": "registered active but zero calls 30d"
+    }
+  ],
+  "explain_query_plan": {
+    "index_used": "idx_mcp_calls_server_tool_time",
+    "uses_index": true,
+    "plan": "SCAN mcp_calls USING COVERING INDEX idx_mcp_calls_server_tool_time"
+  }
+}
