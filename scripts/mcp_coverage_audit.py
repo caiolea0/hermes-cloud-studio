@@ -27,8 +27,21 @@ sys.path.insert(0, str(ROOT))
 from vm_core.mcp_tiering import aggregate_by_tier, classify_drift, classify_tier  # noqa: E402
 
 AUDIT_DIR = ROOT / ".claude" / "audits" / "mcp-coverage"
-DEFAULT_DB = ROOT / "hermes_local.db"
 SEED_PATH = ROOT / ".claude" / "mcp_registry_seed.json"
+
+
+def _resolve_default_db() -> Path:
+    """Mirror gateway _resolve_db_path: VM master then PC fallback then override."""
+    override = __import__("os").getenv("HERMES_MCP_CALLS_DB")
+    if override:
+        return Path(override)
+    vm_db = Path.home() / ".hermes" / "data" / "command_center.db"
+    if vm_db.exists():
+        return vm_db
+    return ROOT / "hermes_local.db"
+
+
+DEFAULT_DB = _resolve_default_db()
 
 
 def get_period_bounds(period: str) -> tuple[datetime, datetime]:

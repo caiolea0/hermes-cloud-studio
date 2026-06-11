@@ -19,6 +19,7 @@ F.5.3 NOT YET IMPLEMENTED (by design):
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -27,18 +28,24 @@ import sqlite3
 import sys
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from vm_core.mcp_tiering import classify_coverage
 
 from ._pool import MCPClientPool
 
-GATEWAY_VERSION = "0.2.0-f5.3"
+GATEWAY_VERSION = "0.3.0-f5.5"
+
+# F.5.5 D5 — in-memory async audit job registry.
+# Aceitavel audit mensal (proximo cron retry se VM restart pre-finish).
+# Endpoint /api/mcp/coverage/jobs/{id} retorna 404 jobs antigos pos-restart.
+_AUDIT_JOBS: dict[str, dict[str, Any]] = {}
 DEFAULT_BIND_HOST = "127.0.0.1"
 DEFAULT_BIND_PORT = 55401
 
@@ -379,19 +386,114 @@ def build_app(config_path: Path | None = None) -> FastAPI:
         return _coverage_latest(db_path)
 
     @app.post("/api/mcp/coverage/publish")
-    async def mcp_coverage_publish() -> JSONResponse:
-        """Stub manual trigger F.5.5 audit cron mensal."""
-        logger.info("mcp_coverage_publish stub called (F.5.5 entrega cron mensal)")
-        return JSONResponse(
+    async def mcp_coverage_publish(
+        bg: BackgroundTasks,
+        period: Optional[str] = None,
+    ) -> JSONResponse:
+        """F.5.5 D5 async — 202 + BackgroundTasks dispatch audit subprocess.
+
+        Owner trigger ad-hoc sem trava request (audit pode 30s+ com volume).
+        Status check via GET /api/mcp/coverage/jobs/{job_id}.
+        """
+        job_id = str(uuid.uuid4())
+        eff_period = period or datetime.now(timezone.utc).strftime("%Y-%m")
+        _AUDIT_JOBS[job_id] = {
+            "job_id": job_id,
+            "status": "queued",
+            "period": eff_period,
+            "queued_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
+            "started_at": None,
+            "finished_at": None,
+            "result_path": None,
+            "error": None,
+        }
+        # CRITICAL: job_id retornado ANTES bg.add_task (race se after — owner
+        # poderia receber 202 sem job_id se schedule falhasse).
+        response = JSONResponse(
             status_code=202,
             content={
-                "status": "accepted",
-                "next_step": "F.5.5 implementa mcp_coverage_audit.py cron mensal dia 15 9h BRT",
-                "output_path_template": ".claude/audits/mcp-coverage/MCP-COVERAGE-{YYYY-MM}.md",
+                "job_id": job_id,
+                "status": "queued",
+                "period": eff_period,
+                "poll_url": f"/api/mcp/coverage/jobs/{job_id}",
             },
         )
+        bg.add_task(_run_audit_background, job_id, eff_period)
+        return response
+
+    @app.get("/api/mcp/coverage/jobs/{job_id}")
+    async def mcp_coverage_job_status(job_id: str) -> dict[str, Any]:
+        """F.5.5 D5 — poll job status (queued|running|completed|failed).
+
+        Aceita 404 jobs antigos pos-restart (in-memory dict perde state).
+        """
+        job = _AUDIT_JOBS.get(job_id)
+        if not job:
+            raise HTTPException(
+                status_code=404,
+                detail=f"job not found: {job_id} (in-memory dict, pode ter expirado pos-restart)",
+            )
+        return job
 
     return app
+
+
+async def _run_audit_background(job_id: str, period: str) -> None:
+    """F.5.5 D5 background task — spawn audit script subprocess.
+
+    asyncio.create_subprocess_exec wrap em try/except + log finally (NAO silent fail).
+    Output path canonical: .claude/audits/mcp-coverage/MCP-COVERAGE-{period}.md.
+    """
+    job = _AUDIT_JOBS.get(job_id)
+    if not job:
+        logger.error("background task missing job_id=%s in _AUDIT_JOBS", job_id)
+        return
+    job["status"] = "running"
+    job["started_at"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
+    try:
+        # PC layout: <repo>/scripts/ + <repo>/mcps/gateway/server.py -> parent.parent.parent
+        # VM layout: ~/.hermes/mcps/scripts/ + ~/.hermes/mcps/gateway/server.py -> parent.parent
+        # Try both; first existing wins.
+        gateway_dir = Path(__file__).resolve().parent
+        candidates = [
+            gateway_dir.parent.parent / "scripts" / "mcp_coverage_audit.py",  # PC
+            gateway_dir.parent / "scripts" / "mcp_coverage_audit.py",         # VM
+        ]
+        script_path = next((p for p in candidates if p.exists()), None)
+        if not script_path:
+            raise FileNotFoundError(
+                f"audit script not found in: {[str(p) for p in candidates]}"
+            )
+        repo_root = script_path.parent.parent
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, str(script_path),
+            "--period", period, "--commit",
+            cwd=str(repo_root),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode == 0:
+            job["status"] = "completed"
+            job["result_path"] = (
+                f".claude/audits/mcp-coverage/MCP-COVERAGE-{period}.md"
+            )
+            job["stdout_tail"] = (stdout.decode(errors="ignore")[-500:]
+                                  if stdout else "")
+        else:
+            job["status"] = "failed"
+            job["error"] = (stderr.decode(errors="ignore")[-500:]
+                            if stderr else f"rc={proc.returncode}")
+            logger.error(
+                "audit subprocess failed job_id=%s rc=%s stderr=%s",
+                job_id, proc.returncode, job["error"],
+            )
+    except Exception as exc:
+        job["status"] = "failed"
+        job["error"] = str(exc)[:500]
+        logger.exception("audit background task crashed job_id=%s", job_id)
+    finally:
+        job["finished_at"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
 
 
 def _coverage_latest(db_path: Path) -> dict[str, Any]:
