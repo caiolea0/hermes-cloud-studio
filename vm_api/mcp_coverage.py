@@ -11,87 +11,16 @@ Cross-ref: PLAN.md F.5.3 D4 + .claude/MCP-ENFORCEMENT-STRATEGY.md sections 4.1+7
 """
 from __future__ import annotations
 
-import json
 import sqlite3
-from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
+from vm_core.mcp_tiering import classify_coverage
 from vm_core.state import DB_PATH, logger
 
 router = APIRouter(prefix="/api/mcp", tags=["mcp-coverage"])
-
-
-def _classify_tiers_realtime(call_rows: list[dict], registry_rows: list[dict]) -> dict:
-    """Tier per server+tool:
-    - active: last_call < 7d (alta atividade)
-    - warning: 7d <= last_call < 30d (atividade caindo)
-    - orphan: registered tools sem call last 30d (drift/zombie candidato)
-    - registry_tier override: deprecated/quarantine/reserved preserved from mcp_registry
-    """
-    now = datetime.utcnow()
-    week_ago = now - timedelta(days=7)
-
-    call_map = {(r["server"], r["tool"]): r for r in call_rows}
-    result = []
-
-    for reg in registry_rows:
-        try:
-            tools = json.loads(reg.get("tools") or "[]")
-        except (ValueError, TypeError):
-            tools = []
-        registry_tier = reg.get("tier", "active")
-        for tool in tools:
-            key = (reg["server"], tool)
-            if key in call_map:
-                r = call_map[key]
-                # Parse last_call timestamp (SQLite TIMESTAMP DEFAULT CURRENT_TIMESTAMP returns ISO)
-                try:
-                    last_call_dt = datetime.fromisoformat(r["last_call"].replace(" ", "T"))
-                except (ValueError, AttributeError):
-                    last_call_dt = None
-                if last_call_dt and last_call_dt > week_ago:
-                    tier = "active"
-                else:
-                    tier = "warning"
-                result.append({
-                    "server": reg["server"],
-                    "tool": tool,
-                    "calls": r["calls"],
-                    "avg_ms": r["avg_ms"],
-                    "last_call": r["last_call"],
-                    "errors": r["errors"],
-                    "tier": tier,
-                    "registry_tier": registry_tier,
-                    "chapter_owner": reg.get("chapter_owner"),
-                })
-            else:
-                # Orphan: tool registered but zero calls last 30d
-                tier = "orphan" if registry_tier in ("active",) else registry_tier
-                result.append({
-                    "server": reg["server"],
-                    "tool": tool,
-                    "calls": 0,
-                    "avg_ms": None,
-                    "last_call": None,
-                    "errors": 0,
-                    "tier": tier,
-                    "registry_tier": registry_tier,
-                    "chapter_owner": reg.get("chapter_owner"),
-                })
-
-    summary = {
-        "total_tools": len(result),
-        "active": sum(1 for i in result if i["tier"] == "active"),
-        "warning": sum(1 for i in result if i["tier"] == "warning"),
-        "orphan": sum(1 for i in result if i["tier"] == "orphan"),
-        "deprecated": sum(1 for i in result if i["registry_tier"] == "deprecated"),
-        "quarantine": sum(1 for i in result if i["registry_tier"] == "quarantine"),
-        "reserved": sum(1 for i in result if i["registry_tier"] == "reserved"),
-    }
-    return {"summary": summary, "items": result}
 
 
 @router.get("/coverage/latest")
@@ -139,7 +68,7 @@ async def mcp_coverage_latest() -> dict[str, Any]:
             ).fetchall()
         ]
 
-        classification = _classify_tiers_realtime(call_rows, registry_rows)
+        classification = classify_coverage(call_rows, registry_rows)
         return {
             "period_days": 30,
             **classification,

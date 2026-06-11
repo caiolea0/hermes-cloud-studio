@@ -27,13 +27,14 @@ import sqlite3
 import sys
 import time
 import uuid
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+
+from vm_core.mcp_tiering import classify_coverage
 
 from ._pool import MCPClientPool
 
@@ -393,58 +394,6 @@ def build_app(config_path: Path | None = None) -> FastAPI:
     return app
 
 
-def _classify_tiers_realtime(call_rows: list[dict], registry_rows: list[dict]) -> dict:
-    """Tier classification:
-    - active: last_call < 7d
-    - warning: 7d <= last_call < 30d
-    - orphan: tool registered (active tier) sem call last 30d
-    - registry_tier preservado: deprecated/quarantine/reserved override
-    """
-    now = datetime.utcnow()
-    week_ago = now - timedelta(days=7)
-    call_map = {(r["server"], r["tool"]): r for r in call_rows}
-    result = []
-    for reg in registry_rows:
-        try:
-            tools = json.loads(reg.get("tools") or "[]")
-        except (ValueError, TypeError):
-            tools = []
-        registry_tier = reg.get("tier", "active")
-        for tool in tools:
-            key = (reg["server"], tool)
-            if key in call_map:
-                r = call_map[key]
-                try:
-                    last_call_dt = datetime.fromisoformat(r["last_call"].replace(" ", "T"))
-                except (ValueError, AttributeError):
-                    last_call_dt = None
-                tier = "active" if (last_call_dt and last_call_dt > week_ago) else "warning"
-                result.append({
-                    "server": reg["server"], "tool": tool, "calls": r["calls"],
-                    "avg_ms": r["avg_ms"], "last_call": r["last_call"], "errors": r["errors"],
-                    "tier": tier, "registry_tier": registry_tier,
-                    "chapter_owner": reg.get("chapter_owner"),
-                })
-            else:
-                tier = "orphan" if registry_tier == "active" else registry_tier
-                result.append({
-                    "server": reg["server"], "tool": tool, "calls": 0,
-                    "avg_ms": None, "last_call": None, "errors": 0,
-                    "tier": tier, "registry_tier": registry_tier,
-                    "chapter_owner": reg.get("chapter_owner"),
-                })
-    summary = {
-        "total_tools": len(result),
-        "active": sum(1 for i in result if i["tier"] == "active"),
-        "warning": sum(1 for i in result if i["tier"] == "warning"),
-        "orphan": sum(1 for i in result if i["tier"] == "orphan"),
-        "deprecated": sum(1 for i in result if i["registry_tier"] == "deprecated"),
-        "quarantine": sum(1 for i in result if i["registry_tier"] == "quarantine"),
-        "reserved": sum(1 for i in result if i["registry_tier"] == "reserved"),
-    }
-    return {"summary": summary, "items": result}
-
-
 def _coverage_latest(db_path: Path) -> dict[str, Any]:
     """Live query mcp_calls + tier classify. Graceful degrade se migrations ausentes."""
     if not db_path.exists():
@@ -484,7 +433,7 @@ def _coverage_latest(db_path: Path) -> dict[str, Any]:
         registry_rows = [dict(r) for r in conn.execute(
             "SELECT server, tools, tier, chapter_owner FROM mcp_registry"
         ).fetchall()]
-        classification = _classify_tiers_realtime(call_rows, registry_rows)
+        classification = classify_coverage(call_rows, registry_rows)
         return {"period_days": 30, **classification}
     finally:
         conn.close()
