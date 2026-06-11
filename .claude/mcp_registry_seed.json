@@ -44,11 +44,11 @@
     },
     {
       "server": "sentry",
-      "tools": ["list_issues", "capture_exception", "resolve_issue", "trigger_seer_root_cause"],
-      "status": "reserved",
-      "chapter_owner": "F.5.6",
+      "tools": ["list_organizations", "list_projects", "list_issues", "get_issue", "resolve_issue", "list_events", "get_event", "assign_issue"],
+      "status": "active",
+      "chapter_owner": "F.4",
       "required_by_dc": ["F.4", "F.7"],
-      "tier": "reserved",
+      "tier": "active",
       "oauth_required": 1
     },
     {

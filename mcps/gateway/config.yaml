@@ -72,6 +72,27 @@ upstream_mcps:
       - get_metrics
 
   # F.5.6 D1 — 5 publics ACTIVE (Hunter deferred F.future per D1 cristalizado)
+  - name: sentry
+    status: active            # F.5.6b — Sentry observability (F.4 auto-disable + F.7 monitoring)
+    kind: public
+    chapter_owner: F.4
+    required_by_dc: [F.4, F.7]
+    transport: stdio
+    command: npx
+    args: ["-y", "@sentry/mcp-server"]
+    cwd: null
+    auth_env: SENTRY_ACCESS_TOKEN
+    scope_notes: "F.4 auto-disable trigger_seer_root_cause + F.7 cobaia error tracking. Owner adiciona SENTRY_ACCESS_TOKEN em ~/.hermes/.env VM (@sentry/mcp-server requer --access-token OR env SENTRY_ACCESS_TOKEN)."
+    tools_preview:
+      - list_organizations
+      - list_projects
+      - list_issues
+      - get_issue
+      - resolve_issue
+      - list_events
+      - get_event
+      - assign_issue
+
   - name: github
     status: active            # F.5.6a — GitHub PR-based skill deploy (F.4 Auto-Skill Loop W3)
     kind: public
