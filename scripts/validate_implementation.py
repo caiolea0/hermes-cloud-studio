@@ -297,11 +297,23 @@ def run_finding(f: Finding) -> Result:
 
 def main():
     p = argparse.ArgumentParser(description="Hermes implementation validation harness")
-    p.add_argument("--phase", help="Run só esta fase (A/B/C/D/E)")
+    p.add_argument("--phase", help="Run só esta fase (A/B/C/D/E/F)")
     p.add_argument("--finding", help="Run só este finding (ex: MERGED-001)")
     p.add_argument("--json", action="store_true", help="Output JSON")
     p.add_argument("--apply-flags", action="store_true", help="Reabrir tasks + atualizar PLAN para falhas")
+    # F.5.4 — phase F flags (auto-derive PLAN + BANNED-PATTERNS audit)
+    p.add_argument("--max-severity", default="blocker",
+                   choices=["blocker", "warn", "info"],
+                   help="Phase F only — minimum severity to report (default blocker CI strict)")
+    p.add_argument("--scope-add", action="append",
+                   help="Phase F only — extra glob path beyond SCOPE_PATHS")
     args = p.parse_args()
+
+    # F.5.4 — phase F wire (additive, zero refactor phases A-E)
+    if args.phase == "F":
+        sys.path.insert(0, str(Path(__file__).parent))
+        from _validate_phase_f import run_phase_f
+        return run_phase_f(args)
 
     try:
         findings = parse_checklist(CHECKLIST_PATH)
