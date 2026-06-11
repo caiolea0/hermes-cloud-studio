@@ -35,11 +35,11 @@
     },
     {
       "server": "github",
-      "tools": ["create_pull_request", "list_pull_requests", "get_pr", "merge_pr", "create_issue"],
-      "status": "reserved",
-      "chapter_owner": "F.5.6",
+      "tools": ["search_repositories", "get_file_contents", "create_or_update_file", "create_pull_request", "list_pull_requests", "get_pull_request", "merge_pull_request", "create_issue", "list_issues", "search_code"],
+      "status": "active",
+      "chapter_owner": "F.4",
       "required_by_dc": ["F.4"],
-      "tier": "reserved",
+      "tier": "active",
       "oauth_required": 1
     },
     {

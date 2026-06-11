@@ -5,7 +5,7 @@
 gateway:
   bind_host: 127.0.0.1
   bind_port: 55401
-  version: "0.2.0-f5.3"
+  version: "0.4.0-f5.6"
   # OAuth 2.1 default ON for custom MCPs. Localhost loopback bypass (dev mode).
   # Production VM enforces OAuth even loopback when HERMES_STRICT_MCP=1.
   oauth_enabled: true
@@ -71,11 +71,31 @@ upstream_mcps:
       - test_skill_dryrun
       - get_metrics
 
-# F.5.6 entrega — public MCPs integration (GitHub/Sentry/Postgres/Playwright/Omnisearch/Hunter)
+  # F.5.6 D1 — 5 publics ACTIVE (Hunter deferred F.future per D1 cristalizado)
+  - name: github
+    status: active            # F.5.6a — GitHub PR-based skill deploy (F.4 Auto-Skill Loop W3)
+    kind: public
+    chapter_owner: F.4
+    required_by_dc: [F.4]
+    transport: stdio
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    cwd: null
+    auth_env: GITHUB_PERSONAL_ACCESS_TOKEN
+    scope_notes: "F.4 PR-based deploy. PAT scope: repo + pull-request. Owner adiciona PAT em ~/.hermes/.env VM."
+    tools_preview:
+      - search_repositories
+      - get_file_contents
+      - create_or_update_file
+      - create_pull_request
+      - list_pull_requests
+      - get_pull_request
+      - merge_pull_request
+      - create_issue
+      - list_issues
+      - search_code
+
+# F.5.6 entrega — public MCPs integration (Hunter Firecrawl DEFERRED F.future per D1 D5)
 public_mcps_planned:
-  - github            # F.4 PR-based deploy
-  - sentry            # F.4 auto-disable + F.7 monitoring
-  - postgres_pro      # F.6 Brain.decide read-only + F.5.2 hermes-prospects delegate (D3)
-  - playwright_ms     # F.3 QA fallback
-  - omnisearch        # F.7 discovery PME Cuiaba
-  - hunter            # F.7 email verifier
+  - hunter            # F.7 email verifier — DEFERRED F.future (per D1 cristalizado)
+  - firecrawl         # DEFERRED F.future (per D5 — Omnisearch cobre web search F.6)
