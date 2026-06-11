@@ -72,6 +72,27 @@ upstream_mcps:
       - get_metrics
 
   # F.5.6 D1 — 5 publics ACTIVE (Hunter deferred F.future per D1 cristalizado)
+  - name: omnisearch
+    status: active            # F.5.6e — multi-engine web search (Brave/Kagi/Tavily) D5 cristalizado
+    kind: public
+    chapter_owner: F.6
+    required_by_dc: [F.6, F.7]
+    transport: stdio
+    command: npx
+    args: ["-y", "mcp-omnisearch"]
+    cwd: null
+    auth_env: TAVILY_API_KEY
+    scope_notes: "D5 cristalizado — Omnisearch multi-engine aggregator (Brave + Kagi + Tavily + Perplexity + Firecrawl). F.6 Brain web research universal + F.7 cobaia discovery PME Cuiabá. Owner adiciona pelo menos 1 provider key (TAVILY_API_KEY free tier 1000/mo recomendado) em ~/.hermes/.env VM. Firecrawl DEFERRED F.future (D5 cristalizado — Omnisearch cobre)."
+    tools_preview:
+      - search_brave
+      - search_kagi
+      - search_tavily
+      - search_perplexity
+      - read_url_firecrawl
+      - read_url_jina
+      - summarize_url_kagi
+      - enrich_url_jina
+
   - name: playwright
     status: active            # F.5.6d — Microsoft Playwright MCP (NON-LinkedIn ONLY scope per GUARDRAILS § F.5 BLACKLIST R2)
     kind: public

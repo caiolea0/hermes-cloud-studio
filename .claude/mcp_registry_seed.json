@@ -72,11 +72,11 @@
     },
     {
       "server": "omnisearch",
-      "tools": ["search_brave", "search_kagi", "search_exa", "fetch_firecrawl"],
-      "status": "reserved",
-      "chapter_owner": "F.5.6",
-      "required_by_dc": ["F.7"],
-      "tier": "reserved",
+      "tools": ["search_brave", "search_kagi", "search_tavily", "search_perplexity", "read_url_firecrawl", "read_url_jina", "summarize_url_kagi", "enrich_url_jina"],
+      "status": "active",
+      "chapter_owner": "F.6",
+      "required_by_dc": ["F.6", "F.7"],
+      "tier": "active",
       "oauth_required": 1
     },
     {
