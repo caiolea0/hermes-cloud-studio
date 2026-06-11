@@ -40,7 +40,7 @@ from vm_core.mcp_tiering import classify_coverage
 
 from ._pool import MCPClientPool
 
-GATEWAY_VERSION = "0.3.0-f5.5"
+GATEWAY_VERSION = "0.4.0-f5.6"
 
 # F.5.5 D5 — in-memory async audit job registry.
 # Aceitavel audit mensal (proximo cron retry se VM restart pre-finish).

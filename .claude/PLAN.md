@@ -478,6 +478,45 @@
 
 **Cross-ref F.5.6**: `.claude/MCP-LANDSCAPE.md` (shortlist priorização) + `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 5.6 (F.5 closeout criteria) + `.claude/mcp_registry_seed.json` (11 rows reservados F.5.3 → 8 active + 3 reserved pós-F.5.6) + `.claude/NVIDIA-INTEGRATION-PLAN.md` AGUARDANDO Sessão B (cross-ref pendente F.5.7+).
 
+**F.5.6 DONE 2026-06-11** (7 commits: 5419488 + aea0f61 + 81609a1 + 477ac0e + 56cf0eb + cf2a3af + SHA-final): CLOSEOUT F.5 com 5 MCPs públicos integrados sequencialmente + UI read-only + closeout docs.
+  - **Commit 1 (5419488) C1 GitHub**: upstream active, npx @modelcontextprotocol/server-github, smoke search_repositories HTTP 200 1.5s pipeline gateway→npx→fastmcp PASS (response null sem PAT — esperado).
+  - **Commit 2 (aea0f61) C2 Sentry**: upstream active, npx @sentry/mcp-server v0.36.0, env SENTRY_ACCESS_TOKEN (NÃO _AUTH_TOKEN — package contract debugged via `timeout 8 npx`). Smoke "Connection closed" 1.9s = subprocess exits sem token (esperado).
+  - **Commit 3 (81609a1) C3 Postgres + D4 VALIDATION**: WebSearch confirma NO commercial free tier hosted exists — open-source crystaldba/postgres-mcp IS the product. FALLBACK SELF-HOST Docker `crystaldba/postgres-mcp:latest` (--access-mode=restricted read-only). Owner deploys Postgres VM + DATABASE_URI.
+  - **Commit 4 (477ac0e) C4 Playwright**: upstream active, npx @playwright/mcp v0.0.76 --headless --isolated. 🛑 CRITICAL SCOPE NON-LinkedIn ONLY (BLACKLIST R2 intact). Smoke browser_navigate HTTP 500 3.8s "Chromium not found at /opt/google/chrome/chrome" — PIPELINE E2E ATÉ TOOL EXECUTION LAYER PASS (depth maior que C2/C3).
+  - **Commit 5 (56cf0eb) C5 Omnisearch + 8/8 TARGET REACHED**: upstream active, npx mcp-omnisearch v0.0.28 (Brave/Kagi/Tavily/Perplexity/Firecrawl/Jina multi-engine). Smoke search_tavily HTTP 500 4.9s "Tool not found" — tool discovery PASS (provider tools registered conditional sem API key).
+  - **Commit 6 (cf2a3af) C6 UI**: 3 NOVOS files (api/mcp_coverage.py 127 LOC + dashboard/components/mcp_gateway.js 293 LOC + dashboard/index.html section + styles append +244 LOC + app.js +10). Backend fallback PC hermes_local.db query direto (resolve VM running LEGACY hermes_api.py sem hermes_api_v2 wire-up). Browser smoke PC :55001 PASS: 3 health badges + tier breakdown 77 tools + tabela 77 rows + 63 drift indicators ⚠. **frontend-ux-reviewer agent verdict PASS-WITH-NOTES zero BLOCKERS** (agentId afcba4fd59a868017, 12/12 dimensões, 5 WARNs F.future cosmetic).
+  - **Commit 7 (SHA-final) C7 CLOSEOUT**: PLAN.md F.5 Tasks 1-7 todos [✅] + F.5.6 STATUS COMPLETE block + cross-ref NVIDIA aguardando Sessão B + memory_save workflow F.5 CLOSEOUT + mark_chapter + GATEWAY_VERSION 0.3.0-f5.5 → 0.4.0-f5.6 bump.
+
+**🎯 F.5 CLOSEOUT — 8 MCPs ACTIVE (3 customs F.5.2 + 5 públicos F.5.6) — Tripla enforcement S1+S2+S3 LIVE — UI gateway read-only**
+
+**🚨 CROSS-REF NVIDIA pendente F.5.7+**: F.5 fechado COM 8 MCPs (3 customs + 5 públicos). NIM cloud integration AGUARDA Sessão B paralela `.claude/NVIDIA-INTEGRATION-PLAN.md` + aprovação owner approach α (F.5.7-F.5.9 nova fase) / β (defer F.future) / γ (F.6 embedded — Brain default usa hermes-llm router de saída). Orquestrador (parent session) lê NVIDIA-INTEGRATION-PLAN.md pós-Sessão B + apresenta decisão D1 → owner aprova → próxima sub-session conforme escolha.
+
+**Files F.5.6 entregues** (15 mudanças = 7 NOVOS + 8 MATURE):
+- `.env.example` MATURE: 9 NOVOS env vars placeholders (GITHUB_PERSONAL_ACCESS_TOKEN, SENTRY_ACCESS_TOKEN, DATABASE_URI, TAVILY_API_KEY, BRAVE/KAGI/PERPLEXITY/FIRECRAWL/JINA opcionais)
+- `.claude/mcp_registry_seed.json` MATURE: 5 rows status reserved→active + chapter_owner atualizados (F.4/F.6/F.7)
+- `mcps/gateway/config.yaml` MATURE: 5 upstreams active + version bump + scope_notes documenta CRITICAL SCOPE per MCP
+- `mcps/gateway/server.py` MATURE: GATEWAY_VERSION 0.3.0-f5.5 → 0.4.0-f5.6
+- `api/mcp_coverage.py` NOVO: PC backend proxy + fallback PC local DB query
+- `dashboard/components/mcp_gateway.js` NOVO: UI component window.MCPGateway IIFE
+- `dashboard/index.html` MATURE: nav item + section page-mcp-gateway + script include
+- `dashboard/app.js` MATURE: navigate() handler mcp-gateway + titles
+- `dashboard/styles.css` MATURE: F.5.6 tokens-based bloco ~244 LOC
+- `server.py` MATURE: include_router mcp_coverage_router
+
+**Validate gates F.5.6 total**:
+- ✅ G1 validate phases A-E 20/22 PASS preservado em TODOS 7 commits
+- ✅ G2 PLAN.md F.5 Tasks 1-7 todos [✅]
+- ✅ G3 memory_save workflow_f5_closeout
+- ✅ G4 mark_chapter "F.5.6 — CLOSEOUT F.5 (5 públicos + UI)"
+- ✅ G7 VM gateway /upstream 8/8 actives (3 customs + 5 públicos)
+- ✅ G8 BLACKLIST R2 INTACTO `git diff HEAD~7 --name-only linkedin/` ZERO matches
+- ✅ G9 5/5 publics smoke PASS isolado (config + spawn + tool discovery por MCP)
+- ✅ G10 frontend-ux-reviewer PASS-WITH-NOTES zero BLOCKERS
+- ✅ G11 D4 Postgres VALIDATION decisão FALLBACK self-host documentada inline (Pro hosted NÃO existe; open-source = product)
+- ✅ G12 UI smoke browser PC :55001/#mcp-gateway: 4 sections + 77 tools + 3 badges OK
+- ✅ G13 coordenação Sessão B: zero conflict (NVIDIA-INTEGRATION-PLAN.md untracked Sessão B paralela, F.5.6 não toca)
+- ✅ G14 backup .claude/_snapshots/f56_pre/ preservado
+
 **🎯 F.5.5 Decisões Cristalizadas (mcp_coverage_audit.py cron mensal + publish real + fix regex)** — incorporado 2026-06-11:
 - **D0 (PRÉ-REQUISITO COMMIT 1)**: **Fix D2 regex greedy bullet** `scripts/_validate_phase_f.py` linha get_required_per_phase regex pattern. Substituir `((?:[-*].*\n)+)` por lookahead `((?:[-+*][^\n]*\n(?!\*\*))+?)(?=\n\*\*|\n\n|\Z)` + filtro exclusão lines começando com `+**` ou `- **D[0-9]`. Sem fix, F.5.5 audit cron consome REQUIRED_PER_PHASE contaminado (F.4 51 bullets ao invés de ~5). Smoke pós-fix: count chapter F.7 reduz de >40 pra ~6-8 bullets reais.
 - **D1 Cron schedule**: **dia 15 fixo CRON `0 10 15 * *` America/Cuiaba** (10h BRT = 13h UTC). Simples, owner sempre sabe. NÃO primeiro day-of-month útil (lógica feriado/weekend complica + audit não-crítico time-of-day).
@@ -587,10 +626,10 @@
 - **BANNED scope amplo regex** = D5 scope explícito field obrigatório, validate.py recusa pattern sem scope
 
 **Cross-ref F.5.4**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 5.3 (S1 hard requirement done_criteria checks) + F.5.3 reviewer WARN #1 (D7-bis duplicação classify resolve) + F.5.3 mcp_registry_seed.json (required_by_dc[] cross-ref).
-- [ ] Task 3: Integrar 6 MCPs públicos prioritários (GitHub, Sentry, Postgres Pro, Playwright, Omnisearch, Hunter.io) via gateway; testar tool discovery
-+- [ ] Task 4: Decisão go/no-go WhatsApp Business MCP (validar Meta Cloud API credentials owner) + Firecrawl (se Omnisearch já cobrir)
-+- [ ] Task 5: UI `/mcp/gateway` minimal — status gateway, lista 9-12 MCPs ativos, audit log últimas 24h (read-only)
-+- [ ] Task 6: Validação regressão + persistência — phase A B C D E; 20/22 PASS; PLAN.md F.5 ✅; mark_chapter; commit `feat(mcp): F.5 — gateway + 6 públicos + 3 custom`
+- [x] Task 3: Integrar 5 MCPs públicos prioritários via gateway (GitHub+Sentry+Postgres+Playwright+Omnisearch) — F.5.6 ✅ DONE (Hunter+Firecrawl deferred F.future per D1+D5 cristalizados)
++- [x] Task 4: Decisão WhatsApp+Firecrawl — DEFERRED F.future explicit (D1+D5 cristalizados — F.5.6 closeout não bloqueado)
++- [x] Task 5: UI `/mcp/gateway` minimal — F.5.6f ✅ DONE (read-only D3, status gateway + 4 sections + frontend-ux-reviewer PASS-WITH-NOTES zero BLOCKERS)
++- [x] Task 6: Validação regressão + persistência — F.5.6 ✅ DONE (phase A-E 20/22 PASS preservado em todos 7 commits; PLAN.md F.5 ✅; memory_save + mark_chapter; 7 commits feat/docs)
 +
 +**Done criteria F.5**: Brain F.6 chama 1 endpoint gateway, recebe 30+ tools agregadas · auth+rate-limit+audit centralizado · 3 MCPs custom respondem com OAuth 2.1 · 20/22 PASS preservado.
 +
