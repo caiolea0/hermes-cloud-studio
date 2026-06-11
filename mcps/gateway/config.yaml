@@ -72,6 +72,27 @@ upstream_mcps:
       - get_metrics
 
   # F.5.6 D1 — 5 publics ACTIVE (Hunter deferred F.future per D1 cristalizado)
+  - name: postgres
+    status: active            # F.5.6c D4 VALIDATION RESULT: FALLBACK self-host Docker (no hosted free tier exists; open-source IS the product)
+    kind: public
+    chapter_owner: F.6
+    required_by_dc: [F.6, F.7]
+    transport: stdio
+    command: docker
+    args: ["run", "-i", "--rm", "--network=host", "-e", "DATABASE_URI", "crystaldba/postgres-mcp:latest", "--access-mode=restricted"]
+    cwd: null
+    auth_env: DATABASE_URI
+    scope_notes: "D4 VALIDATION RESULT (documentado WebSearch 2026-06-11): NO commercial hosted free tier exists. Open-source crystaldba/postgres-mcp Docker image IS the product (github.com/crystaldba/postgres-mcp). FALLBACK SELF-HOST per GUARDRAILS § F.5 'Postgres MCP Pro ou nada' = self-host compliant. Owner deploys Postgres instance VM-local + sets DATABASE_URI em ~/.hermes/.env. --access-mode=restricted = read-only F.6 Brain.decide intro (write tools require owner-token escopado per GUARDRAILS § F.5)."
+    tools_preview:
+      - list_schemas
+      - list_objects
+      - get_object_details
+      - execute_sql
+      - explain_query
+      - analyze_db_health
+      - analyze_query_indexes
+      - get_top_queries
+
   - name: sentry
     status: active            # F.5.6b — Sentry observability (F.4 auto-disable + F.7 monitoring)
     kind: public

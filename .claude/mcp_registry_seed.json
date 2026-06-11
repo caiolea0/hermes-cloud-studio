@@ -53,11 +53,11 @@
     },
     {
       "server": "postgres",
-      "tools": ["query", "execute", "list_schemas", "describe_table"],
-      "status": "reserved",
-      "chapter_owner": "F.5.6",
+      "tools": ["list_schemas", "list_objects", "get_object_details", "execute_sql", "explain_query", "analyze_db_health", "analyze_query_indexes", "get_top_queries"],
+      "status": "active",
+      "chapter_owner": "F.6",
       "required_by_dc": ["F.6", "F.7"],
-      "tier": "reserved",
+      "tier": "active",
       "oauth_required": 1
     },
     {
