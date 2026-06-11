@@ -66,6 +66,26 @@ def classify_tier(
     return "deprecated"
 
 
+def classify_drift(registry_tier: str | None, runtime_tier: str | None) -> bool:
+    """F.5.5 D4 drift detection helper (single-source).
+
+    Drift = registered as active mas runtime estado degraded (orphan/warning/deprecated).
+    Sinal pra owner: deprecar OR investigar uso real.
+
+    Args:
+        registry_tier: tier persistido em mcp_registry (source-of-truth manual).
+        runtime_tier: tier classificado por classify_tier() runtime.
+
+    Returns:
+        True se drift detectado.
+    """
+    if registry_tier != "active":
+        return False
+    if runtime_tier in ("orphan", "warning", "deprecated"):
+        return True
+    return False
+
+
 def aggregate_by_tier(items: list[dict]) -> dict[str, int]:
     """Summary count por tier (use após classify_tier por item).
 

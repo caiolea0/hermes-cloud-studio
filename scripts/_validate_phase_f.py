@@ -65,27 +65,38 @@ def get_required_per_phase() -> dict[str, list[dict]]:
     result: dict[str, list[dict]] = {}
 
     # Parse PLAN.md "MCP HARD REQUIREMENTS (F.X)" sections
+    # F.5.5 D0 fix: capture lines pos-heading ate proxima section heading.
+    # Negative lookahead (?!\+?\*\*) at line start STOPS quando proxima line
+    # eh section heading (`**...` ou `+**...`). Post-process dropa blanks,
+    # non-bullet lines, headers, e "Decisoes Cristalizadas" bullets `**D\d+`.
     if PLAN_PATH.exists():
         plan = PLAN_PATH.read_text(encoding="utf-8")
-        # Match heading like "**🧰 MCP HARD REQUIREMENTS (F.5)**" or "**MCP HARD REQUIREMENTS (F.4)**"
-        # then capture bullet lines until empty line or next heading
         pattern = (
             r"\*\*[^*\n]*MCP HARD REQUIREMENTS \(F\.(\d+(?:\.\d+)?)\)\*\*[^\n]*\n"
-            r"((?:[-+*][^\n]*\n)+)"
+            r"((?:(?!\+?\*\*)[^\n]*\n)+)"
         )
+        d_bullet_re = re.compile(r"^\*\*D\d+")
         for match in re.finditer(pattern, plan):
             chapter = f"F.{match.group(1)}"
-            lines = match.group(2).strip().split("\n")
-            entries = [
-                {
-                    "requirement": ln.lstrip("-+* ").strip(),
-                    "source": "PLAN.md",
-                }
-                for ln in lines if ln.strip()
-            ]
-            if chapter not in result:
-                result[chapter] = []
-            result[chapter].extend(entries)
+            entries: list[dict] = []
+            for raw_line in match.group(2).split("\n"):
+                stripped = raw_line.strip()
+                if not stripped:
+                    continue
+                # D0 filter: PLAN.md diff-style `+- bullet` → strip leading +
+                if stripped.startswith("+"):
+                    stripped = stripped[1:].lstrip()
+                if not stripped or stripped[0] not in "-*+":
+                    continue
+                body = stripped.lstrip("-+* ").strip()
+                if not body:
+                    continue
+                # D0 filter: "Decisoes Cristalizadas" bullets (**D0**, **D1**, ...)
+                if d_bullet_re.match(body):
+                    continue
+                entries.append({"requirement": body, "source": "PLAN.md"})
+            if entries:
+                result.setdefault(chapter, []).extend(entries)
 
     # Cross-check seed required_by_dc[]
     if SEED_PATH.exists():
