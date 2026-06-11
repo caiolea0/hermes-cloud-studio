@@ -426,6 +426,58 @@
     2. **INFO F.5.5 — F.4 count 51 bullets contamination**: D1-D5 "Decisões Cristalizadas" lista include via `- **D1...`. Mesmo root cause #1.
     3. **INFO F.future — aggregate_by_tier dead branch cosmetic**: vm_core/mcp_tiering.py linhas 91-95 `if reg_tier != tier: pass` sem efeito. Refactor cosmético.
 - **F.5.4 PREP F.5.5**: `scripts/mcp_coverage_audit.py` cron mensal dia 15 9h BRT + `.claude/audits/mcp-coverage/MCP-COVERAGE-{YYYY-MM}.md` versionado git com tier classification + fix D2 regex parser greedy bullet (NOTE #1 reviewer) + EXPLAIN QUERY PLAN coverage endpoint (WARN F.5.5 reviewer F.5.3).
+
+**🎯 F.5.5 Decisões Cristalizadas (mcp_coverage_audit.py cron mensal + publish real + fix regex)** — incorporado 2026-06-11:
+- **D0 (PRÉ-REQUISITO COMMIT 1)**: **Fix D2 regex greedy bullet** `scripts/_validate_phase_f.py` linha get_required_per_phase regex pattern. Substituir `((?:[-*].*\n)+)` por lookahead `((?:[-+*][^\n]*\n(?!\*\*))+?)(?=\n\*\*|\n\n|\Z)` + filtro exclusão lines começando com `+**` ou `- **D[0-9]`. Sem fix, F.5.5 audit cron consome REQUIRED_PER_PHASE contaminado (F.4 51 bullets ao invés de ~5). Smoke pós-fix: count chapter F.7 reduz de >40 pra ~6-8 bullets reais.
+- **D1 Cron schedule**: **dia 15 fixo CRON `0 10 15 * *` America/Cuiaba** (10h BRT = 13h UTC). Simples, owner sempre sabe. NÃO primeiro day-of-month útil (lógica feriado/weekend complica + audit não-crítico time-of-day).
+- **D2 MCP-COVERAGE-{YYYY-MM}.md storage**: **git commit auto** pós-write file. `.claude/audits/mcp-coverage/MCP-COVERAGE-{YYYY-MM}.md` versionável history, owner consegue diff month-over-month tier drift detection. Commit message canônico: `docs(audit): MCP coverage YYYY-MM (X active, Y warning, Z orphan, W drift)`. NÃO só write file local (perde history).
+- **D3 Audit report formato**: **markdown table + JSON sibling**. `.claude/audits/mcp-coverage/MCP-COVERAGE-{YYYY-MM}.md` owner read + `.claude/audits/mcp-coverage/MCP-COVERAGE-{YYYY-MM}.json` F.future dashboard chart consumption. Schema JSON: `{period:{start,end}, summary:{counts_by_tier}, items:[{server,tool,tier,calls,avg_ms,errors,last_call,registry_tier,drift:bool}], drift_detected:[items]}`.
+- **D4 Tier drift detection**: **Sim, dedicated section "⚠️ DRIFT DETECTED"** no MD report. Drift definição: `registry.tier == "active" AND runtime.tier IN ("orphan","deprecated","warning")`. Sinal pra owner deprecar OR investigar. Sem drift section, audit vira ruído (só counts, sem actionable insight).
+- **D5 publish endpoint**: **async 202 + FastAPI BackgroundTasks**. `POST /api/mcp/coverage/publish` retorna 202 imediato + spawn background task `mcp_coverage_audit.run_audit(period_month)`. Owner pode trigger ad-hoc sem trava request 30s+. Status check via `GET /api/mcp/coverage/jobs/{job_id}` (NOVO endpoint). NÃO sync (audit pode 30s+ com 10k+ calls F.future).
+- **D6 (BONUS)**: **EXPLAIN QUERY PLAN verify** durante audit init. `EXPLAIN QUERY PLAN SELECT ... FROM mcp_calls WHERE created_at > X GROUP BY server,tool` confirma idx_mcp_calls_server_tool_time USE. Se SCAN sem USE INDEX, log WARNING pra owner. Resolve WARN F.5.5 reviewer F.5.3.
+
+**Files F.5.5** (3 NOVOS + 3 MATURE):
+- `scripts/mcp_coverage_audit.py` NOVO — orquestrador audit (run_audit(period_month) → gera MD+JSON+git commit, ~200-300 LOC). Pode rodar standalone CLI: `python scripts/mcp_coverage_audit.py --period 2026-06` OR via cron MCP.
+- `.claude/audits/mcp-coverage/` NOVO dir (gitkeep) — destino MD+JSON gerados.
+- `vm_api/mcp_jobs.py` NOVO — endpoint `GET /api/mcp/coverage/jobs/{job_id}` (status async job).
+- `scripts/_validate_phase_f.py` MATURE — fix D0 regex greedy bullet + filtro exclusão lines.
+- `mcps/gateway/server.py` MATURE — `/api/mcp/coverage/publish` 202 stub → async BackgroundTasks dispatch `mcp_coverage_audit.run_audit`.
+- `vm_core/mcp_tiering.py` MATURE — adicionar `classify_drift(registry_tier, runtime_tier) -> bool` helper (single-source D4 drift logic, reusable validate phase F também).
+
+**Schema audit JSON (D3)**:
+```json
+{
+  "period": {"start": "2026-06-01T00:00:00Z", "end": "2026-06-30T23:59:59Z"},
+  "generated_at": "2026-06-15T13:00:01Z",
+  "summary": {
+    "total_tools": 52,
+    "by_tier": {"active": 8, "warning": 3, "orphan": 12, "deprecated": 2, "quarantine": 0, "reserved": 27},
+    "drift_count": 4,
+    "total_calls_30d": 8341,
+    "errors_30d": 12
+  },
+  "items": [...],
+  "drift_detected": [
+    {"server":"hermes-linkedin","tool":"warmup_action","registry_tier":"active","runtime_tier":"orphan","reason":"registered active but zero calls 30d"},
+    ...
+  ],
+  "explain_query_plan": {"index_used": "idx_mcp_calls_server_tool_time", "uses_index": true}
+}
+```
+
+**Sub-task split F.5.5** (3 commits sub-session):
+- **Commit 1 (D0 fix + EXPLAIN verify)**: fix regex `_validate_phase_f.py` + retest auto-derive cache rebuild + add `classify_drift` helper vm_core/mcp_tiering.py + smoke verify count chapter F.7 reduz pra ~6-8 bullets.
+- **Commit 2 (audit script + MD+JSON output)**: `scripts/mcp_coverage_audit.py` standalone CLI + `.claude/audits/mcp-coverage/` dir + smoke `python mcp_coverage_audit.py --period 2026-06` gera MD+JSON corretamente + git commit auto opcional via flag `--commit`.
+- **Commit 3 (publish async + jobs endpoint + cron + deploy + reviewer + docs)**: gateway server.py publish 202 → BackgroundTasks + vm_api/mcp_jobs.py endpoint status + scheduled-tasks MCP cron registration `0 10 15 * *` + deploy VM + code-reviewer + PLAN.md docs.
+
+**🚨 Riscos F.5.5**:
+- **D0 regex fix quebra phases A-E** = sub-task isolado commit 1 + smoke phases gate antes prosseguir
+- **Cron MCP não persiste reboot VM** = scheduled-tasks MCP cron registration validate persistência (`mcp__scheduled-tasks__list_scheduled_tasks` confirma após VM restart)
+- **BackgroundTasks FastAPI executa in-process, perde se restart** = aceitável audit mensal (próximo cron retry) + log warning se job pending pré-restart
+- **git commit auto poluir history** = scope MD+JSON commit specific path `.claude/audits/mcp-coverage/` + dedicated commit msg pattern
+- **EXPLAIN QUERY PLAN SQLite specific** = nota README audit "SQLite specific syntax, port if Postgres F.future"
+
+**Cross-ref F.5.5**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 5.5 (S3 audit cron) + F.5.3 reviewer WARN F.5.5 (EXPLAIN) + F.5.4 reviewer NOTE #1 (D2 regex) + F.5.4 reviewer NOTE #2 (F.4 contamination).
 - [~] Task 5d-prep: gateway dispatch real (substitui placeholder 503 F.5.1/F.5.2)
       **F.5.3 DONE 2026-06-10** (commit 80ad9f4): mcps/gateway/_pool.py NOVO MCPClientPool (TTL 5min + max_idle 10 LRU evict + auto-respawn is_connected health check) + mcps/gateway/server.py _dispatch_real fastmcp.Client (substitui dispatch_placeholder 503) + _log_mcp_call fire-and-forget INSERT mcp_calls (DB fail NÃO bloqueia dispatch) + _sanitize 17 SENSITIVE_KEYS recursive + _truncate_json 10KB + sys.executable inheritance pra fastmcp venv VM + close_all shutdown handler evita zombie subprocess. config.yaml pool_ttl_seconds:300 + pool_max_idle:10. v0.1.0-f5.1 → 0.2.0-f5.3. fastmcp 3.4.2 instalado VM venv. Smoke VM 2 dispatches real PASS (get_health duration_ms 1661→8 reuse + list_skills 6 skills retornadas) + pool reuse confirmed + mcp_calls VM populated.
 - [~] Task 5d: OAuth Bearer middleware + 2 endpoints coverage
