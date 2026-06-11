@@ -34,6 +34,7 @@
 <script src="/dashboard/components/lab_gauge.js" defer></script>
 <script src="/dashboard/components/lab_fingerprint_diff.js" defer></script>
 <script src="/dashboard/components/lab_cockpit.js" defer></script>
+<script src="/dashboard/components/mcp_gateway.js" defer></script>
 </head>
 <body>
 
@@ -287,6 +288,10 @@
             <div class="nav-item" data-page="claude" onclick="navigate('claude')">
                 <svg><use href="#i-code"/></svg>
                 <span class="nav-label">AI Terminal</span>
+            </div>
+            <div class="nav-item" data-page="mcp-gateway" onclick="navigate('mcp-gateway')">
+                <svg><use href="#i-database"/></svg>
+                <span class="nav-label">MCP Gateway</span>
             </div>
         </nav>
         <div class="sidebar-footer">
@@ -1634,6 +1639,106 @@
             <!-- ========================== PAGE: LAB COCKPIT (F.3.3) ========================== -->
             <div class="page" id="page-lab">
                 <div data-component="lab-cockpit"></div>
+            </div>
+
+            <!-- ========================== PAGE: MCP GATEWAY (F.5.6f) ========================== -->
+            <div class="page" id="page-mcp-gateway">
+                <div data-component="mcp-gateway" class="mcp-gateway-view" aria-labelledby="mcp-gateway-heading">
+                    <header class="mcp-gateway-header">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <svg style="width:18px;height:18px;stroke:var(--accent-l)"><use href="#i-database"/></svg>
+                            <h2 id="mcp-gateway-heading" class="card-title" style="margin:0">MCP Gateway Status</h2>
+                        </div>
+                        <div class="mcp-header-actions">
+                            <span id="mcp-last-refresh" class="mcp-last-refresh" aria-live="polite">—</span>
+                            <button id="mcp-refresh-btn" class="btn btn-ghost btn-sm" type="button" aria-label="Atualizar gateway status agora">
+                                <svg aria-hidden="true"><use href="#i-refresh"/></svg> Atualizar
+                            </button>
+                        </div>
+                    </header>
+
+                    <div id="mcp-error-banner" class="mcp-error-banner" aria-live="polite"></div>
+
+                    <section class="card mcp-health-card" aria-label="Health badges gateway">
+                        <div class="card-header">
+                            <span class="card-title">Health Status</span>
+                        </div>
+                        <div class="mcp-health-row" role="list">
+                            <span id="mcp-badge-pc" class="mcp-badge badge-pending" role="listitem" aria-label="PC server status">...</span>
+                            <span id="mcp-badge-vm" class="mcp-badge badge-pending" role="listitem" aria-label="VM API status">...</span>
+                            <span id="mcp-badge-gateway" class="mcp-badge badge-pending" role="listitem" aria-label="Gateway status">...</span>
+                        </div>
+                    </section>
+
+                    <section class="card mcp-tier-card" aria-label="Tier breakdown summary">
+                        <div class="card-header">
+                            <span class="card-title">Tier Breakdown</span>
+                        </div>
+                        <div class="mcp-tier-grid" role="list">
+                            <div class="mcp-tier-cell mcp-tier-cell-total" data-mcp-tier="total" role="listitem">
+                                <span class="mcp-tier-count">—</span>
+                                <span class="mcp-tier-label">Total tools</span>
+                            </div>
+                            <div class="mcp-tier-cell mcp-tier-active" data-mcp-tier="active" role="listitem">
+                                <span class="mcp-tier-count">—</span>
+                                <span class="mcp-tier-label">Active</span>
+                            </div>
+                            <div class="mcp-tier-cell mcp-tier-warning" data-mcp-tier="warning" role="listitem">
+                                <span class="mcp-tier-count">—</span>
+                                <span class="mcp-tier-label">Warning</span>
+                            </div>
+                            <div class="mcp-tier-cell mcp-tier-orphan" data-mcp-tier="orphan" role="listitem">
+                                <span class="mcp-tier-count">—</span>
+                                <span class="mcp-tier-label">Orphan</span>
+                            </div>
+                            <div class="mcp-tier-cell mcp-tier-deprecated" data-mcp-tier="deprecated" role="listitem">
+                                <span class="mcp-tier-count">—</span>
+                                <span class="mcp-tier-label">Deprecated</span>
+                            </div>
+                            <div class="mcp-tier-cell mcp-tier-quarantine" data-mcp-tier="quarantine" role="listitem">
+                                <span class="mcp-tier-count">—</span>
+                                <span class="mcp-tier-label">Quarantine</span>
+                            </div>
+                            <div class="mcp-tier-cell mcp-tier-reserved" data-mcp-tier="reserved" role="listitem">
+                                <span class="mcp-tier-count">—</span>
+                                <span class="mcp-tier-label">Reserved</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="card mcp-table-card" aria-label="MCPs registry table">
+                        <div class="card-header">
+                            <span class="card-title">MCPs Registry (auto-refresh 60s)</span>
+                        </div>
+                        <div class="mcp-table-wrapper">
+                            <table class="mcp-table" aria-describedby="mcp-table-caption">
+                                <caption id="mcp-table-caption" class="sr-only">Tools registrados no gateway com tier, calls 24h e errors.</caption>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Server</th>
+                                        <th scope="col">Tool</th>
+                                        <th scope="col">Tier</th>
+                                        <th scope="col">Chapter</th>
+                                        <th scope="col">Calls 24h</th>
+                                        <th scope="col">Avg ms</th>
+                                        <th scope="col">Errors</th>
+                                        <th scope="col">Last call</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="mcp-table-body">
+                                    <tr><td colspan="8" class="mcp-empty-row">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="card mcp-audit-card" aria-label="Recent MCP calls audit log">
+                        <div class="card-header">
+                            <span class="card-title">Recent Calls (last 24h)</span>
+                        </div>
+                        <div id="mcp-audit-log" class="mcp-audit-log" role="log" aria-live="off"></div>
+                    </section>
+                </div>
             </div>
 
         </main>

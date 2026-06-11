@@ -493,7 +493,8 @@ function navigate(page) {
         memory: 'Memoria do Agente',
         missions: 'Missoes da Semana',
         claude: 'AI Terminal',
-        lab: 'Lab Cockpit'
+        lab: 'Lab Cockpit',
+        'mcp-gateway': 'MCP Gateway'
     };
     if (page === 'linkedin') {
         loadLinkedInPage();
@@ -540,6 +541,12 @@ function navigate(page) {
         if (window.HermesLabCockpit && typeof window.HermesLabCockpit.init === 'function') {
             try { window.HermesLabCockpit.init('[data-component="lab-cockpit"]'); }
             catch (e) { console.warn('HermesLabCockpit init failed', e); }
+        }
+    } else if (page === 'mcp-gateway') {
+        // F.5.6f — MCP Gateway read-only init (idempotent: re-entry refresh).
+        if (window.MCPGateway && typeof window.MCPGateway.init === 'function') {
+            try { window.MCPGateway.init('[data-component="mcp-gateway"]'); }
+            catch (e) { console.warn('MCPGateway init failed', e); }
         }
     }
 }

@@ -233,6 +233,7 @@ from api.tunnel import router as tunnel_router
 from api.bootstrap import router as bootstrap_router
 from api.user_prefs import router as user_prefs_router  # F.2.5b
 from api.lab import router as lab_router  # F.3.1 — Lab Cockpit
+from api.mcp_coverage import router as mcp_coverage_router  # F.5.6f — MCP Gateway UI proxy
 
 app.include_router(pipelines_router)
 app.include_router(linkedin_router)
@@ -244,6 +245,7 @@ app.include_router(tunnel_router)
 app.include_router(bootstrap_router)
 app.include_router(user_prefs_router)  # F.2.5b — /api/user-prefs GET/PUT
 app.include_router(lab_router)  # F.3.1 — /api/lab/* (Lab Cockpit backend)
+app.include_router(mcp_coverage_router)  # F.5.6f — /api/mcp/coverage/latest + /api/mcp/gateway/health (UI proxy)
 
 
 if __name__ == "__main__":
