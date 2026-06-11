@@ -1,0 +1,116 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "created": "2026-06-11",
+    "purpose": "F.5.4 seed — per-chapter scoped banned imports/calls. validate_implementation.py phase F enforce S1 hard requirement MCP-ENFORCEMENT-STRATEGY section 5.3.",
+    "schema": {
+      "pattern": "regex (re.search) per arquivo linha-por-linha",
+      "reason": "explicacao curta + onde owner deve refatorar (mcp.* via gateway)",
+      "severity": "BLOCKER (exit 1 CI) | WARN (stderr report exit 0) | INFO (stdout note)",
+      "scope": "OBRIGATORIO (D5) — comma-separated dirs/files relative repo root (ex: brain/, api/agent_zero.py)"
+    },
+    "cross_ref": ".claude/MCP-ENFORCEMENT-STRATEGY.md section 5.3 + PLAN.md F.5.4 D1"
+  },
+  "F.7": [
+    {
+      "pattern": "from linkedin\\.connector import",
+      "reason": "F.7 cobaia deve usar mcp.hermes-linkedin.start_campaign via gateway dispatch (nao import direto BLACKLIST R2 — F.5.2 wrapper)",
+      "severity": "BLOCKER",
+      "scope": "brain/, api/agent_zero.py"
+    },
+    {
+      "pattern": "from linkedin\\.limiter import",
+      "reason": "F.7 deve usar mcp.hermes-linkedin.get_rate_limits via gateway",
+      "severity": "BLOCKER",
+      "scope": "brain/, api/agent_zero.py"
+    },
+    {
+      "pattern": "from linkedin\\.account_profile import",
+      "reason": "F.7 deve usar mcp.hermes-linkedin.get_account_profile via gateway",
+      "severity": "WARN",
+      "scope": "brain/"
+    },
+    {
+      "pattern": "from linkedin\\.stealth import",
+      "reason": "F.7 NAO importa stealth direto — wrap via mcp.hermes-linkedin (BLACKLIST R2 R3)",
+      "severity": "BLOCKER",
+      "scope": "brain/, api/agent_zero.py, skills/"
+    },
+    {
+      "pattern": "from linkedin\\.cooldown import",
+      "reason": "F.7 deve usar mcp.hermes-linkedin.probe_cooldown via gateway",
+      "severity": "WARN",
+      "scope": "brain/, api/agent_zero.py"
+    },
+    {
+      "pattern": "from linkedin\\.preflight import",
+      "reason": "F.7 deve usar mcp.hermes-linkedin.preflight_check via gateway",
+      "severity": "WARN",
+      "scope": "brain/, api/agent_zero.py"
+    },
+    {
+      "pattern": "requests\\.(get|post)\\(['\"]https?://api\\.hunter\\.io",
+      "reason": "F.7 Task 6 deve usar mcp.hunter.verify_email via gateway (NAO requests direto api.hunter.io)",
+      "severity": "BLOCKER",
+      "scope": "brain/, api/agent_zero.py, skills/"
+    },
+    {
+      "pattern": "import sentry_sdk",
+      "reason": "F.7 Task 7 deve usar mcp.sentry.capture_exception via gateway (NAO sentry-sdk Python direto)",
+      "severity": "BLOCKER",
+      "scope": "brain/, api/agent_zero.py, skills/"
+    }
+  ],
+  "F.6": [
+    {
+      "pattern": "import sqlite3",
+      "reason": "F.6 Brain decide deve usar mcp.hermes-prospects.search_prospects + mcp.postgres.query via gateway (NAO sqlite3 bare)",
+      "severity": "BLOCKER",
+      "scope": "brain/"
+    },
+    {
+      "pattern": "from linkedin\\.",
+      "reason": "F.6 Brain NAO importa linkedin/* direto — wrap via mcp.hermes-linkedin (BLACKLIST R2)",
+      "severity": "BLOCKER",
+      "scope": "brain/"
+    },
+    {
+      "pattern": "open\\(.*skills/.*\\.yaml",
+      "reason": "F.6 Brain deve usar mcp.hermes-skills.list_skills via gateway (NAO open YAML bare)",
+      "severity": "WARN",
+      "scope": "brain/"
+    },
+    {
+      "pattern": "subprocess\\.(Popen|run|call)\\([^)]*gh ",
+      "reason": "F.6 deve usar mcp.github.* via gateway (NAO subprocess gh CLI)",
+      "severity": "WARN",
+      "scope": "brain/"
+    }
+  ],
+  "F.4": [
+    {
+      "pattern": "with open\\([^)]*skill_proposals\\.yaml[^)]*['\"]w['\"]",
+      "reason": "F.4 deve usar mcp.hermes-skills.propose_skill_yaml_stub (DB persist) via gateway",
+      "severity": "BLOCKER",
+      "scope": "skills/, api/agent_zero.py"
+    },
+    {
+      "pattern": "subprocess\\.(Popen|run|call)\\([^)]*git[^)]*push",
+      "reason": "F.4 GitHub PR deploy via mcp.github.create_pull_request (NAO subprocess git push direto)",
+      "severity": "WARN",
+      "scope": "skills/, api/agent_zero.py"
+    },
+    {
+      "pattern": "requests\\.(get|post)\\(['\"]https?://api\\.github\\.com",
+      "reason": "F.4 GitHub MCP via gateway (NAO requests direto api.github.com)",
+      "severity": "BLOCKER",
+      "scope": "skills/, api/agent_zero.py"
+    },
+    {
+      "pattern": "import sentry_sdk",
+      "reason": "F.4 auto-disable via mcp.sentry.list_issues via gateway (NAO sentry-sdk direto core/auto_skill_*.py)",
+      "severity": "BLOCKER",
+      "scope": "skills/, api/agent_zero.py"
+    }
+  ]
+}
