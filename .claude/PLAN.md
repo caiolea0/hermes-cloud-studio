@@ -427,6 +427,54 @@
     3. **WARN F.5.5 — coverage endpoint sem EXPLAIN QUERY PLAN**: hoje OK volume pequeno, F.6 Brain emitir 1000+ calls/dia precisará verificar idx_mcp_calls_server_tool_time usage. F.5.5 audit incluir EXPLAIN.
     4. **WARN F.6 — pool lock single global**: asyncio.Lock serializa TODAS acquires entre todos servers. Hoje 3 customs OK. F.6 Brain concorrente precisar per-server lock granular pra evitar wait spike.
 - **F.5.3 PREP F.5.4**: validate_implementation.py phase F grep-audit + .claude/MCP-BANNED-PATTERNS.json declarativo + REQUIRED_PER_PHASE auto-derivado regex parse PLAN.md done_criteria seção "MCP HARD REQUIREMENTS (F.x)".
+
+**🎯 F.5.4 Decisões Cristalizadas (validate phase F grep-audit + BANNED-PATTERNS + extract mcp_tiering)** — incorporado 2026-06-10:
+- **D1 BANNED-PATTERNS.json schema**: **per-chapter scoped** `{"F.7":[{pattern, reason, severity, scope}], "F.6":[...], ...}` (granular, false-positive baixo, owner consegue ler diff por chapter). NÃO regex flat global (ruído cross-chapter, hard to maintain).
+- **D2 REQUIRED_PER_PHASE auto-derive**: **regex parse PLAN.md done_criteria seção "MCP HARD REQUIREMENTS (F.x)"** + cross-check `.claude/mcp_registry_seed.json` `required_by_dc[]` campo. Single source of truth = PLAN.md (evita drift PLAN vs validate.py). NÃO YAML manual paralelo. Cache result em `.claude/_validate_required_cache.json` invalidado por hash PLAN.md mtime.
+- **D3 Violation severity**: **3-tier BLOCKER + WARN + INFO** com flag `--max-severity {blocker,warn,info}` default `blocker` (CI), owner consegue `--max-severity info` local debug. BLOCKER = exit 1 commit fail. WARN = exit 0 stderr report. INFO = exit 0 stdout note. NÃO 2-tier (sem WARN owner perde signal early).
+- **D4 Extract `vm_core/mcp_tiering.py` ANTES validate phase F**: validate phase F usa `mcp_tiering.classify_tier(server, tool)` pra detectar drift (registered tier vs runtime tier). Refactor PRIMEIRO evita duplicação (3a cópia em validate.py seria pior). Resolve WARN D7-bis F.5.3 reviewer. Files: gateway server.py + vm_api/mcp_coverage.py importam de vm_core/mcp_tiering.py (zero duplicate logic).
+- **D5 Scope validate phase F**: **`mcps/* + brain/* + skills/* + api/agent_zero.py + hermes_api_v2.py + vm_api/*`** (entry points Brain + agent_zero + 2 shells API). NÃO codebase completo (lint world = noise). NÃO só `mcps/*` (perde Brain F.6 violations downstream). Owner adiciona path via `validate.py --scope-add <glob>` se F.future precisar.
+
+**Files F.5.4** (4 NOVOS + 3 MATURE):
+- `vm_core/mcp_tiering.py` NOVO — `classify_tier(server, tool, last_call_at, registry_tier) -> str` + `aggregate_by_tier(items) -> dict` (~80-120 linhas, single-source classify logic).
+- `vm_core/__init__.py` NOVO (se não existir já).
+- `.claude/MCP-BANNED-PATTERNS.json` NOVO — declarativo per-chapter scoped (15-25 patterns iniciais 3 customs F.5.2 wrappers como reference).
+- `scripts/_validate_phase_f.py` NOVO — módulo phase F (separado pra não inchar validate_implementation.py).
+- `scripts/validate_implementation.py` MATURE — adicionar `elif args.phase == "F": from _validate_phase_f import run_phase_f; sys.exit(run_phase_f(args))` (zero refactor das phases A-E existentes).
+- `mcps/gateway/server.py` MATURE — substituir `_classify_tiers_realtime` inline por `from vm_core.mcp_tiering import classify_tier, aggregate_by_tier`.
+- `vm_api/mcp_coverage.py` MATURE — idem (D4 dedupe). Source-of-truth shared PC, deploy VM mesmo arquivo.
+
+**Patterns BANNED-PATTERNS.json iniciais** (F.5.4 seed, F.future expand):
+```json
+{
+  "F.7": [
+    {"pattern": "from linkedin\\.connector import", "reason": "F.7 deve usar mcp.hermes-linkedin.send_invite via gateway dispatch, não import direto", "severity": "BLOCKER", "scope": "brain/, api/agent_zero.py"},
+    {"pattern": "from linkedin\\.limiter import", "reason": "F.7 deve usar mcp.hermes-linkedin.get_rate_limits", "severity": "BLOCKER", "scope": "brain/, api/agent_zero.py"},
+    {"pattern": "from linkedin\\.account_profile import", "reason": "F.7 deve usar mcp.hermes-linkedin.get_account_profile via gateway", "severity": "WARN", "scope": "brain/"}
+  ],
+  "F.6": [
+    {"pattern": "import sqlite3.*FROM prospects", "reason": "F.6 deve usar mcp.hermes-prospects.search_prospects via gateway (não SQL direto)", "severity": "BLOCKER", "scope": "brain/decide.py, brain/tools.py"},
+    {"pattern": "open\\(.*skills/.*\\.yaml", "reason": "F.6 deve usar mcp.hermes-skills.list_skills via gateway", "severity": "WARN", "scope": "brain/"}
+  ],
+  "F.4": [
+    {"pattern": "with open.*skill_proposals\\.yaml", "reason": "F.4 deve usar mcp.hermes-skills.propose_skill_yaml_stub via gateway", "severity": "BLOCKER", "scope": "skills/, api/agent_zero.py"}
+  ]
+}
+```
+
+**Sub-task split F.5.4** (3 commits sub-session):
+- **Commit 1 (D4 refactor)**: extrair vm_core/mcp_tiering.py + dedupe gateway server.py + vm_api/mcp_coverage.py. Validate phase A-E preservado.
+- **Commit 2 (BANNED-PATTERNS + auto-derive)**: .claude/MCP-BANNED-PATTERNS.json seed 15-25 patterns + scripts/_validate_phase_f.py com parse PLAN.md regex auto-derive REQUIRED_PER_PHASE + cache invalidation.
+- **Commit 3 (wire + smoke + reviewer + docs)**: validate_implementation.py wire phase F + smoke 6 cases (BLOCKER hit / WARN hit / INFO hit / clean / cache hit / cache invalidation) + deploy VM + code-reviewer + PLAN.md docs.
+
+**🚨 Riscos F.5.4**:
+- **False-positive BLOCKER frustra dev** = scope strict (D5) + patterns surgical (D1 per-chapter) mitiga
+- **False-negative deixa regressão real** = smoke 6 cases obrigatório + reviewer specific dim "patterns catch realistic violations" 
+- **Drift PLAN.md vs validate.py** = D2 auto-derive resolve (cache invalidation por mtime hash)
+- **vm_core extract quebra gateway runtime** = D4 sub-task split commit 1 isolado, validate A-E gate antes prosseguir
+- **BANNED scope amplo regex** = D5 scope explícito field obrigatório, validate.py recusa pattern sem scope
+
+**Cross-ref F.5.4**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 5.3 (S1 hard requirement done_criteria checks) + F.5.3 reviewer WARN #1 (D7-bis duplicação classify resolve) + F.5.3 mcp_registry_seed.json (required_by_dc[] cross-ref).
 - [ ] Task 3: Integrar 6 MCPs públicos prioritários (GitHub, Sentry, Postgres Pro, Playwright, Omnisearch, Hunter.io) via gateway; testar tool discovery
 +- [ ] Task 4: Decisão go/no-go WhatsApp Business MCP (validar Meta Cloud API credentials owner) + Firecrawl (se Omnisearch já cobrir)
 +- [ ] Task 5: UI `/mcp/gateway` minimal — status gateway, lista 9-12 MCPs ativos, audit log últimas 24h (read-only)
