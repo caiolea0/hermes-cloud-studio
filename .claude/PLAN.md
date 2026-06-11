@@ -439,6 +439,45 @@
     3. **F.future — verify_query_plan SQLite-specific**: `EXPLAIN QUERY PLAN` parser não porta Postgres (`EXPLAIN (ANALYZE, FORMAT JSON)`). Linha 62 comentário explícito. Baixa prioridade até F.9 storage migration.
 - **F.5.5 PREP F.5.6**: integrar 5 MCPs públicos prioritários (GitHub F.4, Sentry F.4+F.7, Postgres Pro F.6+F.7, Playwright F.3, Omnisearch F.7) via gateway upstream config.yaml + tool discovery + UI `/mcp/gateway` minimal (status gateway + lista 9-12 MCPs ativos + audit log 24h read-only) + Hunter F.7 (email enrichment opcional) + cleanup F.5 closeout. Cron audit hermes-mcp-coverage-audit já registered — drift detection ativo após F.5.6 wire-up.
 
+**🎯 F.5.6 Decisões Cristalizadas (CLOSEOUT F.5 — 5 MCPs públicos + UI /mcp/gateway)** — incorporado 2026-06-11:
+- **D1 5 MCPs públicos finais**: **GitHub + Sentry + Postgres Pro + Playwright + Omnisearch** (per PLAN.md F.5 Task 3 atual + MCP-LANDSCAPE shortlist). NÃO Firecrawl (ROI menor sem use-case definido F.5/F.6, Omnisearch multi-engine cobre). Hunter F.7 (email enrichment) FICA DEFERRED — F.future opcional, não bloqueia F.5 closeout. Total registry pós-F.5.6: 3 customs + 5 públicos active + 3 reserved = 11 rows (idêntico seed F.5.3, status `reserved`→`active`).
+- **D2 Ordem integração**: **sequencial 1-a-1** (5 sub-commits MCP independentes + 1 commit UI + 1 commit closeout docs = 7 commits total). Cada MCP com smoke isolado (auth + 1 tool sanity call). Revert granular se 1 quebrar (NÃO bloqueia outros 4). NÃO paralelo (auth/rate-limit/discovery diferente cada — debugging dificultado em batch).
+- **D3 UI /mcp/gateway scope**: **read-only** (status gateway + lista MCPs ativos + audit log 24h + tier breakdown). NÃO write (toggle active/quarantine = security risk requires RBAC F.future feature flag). Mostra dados consumidos de `/api/mcp/coverage/latest` (F.5.3) + `/api/mcp/coverage/jobs/{id}` (F.5.5) — REUSE backend.
+- **D4 Postgres MCP Pro validation strategy**: **validar primeiro** free tier real `mcp.postgres-pro` capability (rate-limit, schema introspection, query types suportados). Se free limited (e.g., só SELECT, sem schema introspection ou rate < 100 req/dia) → fallback **self-host Postgres MCP standard** na VM GCP (Docker container + Postgres instance VM-local OR connect ao SQLite existing via wrapper). Decisão dentro do commit 3 (Postgres) — owner Claude documenta evidência + escolhe.
+- **D5 Omnisearch vs Firecrawl decisão final**: **Omnisearch** (multi-engine web search agregador — DuckDuckGo+Brave+Google fallback, melhor pra Brain F.6 web research). Firecrawl é specialist scraping (markdown extraction) — defer F.future se F.7 cobaia precisar deep scraping perfis (hoje cobre via mcp.hermes-linkedin.scrape_profile).
+- **D6 NVIDIA NIM stance F.5.6**: **NÃO INTEGRAR EM F.5.6** — aguardar Sessão B (`.claude/NVIDIA-INTEGRATION-PLAN.md` + `NVIDIA-MODELS-CATALOG.md`) concluir + owner aprovar approach α/β/γ. F.5.6 closeout F.5 com 8 MCPs total (3 customs + 5 públicos). Integração NIM vira F.5.7+ OR F.6 embedded conforme owner approval D1 do plan NVIDIA. **MCP HARD REQUIREMENT** F.5.6: deve incluir nota cross-ref aguardando plan NVIDIA — orquestrador atualiza pós-aprovação.
+
+**Files F.5.6** (1 NOVO UI dir + 3-5 NOVOS config + 4 MATURE):
+- `mcps/gateway/config.yaml` MATURE — adicionar 5 upstreams `pending`/`reserved` → `active` (GitHub, Sentry, Postgres Pro, Playwright, Omnisearch)
+- `.mcp.json` MATURE — 5 entries adicionados (transport+command+env var key references)
+- `.claude/mcp_registry_seed.json` MATURE — 5 rows status `reserved` → `active` + `chapter_owner` field atualizado per use-case (F.4/F.6/F.7)
+- `scripts/seed_mcp_registry.py` rerun MATURE (idempotente ON CONFLICT — sem código novo, só seed JSON update)
+- `dashboard/views/mcp-gateway.html` NOVO — UI read-only standalone view (status gateway alive + tabela MCPs ativos + tier badge + audit log último 24h tail)
+- `dashboard/css/mcp-gateway.css` NOVO — styles seguindo design system existente (tema dark/light Hermes)
+- `dashboard/js/mcp-gateway.js` NOVO — JS read-only fetch `/api/mcp/coverage/latest` + render tabela + auto-refresh 60s
+- `dashboard/app.js` MATURE — adicionar hash route `#mcp-gateway` + nav item
+- `.env.example` MATURE — adicionar 5 env var placeholders (GITHUB_PAT, SENTRY_AUTH_TOKEN, POSTGRES_URL, PLAYWRIGHT_PROFILE_PATH, OMNISEARCH_API_KEY — se aplicável)
+- `mcps/gateway/server.py` POSSIVELMENTE MATURE — se MCP público público requer config-specific dispatch (ex: GitHub PAT no header, Sentry org/project URL params). Idealmente ZERO touch (dispatch real F.5.3 já genérico).
+
+**Sub-task split F.5.6** (7 commits sub-session — sequencial 1-a-1 per D2):
+- **Commit 1**: GitHub MCP integrate (config.yaml + .mcp.json + seed_active + smoke list_repos)
+- **Commit 2**: Sentry MCP integrate (idem + smoke list_projects)
+- **Commit 3**: Postgres Pro MCP integrate + D4 validation (free tier capability check, decisão pro vs self-host documented) + smoke query_test_table
+- **Commit 4**: Playwright MCP integrate (config + smoke navigate_test_url — modo headless safe)
+- **Commit 5**: Omnisearch MCP integrate (config + smoke search_query)
+- **Commit 6**: UI `/mcp/gateway` read-only (HTML+CSS+JS + dashboard/app.js route + frontend-ux-reviewer agent verify acessibilidade + dark/light theme)
+- **Commit 7**: F.5 CLOSEOUT — PLAN.md F.5 Task 6 ✅ + Task #5 [completed] + memory_save + mark_chapter F.5.6 complete + reviewer pass + nota NVIDIA cross-ref aguardando aprovação
+
+**🚨 Riscos críticos F.5.6**:
+- **5 MCPs externos = 5 auth strategies** — cada um requer env var diferente, owner Claude valida `.env` PC+VM tem placeholders antes commit
+- **Postgres Pro free tier pode não existir** (D4 validation pode revelar paid-only) — fallback self-host Postgres VM Docker container, decisão runtime owner Claude
+- **UI touch dashboard requires frontend-ux-reviewer gate** (per GUARDRAILS § "🎨 UI changes gate") — adicionar agent invocação Commit 6
+- **Playwright MCP cuidado BLACKLIST R2 INTACTOS** — Playwright público é dev tool genérico, NÃO substitui linkedin/stealth (Patchright lab F.3.2). Owner Claude documenta scope: Playwright só pra non-LinkedIn use-cases (research web Brain F.6).
+- **Rate limit divergente** cada MCP — gateway F.5.3 pool TTL 5min adequado pra customs; públicos podem exigir backoff específico (defer F.future se observar 429 em produção)
+- **Coordenação Sessão B NVIDIA paralela** — pre-commit `git fetch + git status` validar não divergiu, rebase se necessário (low collision risk: Sessão B só toca `.claude/NVIDIA-*.md`, F.5.6 não toca esses paths)
+
+**Cross-ref F.5.6**: `.claude/MCP-LANDSCAPE.md` (shortlist priorização) + `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 5.6 (F.5 closeout criteria) + `.claude/mcp_registry_seed.json` (11 rows reservados F.5.3 → 8 active + 3 reserved pós-F.5.6) + `.claude/NVIDIA-INTEGRATION-PLAN.md` AGUARDANDO Sessão B (cross-ref pendente F.5.7+).
+
 **🎯 F.5.5 Decisões Cristalizadas (mcp_coverage_audit.py cron mensal + publish real + fix regex)** — incorporado 2026-06-11:
 - **D0 (PRÉ-REQUISITO COMMIT 1)**: **Fix D2 regex greedy bullet** `scripts/_validate_phase_f.py` linha get_required_per_phase regex pattern. Substituir `((?:[-*].*\n)+)` por lookahead `((?:[-+*][^\n]*\n(?!\*\*))+?)(?=\n\*\*|\n\n|\Z)` + filtro exclusão lines começando com `+**` ou `- **D[0-9]`. Sem fix, F.5.5 audit cron consome REQUIRED_PER_PHASE contaminado (F.4 51 bullets ao invés de ~5). Smoke pós-fix: count chapter F.7 reduz de >40 pra ~6-8 bullets reais.
 - **D1 Cron schedule**: **dia 15 fixo CRON `0 10 15 * *` America/Cuiaba** (10h BRT = 13h UTC). Simples, owner sempre sabe. NÃO primeiro day-of-month útil (lógica feriado/weekend complica + audit não-crítico time-of-day).
