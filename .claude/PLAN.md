@@ -491,6 +491,49 @@
 
 **🚨 CROSS-REF NVIDIA pendente F.5.7+**: F.5 fechado COM 8 MCPs (3 customs + 5 públicos). NIM cloud integration AGUARDA Sessão B paralela `.claude/NVIDIA-INTEGRATION-PLAN.md` + aprovação owner approach α (F.5.7-F.5.9 nova fase) / β (defer F.future) / γ (F.6 embedded — Brain default usa hermes-llm router de saída). Orquestrador (parent session) lê NVIDIA-INTEGRATION-PLAN.md pós-Sessão B + apresenta decisão D1 → owner aprova → próxima sub-session conforme escolha.
 
+**🎯 NVIDIA NIM Approach APROVADO 2026-06-11 — Caminho 1 (Opção C híbrida)**:
+- Owner aprovou: F.5.7 hermes-llm scaffold mínimo + integração orgânica F.6 (5h total) + A/A/B/A/A (D2 4o MCP custom separado / D3 OPT-IN per-skill credit / D4 self-host defer com checkpoint pós-F.7 / D5 manual mensal / D6 Inception Program validar elegibilidade)
+- **Auditoria modelos completa** → `.claude/NVIDIA-MODELS-ROUTING-MATRIX.md` NOVO (corrige catalog Sessão B com 4 modelos missing + 3 deprecations + Ollama RTX 2060 6GB sweet spot real benchmark + 12 tasks × 3-tier fallback explícito + failure detection logic + RPM cap handler)
+- **Gaps catalog Sessão B**: faltam `deepseek-ai/deepseek-v4-flash` (1M context F.4) + `nvidia/mistral-nemotron` (NIM declara best function calling any price F.6 Brain primary) + `nvidia/llama-3.1-nemotron-ultra-550b-v1` (flagship D3 opt-in) + `nvidia/nemotron-3-nano-omni` (F.future omnimodal cobaia screenshot)
+- **Deprecations catalog**: glm-4.7 deprecated (substituir glm-5.1), Kimi K2/K2-Thinking deprecated (K2.6 validar), Gemma 3 27B deprecated (validar Gemma 4 ID)
+- **Ollama RTX 2060 6GB stack recomendado T3 final** (corrige qwen3:8b lento 7-9 tok/s): `llama3.2:3b` primary (50 tok/s fastest) + `phi3:3.8b` (native function calling) + `qwen2.5:3b` classifier + `qwen2.5-coder:1.5b` code-gen ultra-fast + `nomic-embed-text` embeddings (manter)
+- **F.5.7 implementação consome routing matrix como ground truth** — 12 tasks com fallback T1 NIM Free → T2 NIM credit OPT-IN → T3 Ollama PC local até VM GPU F.future migration
+
+**🎯 F.5.7 Decisões Cristalizadas (hermes-llm MCP scaffold ~3h)** — incorporado 2026-06-11:
+- **D1 ESCOPO COMMIT 1**: scaffold `mcps/hermes-llm/` (server.py + 6 tools route/list_models/get_provider_status/track_cost/set_routing_policy/get_call_history + config.yaml + README.md + _smoke.py) seguindo pattern F.5.2 (3 commits Hermes-linkedin/prospects/skills) — boilerplate copy-adapt.
+- **D2 6 tools TODOS implementação real** (NÃO stub 503): `route()` consome `NVIDIA-MODELS-ROUTING-MATRIX.md` task→tier mapping. Cada tier failure cai pra próximo automaticamente (FALLBACK_TRIGGERS pseudocode §5.1 matrix). RpmLimiter sliding window 60s (§5.2 matrix).
+- **D3 _adapters.py 3 providers**: NIMClient OpenAI-compat (`base_url=https://integrate.api.nvidia.com/v1`, key env `HERMES_NIM_API_KEY`) + OllamaPCClient (`base_url=http://192.168.x.x:11434` via SSH reverse tunnel ou direct VM↔PC route) + OpenRouterClient (T4 último recurso reuse existing config). NÃO touch `linkedin/ollama_router.py` (coexiste).
+- **D4 _policy.py routing decisão**: per-task lookup `mcp_llm_models` table cache OR `config.yaml` static fallback. 3 policies pré-definidas (cost-optimize default / latency-optimize race / balanced 70/25/5).
+- **D5 Schema migration `mcp_calls` + `mcp_llm_models` + `nim_credit_history`** APENAS proposta inline matrix §5.1 — `.sql` file real cria F.5.7 sub-task explicit OR defer F.6 (avalia owner Claude session).
+- **D6 SCP deploy VM + gateway upstream config wire-up**: `mcps/hermes-llm/` SCP `~/mcps/hermes-llm/` + `mcps/gateway/config.yaml` upstream add row `hermes-llm` status=active chapter_owner=F.5.7 + `.claude/mcp_registry_seed.json` row hermes-llm + scripts/seed_mcp_registry.py rerun + systemctl restart gateway VM.
+
+**Files F.5.7** (1 NOVO MCP dir + 4 MATURE):
+- `mcps/hermes-llm/__init__.py` + `server.py` (~350-450 LOC FastMCP 3.0 + 6 tools)
+- `mcps/hermes-llm/config.yaml` (default policy + tier thresholds + NIM key env reference + routing matrix per-task hard-coded copy de NVIDIA-MODELS-ROUTING-MATRIX.md §4)
+- `mcps/hermes-llm/_adapters.py` (NIMClient + OllamaPCClient + OpenRouterClient ~200 LOC)
+- `mcps/hermes-llm/_policy.py` (fallback engine + RpmLimiter + 3 policies ~150 LOC)
+- `mcps/hermes-llm/README.md` (tools list + invocation examples + 4-tier topology diagram + cross-ref routing matrix)
+- `mcps/hermes-llm/_smoke.py` (isolated smoke 6 tools fixture safe — pattern F.5.2 D7)
+- `mcps/gateway/config.yaml` MATURE: row hermes-llm status=active
+- `.mcp.json` MATURE: entry hermes-llm
+- `.claude/mcp_registry_seed.json` MATURE: row hermes-llm + chapter_owner=F.5.7 + required_by_dc=[F.6,F.7,F.4,F.8]
+- `.env.example` MATURE: HERMES_NIM_API_KEY placeholder + comentário scope "build.nvidia.com → Generate API key"
+
+**Sub-task split F.5.7** (3 commits sub-session):
+- **C1 scaffold + 6 tools**: mcps/hermes-llm/ NOVO + smoke isolado PASS local
+- **C2 gateway wire + VM deploy + dispatch real**: gateway upstream active + SCP VM + systemctl restart + smoke dispatch via gateway → route() retorna real response NIM Free Endpoint
+- **C3 docs + reviewer + closeout**: PLAN.md F.5 Task 8 [✅] (NOVA F.5.7) + code-reviewer agent + memory_save + mark_chapter F.5.7 complete
+
+**🚨 Riscos críticos F.5.7**:
+- **NIM API key inexistente F.5.7** = owner Claude valida `.env` HERMES_NIM_API_KEY presente ANTES smoke real (sem key, smoke validates pipeline spawn apenas igual C1 GitHub F.5.6)
+- **RTX 2060 Ollama PC route from VM** = VM GCP precisa contactar PC :11434 — SSH reverse tunnel OR Cloudflare Tunnel (F.future setup, F.5.7 documenta gap mas T3 fallback testable apenas PC-side smoke)
+- **Routing matrix model_id 4 NOVOS unconfirmed Free Endpoint** = F.5.7 smoke valida + ajusta config.yaml (sem hard fail se modelo paywall)
+- **Coordenação Sessão B já fechou (commit 5fa3edf)** = sem coordenação issue F.5.7 paralela
+- **Owner upgrade VM GPU F.future = $$$** = D4 defer pós-F.7 mantido — F.5.7 não bloqueia
+- **BLACKLIST R2 INVIOLAVEL preservado** = zero touch linkedin/ollama_router.py (esta sessão owner-imposed scope mesmo D2 pattern coexistência)
+
+**Cross-ref F.5.7**: `.claude/NVIDIA-MODELS-ROUTING-MATRIX.md` (ground truth implementação) + `.claude/NVIDIA-INTEGRATION-PLAN.md` (architecture context) + `.claude/NVIDIA-MODELS-CATALOG.md` (32 shortlist base) + F.5.2 commits 3 customs (pattern reference scaffold).
+
 **Files F.5.6 entregues** (15 mudanças = 7 NOVOS + 8 MATURE):
 - `.env.example` MATURE: 9 NOVOS env vars placeholders (GITHUB_PERSONAL_ACCESS_TOKEN, SENTRY_ACCESS_TOKEN, DATABASE_URI, TAVILY_API_KEY, BRAVE/KAGI/PERPLEXITY/FIRECRAWL/JINA opcionais)
 - `.claude/mcp_registry_seed.json` MATURE: 5 rows status reserved→active + chapter_owner atualizados (F.4/F.6/F.7)
