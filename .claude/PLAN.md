@@ -1178,6 +1178,66 @@ F.6.2 ✅ done (Brain Tool Calling REAL + ReAct loop + MockDispatcher). F.6.3 = 
   - [Anthropic agent memory pattern](https://www.anthropic.com/engineering/multi-agent-research-system)
 - Memory: mem_mqae0827 (F.6 cristalizadas) + mem F.6.2 complete + mem_mqb5f6wo (NIM setup complete)
 
+**🟢 F.6.3 [✅] STATUS COMPLETE 2026-06-12 (sub-session 3/6, 3 commits)**:
+
+- C1 `9a7fb6b feat(brain): F.6.3a — brain/persistence.py NOVO async DB layer + decide.py hooks per state transition`
+- C2 `<f63b SHA> feat(brain): F.6.3b — replay.py MATURE + api/brain.py 200 runs/replay endpoints`
+- C3 (este commit) `docs(plan): F.6.3 [✅] Memory persistence + replay + agentmemory MCP + reviewer + F.6.4 PREP`
+
+**⚠️ NIM key rotation Step 0 NÃO completada — F.6.3 procedeu com OWNER OVERRIDE explícito**. Smoke real OFFLINE=0 NÃO rodado nesta sub-session; F.6.4 inicia COM rotation obrigatória pre-flight.
+
+**Implementado F.6.3**:
+- `brain/persistence.py` NOVO (308 LOC) — BrainPersistence singleton, asyncio.Lock + single writer Queue.
+  - `insert_run()` SYNC (run_id reservado), `update_run_final()` SYNC atomic.
+  - `schedule_decision()` ASYNC fire-and-forget; `_writer_loop()` single consumer drena queue.
+  - `get_run()`/`get_decisions()`/`list_runs()` reads para replay.
+  - Sanitize via brain.dispatch.SENSITIVE_KEYS (dupla camada gateway).
+  - TRUNCATE 2000 chars JSON cols (D6); Sentry capture_exception() fire-and-forget.
+  - check_same_thread=False + PRAGMA journal_mode=WAL synchronous=NORMAL.
+- `brain/decide.py` MATURE — Brain(persistence=...) injectable; hooks per FSM transition:
+  - SYNC insert_run no início (best-effort, erro NÃO aborta decide()).
+  - ASYNC schedule_decision per IDLE→CLASSIFY→REASON→ACT→[per ReAct iter]→REVIEW→{IDLE|COMMIT→IDLE}.
+  - SYNC update_run_final no fim (atomic).
+  - `_maybe_save_agentmemory()` opt-in D4 fire-and-forget timeout 10s via gateway dispatch.
+  - Novo param requester='api' grava brain_runs.requester.
+- `brain/intents.py` MATURE — INTENT_REGISTRY ganha `agentmemory_save` bool (D4):
+  - True: answer_owner, synth_skill, classify_prospect (cross-session learning).
+  - False: send_outreach (volume), summarize_conversation (transient), route_skill_run (utility).
+- `brain/replay.py` MATURE (120 LOC, era 46 stub) — `replay_run(run_id, mode='show_recorded')` SOMENTE recorded D3, NÃO re-invoke.
+  - Hydrate context_json + final_result JSON; truncated flag se finished_at IS NULL.
+  - `list_runs()` para UI dashboard F.future.
+- `api/brain.py` MATURE — 4 endpoints:
+  - `GET /api/brain/runs` NOVO (?intent=&limit=) — list recent runs.
+  - `GET /api/brain/runs/{run_id}` 200 com run+decisions (era 501); 404 graceful para not_found.
+  - `POST /api/brain/replay/{run_id}` 200 (mode=show_recorded default).
+  - `POST /api/brain/confirm/{run_id}` 501 PRESERVADO (F.6.4 implementa).
+  - `GET /api/brain/intents` ganha agentmemory_save field exposto.
+- `brain/_smoke.py` MATURE — adicionado `_run_persistence_smoke()` (7 assertions P1-P7):
+  - P1 brain_runs row persisted + finished_at NOT NULL.
+  - P2 brain_decisions N=6 ordered sequence (full flow).
+  - P3 replay_run() ok=True total_decisions=6 truncated=False.
+  - P4 replay_run(bogus_uuid) ok=False err=run_not_found (no crash).
+  - P5 list_runs() count>=1.
+  - P6 20 concurrent Brain.decide() runs persistidos sem lock contention (drain 10s).
+  - P7 INTENT_REGISTRY D4 = 3 True + 3 False, set match exato.
+
+**Smoke F.6.3 evidência**:
+- `python -m brain._smoke` OFFLINE → 16 assertions PASS (9 F.6.2 + 7 F.6.3).
+- TestClient API smokes: GET/POST endpoints 200/404/501 conforme spec.
+- Validate A=3, B=5, C=6, D=4, E=2 → 20/22 PASS preservado (E.2/E.3 channels stubs pré).
+- BLACKLIST R2: `git diff 95f0548..HEAD -- linkedin/` ZERO matches.
+- Reviewer agent 21 dim: PASS-WITH-NOTES (pending invocation C3 closeout).
+
+**F.6.4 PREP (próxima sub-session)** — Safety gates UX + owner confirm modal:
+- `POST /api/brain/confirm/{run_id}` REAL (501→200) com {approve, reason} → atualiza brain_runs.final_state='owner_approved'|'owner_rejected'.
+- Dashboard modal HTML/JS + WS broadcast `brain_confirm_required` (intent + reason + context preview).
+- Brain.resume_from_run_id(run_id, approved=True) → restore state + commit OR abort + persist decision.
+- Pre-req F.6.4: NIM key rotacionada + smoke real OFFLINE=0 passing antes começar.
+
+**Cross-ref F.6.3 complete**:
+- Memory: mem F.6.3 complete workflow (próximo SHA pós-commit).
+- mark_chapter "F.6.3 Brain Memory Persistence" persistido.
+
 ### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
 +**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)

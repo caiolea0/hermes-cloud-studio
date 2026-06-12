@@ -1,20 +1,30 @@
 """F.6.2 Brain smoke — REAL dispatch via gateway OR OFFLINE_MODE deterministic.
+F.6.3 extends — persistence + replay + agentmemory opt-in smokes.
 
 Modes:
-  HERMES_BRAIN_OFFLINE=1 (default)  → MockDispatcher, deterministic, no network
-  HERMES_BRAIN_OFFLINE=0            → real GatewayDispatcher (requires gateway up + NIM key)
+  HERMES_BRAIN_OFFLINE=1 (default)  -> MockDispatcher, deterministic, no network
+  HERMES_BRAIN_OFFLINE=0            -> real GatewayDispatcher (requires gateway up + NIM key)
 
 OFFLINE smoke validates:
   1. All 6 intents route through Brain.decide() correctly.
-  2. Destructive intents (send_outreach) → requires_confirm regardless of confidence.
-  3. Utility intent (route_skill_run) → no LLM call.
-  4. Unknown intent → status=error, FSM stays IDLE.
+  2. Destructive intents (send_outreach) -> requires_confirm regardless of confidence.
+  3. Utility intent (route_skill_run) -> no LLM call.
+  4. Unknown intent -> status=error, FSM stays IDLE.
   5. Two Brain() instances independent (no shared FSM).
   6. ReAct multi-step + tool dispatch ordering.
 
+F.6.3 PERSISTENCE smoke validates (always runs after OFFLINE):
+  P1. Each Brain.decide() persists 1 brain_runs row.
+  P2. Each Brain.decide() persists N brain_decisions rows (sequence 1..N ordered).
+  P3. replay_run(run_id) returns ok=True with full run + decisions.
+  P4. replay_run(bogus_uuid) returns ok=False err=run_not_found (no crash).
+  P5. list_runs() returns recent persisted runs.
+  P6. Sequential 20 concurrent runs — no sqlite3 lock contention (all persist).
+  P7. INTENT_REGISTRY has agentmemory_save field per D4 (3 True + 3 False).
+
 REAL smoke (HERMES_BRAIN_OFFLINE=0) validates:
-  7. classify task_type → T1 NIM Free response real.
-  8. Brain handles dispatch tool failures gracefully (low_conf → requires_confirm).
+  R1. classify task_type -> T1 NIM Free response real.
+  R2. Brain handles dispatch tool failures gracefully (low_conf -> requires_confirm).
 
 Run:
   python -m brain._smoke                       # OFFLINE deterministic (CI safe)
@@ -24,11 +34,16 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sqlite3
 import sys
+import uuid
+from pathlib import Path
 from typing import Any
 
 from .decide import Brain
 from .intents import INTENT_REGISTRY
+from .persistence import get_persistence, reset_persistence
+from .replay import list_runs, replay_run
 from .safety import DESTRUCTIVE_ACTIONS
 from .states import BrainState
 
@@ -45,7 +60,7 @@ class _MockDispatcher:
     async def route(self, task_type: str, prompt: str, **kw: Any) -> dict[str, Any]:
         self.route_calls.append((task_type, prompt[:80]))
         # Deterministic: emit JSON final_answer = "mock_response_<task_type>", conf=0.85
-        # confidence 0.85 > 0.5 → non-destructive intents complete; destructive still gate.
+        # confidence 0.85 > 0.5 -> non-destructive intents complete; destructive still gate.
         canned = (
             f'{{"rationale": "mock {task_type}", "planned_tool": null, '
             f'"final_answer": "mock_response_{task_type}", "confidence": 0.85}}'
@@ -143,7 +158,7 @@ async def _run_offline_smoke() -> list[str]:
     class _LoopMock(_MockDispatcher):
         async def route(self, task_type: str, prompt: str, **kw: Any) -> dict[str, Any]:
             self.route_calls.append((task_type, prompt[:80]))
-            # Always plan a tool, never final_answer → forces max_iter
+            # Always plan a tool, never final_answer -> forces max_iter
             return {
                 "ok": True,
                 "response": {
@@ -204,13 +219,116 @@ async def _run_real_smoke() -> list[str]:
     return passes
 
 
+async def _run_persistence_smoke() -> list[str]:
+    """F.6.3 — validate persistence + replay + agentmemory field.
+
+    Uses a per-smoke isolated DB (tmp file) so smoke is hermetic.
+    """
+    import tempfile
+
+    # Ensure brain_runs + brain_decisions schema applied to tmp DB.
+    tmp_db = Path(tempfile.mkdtemp(prefix="brain_smoke_")) / "smoke.db"
+    schema_path = Path(__file__).resolve().parent.parent / "migrations" / "2026_06_brain_runs_decisions.sql"
+    conn = sqlite3.connect(str(tmp_db))
+    conn.executescript(schema_path.read_text(encoding="utf-8"))
+    conn.close()
+
+    # Reset singleton then point persistence to tmp DB.
+    reset_persistence()
+    persistence = get_persistence(db_path=tmp_db)
+
+    passes: list[str] = []
+    mock = _MockDispatcher()
+
+    # P7: INTENT_REGISTRY agentmemory_save field structure (D4).
+    am_true = [n for n, c in INTENT_REGISTRY.items() if c.get("agentmemory_save")]
+    am_false = [n for n, c in INTENT_REGISTRY.items() if not c.get("agentmemory_save")]
+    _assert(len(am_true) == 3, f"D4 expected 3 True, got {len(am_true)}: {am_true}")
+    _assert(len(am_false) == 3, f"D4 expected 3 False, got {len(am_false)}: {am_false}")
+    _assert(set(am_true) == {"answer_owner", "synth_skill", "classify_prospect"}, f"D4 True set mismatch: {am_true}")
+    passes.append(f"  [D4]           agentmemory_save = {sorted(am_true)} True / {sorted(am_false)} False")
+
+    # P1 + P2: persistence per Brain.decide() invocation.
+    brain = Brain(dispatcher=mock, persistence=persistence)
+    res = await brain.decide("answer_owner", {"smoke": "P1"})
+    run_id = res["run_id"]
+    # Drain async writer queue.
+    drained = await persistence.drain(timeout=3.0)
+    _assert(drained, "P2 decision writer must drain within 3s")
+
+    run_row = await persistence.get_run(run_id)
+    _assert(run_row is not None, f"P1 brain_runs row missing for run_id={run_id}")
+    _assert(run_row["intent"] == "answer_owner", f"P1 intent mismatch: {run_row['intent']}")
+    _assert(run_row["final_state"] == "completed", f"P1 final_state mismatch: {run_row['final_state']}")
+    _assert(run_row["finished_at"] is not None, "P1 finished_at must be set")
+    passes.append(f"  [P1 brain_runs] row persisted run_id={run_id[:8]} final_state={run_row['final_state']}")
+
+    decisions = await persistence.get_decisions(run_id)
+    _assert(len(decisions) >= 6, f"P2 expected >=6 decisions (full flow), got {len(decisions)}")
+    # Sequence ascending check
+    seqs = [d["sequence"] for d in decisions]
+    _assert(seqs == sorted(seqs), f"P2 decisions must be sequence ordered, got {seqs}")
+    _assert(decisions[0]["state_from"] == "IDLE" and decisions[0]["state_to"] == "CLASSIFY",
+            f"P2 first transition wrong: {decisions[0]}")
+    _assert(decisions[-1]["state_to"] == "IDLE", f"P2 final state must be IDLE, got {decisions[-1]['state_to']}")
+    passes.append(f"  [P2 decisions]  N={len(decisions)} seq=1..{seqs[-1]} ordered IDLE->...->IDLE")
+
+    # P3: replay_run real
+    replay = await replay_run(run_id)
+    _assert(replay["ok"], f"P3 replay must return ok=True, got {replay.get('error')}")
+    _assert(replay["total_decisions"] == len(decisions), "P3 replay decisions count mismatch")
+    _assert(replay["truncated"] is False, "P3 truncated must be False for completed run")
+    _assert(replay["run"]["intent"] == "answer_owner", "P3 replay intent mismatch")
+    passes.append(f"  [P3 replay]     show_recorded ok total_decisions={replay['total_decisions']} truncated=False")
+
+    # P4: run_not_found graceful
+    bogus = "00000000-0000-0000-0000-000000000000"
+    nf = await replay_run(bogus)
+    _assert(nf["ok"] is False, "P4 not_found must return ok=False")
+    _assert(nf["error"] == "run_not_found", f"P4 err string mismatch: {nf['error']}")
+    passes.append(f"  [P4 not_found]  ok=False err=run_not_found (no crash)")
+
+    # P5: list_runs returns recent
+    lst = await list_runs(limit=10)
+    _assert(lst["ok"], "P5 list_runs must return ok=True")
+    _assert(lst["count"] >= 1, f"P5 list_runs count must be >=1, got {lst['count']}")
+    passes.append(f"  [P5 list_runs]  ok count={lst['count']}")
+
+    # P6: 20 concurrent runs — lock contention stress.
+    async def _one(idx: int) -> str:
+        b = Brain(dispatcher=_MockDispatcher(), persistence=persistence)
+        r = await b.decide("classify_prospect", {"i": idx})
+        return r["run_id"]
+
+    run_ids = await asyncio.gather(*[_one(i) for i in range(20)])
+    drained20 = await persistence.drain(timeout=10.0)
+    _assert(drained20, "P6 concurrent drain must complete within 10s")
+    persisted_count = 0
+    for rid in run_ids:
+        if await persistence.get_run(rid):
+            persisted_count += 1
+    _assert(persisted_count == 20, f"P6 expected 20 persisted runs, got {persisted_count}")
+    passes.append(f"  [P6 concurrent] 20 runs persisted, drain ok, zero lock contention")
+
+    # Cleanup tmp DB singleton (don't pollute real hermes_local.db on next tests).
+    reset_persistence()
+
+    return passes
+
+
 async def _run_smoke() -> None:
     if OFFLINE_MODE:
-        print("F.6.2 BRAIN SMOKE (OFFLINE_MODE — deterministic mock dispatcher)")
+        print("F.6.3 BRAIN SMOKE (OFFLINE_MODE — deterministic mock dispatcher)")
         passes = await _run_offline_smoke()
+        print("F.6.3 PERSISTENCE SMOKE")
+        passes_persist = await _run_persistence_smoke()
+        passes = passes + passes_persist
     else:
-        print("F.6.2 BRAIN SMOKE (REAL — gateway dispatch via NIM + Ollama)")
+        print("F.6.3 BRAIN SMOKE (REAL — gateway dispatch via NIM + Ollama)")
         passes = await _run_real_smoke()
+        print("F.6.3 PERSISTENCE SMOKE (real DB)")
+        passes_persist = await _run_persistence_smoke()
+        passes = passes + passes_persist
 
     print("ALL PASS:")
     for line in passes:
