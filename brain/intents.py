@@ -24,12 +24,14 @@ if TYPE_CHECKING:
 # `task_type` matches NVIDIA-MODELS-ROUTING-MATRIX.md §4 ground truth.
 # `destructive` mirrors safety.DESTRUCTIVE_ACTIONS (D8).
 # `default_tools` lists MCP tool names that F.6.2 will dispatch via gateway.
+# `agentmemory_save` F.6.3 D4 opt-in cross-session long-term learning (default false).
 INTENT_REGISTRY: dict[str, dict[str, Any]] = {
     "answer_owner": {
         "description": "Chat dashboard owner-facing — responde pergunta direta",
         "task_type": "reasoning",
         "destructive": False,
         "default_tools": [],  # F.6.2 may add mcp.postgres.query for data lookups
+        "agentmemory_save": True,  # F.6.3 D4: cross-session owner context
     },
     "send_outreach": {
         "description": "F.7 cobaia LinkedIn outreach gen + dispatch",
@@ -40,6 +42,7 @@ INTENT_REGISTRY: dict[str, dict[str, Any]] = {
             "mcp.hermes-prospects.search_prospects",
             "mcp.hermes-linkedin.send_invite",
         ],
+        "agentmemory_save": False,  # F.6.3 D4: high volume, mcp_calls already logs
     },
     "synth_skill": {
         "description": "F.4 auto-skill generation",
@@ -49,6 +52,7 @@ INTENT_REGISTRY: dict[str, dict[str, Any]] = {
             "mcp.hermes-llm.route",
             "mcp.hermes-skills.propose_skill_yaml_stub",
         ],
+        "agentmemory_save": True,  # F.6.3 D4: skill evolution history
     },
     "classify_prospect": {
         "description": "F.7 ICP scoring",
@@ -58,18 +62,21 @@ INTENT_REGISTRY: dict[str, dict[str, Any]] = {
             "mcp.hermes-llm.route",
             "mcp.hermes-prospects.score_lead",
         ],
+        "agentmemory_save": True,  # F.6.3 D4: ICP scoring rationale refinement
     },
     "summarize_conversation": {
         "description": "F.6 chat memory long-context summarization",
         "task_type": "summarize",
         "destructive": False,
         "default_tools": ["mcp.hermes-llm.route"],
+        "agentmemory_save": False,  # F.6.3 D4: transient summaries
     },
     "route_skill_run": {
         "description": "Utility: pure-Python executor sem LLM, gateway dispatch direto (low-latency)",
         "task_type": None,  # NÃO chama LLM
         "destructive": False,
         "default_tools": [],
+        "agentmemory_save": False,  # F.6.3 D4: utility no LLM, no observation worth
     },
 }
 

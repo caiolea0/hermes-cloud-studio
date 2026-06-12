@@ -2,76 +2,93 @@
 
 F.6.1: scaffold + state machine + 6 intents STUBS (deterministic mock).
 F.6.2: tool calling REAL via mcp.hermes-llm.route + gateway dispatch + ReAct loop.
-F.6.3: memory persistence brain_runs + brain_decisions + agentmemory MCP.
+F.6.3: memory persistence brain_runs + brain_decisions + agentmemory MCP opt-in.
 F.6.4: safety gates UX dashboard modal + endpoint POST /api/brain/confirm.
 F.6.5: golden cases test suite + hermes-brain-test skill battery.
 F.6.6: closeout + Task #6 [completed].
 
 Cross-ref:
-  .claude/PLAN.md § F.6 Decisões D1-D10 + F.6.2 D1-D8 (2026-06-12, dd57b64+68f0623)
-  .claude/NVIDIA-MODELS-ROUTING-MATRIX.md Task 1 (Brain reasoning)
-  mcps/hermes-llm/server.py (Brain consume via gateway route())
+  .claude/PLAN.md § F.6 Decisões D1-D10 + F.6.2 D1-D8 + F.6.3 D1-D6
+  brain/persistence.py F.6.3 (async DB layer + writer queue)
   brain/_react.py F.6.2 (ReAct loop multi-step)
   brain/dispatch.py F.6.2 (Gateway HTTP client)
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 import time
 import uuid
 from typing import Any
 
 from .dispatch import GatewayDispatcher
 from .intents import INTENT_REGISTRY, handle_intent
+from .persistence import BrainPersistence, get_persistence
 from .safety import requires_owner_confirm
 from .states import BrainStateMachine
 
 __all__ = ["Brain"]
 
+log = logging.getLogger("brain.decide")
+
 
 class Brain:
     """Brain orchestrator. Each instance owns one state machine (thread-independent).
 
-    F.6.2 real dispatch flow:
-      1. Validate intent ∈ INTENT_REGISTRY → else error short-circuit.
-      2. FSM IDLE → CLASSIFY → REASON → ACT.
-      3. ACT: handle_intent → react_loop (gateway dispatch via mcp.hermes-llm.route + tools).
-      4. FSM ACT → REVIEW: run safety gate (D8 hybrid).
-      5a. If requires_confirm → FSM REVIEW → IDLE (paused), return status='requires_confirm'.
-      5b. Else → FSM REVIEW → COMMIT → IDLE, return status='completed'.
+    F.6.3 persistence flow:
+      1. Validate intent ∈ INTENT_REGISTRY → else error short-circuit (sem persist).
+      2. SYNC INSERT brain_runs (run_id reservado imediato).
+      3. FSM IDLE → CLASSIFY → REASON → ACT (3 decisions scheduled async).
+      4. ACT: handle_intent → react_loop (gateway dispatch).
+      5. Per ReAct iter: 1 decision scheduled (state ACT→ACT, tool_invoked + result).
+      6. FSM ACT → REVIEW (safety gate decision).
+      7a. If requires_confirm → FSM REVIEW → IDLE (paused). UPDATE brain_runs final.
+      7b. Else → FSM REVIEW → COMMIT → IDLE. UPDATE brain_runs final.
+      8. Opt-in: agentmemory MCP save async fire-and-forget se INTENT_REGISTRY[intent].agentmemory_save.
 
-    F.6.2 NÃO persiste brain_runs/decisions (F.6.3 entrega).
-    F.6.2 NÃO renderiza UI confirm modal (F.6.4 entrega).
-    F.6.2 NÃO implementa replay (F.6.3 entrega).
-    F.6.2 NÃO chama linkedin/* direto — sempre via mcp.hermes-linkedin.* gateway dispatch (BLACKLIST R2).
+    F.6.3 NÃO chama linkedin/* direto — sempre via gateway dispatch (BLACKLIST R2).
+    F.6.3 NÃO renderiza UI confirm modal (F.6.4 entrega).
+    F.6.3 NÃO implementa golden cases (F.6.5 entrega).
     """
 
-    def __init__(self, dispatcher: GatewayDispatcher | None = None) -> None:
+    def __init__(
+        self,
+        dispatcher: GatewayDispatcher | None = None,
+        persistence: BrainPersistence | None = None,
+    ) -> None:
         self.fsm = BrainStateMachine()
         self.dispatcher = dispatcher or GatewayDispatcher()
+        self.persistence = persistence or get_persistence()
 
-    async def decide(self, intent: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Main Brain.decide() loop. F.6.2 real LLM dispatch + ReAct multi-step.
+    async def decide(
+        self,
+        intent: str,
+        context: dict[str, Any] | None = None,
+        requester: str = "api",
+    ) -> dict[str, Any]:
+        """Main Brain.decide() loop. F.6.3 persistence integrated.
 
         Args:
             intent: one of INTENT_REGISTRY keys (else returns error).
             context: arbitrary dict passed to ReAct prompt builder.
+            requester: 'owner_dashboard' | 'daemon' | 'api' | 'cron' (default 'api').
 
         Returns:
             {
               run_id: str,
               status: 'completed' | 'requires_confirm' | 'error',
-              result: dict,                  # intent_result enriched (final_answer, iterations, accumulated, ...)
+              result: dict,
               requires_confirm: bool,
               latency_ms: int,
-              total_cost_credits: float,     # F.6.2 derived from sum(accumulated[*].tool_result.cost_credits)
-              final_state: str,              # last FSM state (IDLE after completion)
+              total_cost_credits: float,
+              final_state: str,
             }
         """
         ctx = context or {}
         run_id = str(uuid.uuid4())
         start = time.monotonic()
 
-        # Defensive: unknown intent short-circuit (no FSM transitions to avoid invalid state).
+        # Defensive: unknown intent short-circuit (no FSM, no persistence).
         if intent not in INTENT_REGISTRY:
             return {
                 "run_id": run_id,
@@ -83,35 +100,94 @@ class Brain:
                 "final_state": self.fsm.current_state,
             }
 
-        # FSM forward: IDLE → CLASSIFY → REASON → ACT
+        # SYNC INSERT brain_runs (run_id reservado). Persistence error NÃO aborta decide()
+        # (best-effort — Sentry capture; flow continua) — owner ainda recebe resposta útil.
+        persistence_ok = await self._persist_run_start(run_id, intent, ctx, requester)
+
+        # FSM forward: IDLE → CLASSIFY → REASON → ACT (3 async decisions scheduled)
+        seq = 0
         self.fsm.start_classify()  # type: ignore[attr-defined]
+        seq += 1
+        self._schedule_decision(
+            persistence_ok, run_id, seq, "IDLE", "CLASSIFY",
+            rationale=f"Brain.decide() invoked intent={intent} requester={requester}",
+        )
+
         self.fsm.to_reason()  # type: ignore[attr-defined]
+        seq += 1
+        self._schedule_decision(
+            persistence_ok, run_id, seq, "CLASSIFY", "REASON",
+            rationale=f"intent classified, planning task_type={INTENT_REGISTRY[intent]['task_type']}",
+        )
+
         self.fsm.to_act()  # type: ignore[attr-defined]
+        seq += 1
+        self._schedule_decision(
+            persistence_ok, run_id, seq, "REASON", "ACT",
+            rationale="dispatching ReAct loop via handle_intent",
+        )
 
         # F.6.2 real dispatch: handle_intent → react_loop → gateway dispatch.
         intent_result = await handle_intent(intent, ctx, dispatcher=self.dispatcher)
 
+        # F.6.3 D2: 1 decision row per ReAct iteration (tool_invoked + result).
+        accumulated = intent_result.get("accumulated") or []
+        for step in accumulated:
+            seq += 1
+            tc = step.get("tool_call") or {}
+            tr = step.get("tool_result") or {}
+            server = tc.get("server", "")
+            tool = tc.get("tool", "")
+            tool_invoked = f"mcp.{server}.{tool}" if server and tool else None
+            # Latency from tool_result.duration_ms (gateway response shape)
+            tr_latency = 0
+            if isinstance(tr, dict):
+                tr_latency = int(tr.get("duration_ms") or 0)
+            self._schedule_decision(
+                persistence_ok, run_id, seq, "ACT", "ACT",
+                tool_invoked=tool_invoked,
+                tool_args=tc.get("args") or {},
+                tool_result=tr if isinstance(tr, dict) else {"raw": str(tr)[:500]},
+                rationale=str(step.get("thought") or "")[:1000],
+                latency_ms=tr_latency,
+            )
+
         # FSM ACT → REVIEW (safety gate)
         self.fsm.to_review()  # type: ignore[attr-defined]
+        seq += 1
 
         confidence = float(intent_result.get("confidence", 0.5))
         intent_destructive = bool(INTENT_REGISTRY[intent].get("destructive", False))
-        # F.6.2 action_class: usa intent quando destructive (F.future: derivar de tool sequence).
         action_class = intent if intent_destructive else ""
-
         needs_confirm, reason = requires_owner_confirm(intent, confidence, action_class)
 
-        # F.6.2 cost real (W6 reviewer F.6.1) — vem do react_result.cost_credits aggregated.
         total_cost = float(intent_result.get("cost_credits", 0.0) or 0.0)
-
         latency_ms = int((time.monotonic() - start) * 1000)
 
+        self._schedule_decision(
+            persistence_ok, run_id, seq, "ACT", "REVIEW",
+            rationale=f"safety gate: confidence={confidence:.2f} destructive={intent_destructive} "
+                      f"needs_confirm={needs_confirm} reason={reason or 'none'}",
+        )
+
         if needs_confirm:
-            self.fsm.owner_confirm_required()  # type: ignore[attr-defined]  # REVIEW → IDLE (paused)
+            self.fsm.owner_confirm_required()  # type: ignore[attr-defined]
+            seq += 1
+            self._schedule_decision(
+                persistence_ok, run_id, seq, "REVIEW", "IDLE",
+                rationale=f"owner confirm REQUIRED — paused. reason={reason}",
+            )
+            final_result_payload = {**intent_result, "confirm_reason": reason}
+            await self._persist_run_final(
+                persistence_ok, run_id, "requires_confirm",
+                final_result_payload, latency_ms, total_cost, confidence,
+            )
+            # agentmemory opt-in (paused runs also valuable for owner context retrieval)
+            self._maybe_save_agentmemory(run_id, intent, ctx, final_result_payload, status="requires_confirm")
             return {
                 "run_id": run_id,
                 "status": "requires_confirm",
-                "result": {**intent_result, "confirm_reason": reason},
+                "result": final_result_payload,
                 "requires_confirm": True,
                 "latency_ms": latency_ms,
                 "total_cost_credits": total_cost,
@@ -120,16 +196,32 @@ class Brain:
 
         # FSM REVIEW → COMMIT → IDLE
         self.fsm.to_commit()  # type: ignore[attr-defined]
-        # F.6.3 persistence happens HERE — F.6.2 placeholder no-op.
-        self.fsm.complete()  # type: ignore[attr-defined]
+        seq += 1
+        self._schedule_decision(
+            persistence_ok, run_id, seq, "REVIEW", "COMMIT",
+            rationale="safety gate passed, committing result",
+        )
 
-        # Status: completed se ok=True OR react_result indicou utility_no_llm (route_skill_run).
-        # llm_dispatch_failed OR max_iterations_reached → status='error' (Brain.decide() perspective).
+        self.fsm.complete()  # type: ignore[attr-defined]
+        seq += 1
+        self._schedule_decision(
+            persistence_ok, run_id, seq, "COMMIT", "IDLE",
+            rationale=f"Brain.decide() complete latency_ms={latency_ms} cost={total_cost:.4f}",
+            latency_ms=latency_ms,
+        )
+
+        # status mapping (F.6.2 logic preserved)
         result_status = intent_result.get("status", "completed")
         if intent_result.get("ok") or result_status == "utility_no_llm":
             decide_status = "completed"
         else:
             decide_status = "error"
+
+        await self._persist_run_final(
+            persistence_ok, run_id, decide_status,
+            intent_result, latency_ms, total_cost, confidence,
+        )
+        self._maybe_save_agentmemory(run_id, intent, ctx, intent_result, status=decide_status)
 
         return {
             "run_id": run_id,
@@ -140,3 +232,144 @@ class Brain:
             "total_cost_credits": total_cost,
             "final_state": self.fsm.current_state,
         }
+
+    # ----- persistence helpers (best-effort, never aborts decide flow) ----
+
+    async def _persist_run_start(
+        self, run_id: str, intent: str, context: dict[str, Any], requester: str,
+    ) -> bool:
+        try:
+            await self.persistence.insert_run(run_id, intent, context, requester=requester)
+            return True
+        except Exception as exc:  # noqa: BLE001 — defensive
+            log.warning("persistence.insert_run failed run_id=%s err=%s", run_id, exc)
+            return False
+
+    async def _persist_run_final(
+        self,
+        persistence_ok: bool,
+        run_id: str,
+        final_state: str,
+        final_result: dict[str, Any],
+        total_latency_ms: int,
+        total_cost_credits: float,
+        confidence_score: float,
+    ) -> None:
+        if not persistence_ok:
+            return
+        try:
+            await self.persistence.update_run_final(
+                run_id=run_id,
+                final_state=final_state,
+                final_result=final_result,
+                total_latency_ms=total_latency_ms,
+                total_cost_credits=total_cost_credits,
+                confidence_score=confidence_score,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("persistence.update_run_final failed run_id=%s err=%s", run_id, exc)
+
+    def _schedule_decision(
+        self,
+        persistence_ok: bool,
+        run_id: str,
+        sequence: int,
+        state_from: str,
+        state_to: str,
+        *,
+        tool_invoked: str | None = None,
+        tool_args: dict[str, Any] | None = None,
+        tool_result: dict[str, Any] | None = None,
+        rationale: str = "",
+        latency_ms: int = 0,
+    ) -> None:
+        if not persistence_ok:
+            return
+        try:
+            self.persistence.schedule_decision(
+                run_id=run_id,
+                sequence=sequence,
+                state_from=state_from,
+                state_to=state_to,
+                tool_invoked=tool_invoked,
+                tool_args=tool_args,
+                tool_result=tool_result,
+                rationale=rationale,
+                latency_ms=latency_ms,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("schedule_decision failed run_id=%s seq=%d err=%s", run_id, sequence, exc)
+
+    # ----- agentmemory opt-in (F.6.3 D4) ----------------------------------
+
+    def _maybe_save_agentmemory(
+        self,
+        run_id: str,
+        intent: str,
+        context: dict[str, Any],
+        result: dict[str, Any],
+        status: str,
+    ) -> None:
+        """D4 opt-in: agentmemory MCP save async fire-and-forget per INTENT_REGISTRY config.
+
+        Owner override via context['force_agentmemory_save']=True.
+        """
+        cfg = INTENT_REGISTRY.get(intent, {})
+        enabled = bool(cfg.get("agentmemory_save", False)) or bool(context.get("force_agentmemory_save"))
+        if not enabled:
+            return
+        # Fire-and-forget: NÃO await, NÃO bloqueia decide() return.
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        loop.create_task(self._agentmemory_save_task(run_id, intent, context, result, status))
+
+    async def _agentmemory_save_task(
+        self,
+        run_id: str,
+        intent: str,
+        context: dict[str, Any],
+        result: dict[str, Any],
+        status: str,
+    ) -> None:
+        """Background agentmemory save via gateway dispatch. Timeout 10s. Errors → Sentry."""
+        try:
+            content = self._build_agentmemory_content(intent, context, result, status)
+            concepts = ",".join([f"brain-{intent}", f"run-{run_id[:8]}", f"status-{status}"])
+            # Fire via gateway dispatch — timeout already in GatewayDispatcher default 30s.
+            await asyncio.wait_for(
+                self.dispatcher.invoke_tool(
+                    server="agentmemory",
+                    tool="memory_save",
+                    args={
+                        "content": content,
+                        "type": "decision",
+                        "concepts": concepts,
+                        "files": "",
+                    },
+                ),
+                timeout=10.0,
+            )
+        except asyncio.TimeoutError:
+            log.warning("agentmemory save timeout run_id=%s intent=%s", run_id, intent)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("agentmemory save failed run_id=%s intent=%s err=%s", run_id, intent, exc)
+            try:
+                import sentry_sdk  # type: ignore[import-not-found]
+                sentry_sdk.capture_exception(exc)
+            except Exception:  # noqa: BLE001
+                pass
+
+    @staticmethod
+    def _build_agentmemory_content(
+        intent: str, context: dict[str, Any], result: dict[str, Any], status: str,
+    ) -> str:
+        """Compact 1-3 sentence summary (per CLAUDE.md memory rules)."""
+        ctx_preview = str({k: context[k] for k in list(context.keys())[:3]})[:200]
+        ans = result.get("final_answer")
+        ans_preview = str(ans)[:300] if ans else f"status={status}"
+        return (
+            f"Brain.decide intent={intent} status={status}. "
+            f"Context preview: {ctx_preview}. Result: {ans_preview}"
+        )[:2000]
