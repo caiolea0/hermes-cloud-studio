@@ -10,12 +10,15 @@
 
 Expand F.future: analyze_competitor, generate_report, triage_inbox.
 
-F.6.1: handle_intent() returns mock data deterministic — NO real LLM call.
-F.6.2: implements real dispatch via mcp.hermes-llm.route() + tool calling.
+F.6.1: handle_intent() returned mock data deterministic — NO real LLM call.
+F.6.2: handle_intent() delegates to brain._react.react_loop (real dispatch via gateway).
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .dispatch import GatewayDispatcher
 
 # Intent registry — 6 entries exact (D3 — NOT 5, NOT 7+).
 # `task_type` matches NVIDIA-MODELS-ROUTING-MATRIX.md §4 ground truth.
@@ -71,25 +74,49 @@ INTENT_REGISTRY: dict[str, dict[str, Any]] = {
 }
 
 
-async def handle_intent(intent: str, context: dict[str, Any]) -> dict[str, Any]:
-    """F.6.1 STUB — returns mock data deterministic per intent.
+async def handle_intent(
+    intent: str,
+    context: dict[str, Any],
+    dispatcher: "GatewayDispatcher | None" = None,
+) -> dict[str, Any]:
+    """F.6.2 REAL — delegates to brain._react.react_loop (gateway dispatch + ReAct).
 
-    F.6.2 implements:
-      - real LLM call via mcp.hermes-llm.route(prompt, task_type=cfg['task_type'])
-      - tool dispatch via gateway for each tool in cfg['default_tools']
-      - confidence derived from model log-probs / heuristic
+    For intents with task_type=None (utility like route_skill_run), react_loop
+    short-circuits sem LLM call (returns status='utility_no_llm').
+
+    Returns enriched intent_result shape compatible with Brain.decide() consumer:
+      {ok, intent, task_type, destructive, tools_available, confidence,
+       tools_used, final_answer, iterations, accumulated, cost_credits, status, ...}
     """
     if intent not in INTENT_REGISTRY:
         return {"ok": False, "error": f"unknown_intent:{intent}"}
 
     config = INTENT_REGISTRY[intent]
+
+    # Lazy import (avoid circular brain.intents <-> brain._react if either grows).
+    from ._react import react_loop
+
+    react_result = await react_loop(
+        intent=intent,
+        context=context,
+        intent_config=config,
+        dispatcher=dispatcher,
+    )
+
+    # Merge static intent metadata + dynamic ReAct result.
     return {
-        "ok": True,
+        "ok": bool(react_result.get("ok")),
         "intent": intent,
-        "mock_response": f"[F.6.1 STUB] {config['description']} — context_keys={sorted(context.keys())}",
-        "confidence": 0.85,
         "task_type": config["task_type"],
         "destructive": config["destructive"],
-        "tools_used": [],  # F.6.2 populates as dispatch happens
         "tools_available": list(config["default_tools"]),
+        "tools_used": react_result.get("tools_used", []),
+        "final_answer": react_result.get("final_answer"),
+        "confidence": react_result.get("confidence", 0.5),
+        "iterations": react_result.get("iterations", 0),
+        "accumulated": react_result.get("accumulated", []),
+        "cost_credits": react_result.get("cost_credits", 0.0),
+        "status": react_result.get("status", "completed"),
+        "error": react_result.get("error"),
+        "note": react_result.get("note"),
     }
