@@ -832,6 +832,86 @@ Critérios PASS: BLACKLIST R2 intact (zero linkedin/* matches) + 6 tools OpenAI-
 +- Postgres MCP read-only via `mcp.postgres.query` (**PROIBIDO** `sqlite3.connect` bare)
 +- Phase F validator pass: ZERO bypass `core/` (`sentry_sdk import, subprocess gh, requests api.*`)
 +- F.6 sessions impact: zero overhead (middleware é fixture natural)
+
+**🎯 F.6 Decisões Cristalizadas (Brain orchestrator) — incorporado 2026-06-12**:
+
+Auditoria pós-F.5.7 (gateway 9 MCPs LIVE + hermes-llm 3-tier fabric funcional + mcp_calls extension 5 columns aplicada). F.6 consome routing matrix via mcp.hermes-llm.route() — NÃO chama NIM/Ollama direto. Owner Caio aprovou approach Caminho A (cristalizar F.6 + prompt entregue sub-sessão).
+
+**D1 Framework Brain implementation**: **Plain Python asyncio + transitions FSM lib lightweight** (~100 LOC core state machine). NÃO LangGraph (heavy deps, owner solo no-code preference). NÃO OpenAI Agents SDK (proprietary). NÃO CrewAI (multi-agent overkill). Transitions lib é mature, deterministic, debuggable, sem heavy deps. Padrão ReAct (think→observe→act loop) implementado em asyncio nativo.
+
+**D2 State machine = 6 states** (canonical Anthropic Think→Act→Observe): `IDLE → CLASSIFY → REASON → ACT → REVIEW → COMMIT → IDLE`. NÃO 8 states (REASONING/ROUTING separados over-engineering F.6 inicial). NÃO 4 states minimal (REVIEW + COMMIT precisam separação safety gates). Expand F.future se Brain.decide() complexity crescer.
+
+**D3 Intents core inicial = 6** (5 essenciais + 1 utility):
+1. `answer_owner` (chat dashboard owner-facing)
+2. `send_outreach` (F.7 cobaia LinkedIn message gen + dispatch hermes-linkedin.send_invite)
+3. `synth_skill` (F.4 auto-skill generation via mcp.hermes-skills.propose_skill_yaml_stub)
+4. `classify_prospect` (F.7 ICP scoring via hermes-llm.route task_type=classify)
+5. `summarize_conversation` (F.6 chat memory long-context summarization)
+6. `route_skill_run` (utility: executor pure Python sem LLM, gateway dispatch direct, low-latency)
+
+Expand F.future: `analyze_competitor`, `generate_report`, `triage_inbox` (F.7+ orgânico).
+
+**D4 Memory consolidation cadence**: **per-run** (cada Brain.decide() invocation persiste 1 row `brain_runs` + N rows `brain_decisions` per state transition). NÃO daily cron (perde granularidade per-call). NÃO threshold-based (complica F.6 inicial). Per-run simple + deterministic + cheap (SQLite INSERT ms-scale). F.future agregação cron mensal pra `brain_audit_2026-06.md` similar F.5.5 pattern.
+
+**D5 Owner confirm UX** (confidence < 0.5 OR action_class="destructive"): **dashboard modal síncrono** (bloqueia Brain.decide() até owner clica approve/deny). NÃO Telegram alert (F.future F.7 cobaia live, F.6 owner usually no PC dashboard already open). NÃO both (over-engineering F.6 inicial). Dashboard modal endpoint `POST /api/brain/confirm/{run_id}` → owner aprova → Brain retoma state COMMIT.
+
+**D6 Brain default model T1 reasoning**: **routing matrix decide automaticamente** via `mcp.hermes-llm.route(task_type="reasoning")`. T1 = `nvidia/mistral-nemotron` (NIM declara "best function calling at any price"). T2 fallback = `nvidia/llama-3.3-nemotron-super-49b-v1` (PT-BR oficial + reasoning). Brain code NÃO hardcode model_id — só `task_type` (routing matrix é ground truth).
+
+**D7 Decision replay UI dashboard tab**: **F.future** (NÃO F.6 inicial). Replay UI tab vira F.future quando F.8 cost observability dashboard implementar. F.6 entrega CLI/API replay only (`POST /api/brain/replay/{run_id}` retorna sequence + tool calls + final result). UI tab cross-ref F.8.
+
+**D8 Safety gates destructive action threshold**: **hybrid** — `confidence < 0.5` OR `action_class IN ("destructive", "send_outreach", "synth_skill_promote")` → owner confirm OBRIGATÓRIO via dashboard modal D5. NÃO single threshold 0.7 (envia LinkedIn high-confidence sem owner check = risco cobaia). NÃO always confirm (over-prompts owner UX ruim). Lista `DESTRUCTIVE_ACTIONS = {"send_outreach", "send_message", "send_inmail", "synth_skill_promote", "deploy_skill_pr"}` hardcoded `brain/safety.py`.
+
+**D9 Brain.decide() API**: **async FastAPI endpoint** `POST /api/brain/decide` body `{intent, context}` returns `{run_id, status, result, latency_ms, total_cost_credits, requires_confirm: bool}` OR HTTP 202 + poll endpoint se `total_latency > 30s` (long-running). Status check via `GET /api/brain/runs/{run_id}` (pattern F.5.5 `mcp/coverage/jobs/{id}` familiar).
+
+**D10 Sub-task split F.6 = 6 sub-sessions**:
+- **F.6.1**: Brain scaffold + state machine + 6 intents stubs + transitions FSM (NÃO toca LLM ainda, smoke deterministic golden cases skeleton)
+- **F.6.2**: Tool calling integration mcp.hermes-llm.route() + outros MCPs (hermes-prospects/skills/linkedin via gateway dispatch) — primeiro real LLM call F.6
+- **F.6.3**: Memory consolidation (brain_runs + brain_decisions persistence + agentmemory MCP integration short-term/long-term)
+- **F.6.4**: Safety gates + owner confirm UX dashboard modal + endpoint POST /api/brain/confirm/{run_id}
+- **F.6.5**: Golden cases test suite + hermes-brain-test skill update F.6 real (existing skill .claude/ ganha bateria 6 dimensões deterministic)
+- **F.6.6**: F.6 closeout + reviewer + Task #6 [completed]
+
+Estimativa total F.6: 6 sub-sessions × 3-5h cada = 20-30h spread over 1 semana. Cada sub-sessão entrega 2-4 commits. **Owner Claude per sub-sessão = Opus 4.7 recomendado** (Brain decisão arquitetural NOVEL, alto risco).
+
+**Files F.6.1** (NOVO scaffold, ~600-800 LOC):
+- `brain/__init__.py` (NOVO empty)
+- `brain/decide.py` (~250 LOC Brain class + state machine + 6 intents dispatch stubs)
+- `brain/states.py` (~80 LOC 6 states enum + transitions FSM definition usando `transitions` lib)
+- `brain/intents.py` (~120 LOC 6 intents handlers stubs — retornam mock data F.6.1, real LLM call F.6.2)
+- `brain/safety.py` (~50 LOC DESTRUCTIVE_ACTIONS set + classify_action + confidence threshold check)
+- `brain/replay.py` (~80 LOC replay logic stub — F.6.3 implementa real, F.6.1 só skeleton)
+- `brain/_smoke.py` (~100 LOC isolated smoke 6 intents PASS deterministic mock)
+- `api/brain.py` NOVO (~80 LOC FastAPI endpoint POST /api/brain/decide stub)
+- `migrations/2026_06_<próximo>_brain_runs_decisions.sql` NOVO (CREATE brain_runs + brain_decisions tables)
+- `requirements.txt` MATURE: adicionar `transitions>=0.9.0` (state machine lib)
+- `server.py` MATURE: `app.include_router(api.brain.router)` wire-up
+- `hermes_api_v2.py` MATURE: idem (PC source-of-truth quando VM migrar)
+
+**Sub-task split F.6.1** (2 commits):
+- **C1 scaffold core**: brain/ NOVO 7 files + transitions lib install + migration .sql + smoke 6 intents PASS mock
+- **C2 wire FastAPI endpoint + reviewer + docs**: api/brain.py + server.py include + PLAN.md F.6.1 [✅] + code-reviewer + memory_save + mark_chapter
+
+**🚨 Riscos críticos F.6 (full chapter)**:
+- **Brain NOVEL design** — sem pattern reference (F.5.x customs são wrappers, F.6 é orchestrator) → cada sub-sessão risco alto, Opus 4.7 recomendado
+- **Cost escalation** — Anthropic confirma agents ~4x tokens chat normal, 15x multi-agent. F.6 Brain.decide() pode consumir 5-10k tokens/run rapidamente. mcp_calls cost_credits tracking F.5.7 cobre — owner monitora dashboard F.8 futura.
+- **State machine transitions bugs latentes** — F.6.1 smoke deterministic golden cases obrigatório (não live LLM)
+- **Safety gates bypass risk** — DESTRUCTIVE_ACTIONS hardcoded F.6.1, expand F.7 cobaia ANTES first live send_outreach
+- **BLACKLIST R2 INTACTO** — Brain NÃO chama `linkedin/*` direto (mesmo coexistência ollama_router pattern). Sempre via `mcp.hermes-linkedin.*` gateway dispatch.
+- **Decision replay determinism** — F.6.3 implementa real replay. F.6.1 stub returns "not implemented" pra evitar incorrect expectations.
+- **Anthropic Extended Thinking mode** — não usado F.6 (NIM models may not support same way). F.future se Anthropic SDK adicionado.
+- **Memory consolidation cross-session** — agentmemory MCP integration F.6.3. F.6.1 brain_runs/decisions só local DB.
+
+**Cross-ref F.6**:
+- `.claude/NVIDIA-MODELS-ROUTING-MATRIX.md` Task 1+2+7 (Brain reasoning + classifier + summarize)
+- `mcps/hermes-llm/server.py` (F.5.7 — Brain consume via gateway)
+- `mcps/hermes-prospects/server.py` (D3 cristalizado — prospects queries via mcp.postgres.query delegate)
+- `.claude/skills/hermes-brain-test/` (existing skill, F.6.5 update real)
+- `mem_mqa6qoq0` (F.5.7 routing matrix + decisions)
+- WebSearch refs:
+  - [stevekinney agent loops anatomy](https://stevekinney.com/writing/agent-loops)
+  - [Anthropic writing tools for agents](https://www.anthropic.com/engineering/writing-tools-for-agents)
+  - [datasciencedojo agentic loops ReAct 2026](https://datasciencedojo.com/blog/agentic-loops-explained-from-react-to-loop-engineering-2026-guide/)
+  - [brics-econ state diagrams orchestrators LLM](https://brics-econ.org/state-diagrams-and-orchestrators-for-complex-llm-agent-pipelines)
 +
 +**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 4 (S2 details) + memory mem_mq7jalw7.
 +
