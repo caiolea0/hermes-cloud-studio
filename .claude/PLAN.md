@@ -1093,6 +1093,91 @@ Key exposta via chat owner setup F.6.2 = comprometida. Rotacionar imediato após
 - Memory: mem F.6.2 complete workflow (próximo SHA)
 - mark_chapter "F.6.2 complete" persistido
 
+**🎯 F.6.3 Decisões Cristalizadas (Memory persistence + agentmemory MCP integration) — incorporado 2026-06-12**:
+
+F.6.2 ✅ done (Brain Tool Calling REAL + ReAct loop + MockDispatcher). F.6.3 = Brain ganha **memória**. Cada Brain.decide() invocation persiste brain_runs + brain_decisions per state transition. Replay reconstrói run completo. agentmemory MCP integration adiciona long-term cross-session learning. F.6.3 desbloqueia F.6.4 owner confirm UX (precisa run_id resolvable) + F.6.5 golden cases (precisa replay deterministic).
+
+**🚨 Pre-req crítico**: NIM API key ROTACIONADA build.nvidia.com (revoke 6b81bae6 + generate new + update .env PC+VM) ANTES F.6.3 começar. Sem rotation, F.6.3 smoke real pode estar usando key comprometida.
+
+**D1 Persistence strategy = SYNC brain_runs + ASYNC brain_decisions per transition**:
+- `brain_runs` INSERT sync no início Brain.decide() (run_id reservado, retornado client imediato)
+- `brain_runs` UPDATE sync no final (final_state, final_result, total_latency_ms, total_cost_credits, confidence_score, finished_at)
+- `brain_decisions` INSERT async per state transition (fire-and-forget asyncio.create_task) — não bloqueia decide() flow
+- DB connection pool sqlite3 thread-safe (`check_same_thread=False`) com lock async
+- NÃO 100% sync (bloqueia decide() per transition = latency penalty 5-10x)
+- NÃO 100% async (run_id não disponível imediato cliente, race conditions)
+
+**D2 brain_decisions granularidade = PER state transition**:
+- 1 row brain_decisions por `to_<state>()` call (IDLE→CLASSIFY=1, CLASSIFY→REASON=2, REASON→ACT=3, ACT→REVIEW=4, REVIEW→COMMIT=5 OR REVIEW→IDLE=5 owner_confirm)
+- Plus 1 row per ReAct iteration tool_invoked (separate sequence)
+- Partial state recoverable (Brain crash mid-run → replay até última row persisted)
+- NÃO batch end-of-run (perde observability live + crash = total loss)
+- NÃO per LLM call only (loses state machine transition history)
+
+**D3 Replay determinism = SHOW RECORDED (read-only, NÃO re-invoke)**:
+- `replay_run(run_id)` retorna sequence brain_decisions rows + final brain_runs result
+- Tool calls APENAS exibidos (recorded args + recorded results)
+- NÃO re-invoke tool calls (side effects = double send_outreach catastrofe + mcp_calls duplicates)
+- NÃO LLM re-call (cost waste + non-deterministic LLM = different result)
+- F.future modo `mode="re_invoke"` flag explicit para debug deterministic se necessário
+- Endpoint `POST /api/brain/replay/{run_id}` retorna full replay payload
+
+**D4 agentmemory MCP integration = OPT-IN per intent**:
+- INTENT_REGISTRY ganha campo NOVO `agentmemory_save: bool` (default false)
+- Intents com agentmemory_save=true persistem long-term:
+  - `answer_owner` → save query+response (cross-session owner context)
+  - `synth_skill` → save proposed skill YAML (skill evolution history)
+  - `classify_prospect` → save scoring rationale (ICP refinement)
+- Intents NÃO save: `send_outreach` (high volume, mcp_calls já log), `route_skill_run` (utility no LLM), `summarize_conversation` (transient)
+- Owner pode override per-call via context flag `force_agentmemory_save: bool`
+- agentmemory MCP via gateway dispatch (`mcp.agentmemory.memory_save`)
+- NÃO automatic all intents (volume excessive + over-write context)
+
+**D5 brain_runs retention policy = KEEP ALL inicialmente (F.future archive)**:
+- Sem cron archive F.6.3 (insufficient data pra justificar archival policy)
+- F.future: cron mensal `scripts/archive_brain_runs.py` arquiva runs > 90d em `.claude/audits/brain-archive/YYYY-MM.json` + DELETE rows
+- SQLite handle 100k+ rows sem performance issue (mcp_calls F.5.3 mesma DB)
+- F.5.5 cron audit mensal pattern reusable (F.future implementação)
+
+**D6 Error rows persistence = TRUNCATED 2000 chars + Sentry full**:
+- `brain_decisions.tool_result_json` + `brain_runs.final_result` truncated 2000 chars (SQLite TEXT performant)
+- Exception stack trace TRUNCATED 2000 chars em `brain_decisions.error` column
+- Sentry SDK `sentry_sdk.capture_exception()` envia stack trace FULL (Sentry handles archival deep retention)
+- NÃO full stack trace DB (SQLite bloat + replay payload heavy)
+- Sentry envio fire-and-forget (DB INSERT prioritário)
+
+**Files F.6.3** (2 NOVOS + 4 MATURE):
+- `brain/persistence.py` NOVO (~200 LOC) — async DB layer brain_runs + brain_decisions INSERT/UPDATE + Pydantic schemas
+- `brain/replay.py` MATURE (~150 LOC, era 80 stub) — restore_from_run_id() real + brain_decisions iteration
+- `brain/decide.py` MATURE — hooks persistence.insert_run() sync + persistence.insert_decision() async per transition
+- `brain/intents.py` MATURE — INTENT_REGISTRY adiciona `agentmemory_save: bool` field per intent
+- `brain/_smoke.py` MATURE — smoke persistence (insert + read back) + replay (run_id → recorded sequence) + OFFLINE_MODE compat
+- `api/brain.py` MATURE — `GET /api/brain/runs/{run_id}` retorna 200 com run+decisions reais (era 501) + `POST /api/brain/replay/{run_id}` real
+
+**Sub-task split F.6.3 (3 commits sub-session)**:
+- **C1** brain/persistence.py NOVO + decide.py hooks (sync run + async decisions per transition)
+- **C2** brain/replay.py MATURE + api/brain.py GET runs/replay endpoints 200 + agentmemory MCP integration opt-in
+- **C3** brain/_smoke.py persistence + replay smoke + reviewer + closeout F.6.3
+
+**🚨 Riscos críticos F.6.3**:
+- **DB lock contention** sqlite3 fire-and-forget async INSERTs — usar single async writer + queue OR aiosqlite (validar smoke)
+- **brain_runs UPDATE race** — final_state UPDATE post-decisions INSERT. Lock OR atomic transaction obrigatório
+- **agentmemory MCP gateway timeout** — `memory_save` via mcp.agentmemory.* via dispatch pode 5-10s. Async fire-and-forget OBRIGATÓRIO (não bloqueia decide())
+- **Replay non-deterministic if recorded incomplete** — partial INSERT crash mid-decisions → replay shows truncated. Documentar em response
+- **BLACKLIST R2 INTACTO** — Brain persistence layer NÃO toca linkedin/* (continua via gateway dispatch)
+- **brain_decisions table existing F.6.1 migration** — schema validar match (12+11 cols already created F.6.1)
+- **Cost tracking double-count risk** — brain_runs.total_cost_credits soma brain_decisions.cost_credits. Validar não double-conta de mcp_calls extension F.5.7
+
+**Cross-ref F.6.3**:
+- `migrations/2026_06_brain_runs_decisions.sql` F.6.1 (schema base)
+- `mcps/hermes-llm/*` F.5.7 (mcp_calls cost_credits source)
+- `brain/decide.py` F.6.2 (state machine + ReAct loop hooks integration)
+- agentmemory MCP (memory_save/memory_smart_search interface)
+- WebSearch refs:
+  - [aiosqlite async SQLite Python](https://github.com/omnilib/aiosqlite)
+  - [Anthropic agent memory pattern](https://www.anthropic.com/engineering/multi-agent-research-system)
+- Memory: mem_mqae0827 (F.6 cristalizadas) + mem F.6.2 complete + mem_mqb5f6wo (NIM setup complete)
+
 ### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
 +**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)
