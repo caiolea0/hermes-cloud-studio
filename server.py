@@ -110,6 +110,17 @@ async def lifespan(app: FastAPI):
         logger.info("F.5.3 MCP migrations applied (registry + calls)")
     except Exception as e:
         logger.warning(f"F.5.3 MCP migrations failed: {e}")
+    # F.6.1 Apply brain_runs + brain_decisions migration (idempotent)
+    try:
+        mig_path = PROJECT_ROOT / "migrations" / "2026_06_brain_runs_decisions.sql"
+        if mig_path.exists():
+            conn = get_db()
+            conn.executescript(mig_path.read_text(encoding="utf-8"))
+            conn.commit()
+            conn.close()
+            logger.info("F.6.1 Brain migration applied (brain_runs + brain_decisions)")
+    except Exception as e:
+        logger.warning(f"F.6.1 Brain migration failed: {e}")
     # Restaurar globals persistidos em runtime_state (MERGED-004 / MERGED-016)
     state._LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
     state._LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)
@@ -234,6 +245,7 @@ from api.bootstrap import router as bootstrap_router
 from api.user_prefs import router as user_prefs_router  # F.2.5b
 from api.lab import router as lab_router  # F.3.1 — Lab Cockpit
 from api.mcp_coverage import router as mcp_coverage_router  # F.5.6f — MCP Gateway UI proxy
+from api.brain import router as brain_router  # F.6.1 — Brain orchestrator scaffold
 
 app.include_router(pipelines_router)
 app.include_router(linkedin_router)
@@ -246,6 +258,7 @@ app.include_router(bootstrap_router)
 app.include_router(user_prefs_router)  # F.2.5b — /api/user-prefs GET/PUT
 app.include_router(lab_router)  # F.3.1 — /api/lab/* (Lab Cockpit backend)
 app.include_router(mcp_coverage_router)  # F.5.6f — /api/mcp/coverage/latest + /api/mcp/gateway/health (UI proxy)
+app.include_router(brain_router)  # F.6.1 — /api/brain/* (Brain orchestrator scaffold)
 
 
 if __name__ == "__main__":

@@ -30,6 +30,7 @@ from vm_core.state import (
 import time
 from vm_api.routes import router as vm_router
 from vm_api.mcp_coverage import router as mcp_coverage_router
+from api.brain import router as brain_router  # F.6.1 — Brain orchestrator scaffold (shared PC/VM)
 
 
 async def _f5_strict_mcp_gate() -> None:
@@ -163,6 +164,7 @@ async def vm_ping():
 
 app.include_router(vm_router)
 app.include_router(mcp_coverage_router)
+app.include_router(brain_router)  # F.6.1 — /api/brain/* (Brain orchestrator scaffold)
 
 
 if __name__ == "__main__":

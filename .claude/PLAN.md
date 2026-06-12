@@ -915,6 +915,54 @@ Estimativa total F.6: 6 sub-sessions × 3-5h cada = 20-30h spread over 1 semana.
 +
 +**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 4 (S2 details) + memory mem_mq7jalw7.
 +
++**🟢 F.6.1 [✅] STATUS COMPLETE 2026-06-12 (sub-session 1/6, 2 commits)**:
++
++- C1 `de7855a feat(brain): F.6.1a brain/ scaffold 7 files + state machine 6 states + 6 intents stubs + safety hybrid + migration brain_runs+decisions`
++- C2 (este commit) `docs(plan): F.6.1 [✅] brain scaffold + 6 intents + state machine + reviewer PASS + F.6.2 PREP tool calling real`
++
++**Implementado F.6.1**:
++- `brain/__init__.py` + `decide.py` (108 LOC) + `states.py` (53 LOC) + `intents.py` (87 LOC) + `safety.py` (44 LOC) + `replay.py` (40 LOC) + `_smoke.py` (88 LOC)
++- `api/brain.py` (95 LOC) — 4 endpoints: POST /decide (real F.6.1 stub deterministic), GET /runs/{id} (501 F.6.3), POST /confirm/{id} (501 F.6.4), GET /intents (utility)
++- `migrations/2026_06_brain_runs_decisions.sql` — brain_runs (12 cols, 4 idx) + brain_decisions (11 cols, 3 idx, FK ON DELETE CASCADE)
++- `scripts/_apply_brain_migration.py` — dev helper one-shot apply
++- `server.py` MATURE: lifespan migration apply F.6.1 block + include_router brain_router
++- `hermes_api_v2.py` MATURE: include_router brain_router
++- `requirements.txt` MATURE: + `transitions>=0.9.0` (D1 lightweight FSM lib)
++
++**Smoke F.6.1 evidência**:
++- `python -m brain._smoke` → 8 assertions PASS (6 intents + 1 unknown + 1 isolation)
++- `POST /api/brain/decide answer_owner` → status=completed (NÃO destructive)
++- `POST /api/brain/decide send_outreach` → status=requires_confirm reason=`destructive_action:send_outreach`
++- `POST /api/brain/decide intent_does_not_exist` → status=error (FSM permanece IDLE, no crash)
++- `GET /api/brain/intents` → 6 intents listados + schema
++- `GET /api/brain/runs/abc-123` → 501 not_implemented_f63
++- Validate A-E: 20/22 PASS preservado (3+5+6+4+2)
++- BLACKLIST R2: zero touch linkedin/* confirmado via git diff
++- Reviewer agent: PASS-WITH-NOTES zero BLOCKERS, 7 WARNs backlog F.6.2-F.6.6
++
++**WARNs F.6.2-F.6.6 (do reviewer)**:
++- W1 (F.6.3): índice composto `(otel_trace_id, intent)` se query replay cross-cut
++- W2 (F.6.2): `BrainDecideRequest.intent` ganhar `Field(min_length=1)` defesa em profundidade
++- W3 (F.6.5): latência smoke 159ms inclui import overhead — golden cases medir Brain.decide() puro
++- W4 (F.6.2): substituir `# type: ignore[attr-defined]` por Protocol typing / cast helper (mypy strict mode)
++- W5 (F.6.4): adicionar `paused_at_state` schema field — `final_state=IDLE` em requires_confirm esconde que parou em REVIEW
++- W6 (F.6.3): `total_cost_credits` hardcoded 0.0 — F.6.2 propagar real cost via `intent_result['cost']`
++- W7 (F.6.5): `confidence=0.85` fixo em stub — golden cases mockar <0.5 pra exercitar low_confidence gate
++
++**F.6.2 PREP (próxima sub-session)** — tool calling integration real:
++- `brain/decide.py` substitui `handle_intent` stub por dispatch real:
++  - LLM call: gateway POST /dispatch/hermes-llm/route body `{prompt, task_type}` — routing matrix decide T1/T2/T3 automaticamente
++  - Tool calling: cada `INTENT_REGISTRY[intent]['default_tools']` invocado via gateway dispatch
++- `brain_decisions` rows persistidos por state transition (F.6.3 implementa schema-side)
++- BrainDecideRequest.intent ganha min_length=1 (W2)
++- W4 typing cleanup
++- Pre-req F.6.2: VM gateway 9/9 actives + hermes-llm route() funcional smoke real T1 NIM
++
++**Cross-ref F.6.1**:
++- Reviewer evidência: 18 dim PASS / PASS-WITH-NOTES; veredicto PASS-WITH-NOTES merge
++- Memory: mem_<F.6.1 SHA pós-commit>
++- mark_chapter "F.6.1 complete" persistido
++
 +### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
 +**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)
