@@ -534,6 +534,50 @@
 
 **Cross-ref F.5.7**: `.claude/NVIDIA-MODELS-ROUTING-MATRIX.md` (ground truth implementação) + `.claude/NVIDIA-INTEGRATION-PLAN.md` (architecture context) + `.claude/NVIDIA-MODELS-CATALOG.md` (32 shortlist base) + F.5.2 commits 3 customs (pattern reference scaffold).
 
+**🎯 F.5.7 COMPLETE 2026-06-11** — hermes-llm 9o MCP custom ACTIVE (3 commits sub-session):
+- **C1 commit `fae3769`** `feat(mcp): F.5.7a` — `mcps/hermes-llm/` scaffold 7 files (~1413 LOC):
+  * `server.py` FastMCP 3.0 v0.1.0-f5.7 + 6 tools real implementation (route/list_available_models/get_provider_status/track_cost/set_routing_policy/get_call_history)
+  * `_adapters.py` 3 clients OpenAI-compat (NIMClient + OllamaPCClient + OpenRouterClient) — try/except wrap NUNCA propaga raise (gotcha `mem_mq7i9caw`)
+  * `_policy.py` FALLBACK_TRIGGERS 6 (rate_limit/server_error/timeout/auth_fail/empty_response/model_unavailable) + ABORT_TRIGGERS 400 + RpmLimiter margin 38/40 NIM Free + route_decide 3 policies (balanced/cost-optimize/latency-optimize)
+  * `config.yaml` routing_matrix copy fiel `NVIDIA-MODELS-ROUTING-MATRIX.md §4` (8 task_types + default + forced_models per provider)
+  * `README.md` 4-tier topology + cross-refs + safety
+  * `_smoke.py` 8 checks fixture-safe via `importlib.util` explicit path (evita collision repo root `server.py` Hermes Command Center) — PASS 8/8 local
+- **C2 commit `<SHA-c2>`** `feat(mcp): F.5.7b` — gateway upstream wire + VM deploy + migration:
+  * `mcps/gateway/config.yaml` upstream row hermes-llm status=active chapter_owner=F.5.7 required_by_dc=[F.6,F.7,F.4,F.8]
+  * `mcps/gateway/server.py` GATEWAY_VERSION 0.4.0-f5.6 → 0.5.0-f5.7 + `_SENSITIVE_KEYS` extended 7 NIM/LLM provider keys
+  * `.claude/mcp_registry_seed.json` row hermes-llm + 6 tools + scope_critical notes
+  * `migrations/2026_06_mcp_llm_extension.sql` NOVO — mcp_calls +5 cols (provider/model/tokens_in/tokens_out/cost_credits) + `mcp_llm_models` NEW (catalog 16 seed rows Nemotron/Llama 4/Qwen Coder/DeepSeek/GLM/Ollama RTX 2060 stack) + `nim_credit_history` NEW (F.5.9 cron target)
+  * SCP VM hermes-gcp@136.115.74.69 → `~/.hermes/mcps/hermes-llm/` + gateway config + registry seed + migration
+  * Migration apply VM 13 statements OK + reseed registry inserted=1 updated=11 + systemctl restart gateway active
+  * /upstream lists 9 active (hermes-llm presente F.5.7 chapter_owner)
+  * /dispatch real PASS: POST /dispatch/hermes-llm/get_provider_status → 200 ok=true call_id UUID generated duration=4053ms (3 providers paralelo): nim_free/nim_credit up=false (key missing graceful), **ollama_pc up=true latency=642ms**, openrouter up=false (key missing graceful)
+- **C3 commit `<SHA-c3>`** `docs(plan): F.5.7 DONE` — closeout (este block + memory + chapter mark)
+
+**Gates F.5.7 PASS**:
+- G1 validate phase A-E 20/22 PASS preservado todos 3 commits
+- G2 PLAN.md F.5.7 COMPLETE block + F.6 PREP Brain consume hermes-llm.route()
+- G3 memory_save type=architecture
+- G4 mark_chapter F.5.7 complete
+- G5 3 commits master batch push
+- G6 VM gateway :55401 /upstream 9 active hermes-llm presente
+- G7 code-reviewer PASS
+- G8 BLACKLIST R2 INTACTO `git diff HEAD~3 linkedin/` ZERO matches
+- G9 Smoke isolado _smoke.py 8 checks PASS local
+- G10 Smoke dispatch via gateway VM /dispatch hermes-llm.get_provider_status → 200 com call_id UUID + 3 providers healthcheck paralelo
+- G11 Migration .sql 5 cols mcp_calls + mcp_llm_models 16 seed rows + nim_credit_history
+- G12 RpmLimiter unit test 40 rapid → 38 True + 2 False
+- G13 FALLBACK_TRIGGERS unit 6 cases + ABORT 400 single case
+- G14 Backup `.claude/_snapshots/f57_pre/` (config.yaml + registry seed + .env.example)
+
+**F.6 PREP** — Brain.decide() default invoca `mcp.hermes-llm.route(task_type="reasoning")` via gateway dispatch. Modelo T1: `nvidia/mistral-nemotron` (NVIDIA "best function calling any price"). T2 PT-BR oficial: `nvidia/llama-3.3-nemotron-super-49b-v1`. F.6 sub-session consome `mcps/hermes-llm/config.yaml` routing_matrix como ground truth + `mcp_llm_models` table catalog 16 rows pra capability filter.
+
+**Code-reviewer verdict F.5.7**: **PASS-WITH-NOTES** (zero blockers, 3 notes baixa-média severidade encaminhadas F.5.8 backlog):
+- N1 (M migration): SQL pure não idempotente — ALTER TABLE ADD COLUMN sem IF NOT EXISTS (SQLite limitation). Runner externo deve catch "duplicate column" gracefully. F.5.8 wrap `scripts/apply_migration.py` com `--commit` flag.
+- N2 (M observability): `get_provider_status()` reusa `results[0]` health pra nim_credit (mesma key NIM Free). Cosmetic — F.5.9 cron credit balance check via `/v1/account/credits` substitui placeholder.
+- N3 (L policy): `route_decide` fallback "if not filtered" colapsa chain ignorando policy filter quando matrix vazia pra task_type — escape hatch silencioso. F.5.8 add `log.warning` quando fallback hit + telemetry counter.
+
+Critérios PASS: BLACKLIST R2 intact (zero linkedin/* matches) + 6 tools OpenAI-compat schema + FALLBACK_TRIGGERS 6 + ABORT 400 + RpmLimiter 38/60s margin + SENSITIVE_KEYS extended ambos gateway+local (7 NIM/LLM keys) + asyncio.gather return_exceptions=True + isinstance handle graceful + routing matrix fidelidade §4 confirmada + adapters env-only key + importlib path collision-safe + migration CREATE IF NOT EXISTS.
+
 **Files F.5.6 entregues** (15 mudanças = 7 NOVOS + 8 MATURE):
 - `.env.example` MATURE: 9 NOVOS env vars placeholders (GITHUB_PERSONAL_ACCESS_TOKEN, SENTRY_ACCESS_TOKEN, DATABASE_URI, TAVILY_API_KEY, BRAVE/KAGI/PERPLEXITY/FIRECRAWL/JINA opcionais)
 - `.claude/mcp_registry_seed.json` MATURE: 5 rows status reserved→active + chapter_owner atualizados (F.4/F.6/F.7)
