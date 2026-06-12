@@ -1030,8 +1030,70 @@ NÃO single LLM call (perde tool chaining capability). NÃO infinite loop (D6 ca
   - [Anthropic ReAct pattern best practices](https://www.anthropic.com/engineering/writing-tools-for-agents)
   - [stevekinney agent loops anatomy](https://stevekinney.com/writing/agent-loops)
 - Memory: mem_mqae0827 (F.6 cristalizadas D1-D10) + mem_mqa6qoq0 (routing matrix) + mem_mqb3p1bh (F.6.1 complete)
-+
-+### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
+
+**🟢 F.6.2 [✅] STATUS COMPLETE 2026-06-12 (sub-session 2/6, 3 commits)**:
+
+- C1 `61db619 feat(brain): F.6.2a — brain/dispatch.py NOVO Gateway HTTP client + Bearer auth + SENSITIVE_KEYS sanitize`
+- C2 `c0a9c02 feat(brain): F.6.2b — brain/_react.py NOVO ReAct loop 5 iter + decide/intents MATURE dispatch real`
+- C3 (este commit) `docs(plan): F.6.2 [✅] Brain Tool Calling REAL + ReAct loop + reviewer PASS + 🚨 ROTACIONAR NIM KEY + F.6.3 PREP`
+
+**Implementado F.6.2**:
+- `brain/dispatch.py` NOVO (170 LOC) — GatewayDispatcher httpx.AsyncClient + Bearer auth + SENSITIVE_KEYS sanitize + nvapi- string detect
+- `brain/_react.py` NOVO (~320 LOC) — ReAct loop multi-step Think→Act→Observe canonical (MAX_ITER=5 D6, CONFIDENCE_PENALTY=0.2)
+  - `_build_react_prompt`: intent + context + tools + accumulated history + STRICT JSON output schema
+  - `_parse_llm_json`: defensive fence strip + fallback shape `{rationale, planned_tool, final_answer, confidence}`
+  - `_compute_confidence`: D5 híbrido 0.6 * llm_self + 0.4 * brain_validation
+  - `_aggregate_tool_costs` + `_extract_llm_call_cost`: dual cost tracking
+  - Terminal cases: final_answer reached, no planned_tool, invalid schema, max_iter reached
+- `brain/decide.py` MATURE — Brain(dispatcher=...) injectable, substitui handle_intent mock por react_loop, status='completed'|'error' derived from react_status
+- `brain/intents.py` MATURE — handle_intent delegates react_loop, retorna enriched shape com final_answer/iterations/accumulated/cost_credits
+- `brain/_smoke.py` MATURE — OFFLINE_MODE=1 default deterministic mock (9 cases) + OFFLINE_MODE=0 real gateway (3 cases)
+- `.env.example` MATURE — HERMES_NIM_API_KEY placeholder + 🚨 rotation note pós-deploy + HERMES_BRAIN_OFFLINE flag + HERMES_OLLAMA_PC_URL
+
+**Smoke F.6.2 evidência**:
+- `python -m brain._smoke` OFFLINE → 9 assertions PASS (6 intents + unknown + isolation + max_iter cap)
+- `HERMES_BRAIN_OFFLINE=0 python -m brain._smoke` REAL → 3 assertions PASS (classify NIM iter=3 conf=0.3 latency=18484ms, utility no_llm, destructive gate)
+- Unit tests mock dispatcher 9/9 (T1 direct, T2 destructive, T3 utility, T4 multi-step conf=0.91, T5 hybrid+low_conf gate, T6 unknown, T7 max_iter, T8 invalid_tool, T9 non-JSON)
+- Brain.decide(classify_prospect) real gateway: 2 iter, LLM proposed wrong server "mcp", dispatch 404 graceful, conf 0.24 → requires_confirm low_conf
+- Validate A=3, B=5, C=6, D=4, E=2 → 20/22 PASS preservado
+- BLACKLIST R2: `git diff 830336a..HEAD -- linkedin/` ZERO matches
+- Reviewer agent 19 dim: PASS-WITH-NOTES zero BLOCKERS, 10 WARNs F.6.3+
+
+**WARNs F.6.3+ (do reviewer)**:
+- W1 [F.6.3] Persistence `brain_runs`/`brain_decisions` INSERT pendente (schema F.6.1 já presente)
+- W2 [F.6.4] UI confirm modal pendente — `POST /api/brain/confirm/{run_id}` endpoint + dashboard rendering
+- W3 [F.6.3] `brain/replay.py` stub vazio — popular com `restore_from_run_id()`
+- W4 [F.future] Gateway circuit breaker — 30s × 5 iter = 150s worst case sem fail-fast
+- W5 [F.future] Paralelismo tool dispatch — sequencial D4 explícito, asyncio.gather quando F.8 observability
+- W6 [F.future] Brain instance state isolation — dispatcher shared, threading concerns
+- W7 [F.6.5] Golden cases regression suite — hermes-brain-test skill update
+- W8 [F.future] `model_hint`/`force_provider` API exposed but unused
+- W9 [F.future] `_parse_llm_json` fallback conf=0.4 hardcoded — configurable via PrefPanel
+- W10 [Phase E legacy] MERGED-010 channels/whatsapp+instagram stubs pré-existentes (não-F.6.2)
+
+**🚨 ROTACIONAR NIM API KEY (OBRIGATÓRIO PÓS-DEPLOY)**:
+
+Key exposta via chat owner setup F.6.2 = comprometida. Rotacionar imediato após push master commits F.6.2:
+1. https://build.nvidia.com → Account → API Keys
+2. Revoke current key (Key ID que owner identifique)
+3. Generate new API key
+4. Update `.env` PC + `~/.hermes/.env` VM com nova key
+5. Restart `server.py` PC + `systemctl --user restart hermes-mcps-gateway.service` VM
+6. Smoke `HERMES_BRAIN_OFFLINE=0 python -m brain._smoke` confirma nova key funcional
+
+**F.6.3 PREP (próxima sub-session)** — Memory persistence + agentmemory MCP integration:
+- `brain/replay.py` MATURE — `restore_from_run_id()` rebuild ReAct trace from `brain_decisions` rows
+- `brain/decide.py` MATURE — INSERT `brain_runs` (run_id, intent, status, latency_ms, total_cost_credits, requires_confirm, started_at) + N rows `brain_decisions` per state transition
+- agentmemory MCP integration — short-term context buffer + long-term `memory_save` per completed run
+- `GET /api/brain/runs/{run_id}` 200 implementação (F.6.1 retornou 501) + `POST /api/brain/replay/{run_id}`
+- Pre-req F.6.3: NIM key rotacionada + smoke real OFFLINE=0 passing
+
+**Cross-ref F.6.2 complete**:
+- Reviewer evidência: 19 dim PASS / PASS-WITH-NOTES; veredicto PASS-WITH-NOTES merge
+- Memory: mem F.6.2 complete workflow (próximo SHA)
+- mark_chapter "F.6.2 complete" persistido
+
+### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
 +**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)
 +
