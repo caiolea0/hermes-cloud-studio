@@ -960,8 +960,76 @@ Estimativa total F.6: 6 sub-sessions × 3-5h cada = 20-30h spread over 1 semana.
 +
 +**Cross-ref F.6.1**:
 +- Reviewer evidência: 18 dim PASS / PASS-WITH-NOTES; veredicto PASS-WITH-NOTES merge
-+- Memory: mem_<F.6.1 SHA pós-commit>
++- Memory: mem_mqb3p1bh (F.6.1 complete workflow)
 +- mark_chapter "F.6.1 complete" persistido
+
+**🎯 F.6.2 Decisões Cristalizadas (Tool calling REAL via gateway dispatch) — incorporado 2026-06-12**:
+
+Owner cadastrou NIM API key + Ollama PC 200 confirmed (RTX 2060 disponível T3 fallback). F.6.2 = primeira sessão Brain.decide() invoca real LLM via gateway. Marco arquitetural Hermes vira **autônomo** começa aqui.
+
+**🚨 SECURITY pre-req**: NIM key fornecida via chat = key EXPOSTA. Owner deve ROTACIONAR key build.nvidia.com PÓS-F.6.2 deploy completar (Revoke current → Generate new → update .env PC+VM). Documentado prompt F.6.2 step 0.
+
+**D1 Sequência F.6.2 antes F.6.3**: F.6.2 (tool calling real) ANTES F.6.3 (persistence). Razão: F.6.3 vai persistir decisions REAIS (não mocks). Inversão = re-trabalho schema F.6.3 pra acomodar mocks F.6.1.
+
+**D2 Fallback Ollama PC + NIM ambos disponíveis**: Smoke F.6.2 valida 3-tier real (T1 NIM + T3 Ollama PC). Se NIM key falha → T3 ativa graceful. Owner Claude commit 2 smoke confirma `route(task_type="reasoning", prompt="ping")` retorna 200 com `provider IN ('nim_free', 'ollama_pc')`.
+
+**D3 Multi-step ReAct loop canonical Anthropic**: Brain.decide() implementa Think→Act→Observe loop:
+```
+For each intent:
+  1. THINK: reason(prompt + context + tools_available) → planned_tool_call
+  2. ACT: dispatch tool via gateway → tool_result
+  3. OBSERVE: include tool_result em next reasoning step
+  4. REPEAT until: final_answer reached OR max_iterations OR confidence threshold
+```
+NÃO single LLM call (perde tool chaining capability). NÃO infinite loop (D6 cap 5 iter).
+
+**D4 Tool execution SEQUENCIAL primeiro**: `INTENT_REGISTRY[intent]['default_tools']` invocados sequenciais (call_1 → result_1 → call_2 → result_2 → ...). NÃO paralelo F.6.2 (debugging complexity alto, paralelo F.future se F.8 observability mostrar benefit).
+
+**D5 Confidence score HÍBRIDO**:
+- LLM declara self-assessment (`tool_result.confidence` field opcional)
+- Brain VALIDA via tool result success rate (tools executados sem error → boost confidence; errors → penalize)
+- Formula: `final_confidence = 0.6 * llm_self + 0.4 * brain_validation` (60/40 weight LLM/Brain)
+- < 0.5 → owner confirm trigger (D8 F.6.1 cristalizado)
+
+**D6 Max iterations = 5** (ReAct typical pattern Anthropic). Evita infinite loop tool calling cascading. Se atingir 5 sem `final_answer` → return melhor parcial + `status="max_iterations_reached"` + `confidence -= 0.2` penalty.
+
+**D7 Tool call timeout = 30s per dispatch** (routing matrix `max_latency_ms` D7 F.5.7 cristalizado). Timeout = fallback T2→T3 (matrix decide). Brain NÃO override timeout, delega routing matrix.
+
+**D8 Owner confirm = BLOCK Brain.decide()** (não background task). Pattern: `to_review → owner_confirm_required → IDLE (paused)`. F.6.4 implementa endpoint `POST /api/brain/confirm/{run_id}` + dashboard modal UI. F.6.2 retorna `requires_confirm: true` + cliente faz polling `GET /api/brain/runs/{run_id}` até owner aprova (F.6.3 persistence faz state restore).
+
+**Files F.6.2** (1 NOVO + 3 MATURE):
+- `brain/dispatch.py` NOVO (~150 LOC) — Gateway HTTP client httpx.AsyncClient. POST /dispatch/hermes-llm/route + outros MCPs. Bearer auth via HERMES_GATEWAY_OAUTH_SECRET env.
+- `brain/_react.py` NOVO (~150 LOC) — ReAct loop multi-step (5 iter max). Think (LLM call) → Act (tool dispatch) → Observe (result inject next prompt).
+- `brain/decide.py` MATURE — substituir mocks por dispatch real via `brain/dispatch.py` + `brain/_react.py`. Mantém state machine 6 states.
+- `brain/intents.py` MATURE — `handle_intent` chama ReAct loop para intents com `task_type` set. `route_skill_run` utility intent permanece sem LLM (executor pure Python).
+- `brain/_smoke.py` MATURE — smoke real (NIM + Ollama PC fallback) com OFFLINE_MODE env var fallback determinista pra CI.
+- `requirements.txt` MATURE — `httpx>=0.27` (Brain dispatcher) — provavelmente já instalado, validar.
+- `.env.example` MATURE — `HERMES_NIM_API_KEY=nvapi-<placeholder>` + comentário "Cadastrar build.nvidia.com + Generate API key + cole aqui. Rotacionar mensal."
+
+**Sub-task split F.6.2 (3 commits sub-session)**:
+- **C1** brain/dispatch.py NOVO + Gateway HTTP client + Bearer auth + sanitize input/output
+- **C2** brain/_react.py NOVO + brain/decide.py MATURE substitui mocks por ReAct loop real + brain/intents.py MATURE handle_intent real
+- **C3** brain/_smoke.py MATURE + reviewer + memory + closeout F.6.2
+
+**🚨 Riscos críticos F.6.2**:
+- **NIM key exposure handling** — owner Claude NUNCA loga key value, smoke verifica presence via `os.getenv("HERMES_NIM_API_KEY", "").startswith("nvapi-")` boolean check
+- **ReAct loop infinite risk** — D6 max iter 5 hardcoded, smoke valida cap funcional
+- **Cost escalation** — multi-step loop = 4-5x tokens per call. F.5.7 mcp_calls.cost_credits tracking captura, owner monitora dashboard F.8 futura
+- **Tool call failures cascading** — Brain deve handle gracefully (try/except per tool, continue ReAct loop com error context)
+- **NIM rate limit 40 RPM** — F.5.7 RpmLimiter já presente hermes-llm/_policy.py, Brain consome transparente
+- **BLACKLIST R2 INTACTO** — Brain NÃO chama linkedin/* direto, sempre via mcp.hermes-linkedin.* (gateway dispatch)
+- **Gateway down = Brain paralisado** — F.future circuit breaker em brain/dispatch.py (defer F.6.4 ou F.8)
+- **PT-BR quality drift** — F.7 A/B test cobaia primeira semana (cristalizado routing matrix Task 5)
+
+**Cross-ref F.6.2**:
+- `.claude/NVIDIA-MODELS-ROUTING-MATRIX.md` (Brain consome via task_type)
+- `mcps/hermes-llm/server.py` F.5.7 (gateway interface)
+- `mcps/gateway/server.py` F.5.3 dispatch endpoint
+- `brain/states.py` F.6.1 (state machine reuse)
+- WebSearch refs:
+  - [Anthropic ReAct pattern best practices](https://www.anthropic.com/engineering/writing-tools-for-agents)
+  - [stevekinney agent loops anatomy](https://stevekinney.com/writing/agent-loops)
+- Memory: mem_mqae0827 (F.6 cristalizadas D1-D10) + mem_mqa6qoq0 (routing matrix) + mem_mqb3p1bh (F.6.1 complete)
 +
 +### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
