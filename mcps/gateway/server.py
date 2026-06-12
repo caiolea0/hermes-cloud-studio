@@ -40,7 +40,7 @@ from vm_core.mcp_tiering import classify_coverage
 
 from ._pool import MCPClientPool
 
-GATEWAY_VERSION = "0.4.0-f5.6"
+GATEWAY_VERSION = "0.5.0-f5.7"
 
 # F.5.5 D5 — in-memory async audit job registry.
 # Aceitavel audit mensal (proximo cron retry se VM restart pre-finish).
@@ -56,6 +56,9 @@ _SENSITIVE_KEYS = frozenset({
     "jsessionid", "csrf", "csrf_token", "api_key", "apikey", "secret", "bearer",
     "li_rm", "lidc", "bcookie", "bscookie", "x-li-track", "x_li_track",
     "liap", "usermatchhistory", "analyticssynchistory",
+    # F.5.7 NIM + OpenRouter + other LLM provider keys (defesa-em-profundidade)
+    "nvidia_api_key", "nvapi", "nim_token", "hermes_nim_api_key",
+    "openrouter_api_key", "anthropic_api_key", "openai_api_key",
 })
 
 

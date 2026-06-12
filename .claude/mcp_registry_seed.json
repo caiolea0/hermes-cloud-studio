@@ -80,6 +80,16 @@
       "oauth_required": 1
     },
     {
+      "server": "hermes-llm",
+      "tools": ["route", "list_available_models", "get_provider_status", "track_cost", "set_routing_policy", "get_call_history"],
+      "status": "active",
+      "chapter_owner": "F.5.7",
+      "required_by_dc": ["F.6", "F.7", "F.4", "F.8"],
+      "tier": "active",
+      "oauth_required": 1,
+      "scope_critical": "NVIDIA NIM + Ollama PC 3-tier fallback. T4 OpenRouter explicit force_provider only. API key env HERMES_NIM_API_KEY. Coexiste linkedin/ollama_router.py (BLACKLIST R2 INTACT)."
+    },
+    {
       "server": "hunter",
       "tools": ["verify_email", "domain_search", "email_finder"],
       "status": "reserved",

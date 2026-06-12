@@ -5,7 +5,7 @@
 gateway:
   bind_host: 127.0.0.1
   bind_port: 55401
-  version: "0.4.0-f5.6"
+  version: "0.5.0-f5.7"
   # OAuth 2.1 default ON for custom MCPs. Localhost loopback bypass (dev mode).
   # Production VM enforces OAuth even loopback when HERMES_STRICT_MCP=1.
   oauth_enabled: true
@@ -70,6 +70,24 @@ upstream_mcps:
       - propose_skill_yaml_stub
       - test_skill_dryrun
       - get_metrics
+
+  - name: hermes-llm
+    status: active            # F.5.7 — 9o MCP custom 4o custom (NVIDIA NIM + Ollama PC 3-tier fallback)
+    kind: custom
+    chapter_owner: F.5.7
+    required_by_dc: [F.6, F.7, F.4, F.8]
+    transport: stdio
+    command: python3
+    args: ["mcps/hermes-llm/server.py"]
+    cwd: "/home/hermes-gcp/.hermes"
+    scope_notes: "F.5.7 routing dispatcher 3-tier fallback: T1 NIM Free (40 RPM cap margin 38) → T2 NIM credit (5000 initial balance OPT-IN per-skill) → T3 Ollama PC RTX 2060 6GB local (até VM GPU F.future). T4 OpenRouter explicit force_provider only. Ground truth routing matrix: .claude/NVIDIA-MODELS-ROUTING-MATRIX.md §4 (12 tasks copy fiel config.yaml). API key env-only HERMES_NIM_API_KEY (NUNCA hardcode). Coexiste com linkedin/ollama_router.py (BLACKLIST R2 INTACT — refactor F.future). F.6 Brain.decide() default consume via mcp.hermes-llm.route(task_type='reasoning')."
+    tools_preview:
+      - route
+      - list_available_models
+      - get_provider_status
+      - track_cost
+      - set_routing_policy
+      - get_call_history
 
   # F.5.6 D1 — 5 publics ACTIVE (Hunter deferred F.future per D1 cristalizado)
   - name: omnisearch
