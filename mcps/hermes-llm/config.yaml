@@ -1,0 +1,89 @@
+# hermes-llm routing config — F.5.7
+# Source of truth: .claude/NVIDIA-MODELS-ROUTING-MATRIX.md §4 (12 tasks × 3-4 tiers)
+# Edit JSON-like blocks below to add task_types. Ordered list = T1 → T2 → T3 → T4 fallback chain.
+
+default_policy: balanced   # balanced | cost-optimize | latency-optimize
+
+rpm_limits:
+  nim_free: 38              # margin 2 sobre cap NIM declared 40
+  nim_credit: 60            # premium tier typical
+  ollama_pc: 9999           # no cap local
+  openrouter: 60            # plan-dependent
+
+provider_endpoints:
+  nim:
+    base_url: "https://integrate.api.nvidia.com/v1"
+    api_key_env: "HERMES_NIM_API_KEY"
+  ollama_pc:
+    base_url_env: "HERMES_OLLAMA_PC_URL"
+    base_url_default: "http://localhost:11434/v1"
+  openrouter:
+    base_url: "https://openrouter.ai/api/v1"
+    api_key_env: "OPENROUTER_API_KEY"
+
+# Per-task routing chain T1 → T2 → T3 (T4 OpenRouter explicit force_provider only).
+# tier = T1|T2|T3 · provider = nim_free|nim_credit|ollama_pc · model = exact model_id
+routing_matrix:
+  default:
+    - {tier: T1, provider: nim_free, model: "nvidia/llama-3.1-nemotron-nano-8b-v1.1"}
+    - {tier: T2, provider: nim_free, model: "zhipu/glm-5.1"}
+    - {tier: T3, provider: ollama_pc, model: "llama3.2:3b"}
+
+  reasoning:
+    - {tier: T1, provider: nim_free, model: "nvidia/mistral-nemotron"}
+    - {tier: T2, provider: nim_free, model: "nvidia/llama-3.3-nemotron-super-49b-v1"}
+    - {tier: T3, provider: nim_credit, model: "deepseek-ai/deepseek-r1"}
+    - {tier: T4, provider: ollama_pc, model: "phi3:3.8b"}
+
+  classify:
+    - {tier: T1, provider: nim_free, model: "nvidia/llama-3.1-nemotron-nano-8b-v1.1"}
+    - {tier: T2, provider: nim_free, model: "nvidia/llama-3.1-nemotron-nano-4b-v1.1"}
+    - {tier: T3, provider: ollama_pc, model: "llama3.2:3b"}
+
+  code_gen:
+    - {tier: T1, provider: nim_free, model: "qwen/qwen3-coder-480b"}
+    - {tier: T2, provider: nim_free, model: "deepseek-ai/deepseek-v4-flash"}
+    - {tier: T3, provider: nim_credit, model: "minimax/minimax-m2.7-230b"}
+    - {tier: T4, provider: ollama_pc, model: "qwen2.5-coder:3b"}
+
+  code_gen_light:
+    - {tier: T1, provider: nim_free, model: "mistralai/codestral-mamba-7b"}
+    - {tier: T2, provider: nim_free, model: "qwen/qwen3-coder-32b"}
+    - {tier: T3, provider: ollama_pc, model: "qwen2.5-coder:1.5b"}
+
+  creative_ptbr:
+    - {tier: T1, provider: nim_free, model: "nvidia/llama-3.3-nemotron-super-49b-v1"}
+    - {tier: T2, provider: nim_free, model: "meta/llama-3.3-70b-instruct"}
+    - {tier: T3, provider: nim_credit, model: "meta/llama-3.1-405b-instruct"}
+    - {tier: T4, provider: ollama_pc, model: "llama3.2:3b"}
+
+  summarize:
+    - {tier: T1, provider: nim_free, model: "meta/llama-4-scout-17b-16e-instruct"}
+    - {tier: T2, provider: nim_free, model: "meta/llama-4-maverick-17b-128e-instruct"}
+    - {tier: T3, provider: nim_free, model: "deepseek-ai/deepseek-v4-flash"}
+    - {tier: T4, provider: ollama_pc, model: "gemma3:4b"}
+
+  embedding:
+    - {tier: T1, provider: nim_free, model: "nvidia/nv-embedqa-e5-v5"}
+    - {tier: T2, provider: nim_free, model: "nvidia/llama-3.2-nv-embedqa-1b-v2"}
+    - {tier: T3, provider: ollama_pc, model: "nomic-embed-text"}
+
+  generic_light:
+    - {tier: T1, provider: nim_free, model: "zhipu/glm-5.1"}
+    - {tier: T2, provider: nim_free, model: "google/gemma-4-9b-it"}
+    - {tier: T3, provider: ollama_pc, model: "gemma3:4b"}
+
+forced_models:
+  nim_free: "nvidia/mistral-nemotron"
+  nim_credit: "deepseek-ai/deepseek-r1"
+  ollama_pc: "llama3.2:3b"
+  openrouter: "anthropic/claude-3.5-sonnet"
+
+# Policies — declarative tier filters
+policies:
+  cost-optimize:
+    deny_providers: [nim_credit, openrouter]
+  latency-optimize:
+    allow_providers: [nim_free, ollama_pc]
+  balanced:
+    deny_providers: [openrouter]   # T4 explicit force only
