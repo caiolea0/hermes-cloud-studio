@@ -36,6 +36,37 @@ _SELF_DIR = Path(__file__).resolve().parent
 if str(_SELF_DIR) not in sys.path:
     sys.path.insert(0, str(_SELF_DIR))
 
+
+# F.6.2 fix — fastmcp StdioTransport spawns subprocess with empty env (apenas PATH).
+# Sem load explicit, HERMES_NIM_API_KEY + outros tokens NÃO chegam neste process,
+# fazendo NIM/OpenRouter clients reportarem "key missing". Load .env canônico VM/PC
+# stdlib-only (sem depender python-dotenv que pode não estar no venv).
+def _load_env_canonical() -> None:
+    """Load .env from canonical locations into os.environ (stdlib only)."""
+    candidates = [
+        Path.home() / ".hermes" / ".env",            # VM canonical (F.5.5 systemd EnvironmentFile)
+        _REPO_ROOT / ".env",                          # PC repo local
+    ]
+    for p in candidates:
+        if not p.exists():
+            continue
+        try:
+            for line in p.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip().strip('"').strip("'")
+                if k and k not in os.environ:
+                    os.environ[k] = v
+            break  # primeiro encontrado vence
+        except Exception:
+            pass
+
+
+_load_env_canonical()
+
 try:
     from fastmcp import FastMCP
 except ImportError as exc:

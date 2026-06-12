@@ -1,6 +1,7 @@
-# hermes-llm routing config — F.5.7
+# hermes-llm routing config — F.5.7 + F.6.2 patch (orquestrador 2026-06-12)
 # Source of truth: .claude/NVIDIA-MODELS-ROUTING-MATRIX.md §4 (12 tasks × 3-4 tiers)
-# Edit JSON-like blocks below to add task_types. Ordered list = T1 → T2 → T3 → T4 fallback chain.
+# F.6.2 update: substituir model IDs deprecated catalog Sessão B por IDs REAIS NIM 2026-06
+# Live verified via GET https://integrate.api.nvidia.com/v1/models (121 models)
 
 default_policy: balanced   # balanced | cost-optimize | latency-optimize
 
@@ -17,65 +18,88 @@ provider_endpoints:
   ollama_pc:
     base_url_env: "HERMES_OLLAMA_PC_URL"
     base_url_default: "http://localhost:11434/v1"
+    # NOTA F.future: VM gateway → PC Ollama requer SSH reverse tunnel OR Cloudflare Tunnel.
+    # Hoje T3 ollama_pc só funciona PC-side smoke (hermes-llm subprocess PC). VM gateway
+    # subprocess hermes-llm tenta VM:11434 que não existe = 404. Brain F.6.2 usa T1+T2 NIM
+    # cloud primariamente; T3 ativa quando hermes-llm rodar PC-side (F.future).
   openrouter:
     base_url: "https://openrouter.ai/api/v1"
     api_key_env: "OPENROUTER_API_KEY"
 
 # Per-task routing chain T1 → T2 → T3 (T4 OpenRouter explicit force_provider only).
 # tier = T1|T2|T3 · provider = nim_free|nim_credit|ollama_pc · model = exact model_id
+# Model IDs verified LIVE via NIM /v1/models endpoint (2026-06-12 catalog).
 routing_matrix:
   default:
-    - {tier: T1, provider: nim_free, model: "nvidia/llama-3.1-nemotron-nano-8b-v1.1"}
-    - {tier: T2, provider: nim_free, model: "zhipu/glm-5.1"}
+    - {tier: T1, provider: nim_free, model: "nvidia/llama-3.1-nemotron-nano-8b-v1"}
+    - {tier: T2, provider: nim_free, model: "z-ai/glm-5.1"}
     - {tier: T3, provider: ollama_pc, model: "llama3.2:3b"}
 
   reasoning:
-    - {tier: T1, provider: nim_free, model: "nvidia/mistral-nemotron"}
+    # T1: NIM declara "best function calling at any price"
+    - {tier: T1, provider: nim_free, model: "mistralai/mistral-nemotron"}
+    # T2: PT-BR oficial declarado + reasoning post-trained
     - {tier: T2, provider: nim_free, model: "nvidia/llama-3.3-nemotron-super-49b-v1"}
-    - {tier: T3, provider: nim_credit, model: "deepseek-ai/deepseek-r1"}
+    # T3: ultra premium reasoning (credit-based opt-in)
+    - {tier: T3, provider: nim_credit, model: "nvidia/llama-3.1-nemotron-ultra-253b-v1"}
     - {tier: T4, provider: ollama_pc, model: "phi3:3.8b"}
 
   classify:
-    - {tier: T1, provider: nim_free, model: "nvidia/llama-3.1-nemotron-nano-8b-v1.1"}
-    - {tier: T2, provider: nim_free, model: "nvidia/llama-3.1-nemotron-nano-4b-v1.1"}
+    # T1: nano 8B v1 (NÃO v1.1 que não existe)
+    - {tier: T1, provider: nim_free, model: "nvidia/llama-3.1-nemotron-nano-8b-v1"}
+    # T2: safety-guard nano 8B alternative
+    - {tier: T2, provider: nim_free, model: "z-ai/glm-5.1"}
     - {tier: T3, provider: ollama_pc, model: "llama3.2:3b"}
 
   code_gen:
-    - {tier: T1, provider: nim_free, model: "qwen/qwen3-coder-480b"}
+    # T1: DeepSeek V4 Pro (recente catalog 2026)
+    - {tier: T1, provider: nim_free, model: "deepseek-ai/deepseek-v4-pro"}
+    # T2: V4 Flash 1M context ultra-fast
     - {tier: T2, provider: nim_free, model: "deepseek-ai/deepseek-v4-flash"}
-    - {tier: T3, provider: nim_credit, model: "minimax/minimax-m2.7-230b"}
+    # T3: Codestral 22B
+    - {tier: T3, provider: nim_free, model: "mistralai/codestral-22b-instruct-v0.1"}
     - {tier: T4, provider: ollama_pc, model: "qwen2.5-coder:3b"}
 
   code_gen_light:
-    - {tier: T1, provider: nim_free, model: "mistralai/codestral-mamba-7b"}
-    - {tier: T2, provider: nim_free, model: "qwen/qwen3-coder-32b"}
+    - {tier: T1, provider: nim_free, model: "mistralai/codestral-22b-instruct-v0.1"}
+    - {tier: T2, provider: nim_free, model: "deepseek-ai/deepseek-coder-6.7b-instruct"}
     - {tier: T3, provider: ollama_pc, model: "qwen2.5-coder:1.5b"}
 
   creative_ptbr:
+    # T1: PT oficial declarado primary
     - {tier: T1, provider: nim_free, model: "nvidia/llama-3.3-nemotron-super-49b-v1"}
+    # T2: Llama 3.3 70B multilingual native
     - {tier: T2, provider: nim_free, model: "meta/llama-3.3-70b-instruct"}
-    - {tier: T3, provider: nim_credit, model: "meta/llama-3.1-405b-instruct"}
+    # T3: Llama 4 Maverick (most popular 22M uses)
+    - {tier: T3, provider: nim_free, model: "meta/llama-4-maverick-17b-128e-instruct"}
     - {tier: T4, provider: ollama_pc, model: "llama3.2:3b"}
 
   summarize:
-    - {tier: T1, provider: nim_free, model: "meta/llama-4-scout-17b-16e-instruct"}
-    - {tier: T2, provider: nim_free, model: "meta/llama-4-maverick-17b-128e-instruct"}
-    - {tier: T3, provider: nim_free, model: "deepseek-ai/deepseek-v4-flash"}
+    # T1: Llama 4 Maverick 1M context primary
+    - {tier: T1, provider: nim_free, model: "meta/llama-4-maverick-17b-128e-instruct"}
+    # T2: DeepSeek V4 Flash 1M context backup
+    - {tier: T2, provider: nim_free, model: "deepseek-ai/deepseek-v4-flash"}
+    # T3: Llama 3.3 70B 128k context
+    - {tier: T3, provider: nim_free, model: "meta/llama-3.3-70b-instruct"}
     - {tier: T4, provider: ollama_pc, model: "gemma3:4b"}
 
   embedding:
     - {tier: T1, provider: nim_free, model: "nvidia/nv-embedqa-e5-v5"}
-    - {tier: T2, provider: nim_free, model: "nvidia/llama-3.2-nv-embedqa-1b-v2"}
-    - {tier: T3, provider: ollama_pc, model: "nomic-embed-text"}
+    # T2: v1 (não v2 que não existe)
+    - {tier: T2, provider: nim_free, model: "nvidia/llama-3.2-nv-embedqa-1b-v1"}
+    - {tier: T3, provider: nim_free, model: "nvidia/nv-embedqa-mistral-7b-v2"}
+    - {tier: T4, provider: ollama_pc, model: "nomic-embed-text"}
 
   generic_light:
-    - {tier: T1, provider: nim_free, model: "zhipu/glm-5.1"}
-    - {tier: T2, provider: nim_free, model: "google/gemma-4-9b-it"}
+    # T1: GLM 5.1 (z-ai prefix, não zhipu)
+    - {tier: T1, provider: nim_free, model: "z-ai/glm-5.1"}
+    # T2: Gemma 3 12B
+    - {tier: T2, provider: nim_free, model: "google/gemma-3-12b-it"}
     - {tier: T3, provider: ollama_pc, model: "gemma3:4b"}
 
 forced_models:
-  nim_free: "nvidia/mistral-nemotron"
-  nim_credit: "deepseek-ai/deepseek-r1"
+  nim_free: "mistralai/mistral-nemotron"
+  nim_credit: "nvidia/llama-3.1-nemotron-ultra-253b-v1"
   ollama_pc: "llama3.2:3b"
   openrouter: "anthropic/claude-3.5-sonnet"
 
