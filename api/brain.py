@@ -3,26 +3,30 @@
 F.6.1: scaffold endpoints + Pydantic schemas.
 F.6.2: tool calling real via gateway dispatch.
 F.6.3: GET /runs/{id} + POST /replay/{id} return 200 with persisted run + decisions.
-F.6.4: POST /confirm/{id} dashboard modal handler.
+F.6.4: POST /confirm/{id} REAL (501→200) — owner approve/deny + optional 500-char comment
+       + resume_from_run_id deterministic + WS broadcast brain.run_confirm_resolved.
+       GET /runs aceita ?status filter (rehydrate drawer page-reload).
 F.6.5: golden-cases bateria via hermes-brain-test skill.
 
-Endpoints (F.6.3):
+Endpoints (F.6.4):
   POST /api/brain/decide        — main decision loop (F.6.2 real via gateway dispatch)
-  GET  /api/brain/runs          — list recent runs (F.6.3 REAL — optional ?intent filter)
-  GET  /api/brain/runs/{run_id} — load past run (F.6.3 REAL — 200 with run + decisions)
-  POST /api/brain/replay/{run_id} — show recorded replay (F.6.3 REAL — read-only)
-  POST /api/brain/confirm/{run_id} — owner confirm (F.6.4 stub 501)
-  GET  /api/brain/intents       — list registered intents (F.6.1)
+  GET  /api/brain/runs          — list recent runs (?intent + ?status filters)
+  GET  /api/brain/runs/{run_id} — load past run (run + decisions)
+  POST /api/brain/replay/{run_id} — show recorded replay (read-only)
+  POST /api/brain/confirm/{run_id} — owner approve/deny REAL + resume + WS broadcast
+  GET  /api/brain/intents       — list registered intents
 """
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, BackgroundTasks, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from brain.decide import Brain
+from brain.dispatch import sanitize
 from brain.intents import INTENT_REGISTRY
 from brain.replay import list_runs, replay_run
 
@@ -52,40 +56,82 @@ class BrainDecideResponse(BaseModel):
 
 
 class BrainConfirmRequest(BaseModel):
-    """F.6.4 owner confirm payload (F.6.3 endpoint still stub 501)."""
+    """F.6.4 owner confirm payload — D2: action + optional 500-char comment.
 
-    approve: bool
-    reason: str = ""
+    action: 'approve' | 'deny' | 'cancel' (cancel is server-side coded deny w/ owner_canceled).
+    comment: optional rationale 500 chars max; sanitized server-side (SENSITIVE_KEYS).
+    """
+
+    action: str = Field(..., pattern="^(approve|deny|cancel)$")
+    comment: str = Field(default="", max_length=500)
+
+
+async def _emit_ws_event(event_type: str, payload: dict[str, Any]) -> None:
+    """Fire-and-forget WS broadcast — never raises (BackgroundTasks bg).
+
+    F.6.4 D4: dot-notation canonical brain.* namespace (F.2.3 pattern).
+    """
+    try:
+        # Lazy import — evita circular core.state ↔ api.brain
+        from core.state import ws_manager
+        await ws_manager.broadcast({"type": event_type, **payload})
+    except Exception:  # noqa: BLE001 — WS non-critical
+        try:
+            import sentry_sdk  # type: ignore[import-not-found]
+            sentry_sdk.capture_exception()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _build_awaiting_payload(decide_result: dict[str, Any]) -> dict[str, Any]:
+    """F.6.4 D4 — assemble brain.run_awaiting_confirm WS payload (summary card source)."""
+    res = decide_result.get("result") or {}
+    final_answer = res.get("final_answer")
+    summary_what = str(final_answer)[:200] if final_answer else f"intent={res.get('intent', '')}"
+    return {
+        "run_id": decide_result.get("run_id"),
+        "intent": res.get("intent", ""),
+        "action_class": res.get("action_class", "") or (res.get("intent", "") if res.get("destructive") else ""),
+        "confidence": float(res.get("confidence", 0.0) or 0.0),
+        "confirm_reason": res.get("confirm_reason", ""),
+        "started_at": datetime.utcnow().isoformat() + "Z",
+        "summary_card": {
+            "what": summary_what,
+            "why": res.get("confirm_reason", ""),
+            "cost": float(decide_result.get("total_cost_credits", 0.0) or 0.0),
+            "iterations": int(res.get("iterations", 0) or 0),
+        },
+    }
 
 
 @router.post("/decide", response_model=BrainDecideResponse)
-async def brain_decide(req: BrainDecideRequest) -> BrainDecideResponse:
+async def brain_decide(req: BrainDecideRequest, bg: BackgroundTasks) -> BrainDecideResponse:
     """F.6.2: invokes real LLM via mcp.hermes-llm.route per intent config + ReAct loop.
     F.6.3: persists run + per-transition decisions; opt-in agentmemory MCP save async.
+    F.6.4: WS broadcast brain.run_awaiting_confirm fire-and-forget se requires_confirm.
     """
     brain = Brain()
     result = await brain.decide(req.intent, req.context, requester=req.requester)
+    if result.get("requires_confirm"):
+        bg.add_task(_emit_ws_event, "brain.run_awaiting_confirm", _build_awaiting_payload(result))
     return BrainDecideResponse(**result)
 
 
 @router.get("/runs")
 async def list_brain_runs(
     intent: str | None = Query(default=None, description="Filter by intent name (optional)"),
+    status: str | None = Query(default=None, description="Filter by final_state (F.6.4: 'requires_confirm', etc)"),
     limit: int = Query(default=50, ge=1, le=500, description="Max rows returned"),
 ) -> JSONResponse:
-    """F.6.3 REAL — list recent brain_runs."""
-    result = await list_runs(intent=intent, limit=limit)
-    status = 200 if result.get("ok") else 500
-    return JSONResponse(status_code=status, content=result)
+    """F.6.3 REAL — list recent brain_runs. F.6.4 added ?status filter."""
+    result = await list_runs(intent=intent, limit=limit, status=status)
+    code = 200 if result.get("ok") else 500
+    return JSONResponse(status_code=code, content=result)
 
 
 @router.get("/runs/{run_id}")
 async def get_run(run_id: str) -> JSONResponse:
-    """F.6.3 REAL — load brain_runs row + brain_decisions ordered by sequence ASC.
-
-    Returns 200 + replay payload (show_recorded mode).
-    Returns 404 if run_id not found.
-    """
+    """F.6.3 REAL — load brain_runs row + brain_decisions ordered by sequence ASC."""
     result = await replay_run(run_id, mode="show_recorded")
     if not result.get("ok"):
         if result.get("error") == "run_not_found":
@@ -96,10 +142,7 @@ async def get_run(run_id: str) -> JSONResponse:
 
 @router.post("/replay/{run_id}")
 async def post_replay(run_id: str, mode: str = Query(default="show_recorded")) -> JSONResponse:
-    """F.6.3 REAL — POST replay (semantic: explicit action). Identical payload GET /runs/{id}.
-
-    POST chosen for client mental model (replay is an action), parity with GET for cache-friendliness.
-    """
+    """F.6.3 REAL — POST replay (semantic: explicit action)."""
     result = await replay_run(run_id, mode=mode)
     if not result.get("ok"):
         if result.get("error") == "run_not_found":
@@ -109,17 +152,70 @@ async def post_replay(run_id: str, mode: str = Query(default="show_recorded")) -
 
 
 @router.post("/confirm/{run_id}")
-async def confirm_run(run_id: str, payload: BrainConfirmRequest) -> JSONResponse:
-    """F.6.4 implementa real (UI dashboard modal + state resume). F.6.3 stub preserved."""
-    return JSONResponse(
-        status_code=501,
-        content={
-            "error": "not_implemented_f64",
+async def confirm_run(
+    run_id: str,
+    payload: BrainConfirmRequest,
+    bg: BackgroundTasks,
+) -> JSONResponse:
+    """F.6.4 REAL — owner approve/deny resume_from_run_id + persist owner_comment + WS broadcast.
+
+    D2 (action + optional 500-char comment) + D4 (WS resolved) + D6 (deterministic state restore).
+    D5 (forever pending) — endpoint só age sob comando explícito owner.
+
+    Returns:
+      200 OK  on success
+      404     if run_id not found
+      409     if run not in 'requires_confirm' state (idempotent re-check)
+    """
+    # Sanitize comment via SENSITIVE_KEYS (defense-in-depth — Pydantic max_length already capped 500).
+    raw_comment = (payload.comment or "").strip()
+    sanitized = sanitize({"comment": raw_comment})
+    safe_comment = str(sanitized.get("comment") or "")[:500]
+
+    if payload.action == "cancel":
+        approved = False
+        # D2 explicit UX — auto-prepend owner_canceled marker if no comment.
+        if not safe_comment:
+            safe_comment = "owner_canceled"
+        else:
+            safe_comment = f"owner_canceled: {safe_comment}"[:500]
+    else:
+        approved = payload.action == "approve"
+
+    brain = Brain()
+    result = await brain.resume_from_run_id(run_id, approved=approved, comment=safe_comment)
+
+    if not result.get("ok"):
+        err = result.get("error", "unknown")
+        if err == "run_not_found":
+            return JSONResponse(status_code=404, content={"ok": False, "error": err, "run_id": run_id})
+        if err == "not_awaiting_confirm":
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "ok": False,
+                    "error": err,
+                    "run_id": run_id,
+                    "current_state": result.get("current_state"),
+                    "detail": "Run already resolved by another owner tab (optimistic lock).",
+                },
+            )
+        return JSONResponse(status_code=500, content=result)
+
+    # D4 — WS broadcast resolved (other tabs sync; drawer removes pending card)
+    bg.add_task(
+        _emit_ws_event,
+        "brain.run_confirm_resolved",
+        {
             "run_id": run_id,
-            "approve": payload.approve,
-            "message": "Owner confirm implementado em F.6.4 (safety UX sub-session).",
+            "action": payload.action,
+            "approved": approved,
+            "final_state": result.get("final_state"),
+            "resolved_at": datetime.utcnow().isoformat() + "Z",
         },
     )
+
+    return JSONResponse(status_code=200, content=result)
 
 
 @router.get("/intents")

@@ -121,6 +121,24 @@ async def lifespan(app: FastAPI):
             logger.info("F.6.1 Brain migration applied (brain_runs + brain_decisions)")
     except Exception as e:
         logger.warning(f"F.6.1 Brain migration failed: {e}")
+    # F.6.4 ALTER brain_runs ADD COLUMN owner_comment (idempotent — catches duplicate column)
+    try:
+        mig_path = PROJECT_ROOT / "migrations" / "2026_06_brain_runs_owner_comment.sql"
+        if mig_path.exists():
+            conn = get_db()
+            try:
+                conn.executescript(mig_path.read_text(encoding="utf-8"))
+                conn.commit()
+                logger.info("F.6.4 owner_comment migration applied")
+            except sqlite3.OperationalError as alter_exc:
+                if "duplicate column name" in str(alter_exc).lower():
+                    logger.info("F.6.4 owner_comment already present (idempotent)")
+                else:
+                    raise
+            finally:
+                conn.close()
+    except Exception as e:
+        logger.warning(f"F.6.4 owner_comment migration failed: {e}")
     # Restaurar globals persistidos em runtime_state (MERGED-004 / MERGED-016)
     state._LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
     state._LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)

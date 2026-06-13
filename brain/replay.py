@@ -117,16 +117,26 @@ async def replay_run(run_id: str, mode: str = "show_recorded") -> dict[str, Any]
     }
 
 
-async def list_runs(intent: str | None = None, limit: int = 50) -> dict[str, Any]:
-    """F.6.3 REAL list. Recent runs (replay UI). Optional intent filter."""
+async def list_runs(
+    intent: str | None = None,
+    limit: int = 50,
+    status: str | None = None,
+) -> dict[str, Any]:
+    """F.6.3 REAL list. Recent runs (replay UI). Optional intent + status filter.
+
+    F.6.4: status filter ('requires_confirm' | 'completed' | 'owner_approved' |
+    'owner_rejected' | 'error') usado pelo dashboard drawer pra rehydrate
+    pending owner-blocked runs em page reload.
+    """
     persistence = get_persistence()
     try:
-        runs = await persistence.list_runs(intent=intent, limit=limit)
+        runs = await persistence.list_runs(intent=intent, limit=limit, status=status)
     except Exception as exc:  # noqa: BLE001
-        log.exception("list_runs failed intent=%s limit=%d", intent, limit)
+        log.exception("list_runs failed intent=%s status=%s limit=%d", intent, status, limit)
         return {
             "ok": False,
             "filter_intent": intent,
+            "filter_status": status,
             "limit": limit,
             "runs": [],
             "error": f"db_error:{type(exc).__name__}",
@@ -134,6 +144,7 @@ async def list_runs(intent: str | None = None, limit: int = 50) -> dict[str, Any
     return {
         "ok": True,
         "filter_intent": intent,
+        "filter_status": status,
         "limit": limit,
         "count": len(runs),
         "runs": runs,

@@ -128,31 +128,60 @@ class BrainPersistence:
         total_latency_ms: int,
         total_cost_credits: float,
         confidence_score: float,
+        owner_comment: str | None = None,
     ) -> None:
-        """Update brain_runs final state (atomic per lock). Race-free com decisions writer."""
+        """Update brain_runs final state (atomic per lock). Race-free com decisions writer.
+
+        F.6.4: owner_comment opcional — quando final_state IN
+        {'owner_approved','owner_rejected'} (resume_from_run_id), persiste comment 500 chars.
+        """
         result_sanitized = sanitize(final_result or {})
         async with self._lock:
             try:
-                self._conn.execute(
-                    """
-                    UPDATE brain_runs
-                       SET finished_at = CURRENT_TIMESTAMP,
-                           final_state = ?,
-                           final_result = ?,
-                           total_latency_ms = ?,
-                           total_cost_credits = ?,
-                           confidence_score = ?
-                     WHERE id = ?
-                    """,
-                    (
-                        final_state,
-                        _trunc_json(result_sanitized),
-                        int(total_latency_ms),
-                        float(total_cost_credits),
-                        float(confidence_score),
-                        run_id,
-                    ),
-                )
+                if owner_comment is None:
+                    self._conn.execute(
+                        """
+                        UPDATE brain_runs
+                           SET finished_at = CURRENT_TIMESTAMP,
+                               final_state = ?,
+                               final_result = ?,
+                               total_latency_ms = ?,
+                               total_cost_credits = ?,
+                               confidence_score = ?
+                         WHERE id = ?
+                        """,
+                        (
+                            final_state,
+                            _trunc_json(result_sanitized),
+                            int(total_latency_ms),
+                            float(total_cost_credits),
+                            float(confidence_score),
+                            run_id,
+                        ),
+                    )
+                else:
+                    self._conn.execute(
+                        """
+                        UPDATE brain_runs
+                           SET finished_at = CURRENT_TIMESTAMP,
+                               final_state = ?,
+                               final_result = ?,
+                               total_latency_ms = ?,
+                               total_cost_credits = ?,
+                               confidence_score = ?,
+                               owner_comment = ?
+                         WHERE id = ?
+                        """,
+                        (
+                            final_state,
+                            _trunc_json(result_sanitized),
+                            int(total_latency_ms),
+                            float(total_cost_credits),
+                            float(confidence_score),
+                            _trunc_text(owner_comment)[:500],
+                            run_id,
+                        ),
+                    )
             except sqlite3.Error as exc:
                 log.error("update_run_final failed run_id=%s: %s", run_id, exc)
                 self._report_sentry(exc, {"op": "update_run_final", "run_id": run_id})
@@ -286,34 +315,42 @@ class BrainPersistence:
         self,
         intent: str | None = None,
         limit: int = 50,
+        status: str | None = None,
     ) -> list[dict[str, Any]]:
-        """List recent runs (replay UI). Optional intent filter."""
+        """List recent runs (replay UI). Optional intent + status filter.
+
+        F.6.4: status filter (e.g. 'requires_confirm') usado pelo drawer pra rehydrate
+        pending owner-blocked runs ao montar (page reload survives).
+        """
         limit = max(1, min(int(limit), 500))
+        where: list[str] = []
+        params: list[Any] = []
+        if intent:
+            where.append("intent = ?")
+            params.append(intent)
+        if status:
+            where.append("final_state = ?")
+            params.append(status)
+        where_sql = (" WHERE " + " AND ".join(where)) if where else ""
+        params.append(limit)
+        sql = (
+            "SELECT id, intent, context_json, started_at, finished_at, final_state, "
+            "       final_result, total_latency_ms, total_cost_credits, confidence_score, "
+            "       requester, owner_comment "
+            "  FROM brain_runs"
+            f"{where_sql} "
+            " ORDER BY started_at DESC LIMIT ?"
+        )
         async with self._lock:
-            if intent:
-                rows = self._conn.execute(
-                    """
-                    SELECT id, intent, started_at, finished_at, final_state,
-                           total_latency_ms, total_cost_credits, confidence_score, requester
-                      FROM brain_runs
-                     WHERE intent = ?
-                     ORDER BY started_at DESC
-                     LIMIT ?
-                    """,
-                    (intent, limit),
-                ).fetchall()
-            else:
-                rows = self._conn.execute(
-                    """
-                    SELECT id, intent, started_at, finished_at, final_state,
-                           total_latency_ms, total_cost_credits, confidence_score, requester
-                      FROM brain_runs
-                     ORDER BY started_at DESC
-                     LIMIT ?
-                    """,
-                    (limit,),
-                ).fetchall()
+            rows = self._conn.execute(sql, tuple(params)).fetchall()
         return [dict(r) for r in rows]
+
+    async def load_run_for_resume(self, run_id: str) -> dict[str, Any] | None:
+        """F.6.4 — load brain_runs row pre-resume_from_run_id.
+
+        Returns same shape as get_run() (no async hydration). Reuses get_run().
+        """
+        return await self.get_run(run_id)
 
     # ----- helpers --------------------------------------------------------
 

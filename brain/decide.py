@@ -177,7 +177,11 @@ class Brain:
                 persistence_ok, run_id, seq, "REVIEW", "IDLE",
                 rationale=f"owner confirm REQUIRED — paused. reason={reason}",
             )
-            final_result_payload = {**intent_result, "confirm_reason": reason}
+            final_result_payload = {
+                **intent_result,
+                "confirm_reason": reason,
+                "action_class": action_class,
+            }
             await self._persist_run_final(
                 persistence_ok, run_id, "requires_confirm",
                 final_result_payload, latency_ms, total_cost, confidence,
@@ -232,6 +236,139 @@ class Brain:
             "total_cost_credits": total_cost,
             "final_state": self.fsm.current_state,
         }
+
+    # ----- F.6.4 resume from owner confirm ---------------------------------
+
+    async def resume_from_run_id(
+        self,
+        run_id: str,
+        approved: bool,
+        comment: str = "",
+    ) -> dict[str, Any]:
+        """F.6.4 — restore FSM from brain_runs row + commit OR abort + persist final.
+
+        Flow:
+          1. load_run_for_resume(run_id) → 404 if missing
+          2. Assert final_state == 'requires_confirm' (else 409 conflict, idempotent re-check)
+          3. Fresh FSM IDLE → CLASSIFY → REASON → ACT → REVIEW (deterministic restore)
+          4a. approved=True  → to_commit → COMMIT → complete → IDLE; final='owner_approved'
+          4b. approved=False → abort → IDLE; final='owner_rejected'
+          5. UPDATE brain_runs with final_state + owner_comment.
+
+        Returns:
+            {ok, run_id, final_state, result, comment} on success
+            {ok: False, error} on failure (run_not_found / not_awaiting_confirm)
+        """
+        run = await self.persistence.load_run_for_resume(run_id)
+        if not run:
+            return {"ok": False, "error": "run_not_found", "run_id": run_id}
+
+        if run.get("final_state") != "requires_confirm":
+            return {
+                "ok": False,
+                "error": "not_awaiting_confirm",
+                "current_state": run.get("final_state"),
+                "run_id": run_id,
+            }
+
+        # Restore FSM deterministically through IDLE→CLASSIFY→REASON→ACT→REVIEW
+        self.fsm = BrainStateMachine()
+        self.fsm.start_classify()  # type: ignore[attr-defined]
+        self.fsm.to_reason()       # type: ignore[attr-defined]
+        self.fsm.to_act()          # type: ignore[attr-defined]
+        self.fsm.to_review()       # type: ignore[attr-defined]
+
+        # Reconstruct react_result from persisted brain_decisions (DRY via replay.py)
+        react_result = await self._reconstruct_react_result(run_id, run)
+        latency_ms = int(run.get("total_latency_ms") or 0)
+        total_cost = float(run.get("total_cost_credits") or 0.0)
+        confidence = float(run.get("confidence_score") or 0.5)
+
+        if approved:
+            self.fsm.to_commit()   # type: ignore[attr-defined]
+            self.fsm.complete()    # type: ignore[attr-defined]
+            new_state = "owner_approved"
+        else:
+            self.fsm.abort()       # type: ignore[attr-defined]
+            new_state = "owner_rejected"
+
+        try:
+            await self.persistence.update_run_final(
+                run_id=run_id,
+                final_state=new_state,
+                final_result=react_result,
+                total_latency_ms=latency_ms,
+                total_cost_credits=total_cost,
+                confidence_score=confidence,
+                owner_comment=comment,
+            )
+        except Exception as exc:  # noqa: BLE001 — defensive
+            log.warning("resume update_run_final failed run_id=%s err=%s", run_id, exc)
+
+        return {
+            "ok": True,
+            "run_id": run_id,
+            "final_state": new_state,
+            "result": react_result,
+            "comment": comment,
+            "final_fsm_state": self.fsm.current_state,
+        }
+
+    async def _reconstruct_react_result(
+        self,
+        run_id: str,
+        run: dict[str, Any],
+    ) -> dict[str, Any]:
+        """F.6.4 — rebuild react_result from brain_decisions rows (replay reuse).
+
+        Returns dict compatible with brain.intents.handle_intent() output shape
+        (ok, intent, accumulated, final_answer, confidence, iterations, ...).
+        """
+        try:
+            import json
+            base: dict[str, Any] = {}
+            raw = run.get("final_result")
+            if isinstance(raw, str) and raw:
+                try:
+                    base = json.loads(raw)
+                except (json.JSONDecodeError, ValueError):
+                    base = {}
+            elif isinstance(raw, dict):
+                base = raw
+        except Exception:  # noqa: BLE001
+            base = {}
+
+        # Hydrate accumulated from brain_decisions (ACT→ACT iters with tool_invoked != null)
+        try:
+            from .replay import replay_run
+            replay = await replay_run(run_id, mode="show_recorded")
+            decisions = replay.get("decisions", []) if replay.get("ok") else []
+        except Exception:  # noqa: BLE001
+            decisions = []
+
+        accumulated: list[dict[str, Any]] = []
+        for d in decisions:
+            tool = d.get("tool_invoked")
+            if not tool:
+                continue
+            parts = tool.split(".")
+            server_name = parts[1] if len(parts) >= 3 else ""
+            tool_name = parts[2] if len(parts) >= 3 else (parts[-1] if parts else "")
+            accumulated.append({
+                "iteration": int(d.get("sequence") or 0),
+                "thought": str(d.get("rationale") or "")[:1000],
+                "tool_call": {
+                    "server": server_name,
+                    "tool": tool_name,
+                    "args": d.get("tool_args") or {},
+                },
+                "tool_result": d.get("tool_result") or {},
+            })
+
+        merged = dict(base)
+        merged["accumulated"] = accumulated
+        merged.setdefault("ok", True)
+        return merged
 
     # ----- persistence helpers (best-effort, never aborts decide flow) ----
 
