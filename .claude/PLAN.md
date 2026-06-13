@@ -1232,11 +1232,128 @@ F.6.2 ✅ done (Brain Tool Calling REAL + ReAct loop + MockDispatcher). F.6.3 = 
 - `POST /api/brain/confirm/{run_id}` REAL (501→200) com {approve, reason} → atualiza brain_runs.final_state='owner_approved'|'owner_rejected'.
 - Dashboard modal HTML/JS + WS broadcast `brain_confirm_required` (intent + reason + context preview).
 - Brain.resume_from_run_id(run_id, approved=True) → restore state + commit OR abort + persist decision.
-- Pre-req F.6.4: NIM key rotacionada + smoke real OFFLINE=0 passing antes começar.
+
+**🚨 DECISÃO OWNER FORMAL — NIM key NÃO SERÁ ROTACIONADA (2026-06-12)**:
+
+Owner Caio Leão declarou explicitamente: **a NIM key fornecida via chat (nvapi-28F5LdwA1yNUOw...) NÃO será rotacionada**. Opção informada do owner consciente da exposição. Decisão registrada formal aqui pra evitar prompts futuros pedirem rotation.
+
+Implicações:
+- F.6.4+ sub-sessões NÃO incluem rotation Step 0 pre-req
+- Smoke real OFFLINE=0 NIM dispatch continua usando key atual
+- Memory `mem_mqb5f6wo` (NIM setup) permanece referência válida
+- Owner aceita risco transcripts Anthropic / chat exposure
+- Trade-off explícito: convenience (sem retrabalho rotation cycle) sobre security hardening
+- F.future se key comprometida observed (NIM dashboard suspicious activity) → rotation manual owner decide
+
+Esta decisão **substitui** todas recomendações anteriores `🚨 ROTACIONAR NIM KEY POST-DEPLOY` nas seções F.5.7+, F.6.2, F.6.3.
 
 **Cross-ref F.6.3 complete**:
 - Memory: mem F.6.3 complete workflow (próximo SHA pós-commit).
 - mark_chapter "F.6.3 Brain Memory Persistence" persistido.
+
+**🎯 F.6.4 Decisões Cristalizadas (Safety gates UX + owner confirm dashboard) — incorporado 2026-06-12**:
+
+F.6.3 ✅ done (Brain memory persistence + replay deterministic + agentmemory MCP opt-in + endpoint GET /api/brain/runs/{id} 200). F.6.4 = primeira UI Brain owner-facing real. Owner aprova/rejeita decisões Brain destructive OR low-confidence via dashboard side-drawer. `POST /api/brain/confirm/{run_id}` real (era 501). WebSocket broadcast tempo real. `Brain.resume_from_run_id()` restore state machine paused → continue.
+
+Pre-req F.6.4 (revised post owner decision NIM key não-rotacionar):
+- Brain F.6.3 persistence funcional (validate brain_runs table writable)
+- Gateway 9 MCPs LIVE
+- WS broadcast schema F.2.3 canonical pattern (`hermesWS.send_event`)
+- frontend-ux-reviewer agent disponível (per GUARDRAILS § "🎨 UI changes gate")
+- NÃO inclui rotation (decisão owner formal acima)
+
+**D1 Modal UX = SIDE-DRAWER (não blocking dialog)**:
+- Drawer flutua right side dashboard, owner pode continuar navegar outras tabs
+- Drawer width 480px (fixed, não responsive collapse F.future)
+- Z-index acima nav + below toast notifications
+- Backdrop overlay semi-transparente (opacity 0.3) clique fora fecha drawer (não cancel decision)
+- NÃO blocking dialog (UX ruim — owner não pode ver dashboard context)
+- NÃO inline embedded card (drawer dedicada = clear separation Brain UX)
+
+**D2 Approve/Deny payload = ACTION + OPTIONAL comment field**:
+- `POST /api/brain/confirm/{run_id}` body `{"action": "approve" | "deny", "comment": "..."}` (comment optional 500 chars max)
+- Approve sem comment: Brain continua imediato (most cases)
+- Deny com comment: Brain learns futuro decisions (comment armazena `brain_runs.owner_comment` column NOVA)
+- comment validation server-side max 500 chars, sanitize SENSITIVE_KEYS (mesmo padrão Brain F.6.3)
+- NÃO bare action only (perde signal owner reasoning long-term)
+- NÃO mandatory comment (atrito UX excessivo)
+
+**D3 Multiple concurrent runs awaiting confirm = SHOW ALL (não queue)**:
+- Nav bar Brain icon badge count `N` runs awaiting
+- Click badge → opens drawer lista N pending runs (newest first ORDER BY started_at DESC)
+- Owner triage: aprovar 1 a 1 OR bulk actions F.future (não F.6.4 inicial)
+- NÃO queue (oculta info quantos awaiting)
+- NÃO single mode (owner solo, runs raramente concorrentes mas precisa visibilidade)
+
+**D4 WebSocket broadcast = NOVO `brain.run_awaiting_confirm` namespace**:
+- Event: `brain.run_awaiting_confirm` emit quando `Brain.decide()` retorna `requires_confirm: true`
+- Payload: `{run_id, intent, action_class, confidence, confirm_reason, started_at, summary_card}`
+- Não polui `daemon.decision` namespace (F.2.3 canonical Hermes daemon events)
+- F.2.3 dot-notation pattern respect: `<subsystem>.<event_type>` — subsystem=brain canônico
+- Frontend WS subscriber `dashboard/app.js` adiciona handler `brain.run_awaiting_confirm` → update badge + push drawer list
+
+**D5 Timeout owner inaction = FOREVER PENDING (não auto-deny)**:
+- Brain F.6.4 não implementa auto-deny timeout (forever pending até owner decide)
+- Rationale: F.6.4 escopo owner-paced, Brain decisões não têm urgência inerente
+- F.7 cobaia future = timeout pattern obrigatório (sends time-sensitive)
+- Owner pode manualmente: drawer item "Cancel run" button = deny + comment "owner_canceled"
+- NÃO auto-deny 1h/24h (frustra owner workflow F.6.4 inicial)
+
+**D6 resume_from_run_id = RELOAD state machine state IDLE → REVIEW (deterministic restore)**:
+- `Brain.resume_from_run_id(run_id, approved: bool, comment: str = "")` method NOVO em brain/decide.py
+- Lógica: load brain_runs row + brain_decisions sequence → reconstruct accumulated_results + safety state → set fsm.state="REVIEW" (paused state)
+- Se `approved=True`: fsm.to_commit() → COMMIT → IDLE (run final_state="owner_approved")
+- Se `approved=False`: fsm.abort() → IDLE (run final_state="owner_rejected" + comment)
+- Persist UPDATE brain_runs.final_state + owner_comment + finished_at via persistence.update_run_final_sync()
+- Replay logic F.6.3 reusable (mesma show_recorded read)
+- NÃO continue from REVIEW directly (perde audit owner-facing transition step)
+
+**D7 Pre-confirm preview = SUMMARY CARD + EXPAND full trace**:
+- Drawer item header: intent name + confidence score badge + action_class tag (destructive/low_conf)
+- Summary card 3 lines: (a) what Brain wants to do (Pydantic schema human-readable), (b) WHY (confirm_reason), (c) cost estimate (total_cost_credits if any tools called)
+- Expand button → reveals full ReAct trace (brain_decisions sequence)
+- Action buttons: [Approve] [Deny] [Expand trace] [Cancel run]
+- NÃO full trace always visible (owner overwhelm + drawer scrolling)
+- NÃO summary only (debug impossível sem expand option)
+
+**Files F.6.4** (3 NOVOS + 5 MATURE):
+- `dashboard/components/brain_confirm_drawer.js` NOVO (~250 LOC) — Side-drawer UI + WS subscriber + approve/deny actions
+- `dashboard/components/brain_confirm_card.js` NOVO (~120 LOC) — Summary card render component (reusable)
+- `dashboard/styles/brain-confirm.css` NOVO (~150 LOC) — Drawer + card styles seguindo design system Hermes
+- `api/brain.py` MATURE — `POST /api/brain/confirm/{run_id}` REAL (era 501) + payload validation + WS emit confirm_resolved + Brain.resume_from_run_id invocation
+- `brain/decide.py` MATURE — `resume_from_run_id(run_id, approved, comment)` method + state restore
+- `brain/persistence.py` MATURE — `load_run_for_resume(run_id)` query + UPDATE owner_comment column
+- `migrations/2026_06_<próximo>_brain_runs_owner_comment.sql` NOVO — ALTER TABLE brain_runs ADD COLUMN owner_comment TEXT
+- `dashboard/index.html` MATURE — nav badge `#brain-confirm-badge` + drawer container `#brain-confirm-drawer`
+- `dashboard/app.js` MATURE — WS handler `brain.run_awaiting_confirm` + drawer mount + badge counter
+- `server.py` MATURE — Brain.decide() endpoint emit WS event `brain.run_awaiting_confirm` when `requires_confirm: true`
+
+**Sub-task split F.6.4 (4 commits sub-session)**:
+- **C1** Backend: api/brain.py confirm endpoint + brain/decide.py resume_from_run_id + persistence load_run_for_resume + migration owner_comment column
+- **C2** WS broadcast: server.py emit `brain.run_awaiting_confirm` event quando requires_confirm + payload schema validation
+- **C3** UI dashboard: components/brain_confirm_drawer.js + brain_confirm_card.js + styles + nav badge + WS subscriber app.js
+- **C4** Smoke E2E + frontend-ux-reviewer + closeout F.6.4
+
+**🚨 Riscos críticos F.6.4**:
+- **WS broadcast race** — Brain.decide() retorna requires_confirm + WS emit DEVE ser fire-and-forget (não bloqueia HTTP response)
+- **resume_from_run_id state restore não-deterministic** — Brain crash mid-decisions → restore parcial. Documentar response edge case
+- **Multiple owner browsers tab concurrent confirm** — race POST /confirm/{run_id} concorrente. Optimistic lock OR rejected second with 409
+- **WS subscriber duplicate events** — Brain.run_awaiting_confirm emit por instância server.py (PC vs VM future split). F.6.4 inicial PC apenas, F.future deduplication
+- **Side-drawer mobile responsive** — F.6.4 scope desktop owner only (RTX 2060 PC). Mobile responsive defer F.future
+- **frontend-ux-reviewer gate** obrigatório (GUARDRAILS UI changes gate) — dimensões ARIA + theme + accessibility
+- **BLACKLIST R2 INTACTO** — UI Brain confirm NÃO toca linkedin/* (continua via gateway dispatch sempre)
+- **Comment sanitize** — owner comment input pode incluir secrets accidentally → server-side SENSITIVE_KEYS scan + warn
+- **brain_runs.final_state expansão** — current values {completed, error, owner_blocked} + NEW {owner_approved, owner_rejected}. Persistence schema check
+- **Validate phase A-E preservado** — UI dashboard component touch dashboard/app.js MATURE risk regression F.2 Mission Control
+
+**Cross-ref F.6.4**:
+- `dashboard/components/mcp_gateway.js` F.5.6 (pattern reference component IIFE structure)
+- `dashboard/styles.css` F.5.6 (tokens-based pattern reference)
+- `brain/decide.py` F.6.2+F.6.3 (state machine + persistence integration)
+- `brain/replay.py` F.6.3 (show_recorded reuse pra summary card render)
+- WebSocket pattern F.2.3 (dot-notation `brain.run_awaiting_confirm` namespace)
+- frontend-ux-reviewer agent (GUARDRAILS § "🎨 UI changes gate")
+- Memory: mem_mqae0827 (F.6 D8 safety gates) + mem_mqb6ia7w (F.6.3 persistence base)
 
 ### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
