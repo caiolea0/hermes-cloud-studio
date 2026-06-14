@@ -30,7 +30,7 @@ from typing import Any, Optional
 
 import httpx
 import yaml
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -62,6 +62,17 @@ class PipelineDraftUpdate(BaseModel):
     status: Optional[str] = Field(None, pattern="^(draft|active|archived)$")
     tags: Optional[list[str]] = None
     ab_group: Optional[str] = Field(None, pattern="^(A|B)$")
+
+
+class PipelineExecuteRequest(BaseModel):
+    """F.9.2 D1 — execute payload (variables for Jinja + optional ab_group)."""
+    variables: Optional[dict[str, Any]] = Field(default_factory=dict)
+    ab_group: Optional[str] = Field(None, pattern="^(A|B)$")
+
+
+class PipelineAbortRequest(BaseModel):
+    """F.9.2 D7 — SOFT abort with audit reason."""
+    reason: Optional[str] = Field(None, max_length=500)
 
 
 # ---------------------------------------------------------------------------
@@ -403,3 +414,211 @@ async def list_templates():
 
     return {"templates": templates, "total": len(templates),
             "source": str(seed_dir)}
+
+
+# ---------------------------------------------------------------------------
+# F.9.2 — Execution engine endpoints (D1 async background + polling + D7 abort)
+# ---------------------------------------------------------------------------
+
+def _ensure_runs_table_exists() -> bool:
+    """pipeline_runs_granular FK pipeline_drafts(id) — apply F.9.1 migration."""
+    if not DB_PATH.exists():
+        return False
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='pipeline_runs_granular'"
+        ).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
+def _reserve_run_init_row(run_id: str, draft_id: str) -> None:
+    """Insert step_idx=-1 _run_init_ row reserving run_id (D1 polling visibility)."""
+    conn = _connect()
+    try:
+        conn.execute(
+            """INSERT INTO pipeline_runs_granular
+               (run_id, draft_id, step_idx, step_name, status, started_at)
+               VALUES (?, ?, -1, '_run_init_', 'pending', CURRENT_TIMESTAMP)""",
+            (run_id, draft_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@router.post("/drafts/{draft_id}/execute", status_code=202)
+async def execute_draft(
+    draft_id: str,
+    req: PipelineExecuteRequest,
+    bg: BackgroundTasks,
+):
+    """F.9.2 D1 — async background execution.
+
+    Flow:
+      1. Load draft yaml_blob (404 if missing, 400 if malformed).
+      2. D4 PRE-EXECUTE validate_tools batch (400 with errors list if blocked tier).
+      3. Reserve run_id row in pipeline_runs_granular (_run_init_).
+      4. Dispatch engine.execute_run via BackgroundTasks (202 + poll_url returned).
+    """
+    if not _ensure_table_exists():
+        raise HTTPException(503, "pipeline_drafts table missing — apply migration")
+    if not _ensure_runs_table_exists():
+        raise HTTPException(503, "pipeline_runs_granular table missing — apply migration")
+
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT yaml_blob FROM pipeline_drafts WHERE id = ?", (draft_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "draft_not_found")
+        yaml_blob = row["yaml_blob"]
+    finally:
+        conn.close()
+
+    try:
+        parsed = yaml.safe_load(yaml_blob)
+    except yaml.YAMLError as exc:
+        raise HTTPException(400, f"yaml_invalid: {exc}")
+    if not isinstance(parsed, dict):
+        raise HTTPException(400, "yaml root must be dict")
+
+    steps = parsed.get("steps", []) or []
+    if not isinstance(steps, list) or not steps:
+        raise HTTPException(400, "yaml steps must be non-empty list")
+
+    # Lazy import (avoids importing engine + Brain at module load — keeps test isolation).
+    from core.pipeline_engine import PipelineEngine
+    engine = PipelineEngine()
+
+    # D4 PRE-EXECUTE validation (batch mcp_registry single query — NÃO N+1).
+    validation_errors = await engine.validate_tools(steps)
+    if validation_errors:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "validation_failed", "validation_errors": validation_errors},
+        )
+
+    run_id = str(uuid.uuid4())
+    _reserve_run_init_row(run_id, draft_id)
+
+    bg.add_task(
+        engine.execute_run,
+        run_id, draft_id, req.variables or {}, req.ab_group,
+    )
+
+    return {
+        "run_id": run_id,
+        "draft_id": draft_id,
+        "status": "queued",
+        "ab_group": req.ab_group,
+        "poll_url": f"/api/pipeline-studio/runs/{run_id}",
+    }
+
+
+@router.get("/runs/{run_id}")
+async def get_run_status(run_id: str):
+    """F.9.2 D1 — poll endpoint per-step progress + aggregate run state."""
+    if not _ensure_runs_table_exists():
+        raise HTTPException(503, "pipeline_runs_granular table missing")
+
+    conn = _connect()
+    try:
+        # Init row first (gives draft_id + status hint).
+        init_row = conn.execute(
+            """SELECT run_id, draft_id, status, started_at, ended_at
+               FROM pipeline_runs_granular
+               WHERE run_id = ? AND step_idx = -1""",
+            (run_id,),
+        ).fetchone()
+        step_rows = conn.execute(
+            """SELECT step_idx, step_name, tool_invoked, status, output_json,
+                      error, started_at, ended_at, latency_ms, cost_credits
+               FROM pipeline_runs_granular
+               WHERE run_id = ? AND step_idx >= 0
+               ORDER BY step_idx ASC""",
+            (run_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    if not init_row and not step_rows:
+        raise HTTPException(404, "run_not_found")
+
+    steps_list = [dict(r) for r in step_rows]
+
+    if init_row and init_row["status"] in ("completed", "error", "aborted"):
+        run_status = init_row["status"]
+    elif steps_list:
+        all_done = all(
+            s["status"] in ("completed", "skipped", "error") for s in steps_list
+        )
+        has_error = any(s["status"] == "error" for s in steps_list)
+        any_skipped = any(s["status"] == "skipped" for s in steps_list)
+        if any_skipped and not has_error:
+            run_status = "aborted" if all_done else "running"
+        elif all_done:
+            run_status = "error" if has_error else "completed"
+        else:
+            run_status = "running"
+    else:
+        run_status = init_row["status"] if init_row else "unknown"
+
+    total_cost = sum(float(s.get("cost_credits") or 0.0) for s in steps_list)
+    completed = sum(1 for s in steps_list if s["status"] == "completed")
+    errors = sum(1 for s in steps_list if s["status"] == "error")
+    skipped = sum(1 for s in steps_list if s["status"] == "skipped")
+
+    return {
+        "run_id": run_id,
+        "draft_id": init_row["draft_id"] if init_row else None,
+        "status": run_status,
+        "steps": steps_list,
+        "total_steps": len(steps_list),
+        "completed": completed,
+        "errors": errors,
+        "skipped": skipped,
+        "total_cost_credits": round(total_cost, 4),
+        "started_at": init_row["started_at"] if init_row else None,
+        "ended_at": init_row["ended_at"] if init_row else None,
+    }
+
+
+@router.post("/runs/{run_id}/abort", status_code=202)
+async def abort_run(run_id: str, req: PipelineAbortRequest):
+    """F.9.2 D7 — SOFT abort signal. Current step finishes, subsequent skipped."""
+    if not _ensure_runs_table_exists():
+        raise HTTPException(503, "pipeline_runs_granular table missing")
+
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT status FROM pipeline_runs_granular WHERE run_id = ? AND step_idx = -1",
+            (run_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        raise HTTPException(404, "run_not_found")
+
+    if row["status"] in ("completed", "error", "aborted"):
+        return {
+            "run_id": run_id,
+            "abort_requested": False,
+            "soft": True,
+            "note": f"run already terminal status={row['status']}",
+        }
+
+    from core.pipeline_engine import PipelineEngine
+    PipelineEngine.request_abort(run_id, req.reason or "owner_requested")
+
+    return {
+        "run_id": run_id,
+        "abort_requested": True,
+        "soft": True,
+        "reason": req.reason or "owner_requested",
+    }
