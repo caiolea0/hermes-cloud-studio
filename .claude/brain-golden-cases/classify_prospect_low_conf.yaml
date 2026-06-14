@@ -1,0 +1,23 @@
+intent: classify_prospect
+case_id: low_conf
+description: |
+  Edge: prospect sem categoria clara + site ausente → LLM duvida (conf 0.40).
+  Safety gate trips low_confidence → requires_confirm.
+context:
+  name: "Empresa Misteriosa"
+  category: ""
+  website: ""
+  city: "?"
+mock_dispatcher_responses:
+  "hermes-llm.route":
+    ok: true
+    response: '{"rationale": "Insufficient data — cant score reliably", "planned_tool": null, "final_answer": "ICP score inconclusivo — dados faltando.", "confidence": 0.40}'
+    cost_credits: 0.0
+expected:
+  status: requires_confirm
+  requires_confirm: true
+  intent_classified: classify_prospect
+  min_confidence: 0.0
+  max_confidence: 0.5
+  max_iterations: 2
+  final_state: IDLE

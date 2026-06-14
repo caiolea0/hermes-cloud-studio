@@ -1,0 +1,25 @@
+intent: classify_prospect
+case_id: happy
+description: |
+  Happy: ICP scoring prospect com sinais fortes (categoria valiosa + site presente).
+  task_type=classify, conf 0.85 → completed.
+context:
+  name: "TechCorp Cuiaba"
+  category: "SaaS B2B"
+  website: "techcorp.com.br"
+  city: "Cuiaba"
+mock_dispatcher_responses:
+  "hermes-llm.route":
+    ok: true
+    response: '{"rationale": "Strong ICP signals — SaaS B2B Cuiaba", "planned_tool": null, "final_answer": "ICP score 85/100. Category match + city match + site presente.", "confidence": 0.85}'
+    cost_credits: 0.0
+    provider: "nim_free"
+    model: "nvidia/llama-3.1-nemotron-classify"
+expected:
+  status: completed
+  requires_confirm: false
+  intent_classified: classify_prospect
+  min_confidence: 0.7
+  max_confidence: 1.0
+  max_iterations: 2
+  final_state: IDLE

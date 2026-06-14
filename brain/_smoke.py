@@ -49,9 +49,15 @@ from .states import BrainState
 
 OFFLINE_MODE = os.getenv("HERMES_BRAIN_OFFLINE", "1") != "0"
 
+__all__ = ["MockDispatcher"]
+
 
 class _MockDispatcher:
-    """Deterministic mock: emits canned LLM responses per intent task_type."""
+    """Deterministic mock: emits canned LLM responses per intent task_type.
+
+    F.6.5: public alias `MockDispatcher` exported below for golden-case test harness
+    reuse via `from brain._smoke import MockDispatcher` (D4 cristalizado).
+    """
 
     def __init__(self) -> None:
         self.route_calls: list[tuple[str, str]] = []
@@ -73,6 +79,11 @@ class _MockDispatcher:
     async def invoke_tool(self, server: str, tool: str, args: dict[str, Any]) -> dict[str, Any]:
         self.invoke_calls.append((server, tool))
         return {"ok": True, "response": {"ok": True}, "cost_credits": 0.0}
+
+
+# F.6.5 D4 — public alias for golden-case test harness (tests/conftest.py).
+# Keeps _MockDispatcher private API stable; new tests import canonical name.
+MockDispatcher = _MockDispatcher
 
 
 def _assert(cond: bool, msg: str) -> None:

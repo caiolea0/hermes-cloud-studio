@@ -1,0 +1,23 @@
+intent: answer_owner
+case_id: low_conf
+description: |
+  Edge: pergunta ambigua / contexto insuficiente → LLM conf 0.42 (< 0.5 threshold).
+  Brain.decide() → safety gate trips low_confidence → requires_confirm.
+context:
+  question: "Que historia foi aquela mesmo?"
+  owner_id: "caio"
+mock_dispatcher_responses:
+  "hermes-llm.route":
+    ok: true
+    response: '{"rationale": "Ambiguous question, low context", "planned_tool": null, "final_answer": "Nao tenho contexto suficiente pra responder com seguranca.", "confidence": 0.42}'
+    cost_credits: 0.0
+    provider: "nim_free"
+    model: "nvidia/mistral-nemotron"
+expected:
+  status: requires_confirm
+  requires_confirm: true
+  intent_classified: answer_owner
+  min_confidence: 0.0
+  max_confidence: 0.5
+  max_iterations: 2
+  final_state: IDLE

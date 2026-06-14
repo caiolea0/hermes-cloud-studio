@@ -1,0 +1,24 @@
+intent: summarize_conversation
+case_id: happy
+description: |
+  Happy: F.6 chat memory long-context summarization de thread curta.
+  task_type=summarize, conf 0.80 → completed.
+context:
+  thread_id: "cobaia-thread-42"
+  message_count: 12
+  preview: "Discussao sobre piloto LinkedIn outreach setor SaaS"
+mock_dispatcher_responses:
+  "hermes-llm.route":
+    ok: true
+    response: '{"rationale": "Synthesize key decisions from thread", "planned_tool": null, "final_answer": "Owner decidiu rodar piloto LinkedIn outreach restrito a SaaS Cuiaba. Replies positivas: 2. Proxima acao: monitorar warmup 14d.", "confidence": 0.80}'
+    cost_credits: 0.0
+    provider: "nim_free"
+    model: "nvidia/llama-3.1-nemotron-70b-summarize"
+expected:
+  status: completed
+  requires_confirm: false
+  intent_classified: summarize_conversation
+  min_confidence: 0.7
+  max_confidence: 1.0
+  max_iterations: 2
+  final_state: IDLE

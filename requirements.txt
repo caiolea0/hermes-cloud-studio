@@ -20,3 +20,8 @@ PyYAML>=6.0
 # Rationale (D1): plain Python asyncio + transitions FSM picked over LangGraph
 # (heavy deps), OpenAI Agents SDK (proprietary), CrewAI (multi-agent overkill).
 transitions>=0.9.0
+# F.6.5 — Golden cases test harness (pytest + parallel + YAML schema)
+# pytest>=9.0 + PyYAML>=6.0 already pinned above; xdist + asyncio added F.6.5.
+pytest>=9.0
+pytest-asyncio>=1.4
+pytest-xdist>=3.6

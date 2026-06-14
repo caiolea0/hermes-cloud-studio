@@ -1,0 +1,25 @@
+intent: send_outreach
+case_id: happy
+description: |
+  Happy path destrutivo: outreach LinkedIn pra prospect qualificado.
+  Mesmo com conf 0.92 alta, send_outreach ∈ DESTRUCTIVE_ACTIONS → SEMPRE requires_confirm.
+  Owner aprovacao OBRIGATORIA antes de qualquer dispatch real.
+context:
+  prospect_id: "cobaia-prospect-7"
+  prospect_name: "TechCorp Cuiaba"
+  channel: "linkedin"
+mock_dispatcher_responses:
+  "hermes-llm.route":
+    ok: true
+    response: '{"rationale": "Compose PT-BR linkedin invite note", "planned_tool": null, "final_answer": "Ola TechCorp, vi o post sobre expansao e tenho insight especifico pro setor de voces. Fica a vontade pra trocar ideia.", "confidence": 0.92}'
+    cost_credits: 0.0
+    provider: "openrouter_creative"
+    model: "deepseek/deepseek-chat:free"
+expected:
+  status: requires_confirm
+  requires_confirm: true
+  intent_classified: send_outreach
+  min_confidence: 0.7
+  max_confidence: 1.0
+  max_iterations: 2
+  final_state: IDLE

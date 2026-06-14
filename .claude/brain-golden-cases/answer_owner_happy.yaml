@@ -1,0 +1,23 @@
+intent: answer_owner
+case_id: happy
+description: |
+  Happy path: owner pergunta direta sobre prospects qualificados.
+  Brain.decide() → reasoning task_type → high conf 0.92 → completed sem confirm.
+context:
+  question: "Quantos prospects qualificados temos esta semana?"
+  owner_id: "caio"
+mock_dispatcher_responses:
+  "hermes-llm.route":
+    ok: true
+    response: '{"rationale": "Direct lookup answer", "planned_tool": null, "final_answer": "47 prospects qualificados nas ultimas 7 dias.", "confidence": 0.92}'
+    cost_credits: 0.0
+    provider: "nim_free"
+    model: "nvidia/mistral-nemotron"
+expected:
+  status: completed
+  requires_confirm: false
+  intent_classified: answer_owner
+  min_confidence: 0.7
+  max_confidence: 1.0
+  max_iterations: 2
+  final_state: IDLE

@@ -1,0 +1,19 @@
+intent: send_outreach
+case_id: max_iter
+description: |
+  Edge destrutivo: ReAct loop nunca emite final_answer (LLM sempre planeja outro tool).
+  Brain cap max_iter=5 protege contra loop infinito.
+  Destructive intent ainda trips requires_confirm independente do estado iter.
+context:
+  prospect_id: "cobaia-prospect-9"
+mock_dispatcher_responses:
+  "hermes-llm.route":
+    ok: true
+    response: '{"rationale": "Looping: keeps planning more tools", "planned_tool": {"server": "hermes-prospects", "tool": "search_prospects", "args": {}}, "final_answer": null, "confidence": 0.55}'
+    cost_credits: 0.0
+expected:
+  status: requires_confirm
+  requires_confirm: true
+  intent_classified: send_outreach
+  max_iterations: 5
+  final_state: IDLE

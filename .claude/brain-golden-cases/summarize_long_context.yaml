@@ -1,0 +1,24 @@
+intent: summarize_conversation
+case_id: long_context
+description: |
+  Edge: thread longa (300+ msgs) com sinais conflitantes → conf 0.72 (limite saudavel).
+  Ainda completed mas borderline — confidence range valida tolerance.
+context:
+  thread_id: "cobaia-thread-mega-200"
+  message_count: 327
+  preview: "Conversas espalhadas em 4 meses cobaia LinkedIn + email + WhatsApp"
+  truncated_input: true
+mock_dispatcher_responses:
+  "hermes-llm.route":
+    ok: true
+    response: '{"rationale": "Long context truncated, key trends extracted", "planned_tool": null, "final_answer": "4 meses cobaia: LI gerou 8 deals iniciais, email 3, WA 2. Pattern: SaaS Cuiaba responde 28% melhor que comercio.", "confidence": 0.72}'
+    cost_credits: 0.0
+    provider: "nim_free"
+expected:
+  status: completed
+  requires_confirm: false
+  intent_classified: summarize_conversation
+  min_confidence: 0.6
+  max_confidence: 0.85
+  max_iterations: 2
+  final_state: IDLE

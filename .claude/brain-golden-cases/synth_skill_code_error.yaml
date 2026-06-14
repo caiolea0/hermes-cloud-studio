@@ -1,0 +1,20 @@
+intent: synth_skill
+case_id: code_error
+description: |
+  Edge: LLM gera codigo invalido + auto-self-rate conf baixa 0.38 (sinalizando duvida).
+  Brain safety gate trips low_confidence → requires_confirm pro owner revisar antes de salvar.
+context:
+  pattern_observed: "noisy signal, ambiguo"
+mock_dispatcher_responses:
+  "hermes-llm.route":
+    ok: true
+    response: '{"rationale": "Pattern unclear, generated stub may be incorrect", "planned_tool": null, "final_answer": "name: ??\\nversion: 0.1.0\\n# UNCLEAR", "confidence": 0.38}'
+    cost_credits: 0.0
+expected:
+  status: requires_confirm
+  requires_confirm: true
+  intent_classified: synth_skill
+  min_confidence: 0.0
+  max_confidence: 0.5
+  max_iterations: 2
+  final_state: IDLE

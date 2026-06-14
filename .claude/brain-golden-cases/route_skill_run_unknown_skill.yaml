@@ -1,0 +1,17 @@
+intent: route_skill_run
+case_id: unknown_skill
+description: |
+  Edge: utility — owner pede skill desconhecida.
+  Brain.decide() utility intent ainda completa gracefully (route_skill_run nao valida
+  existencia da skill em F.6.5 — owner descobre via dashboard skill list).
+  Zero LLM call, zero requires_confirm (utility nao destrutiva).
+context:
+  skill_name: "skill-that-does-not-exist-xyz"
+  args: {}
+mock_dispatcher_responses: {}
+expected:
+  status: completed
+  requires_confirm: false
+  intent_classified: route_skill_run
+  max_iterations: 2
+  final_state: IDLE

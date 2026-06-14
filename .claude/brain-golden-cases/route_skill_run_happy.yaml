@@ -1,0 +1,17 @@
+intent: route_skill_run
+case_id: happy
+description: |
+  Happy: utility intent — pure-Python executor sem LLM call (D3 task_type=None).
+  Brain short-circuit ACT direto, react_status='utility_no_llm', completed.
+  mock_dispatcher_responses ignored (zero route() invocation).
+context:
+  skill_name: "weekly-mission-planner"
+  args:
+    week: "2026-W24"
+mock_dispatcher_responses: {}
+expected:
+  status: completed
+  requires_confirm: false
+  intent_classified: route_skill_run
+  max_iterations: 2
+  final_state: IDLE

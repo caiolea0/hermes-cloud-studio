@@ -1,0 +1,23 @@
+intent: synth_skill
+case_id: happy
+description: |
+  Happy: F.4 auto-skill synth — Brain compoe stub YAML novo skill.
+  task_type=code_gen, conf 0.88 → completed (synth não destrutivo, promote sim).
+context:
+  pattern_observed: "owner aceita >70% replies positivas sobre tema X"
+  suggested_skill_name: "follow_up_positive_reply_thread"
+mock_dispatcher_responses:
+  "hermes-llm.route":
+    ok: true
+    response: '{"rationale": "Synthesize skill YAML stub", "planned_tool": null, "final_answer": "name: follow_up_positive_reply_thread\\nversion: 0.1.0\\nactive: false\\nmodel: deepseek-chat:free", "confidence": 0.88}'
+    cost_credits: 0.0
+    provider: "openrouter_codegen"
+    model: "qwen2.5-coder:32b-instruct-free"
+expected:
+  status: completed
+  requires_confirm: false
+  intent_classified: synth_skill
+  min_confidence: 0.7
+  max_confidence: 1.0
+  max_iterations: 2
+  final_state: IDLE
