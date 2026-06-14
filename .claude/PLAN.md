@@ -1887,6 +1887,110 @@ async def cobaia_daily_cycle():
 +- F.8.4 UI MCP Coverage tab + closeout (Sonnet 4.6, ~2-3h)
 +- Total ~11-15h spread 1 semana
 +
++**🎯 F.8.3 Decisões Cristalizadas (UI shell observability + 4 tabs + Chart.js vendor) — incorporado 2026-06-14**:
++
++F.8.1 + F.8.2 ✅ done (Backend layer completo: 5 endpoints + helpers + EXPLAIN PLAN 5/5 idx). F.8.3 = primeira UI observability owner-facing. 4 tabs consumindo backend endpoints existentes. Chart.js vendor local pra render charts. Pattern UI reference F.5.6 mcp_gateway.js + F.6.4 brain_confirm_drawer.js (IIFE components).
++
++Pre-req F.8.3:
++- F.8.1 + F.8.2 endpoints REAIS (não stubs)
++- Chart.js 4.x vendor download manual + commit (dashboard/vendor/chart.min.js)
++- frontend-ux-reviewer agent disponível (GUARDRAILS UI gate obrigatório)
++- dashboard/app.js MATURE risk regression F.2 Mission Control (caution gate)
++- 7+ existing components/ files (pattern reference clean adapt)
++
++**D1 Tabs navigation = HORIZONTAL TOP** (pattern F.5.6 + 4 tabs cabem horizontal):
++- Tab bar fixa top dashboard `/observability` section
++- 4 tabs: Costs · Performance · Errors · Decisions
++- Active tab visual highlight (border-bottom 2px accent color)
++- Click tab → hide all panels + show active panel (vanilla JS toggle class)
++- NÃO side nav vertical (overkill 4 tabs + perde horizontal space charts)
++- NÃO bottom tabs (mobile pattern, owner desktop only D7)
++
++**D2 Chart.js types = BAR + LINE MIXED** (cost categórico + perf temporal):
++- **Costs tab**: Bar chart provider/model breakdown (categorical) + Line chart cost over time 7d (temporal)
++- **Performance tab**: Line chart p50/p95/p99 timeseries 1h rolling + Bar chart per endpoint breakdown
++- **Errors tab**: Bar chart aggregate by category (Sentry + local) + Line chart errors over time
++- **Decisions tab**: NÃO chart (table-focused, brain audit é navegacional)
++- Chart.js 4.x library suficiente bar+line (sem scatter/radar overengineering)
++- NÃO só line (cost provider breakdown bar mais legível)
++
++**D3 Auto-refresh = 60s default + MANUAL refresh button** (pattern F.5.6 mcp_gateway):
++- setInterval 60s background refresh active tab data only (não 4 tabs simultaneously)
++- Refresh button visible header tab (manual trigger)
++- Loading spinner durante fetch (UX feedback)
++- Pause auto-refresh quando aba inactive (visibilitychange API)
++- NÃO 5s/10s (over-fetch backend + bandwidth)
++- NÃO configurable interval (over-engineering, 60s sweet spot)
++
++**D4 Errors resolve action = MODAL CONFIRM + OPTIONAL comment** (pattern F.6.4 destructive):
++- Click "Resolve" button row → modal opens com error preview
++- Modal: action dropdown (resolve | wontfix) + optional textarea comment max 500 chars
++- Submit button trigger `POST /api/observability/errors/{id}/resolve`
++- Loading state + success toast OR error 409 race condition handle
++- ESC key + click backdrop fecham modal (cancel ação)
++- NÃO inline button confirm (acidental click risk em table)
++- NÃO drawer (F.6.4 pattern overkill pra simple resolve)
++
++**D5 Decisions expand row = INLINE ACCORDION** (não drawer):
++- Click row brain_run → accordion expand inline mostra brain_decisions list
++- Animation slide-down smooth (CSS transition max-height)
++- Truncate tool_args/result display (já truncated 2000 chars backend D6 F.8.2)
++- Sub-table dentro accordion: sequence | state_from→state_to | tool | rationale | latency
++- NÃO drawer (F.6.4 pattern owner_confirm específico, F.8.3 audit navegacional)
++- NÃO modal (perde context outras rows)
++
++**D6 CSV export = SERVER-SIDE ENDPOINT REUSE F.8.1 ?format=csv** (single source truth):
++- Frontend: "Export CSV" button per tab Costs + Errors + Decisions (Performance F.future)
++- Click button → `window.location = '/api/observability/{tab}?format=csv&{current_filters}'`
++- Browser triggers download CSV via Content-Disposition header
++- Backend F.8.1 endpoint já suporta `?format=csv|json` (D8 cristalizado)
++- NÃO client-side JSON-to-CSV (duplicates logic + risk drift backend formato)
++- NÃO sem export (owner workflow Excel/Sheets common)
++
++**D7 Mobile responsive = F.future** (desktop owner only):
++- F.8.3 escopo desktop (>= 1280px width)
++- Media queries básicas (col-flex on tablet) mas sem mobile optimization
++- F.future quando F.7 cobaia produção + owner phone monitor needed
++- Alinha F.6.4 D-mobile-defer pattern (UI gateway + brain confirm drawer também desktop)
++
++**Files F.8.3** (4 NOVOS + 2 MATURE + 1 vendor):
++- `dashboard/components/observability_shell.js` NOVO (~150 LOC IIFE tabs nav + auto-refresh + window.Observability namespace)
++- `dashboard/components/observability_costs.js` NOVO (~200 LOC Chart.js bar+line render + filters range/group_by + CSV export button)
++- `dashboard/components/observability_perf.js` NOVO (~180 LOC Chart.js line p50/p95/p99 + bar per endpoint + service filter)
++- `dashboard/components/observability_errors.js` NOVO (~220 LOC table aggregate 3 categories + resolve modal + Chart.js bar + filter status/range)
++- `dashboard/components/observability_decisions.js` NOVO (~200 LOC table paginated + filters intent/status/search + inline accordion expand)
++- `dashboard/components/observability_resolve_modal.js` NOVO (~120 LOC modal confirm + form action/comment + POST request)
++- `dashboard/styles/observability.css` NOVO (~250 LOC tabs nav + modal + accordion + charts container)
++- `dashboard/vendor/chart.min.js` NOVO (Chart.js 4.x download manual)
++- `dashboard/index.html` MATURE — nav entry + section #page-observability + script includes
++- `dashboard/app.js` MATURE — hash route #observability + tab init handler
++
++**Sub-task split F.8.3 (3 commits sub-session)**:
++- **C1** Shell HTML + 4 tabs structure + Chart.js vendor download + tab nav switching + styles base
++- **C2** 4 components IIFE (costs + perf + errors + decisions) + Chart.js render + filter UI + CSV export
++- **C3** Errors resolve modal + Decisions accordion expand + smoke browser + frontend-ux-reviewer + closeout
++
++**🚨 Riscos críticos F.8.3**:
++- **dashboard/app.js MATURE risk regression F.2 Mission Control** — F.6.4 já tocou app.js bem, mas double-check hash routes não conflitam
++- **Chart.js vendor commit size** — Chart.js 4.x ~200KB minified, validate `.gitignore` NÃO exclude `dashboard/vendor/` (manualmente check)
++- **Auto-refresh memory leak** — clearInterval on tab switch + visibilitychange API obrigatório
++- **Modal z-index conflict F.6.4 brain drawer** — 2 owner-facing modals overlap risk. Z-index hierarchy explicit (drawer 1000 + modal 1100)
++- **Resolve race 409 UX** — modal mostra error friendly "Resolved by another tab", refresh tab auto
++- **Accordion expand large brain_decisions list** — 20+ decisions per run, validate DOM render performance (virtualization F.future se 50+)
++- **CSV export filters preserve** — current tab filters (range, status, etc) passed query string CSV endpoint
++- **frontend-ux-reviewer agent OBRIGATÓRIO** Commit 3 (GUARDRAILS UI gate)
++- **BLACKLIST R2 INTACTO** — F.8.3 UI files, zero touch linkedin/*
++- **Baseline preserved**: brain/_smoke 20/20 + pytest 14/14 + validate A-E + F.2 Mission Control não regression
++
++**Cross-ref F.8.3**:
++- F.8.1 endpoints `/api/observability/costs` + `/perf` + `/credits` (REAL)
++- F.8.2 endpoints `/errors` + `/decisions` + POST `/errors/{id}/resolve` (REAL)
++- `dashboard/components/mcp_gateway.js` F.5.6 (UI pattern reference IIFE + Chart.js consume)
++- `dashboard/components/brain_confirm_drawer.js` F.6.4 (modal + WS pattern reference)
++- `dashboard/components/brain_confirm_card.js` F.6.4 (card render reference)
++- frontend-ux-reviewer agent (GUARDRAILS § "🎨 UI changes gate")
++- Memory: mem_mqdwzzrz (F.8.2 D1-D6) + mem_mqdvi9ts (F.8 global) + mem_mqd4chho (F.6.6)
++
 +**🎯 F.8.2 Decisões Cristalizadas (Errors Sentry hybrid + Brain audit endpoints REAL) — incorporado 2026-06-14**:
 +
 +F.8.1 ✅ done (Backend cost + perf + NIM polling + 5 endpoints com 2 stubs labeled `F.8.2_implements_sentry_mcp_hybrid` + `F.8.2_implements_full_audit_trail`). F.8.2 substitui 2 stubs por implementação real + add `POST /api/observability/errors/{id}/resolve` atomic.
