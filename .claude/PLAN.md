@@ -2395,6 +2395,118 @@ async def cobaia_daily_cycle():
 +- W3 _update_step_finished sem `WHERE status='running'` guard — atomicity docstring F.9.3
 +- W4 execute_ab_test single engine shared — abort registry classmethod global ok (UUIDs separate), docstring invariant
 +- W5 validate_tools fail-open quando mcp_registry vazio — considerar fail-closed env var F.future
+
+**🎯 F.9.3 Decisões Cristalizadas (UI shell + builder form-driven + WS monitor + step picker modal) — incorporado 2026-06-14**:
+
+F.9.1 ✅ done (Backend CRUD) + F.9.2 ✅ done (Engine + Jinja + A/B). F.9.3 = primeira UI Pipeline Studio owner-facing. 4 sub-tabs + form-driven builder + WS monitor live + step picker modal D8. Pattern reference F.5.6 mcp_gateway + F.6.4 brain_confirm_drawer + F.8.3 observability_shell (3 chapters UI production-ready).
+
+Pre-req F.9.3:
+- F.9.1+F.9.2 endpoints REAL (CRUD + execute + runs poll + abort)
+- F.8.3 dashboard/vendor/chart.min.js (REUSE pra runs monitor charts)
+- F.8.3 dashboard/styles/observability.css (tokens design system reference)
+- dashboard/components IIFE pattern conhecido
+- WebSocket F.2.3 infrastructure (server.py broadcast emit pattern)
+
+**D1 Builder form orientation = VERTICAL** (pattern F.6.4 drawer + scroll natural):
+- Form fields vertical stack: name + description + tags + steps list
+- Cada step row: drag handle + tool name + collapsible args form + delete button
+- "Add step" button bottom → opens step picker modal D8
+- Scroll natural mobile-future (D7 mobile defer mas vertical works both)
+- NÃO horizontal flow (perde overview steps + UX cluttered)
+- NÃO canvas drag-drop (PLAN.md owner solo dispensa — F.9 D1 cristalizado)
+
+**D2 Step picker modal source = LIVE FETCH + 60s CACHE**:
+- Modal open → check sessionStorage cache age < 60s → use cached OR fetch `/api/pipeline-studio/steps`
+- 60s cache balance: F.5.6 mcp_registry mudanças propagam rapid (e.g., novo MCP active) sem perder hot-path performance
+- Cache key `pipeline_studio_steps_v1` + timestamp
+- Manual refresh button modal header invalida cache + re-fetch
+- NÃO live fetch per open (overhead F.5.6 admin actions raras)
+- NÃO indefinite cache (mcp_registry F.5.6 changes silent)
+- NÃO localStorage persist (stale cross-session bad)
+
+**D3 Builder YAML preview = SIDE PANEL** (split view 50/50):
+- Builder left 50% (form fields) + YAML preview right 50% (readonly syntax highlight)
+- Preview auto-updates on form change (debounce 300ms)
+- Preview pre-formatted via yaml.dump structure (não user-edited string)
+- Owner pode click "Copy YAML" button preview header
+- NÃO collapsible bottom (perde realtime feedback workflow)
+- NÃO separate tab (perde form + preview simultâneo)
+- Responsive collapse vertical < 1024px (mobile F.future)
+
+**D4 Monitor timeline events = WS PRIMARY + 5s polling fallback** (resilience):
+- Primary: WebSocket subscriber `pipeline.step_*` events real-time push
+- Fallback: setInterval 5s GET `/api/pipeline-studio/runs/{id}` poll
+- WS disconnect detected → start polling automático (sem perda data)
+- WS reconnect → stop polling + resume WS
+- Status indicator UI: green dot WS connected / amber dot polling fallback / red disconnected
+- NÃO WS only (resilience network drops F.7 cobaia produção alta freq)
+- NÃO polling only (UX delay 5s pior real-time)
+
+**D5 Run abort UX = INLINE BUTTON + browser confirm** (reduce fricção debug):
+- "Abort" button visible inline cada run row monitor
+- Click → browser `confirm("Abort run X? Soft abort: current step finishes, subsequent skipped")`
+- User accept → POST `/api/pipeline-studio/runs/{id}/abort` body `{reason: "owner_inline"}`
+- Toast success "Abort requested" + UI updates polling/WS
+- NÃO modal confirm dedicated (over-engineering 1 button)
+- NÃO sem confirm (acidental click destroy run)
+- Reason auto-fill "owner_inline" + future enhance custom reason F.future
+
+**D6 Step picker filters = 3 COMBINABLE** (chapter_owner + tier + free-text search):
+- Filter bar top modal: dropdown chapter_owner + dropdown tier + search input
+- Default: chapter_owner=all, tier=active|warning, search=""
+- Apply filters AND combinable (intersect results)
+- Show step count per filter combo "showing X of 69 tools"
+- Reset filters button right side
+- NÃO chapter_owner only (perde tier safety F.5.4 patterns)
+- NÃO search only (perde structured filtering)
+
+**D7 Auto-refresh interval = 60s** (pattern F.5.6 + F.8.3 consistency):
+- setInterval 60s sub-tabs (Templates + Runs Monitor + A/B Compare)
+- visibilitychange API pause when tab inactive (memory leak prevention pattern F.8.3)
+- Manual refresh button per sub-tab
+- Builder sub-tab sem auto-refresh (owner edit state, refresh destrói draft)
+- NÃO 30s (over-fetch backend)
+- NÃO configurable (pattern consistency F.5.6+F.8.3)
+
+**Files F.9.3** (6 NOVOS + 4 MATURE):
+- `dashboard/components/pipeline_studio_shell.js` NOVO (~180 LOC IIFE 4 sub-tabs nav + auto-refresh + visibilitychange)
+- `dashboard/components/pipeline_studio_builder.js` NOVO (~300 LOC form vertical + step list + YAML side panel preview)
+- `dashboard/components/pipeline_studio_step_picker_modal.js` NOVO (~250 LOC modal + 3 filters combinable + 60s cache)
+- `dashboard/components/pipeline_studio_runs_monitor.js` NOVO (~280 LOC WS subscriber + 5s polling fallback + inline abort button + timeline render)
+- `dashboard/components/pipeline_studio_templates.js` NOVO (~150 LOC gallery 5 cards + clone button stub D9 F.9.4 enhance)
+- `dashboard/styles/pipeline-studio.css` NOVO (~350 LOC tokens-based reuse design system F.8.3 reference)
+- `dashboard/index.html` MATURE — nav entry + section + script includes + modal container
+- `dashboard/app.js` MATURE — hash route `#pipeline-studio` + tab init (diff minimal pattern F.8.3)
+- `server.py` MATURE — WS broadcast `pipeline.step_*` namespace emit during execution (REUSE F.9.2 engine hooks)
+- `core/pipeline_engine.py` MATURE — emit WS events per step_start/step_done/step_error/run_complete (fire-and-forget pattern F.6.4)
+
+**Sub-task split F.9.3 (3 commits sub-session)**:
+- **C1** Shell + 4 sub-tabs nav + index.html + app.js + styles base (similar F.8.3 C1 pattern)
+- **C2** Builder form + step picker modal + YAML side panel (D1+D2+D3+D6)
+- **C3** Runs monitor WS + polling fallback + abort + templates stub + frontend-ux-reviewer + closeout (D4+D5+D7)
+
+**🚨 Riscos críticos F.9.3**:
+- **dashboard/app.js MATURE risk regression F.2 Mission Control** — F.8.3 + F.8.4 + agora F.9.3 todos touch app.js. Diff minimal obrigatório (pattern F.8.3 +8 LOC max)
+- **WS broadcast core/pipeline_engine.py hooks** — F.9.2 engine emite WS events fire-and-forget (não bloqueia execution). server.py expose ws.send_event helper
+- **Cache 60s sessionStorage stale risk** — Manual refresh button + invalidate on draft save (consistency cross-tab)
+- **frontend-ux-reviewer agent OBRIGATÓRIO** Commit 3 (GUARDRAILS UI gate F.5.6 + F.6.4 + F.8.3 pattern)
+- **Vanilla JS XSS** — pipeline_drafts.name/description owner input → escape via textContent (NÃO innerHTML)
+- **BLACKLIST R2 INTACTO** — F.9.3 UI files, zero touch linkedin/* (13 consecutive sub-sessions target)
+- **YAML preview render** — usar prismjs OR custom <pre><code> + escape (sem syntax highlight lib pesada — F.future enhance)
+- **Step picker modal z-index** — alinha F.8.3 modal 1100 (acima F.6.4 drawer 950)
+- **Baseline preserved**: brain/_smoke 20 + pytest 14/14 + F.2 Mission Control + F.9.1 CRUD + F.9.2 engine não regression
+- **WS reconnect logic** — F.9.3 incluir exponential backoff (1s, 2s, 4s, 8s max) + status indicator UI
+
+**Cross-ref F.9.3**:
+- F.9.1 endpoints CRUD + steps + templates (consume)
+- F.9.2 execute + runs/{id} poll + abort + WS hooks engine (consume)
+- F.5.6 dashboard/components/mcp_gateway.js (UI pattern reference)
+- F.6.4 brain_confirm_drawer + brain_confirm_card (modal + WS subscriber pattern)
+- F.8.3 dashboard/components/observability_shell.js + 4 tabs (sub-tabs nav pattern reuse)
+- F.8.3 dashboard/styles/observability.css (tokens design system reuse)
+- F.8.3 dashboard/vendor/chart.min.js (REUSE pra F.9.4 A/B compare metrics)
+- WS namespace F.2.3 dot-notation (`pipeline.step_*`)
+- Memory: mem_mqe6kuml (F.9.2) + mem_mqe7a8qi (F.9.2 complete) + mem_mqe10phw (F.9 global)
 +- W6 frontend não consume polling/abort ainda — F.9.3 escopo
 +
 +**F.9.1 STATUS COMPLETE** 2026-06-14 (3 commits a13c02a + c0399e9 + closeout):
