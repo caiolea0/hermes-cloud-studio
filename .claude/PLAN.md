@@ -1487,6 +1487,51 @@ Pre-req F.6.5:
 - pytest 9.0.3 + pytest-xdist + PyYAML (validate requirements.txt)
 - Memory: mem_mqce51hz (F.6.4) + mem_mqb6ia7w (F.6.3) + mem_mqae0827 (F.6 global)
 
+**🟢 F.6.5 [✅] STATUS COMPLETE 2026-06-13 (sub-session 5/6, 3 commits)**:
+
+- C1 `ff7124e feat(tests): F.6.5a — tests/ pytest harness + 12 golden cases YAML + .claude/brain-golden-cases/`
+- C2 `860ec17 docs(skill): F.6.5b — hermes-brain-test SKILL.md F.6 real 6 baterias + golden cases integration`
+- C3 (este commit) `docs(plan): F.6.5 [✅] golden cases pytest + hermes-brain-test F.6 real + reviewer PASS + F.6.6 PREP closeout`
+
+**Implementado F.6.5**:
+- `tests/__init__.py` NOVO empty.
+- `tests/conftest.py` NOVO ~165 LOC — `GoldenCase` Pydantic schema validator fail-loud at collection time + `GoldenMockDispatcher(MockDispatcher)` subclass YAML-driven per-case responses (catch-all `hermes-llm.route` OR `task_type` OR `server.tool` match precedence; multi-call list support pra max_iter cases) + fixtures `golden_db_path` (tmp SQLite + migrations apply) + `brain_instance` (fresh Brain + reset_persistence isolation) + `mock_dispatcher_factory`.
+- `tests/test_brain_golden.py` NOVO ~115 LOC — `@pytest.mark.golden` parametrize 12 YAML cases by id + 2 sanity tests (`test_golden_cases_count_exactly_12` D2 enforcement + `test_destructive_intents_always_require_confirm` G13 enforcement). Optional checks: intent_classified echo, confidence range, max_iterations cap, FSM final_state, tools_invoked substring match.
+- `pytest.ini` NOVO — `asyncio_mode = auto` + golden + slow markers + DeprecationWarning filter.
+- `.claude/brain-golden-cases/` NOVO dir + 12 YAML files + README.md owner-facing:
+  - `answer_owner_happy.yaml` (conf 0.92 completed) + `answer_owner_low_conf.yaml` (0.42 requires_confirm low_confidence)
+  - `send_outreach_happy.yaml` (destructive requires_confirm) + `send_outreach_max_iter.yaml` (loop infinito conf 0.55 → max_iter + requires_confirm destructive)
+  - `synth_skill_happy.yaml` (0.88 completed) + `synth_skill_code_error.yaml` (0.38 low_conf)
+  - `classify_prospect_happy.yaml` (0.85 completed) + `classify_prospect_low_conf.yaml` (0.40 low_conf)
+  - `summarize_conversation_happy.yaml` (0.80 completed) + `summarize_long_context.yaml` (0.72 borderline completed)
+  - `route_skill_run_happy.yaml` + `route_skill_run_unknown_skill.yaml` (utility task_type=None zero LLM call)
+  - `README.md` schema table + add-new-case 4-step + mock keys + CI LOCAL ONLY note.
+- `brain/_smoke.py` MATURE — adicionado public alias `MockDispatcher = _MockDispatcher` (D4 import contract `from brain._smoke import MockDispatcher` honrado). Zero regression: 20/20 baseline assertions ainda PASS.
+- `requirements.txt` MATURE — appended `pytest>=9.0`, `pytest-asyncio>=1.4`, `pytest-xdist>=3.6`.
+- `.claude/skills/hermes-brain-test/SKILL.md` MATURE — F.6.0 baseline (12.5K placeholder com golden_cases JSON + sentry/jaeger refs) → F.6 real (16.1K modular 6 baterias com one-liners reproduzíveis + failure interpretation per bateria + output template `.claude/BRAIN-TEST-{date}.md`).
+
+**Validate F.6.5**:
+- `rtk proxy python -m pytest tests/test_brain_golden.py -v` → **14/14 PASSED 0.47s** (12 golden cases + 2 sanity).
+- `rtk proxy python -m pytest tests/test_brain_golden.py -n auto` → **14/14 PASSED 2.03s** parallel xdist zero race.
+- `python -m brain._smoke` → **20/20 PASS** baseline preserved (9 F.6.2 + 7 F.6.3 + 4 F.6.4 — alias adicionado não quebra).
+- `grep -rnE "^from mcps\.|^import mcps\.|^from hermes_(linkedin|prospects|skills)" brain/` → ZERO matches (gateway isolation Bateria 3).
+- `git diff HEAD~2 -- linkedin/` → ZERO lines (BLACKLIST R2 intacto).
+- `test_destructive_intents_always_require_confirm` enforcement → 5/5 destructive cases requires_confirm: true.
+- code-reviewer agent 6 dim + 21 specific checks → **PASS** zero BLOCKERS + 4 WARNs F.future polish (W1 BrainPersistence cleanup async shutdown, W2 SKILL.md bench example explicit tmp DB, W3 pytest.ini filterwarnings global DeprecationWarning, W4 README list manual sync).
+
+**WARNs F.6.5 (do reviewer, backlog F.future polish)**:
+- W1 BrainPersistence._writer_loop async cleanup explicit close() em fim smoke runner
+- W2 SKILL.md Bateria 5 bench one-liner uso explícito golden_db_path tmp pra evitar DB pollution
+- W3 pytest.ini filterwarnings DeprecationWarning global pode mascarar pytest-asyncio 2.x migration
+- W4 README.md lista YAML files numerada manual — auto-gerar via pytest --collect-only F.future
+
+**F.6.6 PREP (próxima sub-session)** — Closeout F.6 + Task #6 [completed]:
+- Brain Hermes production-ready (state machine + tool calling + persistence + safety UX + golden cases regression).
+- PLAN.md F.6 STATUS COMPLETE block + Task #6 [pending] → [completed].
+- memory_save F.6 chapter closed (5 sub-sessions consolidados).
+- Final reviewer pass cross-cutting F.6.1 → F.6.5 cohesion.
+- F.7 Cobaia Live Ops UNBLOCKED — Brain orchestrator pronto pra decidir sequence steps + outreach autonomous.
+
 ### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
 +**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)
