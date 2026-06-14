@@ -2361,10 +2361,25 @@ async def cobaia_daily_cycle():
 +- `dashboard/index.html` + `app.js` + `server.py` MATURE
 +- `requirements.txt` validar (no new deps esperado, REUSE F.6+F.8 infra)
 +
-+**Sub-task split F.9.1 (sub-sessão pioneer Opus 4.7, 3 commits)**:
-+- C1 Migration pipeline_drafts + pipeline_runs_granular + seed 5 YAML templates
-+- C2 Backend api/pipeline_studio.py CRUD endpoints + step library REUSE F.5 gateway tools
-+- C3 Smoke endpoints E2E + reviewer + closeout F.9.1
++**Sub-task split F.9.1 (sub-sessão pioneer Opus 4.7, 3 commits)** — ✅ COMPLETE 2026-06-14:
++- C1 [✅] Migration pipeline_drafts + pipeline_runs_granular + seed 5 YAML templates (a13c02a)
++- C2 [✅] Backend api/pipeline_studio.py CRUD endpoints + step library REUSE F.5 gateway tools (c0399e9)
++- C3 [✅] Smoke endpoints E2E + reviewer PASS-WITH-NOTES 17/20 + closeout F.9.1
++
++**F.9 Task 1 [✅] + Task 1b [✅]** PLAN base — backend CRUD + step library REUSE F.5 gateway delivered. F.9.2 UNBLOCKED (Backend execution engine REUSE Brain.decide() route_skill_run).
++
++**F.9.1 STATUS COMPLETE** 2026-06-14 (3 commits a13c02a + c0399e9 + closeout):
++- ✅ Migration applied (pipeline_drafts + pipeline_runs_granular + 4 indexes)
++- ✅ 5 seed templates YAML (cobaia_warmup_14d + outreach_cold + skill_synthesis_loop + cost_review_weekly + brain_test_battery)
++- ✅ 7 endpoints REST (list/create/get/update/archive drafts + steps + templates)
++- ✅ Smoke E2E PASS: steps→69 tools across 9 MCPs / templates→5 / CRUD lifecycle 201/200/204
++- ✅ Validate A-E 20/22 PASS baseline preserved
++- ✅ brain/_smoke 20 + pytest 14/14 baselines preserved
++- ✅ BLACKLIST R2 INTACTO (11 consecutive — 6 F.6 + 4 F.8 + 1 F.9.1)
++- ✅ Reviewer PASS-WITH-NOTES 17/20 PASS 3 WARN 0 BLOCKER
++  - WARN1 (dim 8): optimistic locking F.future (single-owner Caio mitigates)
++  - WARN2 (dim 6/13): templates referenciam tools cross-MCP — confirmar mcp_registry seeded F.9.2
++  - WARN3 (templates): Jinja-style {{ }} placeholders — F.9.2 executor define variable resolution contract
 +
 +**🚨 Riscos críticos F.9**:
 +- Brain.decide() route_skill_run intent reuse (verify Step 0 F.9.1)
