@@ -228,9 +228,14 @@ async def _run_persistence_smoke() -> list[str]:
 
     # Ensure brain_runs + brain_decisions schema applied to tmp DB.
     tmp_db = Path(tempfile.mkdtemp(prefix="brain_smoke_")) / "smoke.db"
-    schema_path = Path(__file__).resolve().parent.parent / "migrations" / "2026_06_brain_runs_decisions.sql"
+    mig_dir = Path(__file__).resolve().parent.parent / "migrations"
+    schema_path = mig_dir / "2026_06_brain_runs_decisions.sql"
+    # F.6.4: apply owner_comment ALTER too (list_runs SELECT now includes owner_comment)
+    owner_comment_path = mig_dir / "2026_06_brain_runs_owner_comment.sql"
     conn = sqlite3.connect(str(tmp_db))
     conn.executescript(schema_path.read_text(encoding="utf-8"))
+    if owner_comment_path.exists():
+        conn.executescript(owner_comment_path.read_text(encoding="utf-8"))
     conn.close()
 
     # Reset singleton then point persistence to tmp DB.
@@ -316,19 +321,101 @@ async def _run_persistence_smoke() -> list[str]:
     return passes
 
 
+async def _run_confirm_smoke() -> list[str]:
+    """F.6.4 — validate confirm endpoint resume + owner_comment + idempotency.
+
+    Uses tmp DB; tests:
+      P8 approve flow: send_outreach -> requires_confirm -> resume approved
+                       -> final_state=owner_approved + comment persisted
+      P9 deny flow:    send_outreach -> requires_confirm -> resume denied
+                       -> final_state=owner_rejected + comment persisted
+      P10 idempotency: resume already-resolved run -> not_awaiting_confirm
+      P11 missing run: resume non-existent run_id -> run_not_found
+    """
+    import sqlite3
+    import tempfile
+    from pathlib import Path
+
+    from brain.decide import Brain
+    from brain.persistence import get_persistence, reset_persistence
+
+    passes: list[str] = []
+    tmp = Path(tempfile.gettempdir()) / "hermes_brain_smoke_f64_confirm.db"
+    if tmp.exists():
+        tmp.unlink()
+    # Apply both migrations (base + owner_comment) to tmp DB
+    base_sql = (Path(__file__).resolve().parent.parent / "migrations" / "2026_06_brain_runs_decisions.sql").read_text()
+    own_sql = (Path(__file__).resolve().parent.parent / "migrations" / "2026_06_brain_runs_owner_comment.sql").read_text()
+    c = sqlite3.connect(str(tmp))
+    c.executescript(base_sql)
+    c.executescript(own_sql)
+    c.commit()
+    c.close()
+
+    reset_persistence()
+    get_persistence(tmp)
+
+    # P8 approve flow
+    b = Brain()
+    r = await b.decide("send_outreach", {"prospect_id": "smoke-p8", "name": "P8"})
+    rid_approve = r["run_id"]
+    _assert(r["requires_confirm"] is True, "P8 expected requires_confirm=True for send_outreach")
+    res_a = await b.resume_from_run_id(rid_approve, approved=True, comment="P8 approve smoke")
+    _assert(res_a.get("ok") is True, f"P8 resume approve ok expected True, got {res_a}")
+    _assert(res_a.get("final_state") == "owner_approved", f"P8 expected owner_approved got {res_a.get('final_state')}")
+    # Verify DB row
+    c = sqlite3.connect(str(tmp))
+    row = c.execute("SELECT final_state, owner_comment FROM brain_runs WHERE id = ?", (rid_approve,)).fetchone()
+    c.close()
+    _assert(row[0] == "owner_approved", f"P8 DB final_state mismatch: {row[0]}")
+    _assert("P8 approve smoke" in (row[1] or ""), f"P8 owner_comment not persisted: {row[1]!r}")
+    passes.append("  [P8 approve flow] requires_confirm -> resume approved -> owner_approved + comment persisted")
+
+    # P9 deny flow
+    r2 = await b.decide("send_outreach", {"prospect_id": "smoke-p9"})
+    rid_deny = r2["run_id"]
+    res_d = await b.resume_from_run_id(rid_deny, approved=False, comment="P9 deny: wrong ICP")
+    _assert(res_d.get("final_state") == "owner_rejected", f"P9 expected owner_rejected got {res_d.get('final_state')}")
+    c = sqlite3.connect(str(tmp))
+    row2 = c.execute("SELECT final_state, owner_comment FROM brain_runs WHERE id = ?", (rid_deny,)).fetchone()
+    c.close()
+    _assert(row2[0] == "owner_rejected", f"P9 DB final_state mismatch: {row2[0]}")
+    _assert("P9 deny" in (row2[1] or ""), f"P9 owner_comment not persisted: {row2[1]!r}")
+    passes.append("  [P9 deny flow] requires_confirm -> resume denied -> owner_rejected + comment persisted")
+
+    # P10 idempotency: second resume on already-resolved run
+    res_dup = await b.resume_from_run_id(rid_approve, approved=True, comment="should fail")
+    _assert(res_dup.get("ok") is False, "P10 expected ok=False on already-resolved run")
+    _assert(res_dup.get("error") == "not_awaiting_confirm", f"P10 expected not_awaiting_confirm got {res_dup.get('error')}")
+    passes.append("  [P10 idempotency] resume already-resolved -> not_awaiting_confirm (409 surface)")
+
+    # P11 run_not_found
+    res_404 = await b.resume_from_run_id("non-existent-uuid-zz", approved=True)
+    _assert(res_404.get("ok") is False, "P11 expected ok=False on missing run")
+    _assert(res_404.get("error") == "run_not_found", f"P11 expected run_not_found got {res_404.get('error')}")
+    passes.append("  [P11 run_not_found] non-existent run_id -> run_not_found (404 surface)")
+
+    reset_persistence()
+    return passes
+
+
 async def _run_smoke() -> None:
     if OFFLINE_MODE:
         print("F.6.3 BRAIN SMOKE (OFFLINE_MODE — deterministic mock dispatcher)")
         passes = await _run_offline_smoke()
         print("F.6.3 PERSISTENCE SMOKE")
         passes_persist = await _run_persistence_smoke()
-        passes = passes + passes_persist
+        print("F.6.4 CONFIRM SMOKE (approve/deny/idempotency/404)")
+        passes_confirm = await _run_confirm_smoke()
+        passes = passes + passes_persist + passes_confirm
     else:
         print("F.6.3 BRAIN SMOKE (REAL — gateway dispatch via NIM + Ollama)")
         passes = await _run_real_smoke()
         print("F.6.3 PERSISTENCE SMOKE (real DB)")
         passes_persist = await _run_persistence_smoke()
-        passes = passes + passes_persist
+        print("F.6.4 CONFIRM SMOKE (real DB resume + owner_comment)")
+        passes_confirm = await _run_confirm_smoke()
+        passes = passes + passes_persist + passes_confirm
 
     print("ALL PASS:")
     for line in passes:

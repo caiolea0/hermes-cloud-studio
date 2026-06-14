@@ -1355,6 +1355,41 @@ Pre-req F.6.4 (revised post owner decision NIM key não-rotacionar):
 - frontend-ux-reviewer agent (GUARDRAILS § "🎨 UI changes gate")
 - Memory: mem_mqae0827 (F.6 D8 safety gates) + mem_mqb6ia7w (F.6.3 persistence base)
 
+**🟢 F.6.4 [✅] STATUS COMPLETE 2026-06-13 (sub-session 4/6, 3 commits)**:
+
+- C1 `8217de2 feat(brain): F.6.4a backend confirm endpoint REAL 501->200 + resume_from_run_id`
+- C2 (WS broadcast bundled into C1 — BackgroundTasks `bg.add_task(_emit_ws_event, ...)` em /decide quando requires_confirm + em /confirm pós resolve)
+- C3 `65def73 feat(dashboard): F.6.4c Brain confirm side-drawer + summary card + WS subscriber`
+- C4 (este commit) `docs(plan): F.6.4 [✅] Brain safety UX side-drawer + confirm endpoint + smoke E2E + reviewer PASS + F.6.5 PREP`
+
+**Implementado F.6.4**:
+- `migrations/2026_06_brain_runs_owner_comment.sql` NOVO — ALTER TABLE brain_runs ADD COLUMN owner_comment TEXT (idempotent server.py lifespan catches duplicate column).
+- `brain/persistence.py` MATURE — `update_run_final(owner_comment=)` param + `list_runs(status=)` filter + `load_run_for_resume()` helper.
+- `brain/decide.py` MATURE — `resume_from_run_id(run_id, approved, comment)` reload FSM IDLE→CLASSIFY→REASON→ACT→REVIEW deterministic + to_commit OR abort + UPDATE owner_approved|owner_rejected. `_reconstruct_react_result()` reuse `replay.replay_run` show_recorded.
+- `brain/replay.py` MATURE — `list_runs(status=)` passthrough pra persistence.
+- `api/brain.py` MATURE — POST /confirm/{run_id} REAL (501→200) com Pydantic action regex `^(approve|deny|cancel)$` + comment 500 chars max + sanitize SENSITIVE_KEYS + cancel coded as deny owner_canceled + 404/409 idempotent lock. GET /runs `?status=` query param. `_emit_ws_event()` helper BackgroundTasks fire-and-forget. POST /decide emite `brain.run_awaiting_confirm` quando requires_confirm; POST /confirm emite `brain.run_confirm_resolved` pós resolve.
+- `server.py` MATURE — lifespan apply owner_comment migration idempotent try/except OperationalError catches "duplicate column name".
+- `dashboard/styles/brain-confirm.css` NOVO ~320 LOC — side-drawer 480px + summary card + WCAG 2.1 AA (--color-fg #e6edf3 on --color-bg-2 #161b22 = 13.8:1 contraste) + prefers-reduced-motion respected + zero hex literal fora tokens.css.
+- `dashboard/components/brain_confirm_card.js` NOVO ~210 LOC — `BrainConfirmCard.render(run, {onAction})` summary card 3 lines (what/why/cost+iters) + `<details>` expand lazy fetch GET /api/brain/runs/{id} ReAct trace + approve/deny/cancel buttons + comment textarea max 500 chars counter live. Zero innerHTML em dados dinâmicos (textContent only — XSS gate).
+- `dashboard/components/brain_confirm_drawer.js` NOVO ~280 LOC — IIFE singleton state + WS subscriber + hydrate GET /api/brain/runs?status=requires_confirm + Esc close + restore focus + auto-init DOMContentLoaded + `window.BrainConfirmDrawer.{init, open, close, refresh, onWSEvent}`.
+- `dashboard/index.html` MATURE — link CSS + 2 script includes + topbar trigger badge (aria-label dinâmico + aria-live=polite) + drawer container DOM (role=dialog + aria-labelledby + aria-modal=false D1 + close button).
+- `dashboard/app.js` MATURE — handleWSEvent delegate `brain.*` events → `window.BrainConfirmDrawer.onWSEvent` (sempre processa, drawer global topbar não atrelado a página atual).
+- `brain/_smoke.py` MATURE — adicionado `_run_confirm_smoke()` 4 assertions P8-P11: approve flow + deny flow + idempotency 409 + run_not_found 404. Total 20/20 PASS.
+
+**Validate F.6.4**:
+- `python -m brain._smoke` OFFLINE → 20 assertions PASS (9 F.6.2 + 7 F.6.3 + 4 F.6.4 P8-P11).
+- Smoke WS E2E PC :55000: brain.run_awaiting_confirm + brain.run_confirm_resolved captured + 409 idempotency verificado.
+- Visual smoke browser PC :55000: drawer badge=6 → click Aprovar + comment "F.6.4 browser smoke approve" → POST 200 → DB owner_approved + comment persisted → WS broadcast brain.run_confirm_resolved → drawer count 6→5 em tempo real.
+- Validate A=3, B=5, C=6, D=4, E=2 → 20/22 PASS preservado.
+- BLACKLIST R2: `git diff 8217de2~1..HEAD -- linkedin/` ZERO matches.
+- frontend-ux-reviewer 21 dimensões → **PASS-WITH-NOTES** zero BLOCKERS (4 NOTES baixa-prioridade F.future: FSM transition log resume, SENSITIVE_KEYS prefix expand sk-/AIza-, docstring align, visual smoke manual already executed).
+
+**F.6.5 PREP (próxima sub-session)** — Golden cases test suite + hermes-brain-test skill update F.6 real:
+- Bateria deterministic 6 dimensões: contract API agent-zero/*, decisão reproduzível, gateway MCP isolation, guardrails confirm gate, latência p95 <4s, observabilidade trace.
+- `skills/hermes-brain-test/SKILL.md` update F.6 real (substitui F.6.0 mocks).
+- Golden cases YAML em `.claude/brain-golden-cases/`: 12 cases (2 per intent) cobrindo destructive + non-destructive + low-confidence.
+- Smoke real OFFLINE=0 NIM dispatch + Ollama (não rotacionar NIM key per owner decision).
+
 ### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
 +**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)
