@@ -1876,6 +1876,76 @@ async def cobaia_daily_cycle():
 +
 +**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 7 dashboard widget spec.
 +
++**🎯 F.8 Decisões Cristalizadas (Cost & Performance Observability — pós F.5.7+F.6.3 evolução) — incorporado 2026-06-14**:
++
++F.6 ✅ CHAPTER CLOSED. F.8 = próximo per ordem cristalizada. PLAN.md F.8 base 3 sub-sessions estimate **expandido pra 4** pós F.5.7/F.6.3 evolução: mcp_calls extension 5 cols (provider/model/tokens_in/tokens_out/cost_credits) JÁ APLICADA + brain_runs/brain_decisions persistidos JÁ aplicado + Sentry MCP F.5.6 ACTIVE. F.8 reaproveita muito sem re-implementar.
++
++**D1 Sub-task split 4 sub-sessions**:
++- F.8.1 Backend cost tracking + perf middleware (Opus 4.7, ~3-4h)
++- F.8.2 Backend error inbox + brain audit endpoints (Sonnet 4.6, ~2-3h)
++- F.8.3 UI shell + 4 tabs (Sonnet 4.6 + frontend-ux-reviewer, ~4-5h)
++- F.8.4 UI MCP Coverage tab + closeout (Sonnet 4.6, ~2-3h)
++- Total ~11-15h spread 1 semana
++
++**D2 Cost tracking REUSE mcp_calls extension F.5.7** (single source of truth). NÃO criar nova tabela `llm_calls`. `mcp_pricing` table NOVA separate (model_id + cost_per_1k_in/out + updated_at). F.8 endpoint `/api/observability/costs` query mcp_calls GROUP BY (provider, model, day, requester).
++
++**D3 Performance metrics = JSON custom rolling 1h** (NÃO Prometheus, over-engineering owner solo). 3 services covered: PC :55000 + VM :8420 + gateway :55401. FastAPI middleware p50/p95/p99 + flush hourly `perf_metrics` table. F.future Prometheus quando escala equipe.
++
++**D4 Error inbox HYBRID Sentry MCP primary + local errors_inbox table**:
++- Sentry MCP F.5.6 → production-grade external errors
++- `errors_inbox` table NOVA — categories: `mcp_bypass` (F.5.4 BANNED-PATTERNS violations) + `brain_safety_gate` (F.6.4 destructive triggered) + `validation_phase_fail`
++- F.8 endpoint aggrega Sentry MCP query + local table
++
++**D5 UI 5 tabs (era 4, +MCP Coverage)**:
++- Tab 1 Costs (provider/model/skill breakdown + month projection)
++- Tab 2 Performance (p50/p95/p99 per endpoint + 3 services)
++- Tab 3 Errors (Sentry + local hybrid + triage)
++- Tab 4 Decisions (Brain runs audit trail + filters intent/status)
++- Tab 5 MCP Coverage (heatmap Phase × MCP + history sparkline reuse F.5.5 audit)
++
++**D6 Chart.js vendor local** (NÃO Recharts React). Alinhado vanilla JS dashboard pattern F.5.6 + F.6.4. `dashboard/vendor/chart.min.js` download manual + commit (offline-safe + zero-dependency).
++
++**D7 NIM credit balance polling INCLUIR F.8.1** (F.5.9 propose deferred — F.5 closeout pulou pra F.5.6, F.8 absorve). `scripts/check_nim_credits.py` + cron daily 09h BRT (alinha F.5.5 pattern). `nim_credit_history` table criada F.5.7 disponível.
++
++**D8 Owner export CSV + JSON sibling** (mesma pattern F.5.5 MCP-COVERAGE-{YYYY-MM}.{md,json}). Endpoint `?format=csv|json` flag.
++
++**D9 Order BACKEND primeiro** (F.8.1+F.8.2) → UI depois (F.8.3+F.8.4). Data flow ready antes render.
++
++**D10 Retention MANUAL F.future** (NÃO pg_partman F.8). SQLite NÃO suporta partitions native. PLAN.md MCP HARD REQ menciona pg_partman = Postgres futuro. F.future migration Postgres → real partitioning.
++
++**Files F.8 global** (6 NOVOS + 8 MATURE):
++- `core/observability.py` NOVO (~300 LOC cost middleware + perf middleware)
++- `api/observability.py` NOVO (~250 LOC 4 endpoints)
++- `migrations/2026_06_<next>_observability.sql` NOVO (mcp_pricing + perf_metrics + errors_inbox)
++- `scripts/check_nim_credits.py` NOVO (~80 LOC NIM credit polling cron)
++- `dashboard/views/observability.html` NOVO (~200 LOC shell 5 tabs)
++- `dashboard/components/observability_*.js` NOVO 5 files (~150 LOC cada)
++- `dashboard/styles/observability.css` NOVO (~200 LOC)
++- `dashboard/vendor/chart.min.js` NOVO (Chart.js 4.x vendor local)
++- `core/ai.py` MATURE — instrument cost middleware hook se needed
++- `dashboard/index.html` + `app.js` MATURE — nav + route #observability
++- `server.py` MATURE — include_router observability
++- `requirements.txt` + `.env.example` MATURE
++
++**🚨 Riscos críticos F.8**:
++- Cost double-count (mcp_calls.cost_credits já F.5.7) — F.8.1 só aggregate layer
++- Perf middleware overhead (validate p95 não degrada)
++- Chart.js vendor offline commit (.gitignore vendor/ validate)
++- 5 tabs DOM 500+ LOC (modularize IIFE pattern F.5.6)
++- frontend-ux-reviewer F.8.3+F.8.4 OBRIGATÓRIO (GUARDRAILS UI gate)
++- BLACKLIST R2 INTACTO (zero touch linkedin/)
++- mcp_calls volume > 100k rows degrade (EXPLAIN PLAN F.8.1 validate)
++- NIM polling cron VM (scheduled-tasks MCP F.5.5 pattern reuse)
++- Sentry MCP rate limit (batch aggregate, NÃO N+1 calls)
++- core/ai.py MATURE regression risk (cost middleware hook)
++
++**Cross-ref F.8**:
++- mcp_calls extension F.5.7 + brain_runs/decisions F.6.1+F.6.4 + Sentry MCP F.5.6
++- `mcp_coverage_audit.py` F.5.5 + `.claude/audits/mcp-coverage/*.md+json` (MCP Coverage tab reuse)
++- `dashboard/components/mcp_gateway.js` F.5.6 (UI pattern reference)
++- WebSocket F.2.3 dot-notation `obs.*` namespace
++- Memory: mem_mqd4chho (F.6.6) + mem_mqb5f6wo (NIM setup)
++
 +### Chapter F.9 — Pipeline Studio Visual (form-driven)
 +
 +**Classification**: ui+backend · **UI score**: 9 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.1, F.6 (Brain + tools registry)
