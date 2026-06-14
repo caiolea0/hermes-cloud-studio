@@ -466,6 +466,8 @@ _bindAudioGesture();
    NAVIGATION
    ============================================================ */
 function navigate(page) {
+    // F.9.5: legacy #pipeline → Pipeline Studio visual builder (soft cutover)
+    if (page === 'pipeline') page = 'pipeline-studio';
     currentPage = page;
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item[data-page]').forEach(n => n.classList.remove('active'));
