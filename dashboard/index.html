@@ -35,6 +35,10 @@
 <script src="/dashboard/components/lab_fingerprint_diff.js" defer></script>
 <script src="/dashboard/components/lab_cockpit.js" defer></script>
 <script src="/dashboard/components/mcp_gateway.js" defer></script>
+<!-- F.6.4 — Brain Confirm Drawer (safety UX side-drawer + summary card) -->
+<link rel="stylesheet" href="/dashboard/styles/brain-confirm.css">
+<script src="/dashboard/components/brain_confirm_card.js" defer></script>
+<script src="/dashboard/components/brain_confirm_drawer.js" defer></script>
 </head>
 <body>
 
@@ -322,6 +326,18 @@
                 </button>
                 <button class="topbar-btn" onclick="refreshCurrentPage()" title="Atualizar">
                     <svg><use href="#i-refresh"/></svg>
+                </button>
+                <!-- F.6.4 — Brain confirm trigger badge -->
+                <button
+                    id="brain-confirm-trigger"
+                    class="brain-confirm-trigger"
+                    type="button"
+                    aria-label="Brain awaiting confirm"
+                    title="Brain pendentes de confirmação"
+                    onclick="window.BrainConfirmDrawer && window.BrainConfirmDrawer.open()">
+                    <svg style="width:14px;height:14px"><use href="#i-zap"/></svg>
+                    <span>Brain</span>
+                    <span id="brain-confirm-badge" class="brain-confirm-badge hidden" aria-live="polite">0</span>
                 </button>
             </div>
             <div class="topbar-status" id="hermes-status" onclick="toggleServerMenu(event)" style="cursor:pointer">
@@ -2114,6 +2130,25 @@
 <!-- ============================================================
      JAVASCRIPT
      ============================================================ -->
+<!-- ============================================================
+     F.6.4 — Brain Confirm Drawer (side-drawer 480px right)
+     ============================================================ -->
+<div id="brain-confirm-drawer" class="brain-confirm-drawer" hidden role="dialog" aria-labelledby="brain-confirm-drawer-title" aria-modal="false">
+    <div id="brain-confirm-backdrop" class="brain-confirm-backdrop" tabindex="-1"></div>
+    <aside class="brain-confirm-panel" aria-label="Brain confirm pendentes">
+        <header class="brain-confirm-header">
+            <h2 id="brain-confirm-drawer-title" class="brain-confirm-title">
+                <span>Brain awaiting confirm</span>
+                <span id="brain-confirm-drawer-count" class="brain-confirm-title-count" aria-label="Quantidade pendente">0</span>
+            </h2>
+            <button id="brain-confirm-close" class="brain-confirm-close" type="button" aria-label="Fechar drawer">×</button>
+        </header>
+        <div id="brain-confirm-list" class="brain-confirm-list" role="list">
+            <div class="brain-confirm-empty">Carregando...</div>
+        </div>
+    </aside>
+</div>
+
 <!-- DOMPurify vendor local (MERGED-019 XSS sanitization) — DEVE vir antes de app.js -->
 <script src="/dashboard/vendor/purify.min.js"></script>
 <script src="/dashboard/app.js"></script>

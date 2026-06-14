@@ -3125,6 +3125,16 @@ function handleWSEvent(event) {
         try { window.HermesLabCockpit.appendEvent(event); }
         catch (e) { console.warn('HermesLabCockpit appendEvent failed', event.type, e); }
     }
+
+    // F.6.4 — Brain Confirm Drawer WS handlers (2 events brain.*).
+    // Delega pra window.BrainConfirmDrawer.onWSEvent (no-op se drawer não inicializado).
+    // Sempre processa, independente da página atual — drawer é global (topbar badge).
+    if (typeof event.type === 'string' && event.type.indexOf('brain.') === 0) {
+        if (window.BrainConfirmDrawer && typeof window.BrainConfirmDrawer.onWSEvent === 'function') {
+            try { window.BrainConfirmDrawer.onWSEvent(event); }
+            catch (e) { console.warn('BrainConfirmDrawer onWSEvent failed', event.type, e); }
+        }
+    }
 }
 
 /* ============================================================
