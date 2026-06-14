@@ -1390,6 +1390,103 @@ Pre-req F.6.4 (revised post owner decision NIM key não-rotacionar):
 - Golden cases YAML em `.claude/brain-golden-cases/`: 12 cases (2 per intent) cobrindo destructive + non-destructive + low-confidence.
 - Smoke real OFFLINE=0 NIM dispatch + Ollama (não rotacionar NIM key per owner decision).
 
+**🎯 F.6.5 Decisões Cristalizadas (Golden cases test suite + hermes-brain-test skill update) — incorporado 2026-06-13**:
+
+F.6.4 ✅ done (Brain safety UX side-drawer + owner-in-the-loop confirm endpoint + WS broadcast). F.6.5 = penúltima sub-sessão F.6. Foco: **regression depth** via golden cases test suite + skill `hermes-brain-test` integration. 20/20 smoke base existing (9 F.6.2 + 7 F.6.3 + 4 F.6.4) ganha 12 golden cases pytest harness. Owner solo no-code roda `pytest tests/test_brain_golden.py` qualquer modificação Brain pra catch regression.
+
+Pre-req F.6.5:
+- Brain F.6.1+F.6.2+F.6.3+F.6.4 stack completo funcional
+- pytest 9.0.3 instalado PC (confirmed pre-flight)
+- hermes-brain-test SKILL.md existing (12.2K, F.6.0 baseline conhecida)
+- MockDispatcher F.6.2 reusable (consistent contract testes)
+- Validate phase A-E 20/22 preservado
+
+**D1 Golden cases storage = YAML fixtures (.claude/brain-golden-cases/)**:
+- Format YAML legível owner-side com comentários inline
+- Path canônico: `.claude/brain-golden-cases/<intent>_<case_id>.yaml`
+- Schema obrigatório: `{intent, case_id, description, context, expected: {status, requires_confirm, intent_classified, min_confidence, max_confidence, tools_invoked, final_state}, mock_dispatcher_responses: {dispatcher.method: response}}`
+- Versionável git (owner pode diff cases history)
+- NÃO JSON (menos legível, sem comentários inline owner-side)
+- NÃO Python literals (precisa edit code pra modificar fixtures)
+
+**D2 12 cases scope = 2 per intent × 6 intents (1 happy + 1 edge)**:
+- 6 intents × 2 cases = 12 cases total
+- Per intent:
+  - **happy**: caminho ideal (high confidence + tools succeed + non-destructive completed OR destructive requires_confirm correctly)
+  - **edge**: edge case (low confidence triggers owner_confirm OR max_iter cap OR tool failure cascading)
+- Coverage matrix:
+  - `answer_owner_happy.yaml` + `answer_owner_low_conf.yaml`
+  - `send_outreach_happy.yaml` (destructive always requires_confirm) + `send_outreach_max_iter.yaml`
+  - `synth_skill_happy.yaml` + `synth_skill_code_error.yaml`
+  - `classify_prospect_happy.yaml` + `classify_prospect_low_conf.yaml`
+  - `summarize_conversation_happy.yaml` + `summarize_long_context.yaml`
+  - `route_skill_run_happy.yaml` (utility no LLM) + `route_skill_run_unknown_skill.yaml`
+- NÃO 1 per intent (insufficient coverage edges)
+- NÃO 3+ per intent (over-test, F.6.5 inicial 12 sufficient)
+
+**D3 pytest harness (industry standard)**:
+- `tests/test_brain_golden.py` NOVO usa pytest parametrize fixtures
+- `tests/conftest.py` NOVO ou MATURE — pytest fixtures Brain instance + MockDispatcher setup
+- Marker `@pytest.mark.golden` pra filtrar `pytest -m golden`
+- Parallel test via pytest-xdist (`pytest -n auto`)
+- NÃO custom runner (over-engineering, pytest cobre)
+- NÃO unittest stdlib (pytest mais expressivo + fixtures pattern)
+
+**D4 MockDispatcher reuse F.6.2**:
+- `tests/conftest.py` import `from brain._smoke import MockDispatcher` (consistent contract)
+- Per-case `mock_dispatcher_responses` YAML field popula MockDispatcher response map
+- MockDispatcher F.6.2 já implementa `route()` + `invoke_tool()` mock signatures
+- NÃO new fixture pattern (DRY violation + drift risk consistency MockDispatcher F.6.2)
+
+**D5 hermes-brain-test skill = 6 dimensões + golden cases integration**:
+- SKILL.md update mantém bateria 6 dim (contract API + decisão reprodutível + gateway MCP isolation + guardrails confirm + latência p95 + observability)
+- Bateria 1 (contract API): smoke `POST /api/brain/decide` 6 intents → schema response Pydantic match
+- Bateria 2 (decisão reprodutível): rodar golden cases × 3 trials → 100% same outcome
+- Bateria 3 (gateway MCP isolation): MockDispatcher path → Brain NÃO chama mcps/* direto
+- Bateria 4 (guardrails confirm gate): destructive intents → requires_confirm: true 100%
+- Bateria 5 (latência p95): 30 runs synthetic prompts → assert p95 < 4s (offline mock, NIM real F.future)
+- Bateria 6 (observability): brain_runs + brain_decisions persistidos + Sentry capture_exception em error paths
+- Trigger skill: owner diz "testar brain" / "/hermes-brain-test" → skill orchestra 6 baterias + report
+- NÃO só novo golden cases (existing skill é asset, enrich em vez de replace)
+- NÃO só 6 dim (golden cases adicionam regression depth)
+
+**D6 CI integration = LOCAL ONLY (F.future GitHub Actions)**:
+- F.6.5 entrega `pytest tests/test_brain_golden.py` owner manual run pré-commit Brain modifications
+- README skill instrui owner CLI: `pytest tests/test_brain_golden.py -v --tb=short`
+- NÃO GitHub Actions trigger F.6.5 (owner solo no-code, CI heavy F.future quando equipe escala)
+- NÃO `pre-commit` hook obrigatório (owner-paced, Brain modifications baixa freq pós-F.6.6)
+- F.future: `.github/workflows/brain-regression.yml` triggers on push branch main quando equipe escala (defer)
+
+**Files F.6.5** (3 NOVOS dirs + 2 MATURE):
+- `tests/__init__.py` NOVO (se não existir)
+- `tests/conftest.py` NOVO (~80 LOC) — pytest fixtures Brain instance + MockDispatcher setup + golden_case loader
+- `tests/test_brain_golden.py` NOVO (~150 LOC) — pytest parametrize 12 golden cases
+- `.claude/brain-golden-cases/` NOVO dir + 12 YAML files (12 × ~30-50 LOC cada = ~400 LOC total YAML)
+- `.claude/brain-golden-cases/README.md` NOVO — owner-facing guide editar/adicionar cases
+- `requirements.txt` MATURE — add `pytest>=9.0` + `pytest-xdist>=3.6` + `PyYAML>=6.0` (validar instalados)
+- `.claude/skills/hermes-brain-test/SKILL.md` MATURE — substitui F.6.0 baseline por F.6 real 6 dim + golden cases trigger
+
+**Sub-task split F.6.5 (3 commits sub-session)**:
+- **C1** tests/ pytest harness scaffold + 12 golden cases YAML + .claude/brain-golden-cases/ dir
+- **C2** hermes-brain-test skill update SKILL.md F.6 real 6 dim + golden cases integration
+- **C3** smoke E2E (rodar 12 golden cases + 6 baterias skill) + reviewer + closeout F.6.5
+
+**🚨 Riscos críticos F.6.5**:
+- **MockDispatcher contract drift** — F.6.2 implementation mudou pós-F.6.3/F.6.4. Validate signature match Brain real `route()` + `invoke_tool()` antes commit
+- **YAML schema validation** — owner pode quebrar YAML inadvertently. Pydantic schema validator em conftest.py load case
+- **Pytest parametrize discovery** — 12 cases × YAML load = pytest collection time. Cache YAML parse fixture session-scoped
+- **Latency p95 bateria 5 flaky** — 4s threshold com offline mocks = generous. Adjust se observação 30 trials shows variance
+- **hermes-brain-test SKILL.md size** — 12.2K existing + 6 baterias docs = pode crescer 25K. Owner SKILL.md prefere 15K max. Modularize 6 baterias em sections com TOC
+- **BLACKLIST R2 INTACTO** — tests NÃO tocam linkedin/* (apenas Brain + MockDispatcher)
+- **F.6.4 confirm endpoint test** — golden case `send_outreach_happy.yaml` deve testar requires_confirm flow (não toca real /api/brain/confirm/{id} F.6.4, MockDispatcher level)
+
+**Cross-ref F.6.5**:
+- `brain/_smoke.py` F.6.2+F.6.3+F.6.4 (MockDispatcher reuse + 20 existing assertions baseline)
+- `.claude/skills/hermes-brain-test/SKILL.md` existing F.6.0 baseline (12.2K)
+- F.6.1-F.6.4 brain/*.py (intents + state machine + persistence + safety + replay + resume)
+- pytest 9.0.3 + pytest-xdist + PyYAML (validate requirements.txt)
+- Memory: mem_mqce51hz (F.6.4) + mem_mqb6ia7w (F.6.3) + mem_mqae0827 (F.6 global)
+
 ### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
 +**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)
