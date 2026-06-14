@@ -1588,6 +1588,118 @@ Pre-req F.6.6: F.6.1-F.6.5 todos ✅ + 34 assertions baseline (20 brain/_smoke +
 - F.7 chapter section (UNBLOCKED nota cross-ref)
 - Memory: mem_mqae0827 (F.6 global) + mem_mqd2cjir (F.6.5) + F.6.6 complete pós-commit
 
+---
+
+## 🎯 F.6 CHAPTER COMPLETE — Brain Hermes Production-Ready (2026-06-14)
+
+**Status**: ✅ CLOSED · 5 sub-sessions consecutive (F.6.1→F.6.5) + Closeout (F.6.6) · BLACKLIST R2 INTACTO · F.7 Cobaia Live Ops UNBLOCKED
+
+### F.6.1 — Brain scaffold + state machine + 6 intents stubs
+- 7 NOVOS files (~600-800 LOC): brain/__init__.py, states.py, intents.py, safety.py, decide.py, _smoke.py, api/brain.py
+- State machine 6 states canonical ReAct (IDLE, CLASSIFY, REASON, ACT, REVIEW, COMMIT) + 8 transitions FSM
+- 6 intents stubs deterministic (answer_owner, send_outreach, synth_skill, classify_prospect, summarize_conversation, route_skill_run)
+- Migration `2026_06_brain_runs_decisions.sql` (brain_runs 12 cols + brain_decisions 11 cols FK CASCADE)
+- Smoke 8 assertions PASS
+- code-reviewer 18 dim PASS-WITH-NOTES zero BLOCKERS
+
+### F.6.2 — Tool calling REAL + ReAct loop + MockDispatcher
+- brain/dispatch.py NOVO (~150 LOC GatewayDispatcher HTTP client → :55401)
+- brain/_react.py NOVO (~150 LOC ReAct loop 5 iter max)
+- Smoke 9 assertions PASS + 16/16 incl baseline preserved
+- code-reviewer 19 dim PASS-WITH-NOTES zero BLOCKERS
+- NIM key setup + env loading fix (orquestrador patches consolidados)
+- 14/24 model IDs catalog Sessão B corrigidos pra IDs reais NIM live
+
+### F.6.3 — Memory persistence + replay + agentmemory MCP opt-in
+- brain/persistence.py NOVO (308 LOC singleton + Queue + Lock, thread-safe append)
+- brain/replay.py MATURE (~120 LOC show_recorded read-only mode)
+- 4 INTENT_REGISTRY agentmemory_save flagged True (answer_owner, classify_prospect, synth_skill, send_outreach∗)
+- api/brain.py runs/replay endpoints 200 (era 501)
+- Smoke 7 P1-P7 + 16/16 (stress 20 concurrent OK, drain ok, zero lock contention)
+- code-reviewer 21 dim PASS-WITH-NOTES zero BLOCKERS
+
+### F.6.4 — Safety UX side-drawer + confirm + resume_from_run_id
+- 3 NOVOS UI files (dashboard/components/brain_confirm_drawer.js + brain_confirm_card.js + styles/brain-confirm.css)
+- api/brain.py confirm endpoint 501→200 REAL (POST /api/brain/runs/{run_id}/confirm)
+- brain/decide.py resume_from_run_id determinístico via _reconstruct_react_result (DRY reuse replay.replay_run)
+- Migration `2026_06_brain_runs_owner_comment.sql` ADD COLUMN owner_comment (idempotent lifespan)
+- WS broadcast brain.run_awaiting_confirm + brain.run_confirm_resolved (F.2.3 dot-notation)
+- 3 commits (C1+C2 consolidated + C3 UI + C4 closeout)
+- Smoke 4 P8-P11 confirm flow (approve/deny/idempotency/404)
+- frontend-ux-reviewer 21 dim PASS-WITH-NOTES zero BLOCKERS
+
+### F.6.5 — Golden cases pytest + hermes-brain-test skill F.6 real
+- tests/ harness pytest 9.0.3 + xdist + asyncio (conftest.py + test_brain_golden.py + __init__.py)
+- 12 YAML golden cases em `.claude/brain-golden-cases/` (2 per intent × 6 intents)
+- SKILL.md hermes-brain-test F.6 real 6 baterias (substitui F.6.0 baselines)
+- Smoke 14/14 pytest + 20/20 baseline preserved (brain/_smoke.py)
+- Parallel xdist 14/14 PASS 2.03s
+- MockDispatcher public alias (F.6.5 D4) re-exportado tests/conftest.py
+- code-reviewer 21 dim PASS-WITH-NOTES zero BLOCKERS
+
+### F.6.6 — Closeout F.6 chapter (esta sub-session)
+- 2 commits (C1 holistic reviewer + C2 PLAN.md aggregated + Task #6 completed)
+- Holistic reviewer general-purpose subagent (NÃO code-reviewer) 8 dim cross-file invariants
+- Verdict overall: PASS-WITH-NOTES, zero BLOCKERS, 3 WARNs F.future LOW + 1 NOTE arquitetural
+- `.claude/F66-HOLISTIC-REVIEWER-REPORT.md` persisted (referência F.future)
+- BLACKLIST R2 INTACTO 5 sub-sessions consecutive verificado git diff a058247..HEAD
+- F.7 Cobaia Live Ops UNBLOCKED — Brain orchestrator production-ready
+
+### F.6 Decisões cristalizadas aggregated (D1-D31, 31 total)
+- **F.6 global D1-D10** (framework + state machine + 6 intents + memory + safety + provider + replay + threshold + API + sub-task split)
+- **F.6.1 D1-D6** (scaffold: schema + states + intents + smoke + reviewer + WS namespace)
+- **F.6.2 D1-D8** (tool calling: dispatcher + ReAct loop + 5 iter cap + MockDispatcher + NIM keys + model IDs)
+- **F.6.3 D1-D6** (persistence: singleton + Queue + Pydantic + agentmemory opt-in + WAL + replay)
+- **F.6.4 D1-D7** (safety UX: side-drawer + confirm endpoint + resume + WS broadcast + owner_comment + DRY replay reuse + frontend-ux-reviewer)
+- **F.6.5 D1-D6** (golden cases: YAML schema + 12 fixtures + pytest harness + xdist + SKILL.md F.6 real + MockDispatcher public alias)
+
+### 34 assertions smoke total breakdown
+- **20 brain/_smoke.py** (9 F.6.2 baseline + 7 F.6.3 persistence P1-P7 + 4 F.6.4 confirm P8-P11)
+- **14 pytest tests/test_brain_golden.py** (12 golden cases parametrize + 2 sanity tests)
+
+### 5 reviewers verdict aggregated (16-21 dim cada, total ~100 dim)
+- F.6.1 18 dim code-reviewer · F.6.2 19 dim code-reviewer · F.6.3 21 dim code-reviewer · F.6.4 21 dim frontend-ux-reviewer · F.6.5 21 dim code-reviewer
+- **TODOS PASS-WITH-NOTES zero BLOCKERS**
+- WARNs aggregated F.future backlog (cosmetics, defer post-F.7)
+- **F.6.6 holistic reviewer 8 dim cross-file PASS-WITH-NOTES zero BLOCKERS**
+
+### BLACKLIST R2 INTACTO 5 sub-sessions consecutive
+`git diff a058247..HEAD -- linkedin/` → ZERO matches em todos commits F.6.1→F.6.5+F.6.6. Brain NUNCA chama `linkedin/*` direto, sempre via `mcp.hermes-linkedin.*` gateway loopback :55401.
+
+### Brain stack production-ready inventory
+- **9 files brain/** (1500+ LOC: __init__, states, intents, safety, decide, dispatch, _react, persistence, replay, _smoke)
+- **2 files tests/** (~250 LOC: conftest, test_brain_golden)
+- **1 dir .claude/brain-golden-cases/** (~400 LOC YAML: 12 fixtures + README)
+- **1 file SKILL.md** (16.1K hermes-brain-test F.6 real 6 baterias)
+- **2 migrations** (brain_runs + brain_decisions + owner_comment ALTER)
+- **3 UI files** (brain_confirm_drawer + brain_confirm_card + brain-confirm.css)
+- **1 file api/brain.py** (~237 LOC: 4 endpoints decide/runs/replay/confirm)
+
+### F.7 Cobaia Live Ops UNBLOCKED
+Brain.decide() production-ready. F.7 cobaia orchestrator pode consumir Brain como decision engine. Reference patterns documentados F.7 chapter PREP block (próxima seção).
+
+---
+
+## 🔮 F.future warnings F.6.6 deferred
+
+WARNs aggregated F.6.5 code-reviewer + F.6.6 holistic reviewer marked **F.future** (defer post-F.7 quando ROI claro):
+
+### F.6.5 reviewer WARNs (cosmetic polish)
+- **W1 persistence cleanup async** — BrainPersistence singleton shutdown handler (atexit OR signal SIGTERM hook)
+- **W2 bench tmp DB** — pytest fixture cleanup brain_runs/brain_decisions test rows OR per-test tmp DB
+- **W3 DeprecationWarning granular** — pytest 9.0+ warnings filter pytest.ini config (granular vs blanket ignore)
+- **W4 README auto-gen** — `.claude/brain-golden-cases/README.md` template script generate from YAML schemas
+
+### F.6.6 holistic reviewer WARNs (cross-file LOW severity)
+- **H1 SENSITIVE_KEYS dedup** — dispatch.py SENSITIVE_KEYS frozenset duplica gateway-side; consolidar single source F.future (constants module shared)
+- **H2 confidence fallback config-driven** — decide.py linha 285 hardcoded 0.5 fallback; ajustar pra `CONFIDENCE_THRESHOLD - 0.01` quando PrefPanel expor threshold (safety.py linha 10 doc'd)
+- **H3 _smoke.py mkdtemp** — confirm tmp DB hardcoded path; pytest conftest já usa mkdtemp correto, só standalone smoke afetado
+- **H4 NOTE arquitetural lazy imports** — brain.decide ↔ brain.replay ↔ brain.intents ↔ brain._react acoplamento bidirecional via lazy imports (intencional anti-circular); refactor `brain.core` shared module F.future
+
+**Rationale**: Brain production-ready já, WARNs cosmetics não-bloqueantes. F.7 prioridade higher (Cobaia Live Ops + Warmup 14d auto). Addressar inline F.6.6 delaria F.7 inicio sem ROI claro.
+
+---
+
 ### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
 +**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)
@@ -1611,6 +1723,61 @@ Pre-req F.6.6: F.6.1-F.6.5 todos ✅ + 34 assertions baseline (20 brain/_smoke +
 +- [ ] Task 8: Validação regressão + persistência — phase A B C D E (toca daemon/orchestrator.py + linkedin/limiter.py MADUROS); 20/22 PASS; PLAN.md F.7 ✅; commit `feat(cobaia): F.7 — warmup 14d auto + live ops`
 +
 +**Done criteria F.7**: cobaia opera 14d completos sem owner ssh · daily report Telegram 19h sem falha · stop gates previnem ban antes humano notar · 20/22 PASS preservado.
+
+### F.7 PREP — Brain.decide() integration patterns (F.6 reference) — incorporado F.6.6 2026-06-14
+
+F.6 Brain production-ready (5 sub-sessions PASS-WITH-NOTES zero BLOCKERS). F.7 cobaia orchestrator consome Brain.decide() patterns:
+
+**Pattern 1 — send_outreach destructive flow (owner confirm side-drawer)**:
+
+```python
+# F.7 daemon/cobaia_orchestrator.py (futuro)
+from brain.decide import Brain
+
+brain = Brain()
+result = await brain.decide("send_outreach", {
+    "prospect_id": prospect.id,
+    "campaign_id": campaign.id,
+    "channel": "linkedin",
+})
+# result.requires_confirm = True (destructive intent F.6 safety frozenset)
+# → WS broadcast brain.run_awaiting_confirm → dashboard side-drawer abre (F.6.4)
+# → owner approve via /api/brain/runs/{run_id}/confirm → resume_from_run_id() → COMMIT
+# → mcp.hermes-linkedin.send_invite() executa via gateway loopback :55401
+```
+
+**Pattern 2 — classify_prospect ICP scoring (non-destructive utility)**:
+
+```python
+result = await brain.decide("classify_prospect", {
+    "profile_data": linkedin_profile_dict,
+})
+# result.status = "completed" (immediate, agentmemory_save=True)
+# result.result.final_answer = {"score": 0.82, "tier": "warm"}
+# F.7 stores em prospects.score column + agentmemory MCP persist
+```
+
+**Pattern 3 — cron cobaia orchestrator daily (APScheduler in-process F.7 D-Schedule)**:
+
+```python
+# Cron 09h BRT diario (F.5.5 cron pattern + F.7 APScheduler D-Schedule)
+async def cobaia_daily_cycle():
+    qualified = await db.fetch_qualified_prospects(today)
+    for prospect in qualified:
+        # Brain decides next outreach step (destructive → confirm flow)
+        await brain.decide("send_outreach", {"prospect_id": prospect.id})
+        # Async dispatched, owner approve via dashboard /cobaia panel
+```
+
+**F.7 implementation reference esses patterns** sem re-design Brain interface. Sub-section "**preliminary** — expand F.7 inicio se patterns precisarem refinamento real-world".
+
+**Cross-ref F.6 reference**:
+- `brain/decide.py` Brain class (decide + resume_from_run_id)
+- `brain/intents.py` INTENT_REGISTRY 6 intents (destructive flags + agentmemory_save flags)
+- `brain/safety.py` DESTRUCTIVE_ACTIONS frozenset + CONFIDENCE_THRESHOLD 0.5
+- `api/brain.py` 4 endpoints decide/runs/replay/confirm
+- `dashboard/components/brain_confirm_drawer.js` side-drawer UI consumer
+- `.claude/F66-HOLISTIC-REVIEWER-REPORT.md` 8 dim cross-file invariants PASS
 +
 +**🧰 MCP HARD REQUIREMENTS (F.7)** — incorporado 2026-06-10:
 +- Task 6 Hunter.io: `mcp.hunter.verify_email` via gateway ANTES warmup email (**PROIBIDO** `requests.get api.hunter.io`)
