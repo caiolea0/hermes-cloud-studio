@@ -87,7 +87,7 @@
 
     /* ---- Tab switch ------------------------------------- */
 
-    function switchTab(tabKey) {
+    function switchTab(tabKey, options) {
         if (!TAB_TO_COMPONENT[tabKey]) return;
 
         /* Destroy previous sub-component (memory leak prevention) */
@@ -117,6 +117,17 @@
         /* Init + render new sub-component */
         _callComponent(tabKey, "init");
         _callComponent(tabKey, "render");
+
+        /* F.9.4 D2: clone redirect — load draft in Builder after DOM ready */
+        if (tabKey === "builder" && options && options.draft_id) {
+            var draftId = options.draft_id;
+            setTimeout(function () {
+                var comp = window["PipelineStudioBuilder"];
+                if (comp && typeof comp.loadDraft === "function") {
+                    comp.loadDraft(draftId);
+                }
+            }, 50);
+        }
 
         /* Restart auto-refresh (builder skips, handled inside timer) */
         _startAutoRefresh();

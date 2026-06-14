@@ -374,6 +374,74 @@
         /* Preserve _draft state across tab switches */
     }
 
-    window.PipelineStudioBuilder = { init: init, render: render, destroy: destroy };
+    /* ---- loadDraft (F.9.4 D2) — clone redirect from Templates ---------- */
+
+    async function loadDraft(draftId) {
+        /* D2: FULL state reset before load — never merge stale draft data */
+        _draft = { name: "", description: "", steps: [] };
+        _lastSavedId = null;
+
+        var token = localStorage.getItem("hermes_token") || "";
+        try {
+            var resp = await fetch(
+                "/api/pipeline-studio/drafts/" + encodeURIComponent(draftId),
+                { headers: { "X-Hermes-Token": token } }
+            );
+            if (!resp.ok) {
+                _showToast("Erro ao carregar draft", "error");
+                return;
+            }
+            var draft = await resp.json();
+            _lastSavedId = draft.id;
+            _draft.name = draft.name || "";
+            _draft.description = draft.description || "";
+
+            /* Parse yaml_blob → steps array */
+            var yamlBlob = draft.yaml_blob || "";
+            var parsedSteps = _parseYamlSteps(yamlBlob);
+            _draft.steps = parsedSteps;
+        } catch (e) {
+            _showToast("Erro ao carregar draft: " + e.message, "error");
+            return;
+        }
+
+        render();
+    }
+
+    /* ---- Minimal YAML step parser (name + tool keys only) -------------- */
+
+    function _parseYamlSteps(yamlBlob) {
+        /* Lightweight parse: extract steps array without external lib.
+           Handles the YAML rendered by _renderYaml (known format).
+           Falls back to [] on any parse error. */
+        try {
+            var steps = [];
+            var lines = yamlBlob.split("\n");
+            var inSteps = false;
+            var currentStep = null;
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                if (/^steps:/.test(line)) { inSteps = true; continue; }
+                if (!inSteps) continue;
+                /* New step entry */
+                var nameMatch = /^\s+-\s+name:\s+(.+)$/.exec(line);
+                if (nameMatch) {
+                    if (currentStep) steps.push(currentStep);
+                    currentStep = { name: nameMatch[1].trim(), tool: "", args: {} };
+                    continue;
+                }
+                var toolMatch = /^\s+tool:\s+(.+)$/.exec(line);
+                if (toolMatch && currentStep) {
+                    currentStep.tool = toolMatch[1].trim();
+                }
+            }
+            if (currentStep) steps.push(currentStep);
+            return steps;
+        } catch (e) {
+            return [];
+        }
+    }
+
+    window.PipelineStudioBuilder = { init: init, render: render, destroy: destroy, loadDraft: loadDraft };
 
 })();

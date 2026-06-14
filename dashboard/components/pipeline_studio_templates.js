@@ -1,8 +1,8 @@
 /* ============================================================
-   Pipeline Studio — Templates Gallery (F.9.3c REAL)
+   Pipeline Studio — Templates Gallery (F.9.4 clone REAL)
    ============================================================
    Fetches GET /api/pipeline-studio/templates → 5 seed cards.
-   Clone button stub (F.9.4 enhance — disabled with tooltip).
+   F.9.4: Clone button real — POST /drafts then switchTab Builder.
    textContent XSS safe throughout.
 
    API: window.PipelineStudioTemplates.{init, render, destroy}
@@ -25,6 +25,14 @@
         return localStorage.getItem("hermes_token") || "";
     }
 
+    function _showToast(msg, type) {
+        if (window.toast && typeof window.toast === "function") {
+            window.toast(msg, type || "info");
+        } else {
+            console.log("[PipelineStudioTemplates] " + msg);
+        }
+    }
+
     /* ---- Fetch templates -------------------------------- */
 
     async function _fetchTemplates() {
@@ -38,6 +46,42 @@
         } catch (e) {
             console.warn("[PipelineStudioTemplates] fetch failed", e);
             _templates = [];
+        }
+    }
+
+    /* ---- Clone template → create draft → switch to Builder --- */
+
+    async function _cloneTemplate(tpl, btn) {
+        btn.disabled = true;
+        btn.textContent = "Clonando...";
+        try {
+            var resp = await fetch("/api/pipeline-studio/drafts", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Hermes-Token": _getToken()
+                },
+                body: JSON.stringify({
+                    name: tpl.name || tpl.id || "Template clone",
+                    description: tpl.description || "",
+                    yaml_blob: tpl.yaml_blob || "name: template\nsteps: []\n",
+                    tags: ["template-derived"]
+                })
+            });
+            if (!resp.ok) {
+                var err = await resp.json().catch(function () { return {}; });
+                throw new Error(err.detail || ("HTTP " + resp.status));
+            }
+            var newDraft = await resp.json();
+            _showToast("Template clonado para Builder", "success");
+            /* Switch to Builder tab and load the cloned draft */
+            if (window.PipelineStudioShell && typeof window.PipelineStudioShell.switchTab === "function") {
+                window.PipelineStudioShell.switchTab("builder", { draft_id: newDraft.id });
+            }
+        } catch (e) {
+            _showToast("Erro ao clonar: " + e.message, "error");
+            btn.disabled = false;
+            btn.textContent = "Clonar e editar";
         }
     }
 
@@ -64,7 +108,7 @@
         h3.textContent = "Templates de Pipeline";
         var sub = document.createElement("p");
         sub.style.cssText = "margin:0;font-size:12px;color:var(--text-3)";
-        sub.textContent = "Selecione um template como ponto de partida. Clone (F.9.4) disponível em breve.";
+        sub.textContent = "Clone um template como ponto de partida e edite no Builder.";
         header.appendChild(h3);
         header.appendChild(sub);
         panel.appendChild(header);
@@ -76,7 +120,7 @@
             var card = document.createElement("div");
             card.className = "ps-template-card";
             card.setAttribute("tabindex", "0");
-            card.setAttribute("role", "button");
+            card.setAttribute("role", "article");
             card.setAttribute("aria-label", "Template: " + (tpl.name || "Sem nome"));
 
             var nameEl = document.createElement("div");
@@ -103,13 +147,15 @@
             metaEl.appendChild(tagsEl);
 
             var cloneBtn = document.createElement("button");
-            cloneBtn.className = "ps-btn ps-btn-ghost";
+            cloneBtn.className = "ps-btn ps-btn-ghost ps-template-clone-btn";
             cloneBtn.type = "button";
-            cloneBtn.style.cssText = "margin-top:10px;width:100%;justify-content:center;opacity:0.5";
-            cloneBtn.textContent = "Clonar e editar (F.9.4)";
-            cloneBtn.disabled = true;
-            cloneBtn.title = "Funcionalidade clone-and-modify disponível em F.9.4";
-            cloneBtn.setAttribute("aria-disabled", "true");
+            cloneBtn.textContent = "Clonar e editar";
+            cloneBtn.setAttribute("aria-label", "Clonar template " + (tpl.name || "") + " para o Builder");
+
+            /* D1: clone on click — race prevention via disabled during request */
+            cloneBtn.addEventListener("click", function () {
+                _cloneTemplate(tpl, cloneBtn);
+            });
 
             card.appendChild(nameEl);
             card.appendChild(descEl);

@@ -404,6 +404,25 @@
     font-weight: 600;
 }
 
+/* F.9.4 — Template clone button */
+.ps-template-clone-btn {
+    margin-top: 12px;
+    width: 100%;
+    justify-content: center;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.ps-template-clone-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ps-template-clone-btn:not(:disabled):hover {
+    background: var(--accent, #7c3aed);
+    color: #fff;
+    border-color: var(--accent, #7c3aed);
+}
+
 /* ---- Runs monitor --------------------------------------- */
 
 .ps-runs-header {
