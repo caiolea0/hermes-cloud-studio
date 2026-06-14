@@ -1532,6 +1532,62 @@ Pre-req F.6.5:
 - Final reviewer pass cross-cutting F.6.1 → F.6.5 cohesion.
 - F.7 Cobaia Live Ops UNBLOCKED — Brain orchestrator pronto pra decidir sequence steps + outreach autonomous.
 
+**🎯 F.6.6 Decisões Cristalizadas (Closeout F.6 + Task #6 completed) — incorporado 2026-06-14**:
+
+F.6.5 ✅ done (Golden cases 14 + 20/20 baseline preserved + hermes-brain-test skill update). F.6.6 = última sub-sessão F.6 (6/6). Sub-sessão MAIS SIMPLES: zero código NOVO, apenas closeout docs + holistic reviewer + Task #6 [completed]. Tempo estimado 1-2h. Modelo recomendado Sonnet 4.6 (closeout convergent, economia).
+
+Pre-req F.6.6: F.6.1-F.6.5 todos ✅ + 34 assertions baseline (20 brain/_smoke + 14 pytest golden) preservados + Brain stack 1500+ LOC funcional.
+
+**D1 4 WARNs F.6.5 reviewer = DEFER F.future EXPLICIT** (não endereçar agora):
+- W1 persistence cleanup async (BrainPersistence singleton shutdown handler) — cosmetic
+- W2 bench tmp DB (pytest fixture cleanup) — cosmetic
+- W3 DeprecationWarning granular (pytest 9.0+ warnings filter) — cosmetic
+- W4 README auto-gen (.claude/brain-golden-cases/README.md template script) — cosmetic
+- Rationale: Brain production-ready já, WARNs cosmetics não-bloqueantes, F.7 prioridade higher
+- Backlog tracked PLAN.md "🔮 F.future warnings F.6.6 deferred" section
+- NÃO endereçar agora (delay F.7 inicio sem ROI claro)
+
+**D2 Final reviewer F.6 chapter = HOLISTIC AGENT (audit entire brain/ + tests/ + skill cross-file)**:
+- Subagent_type: general-purpose (não code-reviewer scope limitado)
+- Prompt: audit Brain stack 1500+ LOC F.6.1-F.6.5 holistic cross-file invariants
+- Validar: state machine 6 states consistency across files, INTENT_REGISTRY 6 intents consistent, safety gates enforcement em todo decide() flow, persistence schema match migration, replay determinism, MockDispatcher contract match Brain real
+- Output: PASS / PASS-WITH-NOTES + holistic notes
+- NÃO code-reviewer single-commit scope (perde cross-file invariants)
+
+**D3 F.6 STATUS COMPLETE block = FULL RECAP AGGREGATED F.6.1-F.6.5**:
+- PLAN.md F.6 section vira reference doc F.7+ future chapters (Brain pattern docs)
+- Section structure: F.6 STATUS COMPLETE header + 5 sub-sections F.6.1→F.6.5 summary (1 paragraph cada) + Decisões cristalizadas aggregated D1-D31 (10 F.6 + 6 F.6.1 + 8 F.6.2 + 6 F.6.3 + 7 F.6.4 + 6 F.6.5) + 34 assertions smoke breakdown + 5 reviewers verdict aggregated + BLACKLIST R2 INTACTO 5 sub-sessions consecutive
+- F.6 chapter section size estimate: 8-12K (PLAN.md cresce ~80K → ~92K, manageable)
+- NÃO short summary (perde F.7+ reference doc value)
+
+**D4 F.7 cobaia PREP nota = REFERENCE PATTERNS Brain.decide()**:
+- F.7 prep block include patterns Brain.decide() exemplos:
+  - `Brain.decide(intent="send_outreach", context={"prospect_id": "..."})` retorna requires_confirm:true → dashboard side-drawer → owner approve → resume_from_run_id() → COMMIT
+  - `Brain.decide(intent="classify_prospect", context={"profile_data": ...})` returns score + tier classification
+  - Cron daily cobaia orchestrator chama Brain.decide() per qualified prospect → ICP scoring + outreach decision
+- F.7 implementation pode reference esses patterns sem re-design
+- NÃO só "Brain ready" (F.7 implementation perde guidance pattern)
+
+**Files F.6.6** (zero NOVOS + 1 MATURE):
+- `.claude/PLAN.md` MATURE — F.6 STATUS COMPLETE block aggregated D3 + 4 WARNs F.future backlog D1 + F.7 PREP patterns D4
+
+**Sub-task split F.6.6** (2 commits sub-session):
+- **C1** Holistic reviewer agent F.6.1-F.6.5 cohesion audit + collect findings
+- **C2** PLAN.md F.6 STATUS COMPLETE block aggregated + Task #6 [completed] + memory_save F.6 chapter closed + mark_chapter "F.6 CHAPTER CLOSED" + F.7 cobaia UNBLOCKED nota
+
+**🚨 Riscos F.6.6** (low risk — closeout puro):
+- **Holistic reviewer pode encontrar cross-file inconsistency** — owner Claude trata como F.6.7 hotfix sub-session OR defer F.future (decisão runtime baseada severity)
+- **PLAN.md cresce ~12K** — F.6.7+ chapters F.7+ podem precisar PLAN.md split future (defer F.future)
+- **Task #6 [completed] marcação** — verify TaskUpdate idempotente + memory persist
+- **BLACKLIST R2 INTACTO** — F.6.6 zero código NOVO, zero touch linkedin/* trivially preserved
+- **F.7 PREP patterns** podem precisar refinamento quando F.7 implementação real começar — documentar como "preliminary, expand F.7 inicio"
+
+**Cross-ref F.6.6**:
+- F.6.1-F.6.5 PLAN.md sections (aggregated F.6 STATUS COMPLETE)
+- brain/* + tests/ + .claude/skills/hermes-brain-test/ (holistic reviewer scope)
+- F.7 chapter section (UNBLOCKED nota cross-ref)
+- Memory: mem_mqae0827 (F.6 global) + mem_mqd2cjir (F.6.5) + F.6.6 complete pós-commit
+
 ### Chapter F.7 — Cobaia Live Ops + Warmup 14d automatizado
 +
 +**Classification**: backend+ui · **UI score**: 8 · **Estimated sessions**: 5 · **Status**: PLANEJADO · **Dependencies**: F.2 (Mission Control), F.5 (MCPs Sentry/Hunter/Omnisearch)
