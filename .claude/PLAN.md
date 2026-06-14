@@ -1887,6 +1887,61 @@ async def cobaia_daily_cycle():
 +- F.8.4 UI MCP Coverage tab + closeout (Sonnet 4.6, ~2-3h)
 +- Total ~11-15h spread 1 semana
 +
++**🎯 F.8.2 Decisões Cristalizadas (Errors Sentry hybrid + Brain audit endpoints REAL) — incorporado 2026-06-14**:
++
++F.8.1 ✅ done (Backend cost + perf + NIM polling + 5 endpoints com 2 stubs labeled `F.8.2_implements_sentry_mcp_hybrid` + `F.8.2_implements_full_audit_trail`). F.8.2 substitui 2 stubs por implementação real + add `POST /api/observability/errors/{id}/resolve` atomic.
++
++Pre-req F.8.2:
++- F.8.1 stubs labeled (api/observability.py linhas 178/188/207/227/237 — grep substituir)
++- Sentry MCP F.5.6 active (`mcp.sentry.list_issues` + `resolve_issue` via gateway dispatch)
++- errors_inbox table criada F.8.1 (3 categories)
++- brain_runs + brain_decisions schemas F.6.1+F.6.4 disponíveis
++
++**D1 Sentry MCP query FILTER by category + severity** (reduce noise actionable):
++- Filtros: `level=warning|error|fatal` + `tags.category=mcp_bypass|brain_safety_gate|validation_phase_fail`
++- Response: `{sentry: [...], local: [...], merged: [...]}` per category
++- NÃO list_issues all (overwhelm signal-to-noise)
++
++**D2 errors_inbox CONFIGURABLE ?range=24h|7d|30d default 24h** (pattern F.8.1 cost endpoint). Sentry MCP alinha `statsPeriod` parameter.
++
++**D3 Brain audit PAGINATE ?offset=&limit= default 50 max 200** + `X-Total-Count` header. ORDER BY brain_runs.started_at DESC. idx_brain_runs_intent F.6.1 covers.
++
++**D4 Decisions filter BOTH** combinable: `?intent=` exact + `?search=` LIKE em context_json+rationale + `?status=completed|owner_blocked|owner_approved|owner_rejected|error` + `?run_id=` exact.
++
++**D5 Resolve action BOTH ATOMIC** (Sentry MCP + local):
++- Sentry MCP `resolve_issue` via gateway (se sentry_issue_id != null)
++- Local errors_inbox UPDATE status=resolved + resolved_by + resolved_at + metadata_json comment
++- Rollback local se Sentry falha (best-effort)
++- Optimistic lock 409 (pattern F.6.4 confirm endpoint)
++- Sentry timeout 10s fallback local + warning header
++
++**D6 Brain audit tool_args/result TRUNCATED 2000 chars** (consistency F.6.3 D6 persistence pattern). F.future `/decisions/{id}/full` pra expand untruncated.
++
++**Files F.8.2 (zero NOVOS + 1 MATURE)**:
++- `api/observability.py` MATURE — substituir 2 stubs + add POST resolve + ~200-300 LOC helpers (`_query_sentry_issues` + `_query_local_errors` + `_merge_errors` + `_paginate_brain_runs` + `_resolve_error_atomic`)
++
++**Sub-task split F.8.2 (2 commits)**:
++- **C1** Brain audit endpoints REAL (substitui F.8.2_implements_full_audit_trail) + pagination + filters + tool_args truncated
++- **C2** Errors HYBRID Sentry MCP + local + resolve atomic + reviewer + closeout F.8.2
++
++**🚨 Riscos F.8.2**:
++- Sentry MCP timeout 10s fallback local + warning header
++- Sentry gateway down → fallback local-only graceful
++- brain_decisions tool_args_json decode + truncate 2000 chars
++- resolve race condition optimistic lock 409
++- BLACKLIST R2 INTACTO
++- brain_runs query EXPLAIN PLAN validate idx usage
++- A-E preservado (api/observability.py MATURE low risk)
++- Sentry filter params syntax smoke real validate
++
++**Cross-ref F.8.2**:
++- F.8.1 stubs labeled api/observability.py linhas 178/188/207/227/237
++- F.5.6 Sentry MCP active (mcps/gateway/config.yaml)
++- F.6.1 brain_runs + brain_decisions schema (migrations/2026_06_brain_runs_decisions.sql)
++- F.6.3 D6 truncate 2000 chars pattern (brain/persistence.py)
++- F.6.4 D5 optimistic lock 409 pattern (api/brain.py confirm)
++- Memory: mem_mqdwzzrz (F.8.2 D1-D6) + mem_mqdvi9ts (F.8 global) + mem_mqd4chho (F.6.6)
++
 +**D2 Cost tracking REUSE mcp_calls extension F.5.7** (single source of truth). NÃO criar nova tabela `llm_calls`. `mcp_pricing` table NOVA separate (model_id + cost_per_1k_in/out + updated_at). F.8 endpoint `/api/observability/costs` query mcp_calls GROUP BY (provider, model, day, requester).
 +
 +**D3 Performance metrics = JSON custom rolling 1h** (NÃO Prometheus, over-engineering owner solo). 3 services covered: PC :55000 + VM :8420 + gateway :55401. FastAPI middleware p50/p95/p99 + flush hourly `perf_metrics` table. F.future Prometheus quando escala equipe.
