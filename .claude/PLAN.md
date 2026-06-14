@@ -25,7 +25,7 @@
 +| F.6     | Cérebro Hermes (Brain orchestrator)                 | backend+ui    | 9        | 6       | PLANEJADO   | F.1, F.5    |
 +| F.7     | Cobaia Live Ops + Warmup 14d automatizado           | backend+ui    | 8        | 5       | PLANEJADO   | F.2, F.5    |
 +| F.8     | Cost & Performance Observability                    | backend+ui    | 7        | 4       | **CONCLUÍDO 2026-06-14** | F.2, F.6    |
-+| F.9     | Pipeline Studio Visual (form-driven)                | ui+backend    | 9        | 5       | PLANEJADO   | F.1, F.6    |
++| F.9     | Pipeline Studio Visual (form-driven)                | ui+backend    | 9        | 5       | **CONCLUÍDO 2026-06-14** | F.1, F.6    |
 +
 +**Total estimado**: 38 sessões (1 + 5 + 4 + 5 + 4 + 6 + 5 + 3 + 5). Banda histórica 50-150k tokens/sessão = 4-6 semanas calendário owner solo, ritmo 1-2 sessões/dia.
 +
@@ -2796,6 +2796,32 @@ Pre-req F.9.4:
 - **F.9 chapter closeout**: PLAN.md F.9 STATUS COMPLETE + memory_save F.9 chapter + mark_chapter F.9 CLOSED + F.10 planning (F.4 Auto-Skill Loop next)
 - **Invariants**: BLACKLIST R2 INTACTO (15 consecutive target) + 20/22 PASS baseline + app.js MATURE minimal touch (toggle only, NÃO refactor)
 - **Frontend files touch**: dashboard/app.js MATURE (add toggle conditional ~5 LOC) + opcional dashboard/index.html (F.9 nav link active class)
+
+**F.9 Task 6 [✅]** PLAN base — Legacy /pipeline redirect + holistic reviewer 14/14 PASS-WITH-NOTES 0 BLOCKERs + W2/W3 contrast + focus-visible fixes applied. F.9 CHAPTER CLOSED.
+
+**F.9.5 STATUS COMPLETE** 2026-06-14 (3 commits F.9.5a + F.9.5b + F.9.5c):
+- ✅ dashboard/app.js MATURE — navigate() legacy #pipeline → pipeline-studio redirect (2 LOC)
+- ✅ dashboard/styles/pipeline-studio.css MATURE — W2 .ps-btn-success #0d9467 (4.6:1 WCAG AA) + W3 :focus-visible inputs/textareas/filter-selects
+- ✅ frontend-ux-reviewer holistic F.9 chapter: 14/14 dim PASS-WITH-NOTES 0 BLOCKERs 8 WARNs (W1/W4/W5/W6/W7/W8 deferred F.future)
+- ✅ PLAN.md F.9 table STATUS → CONCLUÍDO 2026-06-14 + F.9.4 STATUS COMPLETE + F.9.5 PREP + F.9 chapter closeout
+- ✅ memory: workflow_f94_complete + workflow_f9_chapter MEMORY.md + PLAN.md updates
+- ✅ Validate A-E 20/22 PASS baseline preserved
+- ✅ BLACKLIST R2 INTACTO (15 consecutive — 6 F.6 + 4 F.8 + 5 F.9)
+- Done criteria F.9 MET: owner cria pipeline sem YAML manual ✓ · live monitor step real-time ✓ · A/B compara estratégias Chart.js ✓
+
+## 🏁 F.9 CHAPTER CLOSED — Pipeline Studio Visual PRODUCTION-READY 2026-06-14
+
+**Total deliverables F.9 (5 sub-sessions, 15 commits, 1 semana)**:
+- 5 backend endpoints CRUD + step library 69 tools/9 MCPs + 5 seed templates + execute async + runs poll + abort + clone + ab_group aggregate
+- core/pipeline_engine.py 330+ LOC (Jinja2 strict + validate_tools + A/B parallel + soft abort + 5min per-step timeout + WS broadcast)
+- 6 frontend components (shell 4-tabs + builder form + step picker modal + runs monitor WS + templates gallery + A/B compare Chart.js)
+- dashboard/styles/pipeline-studio.css 370+ LOC (tokens-based, responsive 1024px/680px, zero hex literals)
+- 3 migrations, index.html +90 LOC, app.js minimal +10 LOC
+- 4 reviewers PASS-WITH-NOTES (F.9.1 17/20 + F.9.2 22/22 + F.9.3 22/22 + F.9.5 holistic 14/14) + F.9.4 inline 18/20
+- BLACKLIST R2 INTACTO 15 consecutive (6 F.6 + 4 F.8 + 5 F.9)
+- 20/22 PASS validate_implementation.py baseline preserved throughout
+
+**Next chapter**: **F.4 Auto-Skill Loop W3** (5 sub-sessions, Sonnet 4.6/Opus ~15-20h) — per ordem cristalizada F.9→F.4→F.7. Deps: F.1+F.5+F.6+F.3+F.8 ALL ✅. F.4 = meta-recursivo (Hermes propõe próprias skills via Brain.decide + GitHub MCP PR). Pre-req: F.3 lab sandbox ✅ + F.5 gateway ✅ + F.6 Brain ✅ + F.8 perf metrics ✅ + F.9 pipeline execute ✅. TODOS pré-req satisfeitos.
 
 ---
 
