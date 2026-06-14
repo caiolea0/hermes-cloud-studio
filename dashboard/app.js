@@ -494,7 +494,8 @@ function navigate(page) {
         missions: 'Missoes da Semana',
         claude: 'AI Terminal',
         lab: 'Lab Cockpit',
-        'mcp-gateway': 'MCP Gateway'
+        'mcp-gateway': 'MCP Gateway',
+        observability: 'Observability'
     };
     if (page === 'linkedin') {
         loadLinkedInPage();
@@ -547,6 +548,12 @@ function navigate(page) {
         if (window.MCPGateway && typeof window.MCPGateway.init === 'function') {
             try { window.MCPGateway.init('[data-component="mcp-gateway"]'); }
             catch (e) { console.warn('MCPGateway init failed', e); }
+        }
+    } else if (page === 'observability') {
+        // F.8.3 — Observability shell init (idempotent: re-entry refresh).
+        if (window.ObservabilityShell && typeof window.ObservabilityShell.init === 'function') {
+            try { window.ObservabilityShell.init('[data-component="observability-shell"]'); }
+            catch (e) { console.warn('ObservabilityShell init failed', e); }
         }
     }
 }

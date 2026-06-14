@@ -39,6 +39,15 @@
 <link rel="stylesheet" href="/dashboard/styles/brain-confirm.css">
 <script src="/dashboard/components/brain_confirm_card.js" defer></script>
 <script src="/dashboard/components/brain_confirm_drawer.js" defer></script>
+<!-- F.8.3 — Observability shell + 4 tabs + Chart.js vendor + resolve modal -->
+<link rel="stylesheet" href="/dashboard/styles/observability.css">
+<script src="/dashboard/vendor/chart.min.js" defer></script>
+<script src="/dashboard/components/observability_shell.js" defer></script>
+<script src="/dashboard/components/observability_costs.js" defer></script>
+<script src="/dashboard/components/observability_perf.js" defer></script>
+<script src="/dashboard/components/observability_errors.js" defer></script>
+<script src="/dashboard/components/observability_decisions.js" defer></script>
+<script src="/dashboard/components/observability_resolve_modal.js" defer></script>
 </head>
 <body>
 
@@ -296,6 +305,10 @@
             <div class="nav-item" data-page="mcp-gateway" onclick="navigate('mcp-gateway')">
                 <svg><use href="#i-database"/></svg>
                 <span class="nav-label">MCP Gateway</span>
+            </div>
+            <div class="nav-item" data-page="observability" onclick="navigate('observability')">
+                <svg><use href="#i-bar-chart"/></svg>
+                <span class="nav-label">Observability</span>
             </div>
         </nav>
         <div class="sidebar-footer">
@@ -1757,7 +1770,72 @@
                 </div>
             </div>
 
+            <!-- ========================== PAGE: OBSERVABILITY (F.8.3) ========================== -->
+            <div class="page" id="page-observability">
+                <div data-component="observability-shell" class="observability-shell" aria-labelledby="observability-heading">
+                    <header class="observability-header">
+                        <h2 id="observability-heading" class="observability-title">Observability</h2>
+                        <div class="observability-meta">
+                            <span id="observability-last-refresh" aria-live="polite">—</span>
+                            <button id="observability-refresh-btn" class="observability-refresh-btn" type="button" aria-label="Atualizar tab ativa agora">
+                                <svg aria-hidden="true" style="width:14px;height:14px"><use href="#i-refresh"/></svg>
+                                Atualizar
+                            </button>
+                        </div>
+                    </header>
+
+                    <nav class="observability-tabnav" role="tablist" aria-label="Observability views">
+                        <button class="observability-tab-btn active" data-tab="costs" role="tab" aria-selected="true" aria-controls="observability-tab-costs" id="observability-tab-btn-costs" type="button" tabindex="0">Costs</button>
+                        <button class="observability-tab-btn" data-tab="perf" role="tab" aria-selected="false" aria-controls="observability-tab-perf" id="observability-tab-btn-perf" type="button" tabindex="-1">Performance</button>
+                        <button class="observability-tab-btn" data-tab="errors" role="tab" aria-selected="false" aria-controls="observability-tab-errors" id="observability-tab-btn-errors" type="button" tabindex="-1">Errors</button>
+                        <button class="observability-tab-btn" data-tab="decisions" role="tab" aria-selected="false" aria-controls="observability-tab-decisions" id="observability-tab-btn-decisions" type="button" tabindex="-1">Decisions</button>
+                    </nav>
+
+                    <div class="observability-panels">
+                        <section class="observability-panel" data-tab="costs" id="observability-tab-costs" role="tabpanel" aria-labelledby="observability-tab-btn-costs">
+                            <div data-component="observability-costs"></div>
+                        </section>
+                        <section class="observability-panel" data-tab="perf" id="observability-tab-perf" role="tabpanel" aria-labelledby="observability-tab-btn-perf" hidden>
+                            <div data-component="observability-perf"></div>
+                        </section>
+                        <section class="observability-panel" data-tab="errors" id="observability-tab-errors" role="tabpanel" aria-labelledby="observability-tab-btn-errors" hidden>
+                            <div data-component="observability-errors"></div>
+                        </section>
+                        <section class="observability-panel" data-tab="decisions" id="observability-tab-decisions" role="tabpanel" aria-labelledby="observability-tab-btn-decisions" hidden>
+                            <div data-component="observability-decisions"></div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
         </main>
+    </div>
+</div>
+
+<!-- ============================================================
+     OBSERVABILITY RESOLVE MODAL (F.8.3 D4) — z-index 1100
+     ============================================================ -->
+<div id="observability-resolve-modal" class="observability-modal" role="dialog" aria-modal="true" aria-labelledby="observability-resolve-modal-title" hidden>
+    <div class="observability-modal-backdrop" data-action="cancel"></div>
+    <div class="observability-modal-panel" role="document">
+        <h3 id="observability-resolve-modal-title" class="observability-modal-title">Resolver erro</h3>
+        <div id="observability-resolve-modal-preview" class="observability-modal-preview" aria-live="polite">—</div>
+        <label class="observability-modal-field">
+            Ação
+            <select id="observability-resolve-modal-action">
+                <option value="resolve">resolve</option>
+                <option value="wontfix">wontfix</option>
+            </select>
+        </label>
+        <label class="observability-modal-field">
+            Comentário (opcional, máx 500 chars)
+            <textarea id="observability-resolve-modal-comment" maxlength="500" placeholder="Contexto da resolução..."></textarea>
+            <span id="observability-resolve-modal-counter" class="observability-modal-counter">0 / 500</span>
+        </label>
+        <div class="observability-modal-actions">
+            <button type="button" class="observability-modal-btn" data-action="cancel">Cancelar</button>
+            <button type="button" class="observability-modal-btn is-primary" id="observability-resolve-modal-submit" data-action="submit">Confirmar</button>
+        </div>
     </div>
 </div>
 

@@ -1,0 +1,537 @@
+/* ============================================================
+   Hermes Cloud Studio — Observability (F.8.3)
+   ============================================================
+   UI shell + 4 tabs (Costs · Performance · Errors · Decisions)
+   + resolve modal + decisions accordion + charts container.
+
+   Decisões F.8.3 (cristalizadas commit 1256550):
+   D1 tabs HORIZONTAL TOP · D2 Chart.js bar+line · D3 60s auto-refresh
+   D4 modal confirm + comment · D5 inline accordion · D6 CSV server-side
+   D7 mobile F.future
+
+   Z-index hierarchy (explícita):
+   - brain-confirm-drawer: 950
+   - toast: 1000
+   - observability-resolve-modal: 1100 (acima drawer e toast)
+
+   Tokens 100% (tokens.css F.2.4): zero hex literal, zero magic px
+   fora spacing scale.
+   ============================================================ */
+
+/* ---- Page shell ---- */
+.observability-shell {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    color: var(--color-fg);
+}
+
+.observability-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+.observability-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-fg);
+}
+
+.observability-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 0.85rem;
+    color: var(--color-fg-muted);
+}
+
+.observability-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-md);
+    background: var(--color-bg-2);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    transition: background 120ms ease, border-color 120ms ease;
+}
+
+.observability-refresh-btn:hover {
+    background: var(--color-bg-3);
+    border-color: var(--color-border-focus);
+}
+
+.observability-refresh-btn:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+}
+
+.observability-refresh-btn[disabled] {
+    opacity: 0.55;
+    cursor: progress;
+}
+
+/* ---- Tab navigation (D1 horizontal top) ---- */
+.observability-tabnav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0;
+}
+
+.observability-tab-btn {
+    background: transparent;
+    color: var(--color-fg-muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: var(--space-sm) var(--space-md);
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 120ms ease, border-color 120ms ease;
+}
+
+.observability-tab-btn:hover {
+    color: var(--color-fg);
+}
+
+.observability-tab-btn:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+.observability-tab-btn.active {
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
+}
+
+/* ---- Tab panels ---- */
+.observability-panels {
+    flex: 1 1 auto;
+}
+
+.observability-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    min-height: 200px;
+}
+
+.observability-panel[hidden] {
+    display: none;
+}
+
+.observability-panel-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    background: var(--color-bg-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.observability-filter-label {
+    font-size: 0.8rem;
+    color: var(--color-fg-muted);
+}
+
+.observability-filter-select,
+.observability-filter-input {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs) var(--space-sm);
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+}
+
+.observability-filter-select:focus-visible,
+.observability-filter-input:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 1px;
+}
+
+.observability-csv-btn {
+    margin-left: auto;
+    background: var(--color-bg-3);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs) var(--space-md);
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-family: var(--font-sans);
+}
+
+.observability-csv-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+/* ---- Charts container ---- */
+.observability-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-md);
+}
+
+.observability-chart-card {
+    background: var(--color-bg-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    min-height: 280px;
+}
+
+.observability-chart-title {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-fg);
+}
+
+.observability-chart-canvas-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 220px;
+}
+
+@media (max-width: 960px) {
+    .observability-charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ---- Data tables (errors + decisions) ---- */
+.observability-table-wrap {
+    overflow-x: auto;
+    background: var(--color-bg-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.observability-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    color: var(--color-fg);
+}
+
+.observability-table thead th {
+    background: var(--color-bg-3);
+    color: var(--color-fg-muted);
+    text-align: left;
+    padding: var(--space-sm) var(--space-md);
+    font-weight: 600;
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+}
+
+.observability-table tbody td {
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: top;
+}
+
+.observability-table tbody tr:hover {
+    background: var(--color-bg-3);
+}
+
+.observability-table tbody tr.is-expandable {
+    cursor: pointer;
+}
+
+.observability-table .col-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.observability-empty-row,
+.observability-loading-row {
+    text-align: center;
+    color: var(--color-fg-muted);
+    padding: var(--space-lg);
+    font-style: italic;
+}
+
+.observability-severity-badge {
+    display: inline-block;
+    padding: 2px var(--space-sm);
+    border-radius: var(--radius-full);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.observability-severity-warning {
+    background: color-mix(in srgb, var(--color-warn) 18%, transparent);
+    color: var(--color-warn);
+}
+
+.observability-severity-error,
+.observability-severity-fatal {
+    background: color-mix(in srgb, var(--color-error) 22%, transparent);
+    color: var(--color-error);
+}
+
+.observability-severity-info {
+    background: color-mix(in srgb, var(--color-info) 18%, transparent);
+    color: var(--color-info);
+}
+
+.observability-resolve-btn {
+    background: transparent;
+    color: var(--color-accent);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 2px var(--space-sm);
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-family: var(--font-sans);
+}
+
+.observability-resolve-btn:hover {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.observability-resolve-btn:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 1px;
+}
+
+/* ---- Decisions accordion (D5) ---- */
+.observability-accordion-row > td {
+    background: var(--color-bg);
+    padding: var(--space-md);
+}
+
+.observability-expand-icon {
+    display: inline-block;
+    width: 14px;
+    text-align: center;
+    color: var(--color-fg-muted);
+    margin-right: var(--space-xs);
+    font-size: 0.75rem;
+}
+
+.observability-subtable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    background: var(--color-bg-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+}
+
+.observability-subtable th,
+.observability-subtable td {
+    padding: var(--space-xs) var(--space-sm);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+}
+
+.observability-subtable th {
+    color: var(--color-fg-muted);
+    font-weight: 600;
+    background: var(--color-bg-3);
+}
+
+.observability-subtable td.rationale-cell {
+    color: var(--color-fg-muted);
+    max-width: 480px;
+}
+
+/* ---- Pagination + count ---- */
+.observability-pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    padding-top: var(--space-sm);
+    font-size: 0.82rem;
+    color: var(--color-fg-muted);
+}
+
+.observability-pager button {
+    background: var(--color-bg-2);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-xs) var(--space-md);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+}
+
+.observability-pager button[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.observability-pager button:not([disabled]):hover {
+    border-color: var(--color-accent);
+}
+
+/* ---- Resolve modal (D4) ---- */
+.observability-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.observability-modal[hidden] {
+    display: none;
+}
+
+.observability-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+    backdrop-filter: blur(4px);
+}
+
+.observability-modal-panel {
+    position: relative;
+    background: var(--color-bg-2);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+    width: min(480px, 92vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+.observability-modal-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--color-fg);
+}
+
+.observability-modal-preview {
+    background: var(--color-bg);
+    color: var(--color-fg-muted);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm);
+    font-size: 0.82rem;
+    word-break: break-word;
+    max-height: 140px;
+    overflow-y: auto;
+}
+
+.observability-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    font-size: 0.82rem;
+    color: var(--color-fg-muted);
+}
+
+.observability-modal-field select,
+.observability-modal-field textarea {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm);
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.observability-modal-field textarea {
+    min-height: 80px;
+    max-height: 200px;
+}
+
+.observability-modal-field select:focus-visible,
+.observability-modal-field textarea:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 1px;
+}
+
+.observability-modal-counter {
+    align-self: flex-end;
+    font-size: 0.72rem;
+    color: var(--color-fg-muted);
+}
+
+.observability-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-sm);
+}
+
+.observability-modal-btn {
+    background: var(--color-bg-3);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+}
+
+.observability-modal-btn:hover {
+    border-color: var(--color-accent);
+}
+
+.observability-modal-btn.is-primary {
+    background: var(--color-accent);
+    color: var(--color-bg);
+    border-color: var(--color-accent);
+}
+
+.observability-modal-btn.is-primary:hover {
+    filter: brightness(1.08);
+}
+
+.observability-modal-btn[disabled] {
+    opacity: 0.5;
+    cursor: progress;
+}
+
+/* ---- Error banner (per panel) ---- */
+.observability-error-banner {
+    display: none;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-error) 14%, transparent);
+    color: var(--color-error);
+    font-size: 0.85rem;
+}
+
+.observability-error-banner.active {
+    display: block;
+}
