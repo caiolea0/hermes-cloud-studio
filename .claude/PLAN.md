@@ -2366,7 +2366,36 @@ async def cobaia_daily_cycle():
 +- C2 [✅] Backend api/pipeline_studio.py CRUD endpoints + step library REUSE F.5 gateway tools (c0399e9)
 +- C3 [✅] Smoke endpoints E2E + reviewer PASS-WITH-NOTES 17/20 + closeout F.9.1
 +
-+**F.9 Task 1 [✅] + Task 1b [✅]** PLAN base — backend CRUD + step library REUSE F.5 gateway delivered. F.9.2 UNBLOCKED (Backend execution engine REUSE Brain.decide() route_skill_run).
++**F.9 Task 1 [✅] + Task 1b [✅] + Task 2 [✅]** PLAN base — backend CRUD + step library REUSE F.5 gateway delivered + execution engine REUSE Brain.decide() route_skill_run direct dispatch + Jinja strict + pre-validation + abort + A/B parallel delivered. F.9.3 UNBLOCKED (WebSocket monitor + UI shell + step picker modal).
++
++**F.9.2 STATUS COMPLETE** 2026-06-14 (3 commits 0a11e8e + fef891a + closeout):
++- ✅ core/pipeline_engine.py NOVO ~330 LOC (PipelineEngine + execute_run + validate_tools + Jinja2 sandboxed strict + abort registry + execute_ab_test)
++- ✅ brain/intents.py MATURE — handle_intent route_skill_run direct dispatch path when context.tool_call (Pipeline Engine consumer); backward-compat com golden cases context.skill_name → react_loop utility_no_llm
++- ✅ api/pipeline_studio.py MATURE — 3 endpoints (POST execute BackgroundTasks 202 + GET runs poll + POST abort SOFT) + 2 Pydantic schemas
++- ✅ requirements.txt — jinja2>=3.1 (3.1.6 instalado PC)
++- ✅ Smoke unit 7/7 PASS: Jinja render + missing var fail + default filter + nested args + validate_tools empty/missing/invalid
++- ✅ E2E smoke endpoints PASS: create→execute 202→poll progressive→D4 fail-fast tool_not_found 400→D3 jinja_undefined graceful step error→D6 A/B parallel 2 runs zero exceptions→D7 SOFT abort accept 202
++- ✅ brain/_smoke 20 assertions PASS + pytest 14/14 PASS baselines preserved
++- ✅ Validate A-E 20/22 baseline preserved (E:2 stubs whatsapp/instagram pre-existentes)
++- ✅ BLACKLIST R2 INTACTO (12 consecutive — 6 F.6 + 4 F.8 + 2 F.9)
++- ✅ Reviewer PASS-WITH-NOTES 22/22 dim, 0 BLOCKERs, 6 WARNs F.future (sentry_sdk vs mcp.sentry refactor + fail-closed validate_tools + atomic UPDATE WHERE + abort invariant docstring + frontend WS push F.9.3 + lazy-import consolidate F.9.3)
++
++**F.9.3 PREP** (próxima sub-sessão Sonnet 4.6 + frontend-ux-reviewer ~4-5h):
++- WebSocket monitor `pipeline.step_*` namespace push (substitui polling F.9.2 fallback)
++- UI shell dashboard nova página `pipeline-studio` hash route + sidebar item
++- Step picker modal (D8 modal): browse 69 tools × 9 MCPs do step library + filter chapter_owner
++- Builder form-driven (não code editor) — drag-drop steps + render Jinja variable inputs preview
++- Live timeline runs (consume GET /runs/{id} + WS events)
++- Templates gallery 5 seed + clone button
++- frontend-ux-reviewer OBRIGATÓRIO (vanilla JS XSS + a11y WCAG + tokens CSS)
++
++**WARNs F.9.2 ranked priority F.future** (não BLOCKERs, fora escopo F.9.2):
++- W1 sentry_sdk import direto vs mcp.sentry via gateway (pattern já existe brain/decide.py + brain/persistence.py — refactor unificado pass)
++- W2 lazy-import `from core.pipeline_engine import PipelineEngine` em handlers — consolidate F.9.3
++- W3 _update_step_finished sem `WHERE status='running'` guard — atomicity docstring F.9.3
++- W4 execute_ab_test single engine shared — abort registry classmethod global ok (UUIDs separate), docstring invariant
++- W5 validate_tools fail-open quando mcp_registry vazio — considerar fail-closed env var F.future
++- W6 frontend não consume polling/abort ainda — F.9.3 escopo
 +
 +**F.9.1 STATUS COMPLETE** 2026-06-14 (3 commits a13c02a + c0399e9 + closeout):
 +- ✅ Migration applied (pipeline_drafts + pipeline_runs_granular + 4 indexes)
