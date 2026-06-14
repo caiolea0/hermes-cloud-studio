@@ -139,6 +139,17 @@ async def lifespan(app: FastAPI):
                 conn.close()
     except Exception as e:
         logger.warning(f"F.6.4 owner_comment migration failed: {e}")
+    # F.8.1 observability migration (mcp_pricing + perf_metrics + errors_inbox)
+    try:
+        mig_path = PROJECT_ROOT / "migrations" / "2026_06_observability.sql"
+        if mig_path.exists():
+            conn = get_db()
+            conn.executescript(mig_path.read_text(encoding="utf-8"))
+            conn.commit()
+            conn.close()
+            logger.info("F.8.1 observability migration applied (mcp_pricing + perf_metrics + errors_inbox)")
+    except Exception as e:
+        logger.warning(f"F.8.1 observability migration failed: {e}")
     # Restaurar globals persistidos em runtime_state (MERGED-004 / MERGED-016)
     state._LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
     state._LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)
@@ -159,6 +170,9 @@ async def lifespan(app: FastAPI):
     li_health_task = spawn(linkedin_health_monitor_loop())
     li_scheduler_task = spawn(linkedin_scheduler_loop())
     vm_watchdog_task = spawn(vm_health_watchdog_loop())
+    # F.8.1 perf metrics hourly flush (rolling 1h -> perf_metrics table)
+    from core.observability import perf_flush_loop
+    perf_flush_task = spawn(perf_flush_loop(DB_PATH))
     yield
     task.cancel()
     li_task.cancel()
@@ -166,6 +180,7 @@ async def lifespan(app: FastAPI):
     li_health_task.cancel()
     li_scheduler_task.cancel()
     vm_watchdog_task.cancel()
+    perf_flush_task.cancel()
 
 
 app = FastAPI(title="Hermes Command Center", version="2.0.0", lifespan=lifespan)
@@ -220,6 +235,12 @@ async def auth_middleware(request: Request, call_next):
         if not secrets.compare_digest(token, AUTH_TOKEN):
             return JSONResponse(status_code=401, content={"detail": "Token invalido"})
     return await call_next(request)
+
+
+# F.8.1 perf metrics middleware — added AFTER auth so it wraps outermost,
+# capturing full request lifetime (including 401 responses).
+from core.observability import install_perf_middleware
+install_perf_middleware(app)
 
 
 # Pydantic models viveram aqui — moveram pra core/models.py (MERGED-011).
