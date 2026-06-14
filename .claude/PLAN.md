@@ -1855,8 +1855,8 @@ async def cobaia_daily_cycle():
 +**DB migrations**: `llm_calls` (timestamp, source, model, prompt_tokens, completion_tokens, cost_usd, latency_ms, skill_id, loop_name) — partição mensal
 +
 +**Tasks**:
-+- [ ] Task 1: Backend LLM cost middleware — wrapper único em core/ai.py + ollama_router.py + Brain dispatcher; grava `llm_calls`; tabela preço USD por model
-+- [ ] Task 2: Performance metrics middleware — FastAPI middleware p50/p95/p99 percentis rolling 1h por endpoint; expose `/metrics` Prometheus-compatible
++- [x] Task 1: Backend LLM cost middleware — F.8.1 ✅ REUSE mcp_calls F.5.7 (D2 — NÃO criou llm_calls), mcp_pricing table + JOIN cost_per_credit_usd/cost_per_1k_tokens. cost_aggregate() em core/observability.py + endpoint GET /api/observability/costs (CSV+JSON sibling D8). EXPLAIN PLAN uses idx_mcp_calls_provider confirmed.
++- [x] Task 2: Performance metrics middleware — F.8.1 ✅ PerfMetricsCollector (asyncio.Lock rolling 1h deque maxlen 10k) + install_perf_middleware AFTER auth_middleware (D3 JSON custom NÃO Prometheus) + perf_flush_loop hourly task -> perf_metrics table. Endpoint GET /api/observability/perf (source=live|history).
 +- [ ] Task 3: Error inbox via Sentry MCP — query issues open last 24h, agrupa por fingerprint, expose com permalink Sentry; mark resolve via Sentry API
 +- [ ] Task 4: UI `/observability` 4 tabs (Costs, Performance, Errors, Decisions) — Recharts pra séries temporais; tabela ordenável por coluna; export CSV
 +- [ ] Task 5: Validação regressão + persistência — phase A B C D E (toca core/ai.py + ollama_router.py MADUROS); 20/22 PASS; PLAN.md F.8 ✅; commit `feat(observability): F.8 — cost+perf+errors+decisions`
@@ -1881,7 +1881,7 @@ async def cobaia_daily_cycle():
 +F.6 ✅ CHAPTER CLOSED. F.8 = próximo per ordem cristalizada. PLAN.md F.8 base 3 sub-sessions estimate **expandido pra 4** pós F.5.7/F.6.3 evolução: mcp_calls extension 5 cols (provider/model/tokens_in/tokens_out/cost_credits) JÁ APLICADA + brain_runs/brain_decisions persistidos JÁ aplicado + Sentry MCP F.5.6 ACTIVE. F.8 reaproveita muito sem re-implementar.
 +
 +**D1 Sub-task split 4 sub-sessions**:
-+- F.8.1 Backend cost tracking + perf middleware (Opus 4.7, ~3-4h)
++- F.8.1 ✅ COMPLETE 2026-06-14 (3 commits fa0396b+6156c2d+62c420e) — migration mcp_pricing+perf_metrics+errors_inbox (17 seed rows) + core/observability.py PerfMetricsCollector+middleware+cost_aggregate + scripts/check_nim_credits.py NIM polling cron 09h BRT registered + api/observability.py 5 endpoints (costs/perf/credits/errors-stub/decisions-stub) + EXPLAIN PLAN uses idx_mcp_calls_provider confirmed + reviewer PASS-WITH-NOTES 4 WARNs zero BLOCKERS + 20/22 PASS + brain 20/20 + pytest 14/14 + BLACKLIST R2 INTACTO. F.8.2 UNBLOCKED.
 +- F.8.2 Backend error inbox + brain audit endpoints (Sonnet 4.6, ~2-3h)
 +- F.8.3 UI shell + 4 tabs (Sonnet 4.6 + frontend-ux-reviewer, ~4-5h)
 +- F.8.4 UI MCP Coverage tab + closeout (Sonnet 4.6, ~2-3h)
