@@ -283,6 +283,7 @@ from api.tunnel import router as tunnel_router
 from api.bootstrap import router as bootstrap_router
 from api.user_prefs import router as user_prefs_router  # F.2.5b
 from api.lab import router as lab_router  # F.3.1 — Lab Cockpit
+from api.observability import router as observability_router  # F.8.1c
 from api.mcp_coverage import router as mcp_coverage_router  # F.5.6f — MCP Gateway UI proxy
 from api.brain import router as brain_router  # F.6.1 — Brain orchestrator scaffold
 
@@ -296,6 +297,7 @@ app.include_router(tunnel_router)
 app.include_router(bootstrap_router)
 app.include_router(user_prefs_router)  # F.2.5b — /api/user-prefs GET/PUT
 app.include_router(lab_router)  # F.3.1 — /api/lab/* (Lab Cockpit backend)
+app.include_router(observability_router)  # F.8.1c — /api/observability/* (costs/perf/credits/errors/decisions)
 app.include_router(mcp_coverage_router)  # F.5.6f — /api/mcp/coverage/latest + /api/mcp/gateway/health (UI proxy)
 app.include_router(brain_router)  # F.6.1 — /api/brain/* (Brain orchestrator scaffold)
 
