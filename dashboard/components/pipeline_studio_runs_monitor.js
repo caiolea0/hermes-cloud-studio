@@ -383,6 +383,7 @@
         if (_reconnectTimer) { clearTimeout(_reconnectTimer); _reconnectTimer = null; }
         if (_ws) { _ws.onclose = null; _ws.close(); _ws = null; }
         _initialized = false;
+        _runs = {};
     }
 
     /* ---- Public API ------------------------------------- */

@@ -22,6 +22,7 @@
     var _allSteps         = [];
     var _loading          = false;
     var _firstFocusEl     = null;
+    var _eventsWired      = false;
 
     /* ---- DOM helpers ------------------------------------ */
 
@@ -262,6 +263,7 @@
                     _applyFilters();
                 } catch (e) {
                     console.warn("[StepPickerModal] refresh failed", e);
+                    if (window.toast) window.toast("Erro ao atualizar tools", "error");
                 } finally {
                     _setLoadingState(false);
                 }
@@ -301,7 +303,10 @@
             closeBtn.focus();
         }
 
-        _wireFilterEvents();
+        if (!_eventsWired) {
+            _wireFilterEvents();
+            _eventsWired = true;
+        }
         _setLoadingState(true);
 
         try {
