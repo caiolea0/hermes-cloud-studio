@@ -1,28 +1,35 @@
-"""F.8.1c — Observability API endpoints (4 endpoints + 1 helper).
+"""F.8.1c + F.8.2 — Observability API endpoints.
 
-Cross-ref: .claude/PLAN.md § "F.8 Decisões Cristalizadas" D2/D7/D8 + F.8.2 PREP
-(errors + decisions endpoints STUB explicit — F.8.2 implementa real Sentry MCP
-query + brain_runs/brain_decisions traversal).
+Cross-ref: .claude/PLAN.md § "F.8 Decisões Cristalizadas" D2/D7/D8 + F.8.2 D1-D6.
+
+F.8.1: costs + perf + credits + (errors/decisions STUBS).
+F.8.2: errors HYBRID Sentry MCP + local errors_inbox + POST resolve atomic +
+       brain audit endpoints REAL (paginate + filter intent/search/status/run_id +
+       truncate 2000 chars via SQL SUBSTR).
 
 Endpoints:
-- GET /api/observability/costs?range=24h|7d|30d&group_by=provider|model|...
-                              &format=json|csv  (D2 + D8 — REUSE mcp_calls JOIN)
-- GET /api/observability/perf?endpoint=&range=24h
-                              (D3 — live PerfMetricsCollector OR perf_metrics history)
-- GET /api/observability/credits  (D7 — latest nim_credit_history row)
-- GET /api/observability/errors?status=open|resolved  (F.8.2 STUB — schema ready)
-- GET /api/observability/decisions?context_id=  (F.8.2 STUB — schema ready)
+- GET  /api/observability/costs?range=24h|7d|30d&group_by=...&format=json|csv
+- GET  /api/observability/perf?endpoint=&range=24h&source=live|history
+- GET  /api/observability/credits
+- GET  /api/observability/errors?range=24h|7d|30d&status=&category=&offset=&limit=
+- POST /api/observability/errors/{id}/resolve  (D5 atomic Sentry MCP + local 409)
+- GET  /api/observability/decisions?intent=&search=&status=&run_id=&offset=&limit=
 """
 from __future__ import annotations
 
 import csv
 import io
+import json
+import logging
 import sqlite3
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Any, Optional
 
-from fastapi import APIRouter, Query
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
+from pydantic import BaseModel, Field
 
+from brain.dispatch import GatewayDispatcher, sanitize
 from core.observability import (
     cost_aggregate,
     explain_cost_query_plan,
@@ -30,6 +37,8 @@ from core.observability import (
     get_latest_nim_balance,
 )
 from core.state import DB_PATH
+
+log = logging.getLogger("hermes.api.observability")
 
 router = APIRouter(prefix="/api/observability", tags=["observability"])
 
@@ -211,20 +220,38 @@ async def get_errors(
 
 
 # ---------------------------------------------------------------------------
-# GET /api/observability/decisions — F.8.2 STUB
+# GET /api/observability/decisions — F.8.2 REAL (D3 paginate + D4 filters + D6 truncate)
 # ---------------------------------------------------------------------------
+
+# D6: truncate via SQL SUBSTR (NÃO Python post-process). Consistency com F.6.3.
+_DECISION_TRUNCATE_CHARS = 2000
+
 
 @router.get("/decisions")
 async def get_decisions(
-    run_id: Optional[str] = Query(None, description="specific brain_runs.id"),
-    intent: Optional[str] = Query(None, description="filter intent"),
-    limit: int = Query(50, ge=1, le=500),
+    intent: Optional[str] = Query(None, description="D4 filter brain_runs.intent"),
+    search: Optional[str] = Query(None, description="D4 free-text LIKE context_json OR rationale"),
+    status: Optional[str] = Query(None, description="D4 filter brain_runs.final_state"),
+    run_id: Optional[str] = Query(None, description="D4 specific brain_runs.id"),
+    offset: int = Query(0, ge=0, description="D3 pagination offset"),
+    limit: int = Query(50, ge=1, le=200, description="D3 pagination limit (max 200)"),
 ):
-    """⚠️ F.8.2 STUB: returns brain_runs latest list. F.8.2 implementa full
-    audit trail with brain_decisions[] traversal + replay + filters."""
+    """F.8.2 REAL — Brain audit endpoint.
+
+    D3: pagination ?offset=&limit= default 50 max 200 + X-Total-Count header.
+    D4: filters intent + search + status + run_id combinable.
+    D6: tool_args/result/rationale TRUNCATED 2000 chars via SQL SUBSTR
+        (consistency com F.6.3 TRUNCATE_LIMIT). F.future GET /decisions/{id}/full
+        retorna untruncated when needed.
+
+    EXPLAIN PLAN: uses idx_brain_runs_intent (when intent filter set) +
+    idx_brain_runs_started (ORDER BY started_at DESC) + idx_brain_decisions_run.
+    """
     if not DB_PATH.exists():
-        return {"items": [], "note": f"DB not found: {DB_PATH}",
-                "stub_label": "F.8.2_implements_full_audit_trail"}
+        return JSONResponse(status_code=200, content={
+            "items": [], "total": 0, "offset": offset, "limit": limit,
+            "note": f"DB not found: {DB_PATH}",
+        }, headers={"X-Total-Count": "0"})
 
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
@@ -233,42 +260,90 @@ async def get_decisions(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='brain_runs'"
         ).fetchone()
         if not existing:
-            return {"items": [], "note": "brain_runs missing — apply F.6.1 migration",
-                    "stub_label": "F.8.2_implements_full_audit_trail"}
+            return JSONResponse(status_code=200, content={
+                "items": [], "total": 0, "offset": offset, "limit": limit,
+                "note": "brain_runs missing — apply F.6.1 migration",
+            }, headers={"X-Total-Count": "0"})
 
-        if run_id:
-            row = conn.execute(
-                """SELECT id, intent, started_at, finished_at, final_state,
-                          total_latency_ms, total_cost_credits, confidence_score,
-                          requester, owner_comment
-                   FROM brain_runs WHERE id = ?""",
-                (run_id,)
-            ).fetchone()
-            if not row:
-                return {"items": [], "note": "run_not_found",
-                        "stub_label": "F.8.2_implements_full_audit_trail"}
-            return {"item": dict(row),
-                    "stub_label": "F.8.2_implements_full_audit_trail"}
+        # D4 — build dynamic WHERE (combinable filters)
+        conditions: list[str] = []
+        params: list[Any] = []
 
-        params: list = []
-        where = ""
         if intent:
-            where = "WHERE intent = ?"
+            conditions.append("r.intent = ?")
             params.append(intent)
-        params.append(limit)
-        rows = [dict(r) for r in conn.execute(
-            f"""SELECT id, intent, started_at, finished_at, final_state,
-                       total_latency_ms, confidence_score, requester
-                FROM brain_runs
-                {where}
-                ORDER BY started_at DESC
-                LIMIT ?""", params
-        ).fetchall()]
-        return {
-            "items": rows,
-            "filters": {"intent": intent, "limit": limit},
-            "stub_label": "F.8.2_implements_full_audit_trail",
+        if status:
+            conditions.append("r.final_state = ?")
+            params.append(status)
+        if run_id:
+            conditions.append("r.id = ?")
+            params.append(run_id)
+        if search:
+            # Free-text LIKE %term% — parameterized (SQL injection safe via ?).
+            # EXISTS subquery against brain_decisions.rationale for cross-table search.
+            conditions.append(
+                "(r.context_json LIKE ? "
+                "OR EXISTS (SELECT 1 FROM brain_decisions d2 "
+                "           WHERE d2.run_id = r.id AND d2.rationale LIKE ?))"
+            )
+            like = f"%{search}%"
+            params.extend([like, like])
+
+        where_sql = (" WHERE " + " AND ".join(conditions)) if conditions else ""
+
+        # D3 — total count first (for X-Total-Count header + pagination UX)
+        total_row = conn.execute(
+            f"SELECT COUNT(*) AS n FROM brain_runs r{where_sql}", params
+        ).fetchone()
+        total = int(total_row["n"]) if total_row else 0
+
+        # D3 — paginated runs (ORDER BY started_at DESC uses idx_brain_runs_started)
+        sql_runs = (
+            "SELECT r.id, r.intent, r.context_json, r.started_at, r.finished_at, "
+            "       r.final_state, r.final_result, r.total_latency_ms, "
+            "       r.total_cost_credits, r.confidence_score, r.requester, "
+            "       r.owner_comment, r.otel_trace_id "
+            "FROM brain_runs r"
+            f"{where_sql} "
+            "ORDER BY r.started_at DESC LIMIT ? OFFSET ?"
+        )
+        runs = conn.execute(sql_runs, params + [limit, offset]).fetchall()
+
+        # Hydrate per-run decisions (D6 truncate via SQL SUBSTR — not Python).
+        items: list[dict[str, Any]] = []
+        for run in runs:
+            run_dict = dict(run)
+            decisions = conn.execute(
+                f"""SELECT id, sequence, state_from, state_to, tool_invoked,
+                           SUBSTR(tool_args_json, 1, {_DECISION_TRUNCATE_CHARS}) AS tool_args_json,
+                           SUBSTR(tool_result_json, 1, {_DECISION_TRUNCATE_CHARS}) AS tool_result_json,
+                           SUBSTR(rationale, 1, {_DECISION_TRUNCATE_CHARS}) AS rationale,
+                           latency_ms, created_at
+                    FROM brain_decisions
+                    WHERE run_id = ?
+                    ORDER BY sequence ASC""",
+                (run_dict["id"],),
+            ).fetchall()
+            run_dict["decisions"] = [dict(d) for d in decisions]
+            run_dict["decisions_count"] = len(run_dict["decisions"])
+            items.append(run_dict)
+
+        body = {
+            "items": items,
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "filters": {
+                "intent": intent, "search": search,
+                "status": status, "run_id": run_id,
+            },
+            "truncate_chars": _DECISION_TRUNCATE_CHARS,
         }
+        return Response(
+            content=json.dumps(body, default=str),
+            media_type="application/json",
+            headers={"X-Total-Count": str(total)},
+        )
     finally:
         conn.close()
 
