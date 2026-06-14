@@ -286,6 +286,7 @@ from api.lab import router as lab_router  # F.3.1 — Lab Cockpit
 from api.observability import router as observability_router  # F.8.1c
 from api.mcp_coverage import router as mcp_coverage_router  # F.5.6f — MCP Gateway UI proxy
 from api.brain import router as brain_router  # F.6.1 — Brain orchestrator scaffold
+from api.pipeline_studio import router as pipeline_studio_router  # F.9.1 — Pipeline Studio CRUD + step library
 
 app.include_router(pipelines_router)
 app.include_router(linkedin_router)
@@ -300,6 +301,7 @@ app.include_router(lab_router)  # F.3.1 — /api/lab/* (Lab Cockpit backend)
 app.include_router(observability_router)  # F.8.1c — /api/observability/* (costs/perf/credits/errors/decisions)
 app.include_router(mcp_coverage_router)  # F.5.6f — /api/mcp/coverage/latest + /api/mcp/gateway/health (UI proxy)
 app.include_router(brain_router)  # F.6.1 — /api/brain/* (Brain orchestrator scaffold)
+app.include_router(pipeline_studio_router)  # F.9.1 — /api/pipeline-studio/* (CRUD + step library + templates)
 
 
 if __name__ == "__main__":
