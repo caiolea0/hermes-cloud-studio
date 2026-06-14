@@ -2771,6 +2771,32 @@ Pre-req F.9.4:
 - F.6.4 confirm modal pattern (não usado F.9.4, mas color tokens reference)
 - Memory: mem_mqe7ipm5 (F.9.3) + mem_mqe6kuml (F.9.2) + mem_mqe10phw (F.9 global)
 
+**F.9 Task 5 [✅]** PLAN base — Templates clone-and-modify real + A/B compare metrics Chart.js 2x2 grid + Builder loadDraft + Shell switchTab draft param + backend POST /clone + GET /runs aggregate delivered. F.9.5 UNBLOCKED (legacy /pipeline toggle + chapter closeout).
+
+**F.9.4 STATUS COMPLETE** 2026-06-14 (3 commits 95e2114 + 2768d57 + 3bc2b40):
+- ✅ migrations/2026_06_pipeline_clone_ab_compare.sql NOVO — ALTER TABLE pipeline_drafts ADD cloned_from_id + ALTER pipeline_runs_granular ADD ab_group + 2 indexes sparse
+- ✅ api/pipeline_studio.py MATURE — POST /drafts/{id}/clone (201 atomic) + GET /runs aggregate (p50/p95/cost/success_rate per ab_group, Python percentile fallback) + ab_group propagation execute + engine INSERT
+- ✅ core/pipeline_engine.py MATURE — ab_group param _insert_step_started + _insert_aborted_step
+- ✅ pipeline_studio_templates.js MATURE — Clone button REAL (POST /drafts + switchTab Builder + loadDraft redirect)
+- ✅ pipeline_studio_builder.js MATURE — loadDraft(draftId) method (full state RESET + fetch + _parseYamlSteps + render) + _parseYamlSteps lightweight regex parser
+- ✅ pipeline_studio_shell.js MATURE — switchTab(tabKey, options) + 50ms deferred loadDraft when options.draft_id
+- ✅ pipeline_studio_ab_compare.js NOVO ~270 LOC IIFE (4 Chart.js bar charts 2x2 + destroy() prevention + draft/limit filters + empty state + XSS textContent)
+- ✅ dashboard/styles/pipeline-studio.css MATURE — .ps-template-clone-btn + .ab-filters-bar + .ab-charts-grid 2x2 @media 680px + .ab-chart-card + .ab-chart-canvas-wrap + .ab-empty-state
+- ✅ dashboard/index.html MATURE — +1 script pipeline_studio_ab_compare.js
+- ✅ Browser smoke PASS: 4 tabs visible + 5 clone buttons active + clone flow tab switch + A/B panel emptyState + draft selector 11 options + clone endpoint 201
+- ✅ frontend-ux-reviewer PASS-WITH-NOTES 18/20 PASS 0 BLOCKERs 2 WARNs (W1 template cloned_from_id=null intentional D1 design + W2 Chart.js 4 instances destroy() pattern documented)
+- ✅ Validate A-E 20/22 PASS baseline preserved
+- ✅ BLACKLIST R2 INTACTO (14 consecutive — 6 F.6 + 4 F.8 + 4 F.9.1/F.9.2/F.9.3/F.9.4)
+
+**F.9.5 PREP** (próxima sub-sessão Sonnet 4.6 ~2-3h — ÚLTIMA sub-sessão F.9):
+- **Escopo**: Legacy /pipeline page feature toggle + F.9 chapter holistic reviewer + Task #9 [completed] mark + PLAN.md F.9 STATUS COMPLETE
+- **Feature toggle**: dashboard/app.js #pipeline hash route → conditional show Pipeline Studio vs legacy pipeline page (owner controla via localStorage flag `hermes_pipeline_studio_enabled`)
+- **Holistic reviewer**: frontend-ux-reviewer OBRIGATÓRIO revisão completa F.9 chapter (5 sub-sessions span, não Commit 3 isolado)
+- **Task #9 completed**: F.9 full chapter mark done criteria ("owner cria pipeline sem YAML manual · live monitor step travado · A/B compara estratégias")
+- **F.9 chapter closeout**: PLAN.md F.9 STATUS COMPLETE + memory_save F.9 chapter + mark_chapter F.9 CLOSED + F.10 planning (F.4 Auto-Skill Loop next)
+- **Invariants**: BLACKLIST R2 INTACTO (15 consecutive target) + 20/22 PASS baseline + app.js MATURE minimal touch (toggle only, NÃO refactor)
+- **Frontend files touch**: dashboard/app.js MATURE (add toggle conditional ~5 LOC) + opcional dashboard/index.html (F.9 nav link active class)
+
 ---
 
 ### Regra inviolável FASE F — Regression-test gate
