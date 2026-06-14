@@ -239,7 +239,10 @@
             }
             var data = await resp.json();
             _showToast("Run iniciado: " + (data.run_id || "").slice(0, 8), "success");
-            /* Switch to Runs Monitor */
+            /* Notify monitor + switch tab */
+            if (window.PipelineStudioRunsMonitor && data.run_id) {
+                window.PipelineStudioRunsMonitor.trackRun(data.run_id, _lastSavedId);
+            }
             if (window.PipelineStudioShell) {
                 window.PipelineStudioShell.switchTab("runs-monitor");
             }

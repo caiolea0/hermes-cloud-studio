@@ -38,7 +38,7 @@ from jinja2 import StrictUndefined, UndefinedError
 from jinja2.sandbox import SandboxedEnvironment
 
 from brain.decide import Brain
-from core.state import DB_PATH
+from core.state import DB_PATH, ws_manager
 
 log = logging.getLogger("hermes.pipeline_engine")
 
@@ -80,6 +80,24 @@ class PipelineEngine:
         # D3 SandboxedEnvironment: blocks arbitrary attr access, getattr, builtins.
         # StrictUndefined: missing variable → UndefinedError (NÃO silent empty string).
         self.jinja_env = SandboxedEnvironment(undefined=StrictUndefined)
+
+    # -------------------- F.9.3 WS broadcast (fire-and-forget) --------------------
+
+    @staticmethod
+    def _broadcast_pipeline_event(event_type: str, payload: dict[str, Any]) -> None:
+        """Fire-and-forget WS broadcast per step event (F.9.3 D4 pattern).
+
+        Does NOT block execute_run — asyncio.ensure_future schedules on running loop.
+        Silently swallowed if no loop running or ws_manager unavailable.
+        Canonical event_type dot-notation: pipeline.step_start / pipeline.step_done /
+        pipeline.step_error / pipeline.run_complete / pipeline.run_aborted.
+        """
+        try:
+            event = {"event_type": event_type, "payload": payload}
+            loop = asyncio.get_running_loop()
+            loop.create_task(ws_manager.broadcast(event))
+        except Exception:  # noqa: silenciado intencional — WS broadcast não bloqueia engine
+            pass
 
     # -------------------- D7 abort registry --------------------
 
@@ -321,6 +339,9 @@ class PipelineEngine:
                         reason,
                     )
                 self._update_init_status(run_id, "aborted")
+                self._broadcast_pipeline_event("pipeline.run_aborted", {
+                    "run_id": run_id, "status": "aborted", "reason": reason,
+                })
                 return
 
             step_name = step.get("name", f"step_{step_idx}")
@@ -329,6 +350,10 @@ class PipelineEngine:
             continue_on_error = bool(step.get("continue_on_error", False))
 
             self._insert_step_started(run_id, draft_id, step_idx, step_name, tool)
+            self._broadcast_pipeline_event("pipeline.step_start", {
+                "run_id": run_id, "step_idx": step_idx, "step_name": step_name,
+                "tool": tool, "draft_id": draft_id,
+            })
             start_ts = time.monotonic()
 
             try:
@@ -372,14 +397,25 @@ class PipelineEngine:
                         run_id, step_idx, "completed",
                         output_payload, None, latency_ms, cost,
                     )
+                    self._broadcast_pipeline_event("pipeline.step_done", {
+                        "run_id": run_id, "step_idx": step_idx, "step_name": step_name,
+                        "status": "completed", "latency_ms": latency_ms, "cost": cost,
+                    })
                 else:
                     error_msg = json.dumps(decide_result, default=str)[:_OUTPUT_TRUNCATE]
                     self._update_step_finished(
                         run_id, step_idx, "error",
                         None, error_msg, latency_ms, cost,
                     )
+                    self._broadcast_pipeline_event("pipeline.step_error", {
+                        "run_id": run_id, "step_idx": step_idx, "step_name": step_name,
+                        "status": "error", "error": error_msg[:200],
+                    })
                     if not continue_on_error:
                         self._update_init_status(run_id, "error")
+                        self._broadcast_pipeline_event("pipeline.run_complete", {
+                            "run_id": run_id, "status": "error",
+                        })
                         return
 
             except asyncio.TimeoutError:
@@ -388,8 +424,15 @@ class PipelineEngine:
                     run_id, step_idx, "error",
                     None, f"step_timeout_{STEP_TIMEOUT_SECONDS}s", latency_ms, 0.0,
                 )
+                self._broadcast_pipeline_event("pipeline.step_error", {
+                    "run_id": run_id, "step_idx": step_idx, "step_name": step_name,
+                    "status": "error", "error": f"timeout_{STEP_TIMEOUT_SECONDS}s",
+                })
                 if not continue_on_error:
                     self._update_init_status(run_id, "error")
+                    self._broadcast_pipeline_event("pipeline.run_complete", {
+                        "run_id": run_id, "status": "error",
+                    })
                     return
 
             except RuntimeError as exc:
@@ -399,8 +442,15 @@ class PipelineEngine:
                     run_id, step_idx, "error",
                     None, str(exc)[:_OUTPUT_TRUNCATE], latency_ms, 0.0,
                 )
+                self._broadcast_pipeline_event("pipeline.step_error", {
+                    "run_id": run_id, "step_idx": step_idx, "step_name": step_name,
+                    "status": "error", "error": str(exc)[:200],
+                })
                 if not continue_on_error:
                     self._update_init_status(run_id, "error")
+                    self._broadcast_pipeline_event("pipeline.run_complete", {
+                        "run_id": run_id, "status": "error",
+                    })
                     return
 
             except Exception as exc:  # noqa: BLE001 — defensive boundary
@@ -414,11 +464,21 @@ class PipelineEngine:
                     sentry_sdk.capture_exception(exc)
                 except Exception:  # noqa: BLE001
                     pass
+                self._broadcast_pipeline_event("pipeline.step_error", {
+                    "run_id": run_id, "step_idx": step_idx, "step_name": step_name,
+                    "status": "error", "error": f"{type(exc).__name__}"[:100],
+                })
                 if not continue_on_error:
                     self._update_init_status(run_id, "error")
+                    self._broadcast_pipeline_event("pipeline.run_complete", {
+                        "run_id": run_id, "status": "error",
+                    })
                     return
 
         self._update_init_status(run_id, "completed")
+        self._broadcast_pipeline_event("pipeline.run_complete", {
+            "run_id": run_id, "status": "completed",
+        })
 
 
 # ----- D6 A/B parallel test -----
