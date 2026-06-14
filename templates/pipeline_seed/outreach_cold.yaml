@@ -1,0 +1,39 @@
+# F.9.1 D5 — Outreach Cold
+# search_prospects → classify_prospect → send_outreach → wait_reply → follow_up
+name: "Outreach Cold"
+description: "Cold outreach end-to-end Brain.decide() dispatch via gateway"
+tags:
+  - outreach
+  - cold
+  - prospects
+steps:
+  - name: "Search prospects ICP"
+    tool: "hermes-prospects.search_prospects"
+    args:
+      city: "Cuiaba"
+      category: "designer"
+      limit: 20
+  - name: "Classify prospect ICP scoring"
+    tool: "hermes-prospects.score_lead"
+    args:
+      prospect_id: "{{ prospect.id }}"
+  - name: "Generate outreach message"
+    tool: "hermes-llm.route"
+    args:
+      task_type: "creative_ptbr"
+      prompt: "Cold outreach for {{ prospect.business_name }} {{ prospect.category }}"
+  - name: "Dispatch outreach LinkedIn"
+    tool: "hermes-linkedin.start_campaign"
+    args:
+      campaign_type: "connect_with_note"
+      prospect_id: "{{ prospect.id }}"
+      note: "{{ generated_message }}"
+  - name: "Wait reply 48h"
+    tool: "hermes-prospects.get_by_status"
+    args:
+      status: "awaiting_reply"
+  - name: "Follow up bump"
+    tool: "hermes-llm.route"
+    args:
+      task_type: "creative_ptbr"
+      prompt: "Follow up gentle bump 48h"

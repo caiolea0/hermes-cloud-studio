@@ -1,0 +1,30 @@
+# F.9.1 D5 — Skill Synthesis Loop (F.4 W3)
+# synth_skill → test_dryrun → propose_yaml → owner_review (PR-based deploy)
+name: "Skill Synthesis Loop"
+description: "F.4 auto-skill loop: synthesize skill candidate + dry-run test + owner review via PR"
+tags:
+  - skill-forge
+  - f4
+  - auto-skill
+steps:
+  - name: "Synthesize skill YAML stub"
+    tool: "hermes-skills.propose_skill_yaml_stub"
+    args:
+      pattern_observed: "{{ activity_log.pattern }}"
+      family: "{{ activity_log.family }}"
+  - name: "Test skill dry-run sandbox"
+    tool: "hermes-skills.test_skill_dryrun"
+    args:
+      skill_yaml: "{{ proposed_yaml }}"
+  - name: "Generate PR body markdown"
+    tool: "hermes-llm.route"
+    args:
+      task_type: "code_gen"
+      prompt: "Generate PR body for new skill: {{ skill_name }} (pattern: {{ pattern_observed }})"
+  - name: "Open PR for owner review"
+    tool: "github.create_pull_request"
+    args:
+      title: "feat(skills): F.4 auto-skill {{ skill_name }}"
+      body: "{{ pr_body }}"
+      head: "skill-forge/{{ skill_name }}"
+      base: "master"

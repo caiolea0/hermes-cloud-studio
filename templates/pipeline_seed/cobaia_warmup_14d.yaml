@@ -1,0 +1,29 @@
+# F.9.1 D5 — Cobaia Warmup 14d
+# Sequence connect_safe → wait → reply → outreach (14-day gradual ramp)
+name: "Cobaia Warmup 14d"
+description: "LinkedIn warmup gradativo dias 0-13 + outreach d14+ via Brain dispatch"
+tags:
+  - cobaia
+  - linkedin
+  - warmup
+  - sequencing
+steps:
+  - name: "Day 0-6 lurking safe"
+    tool: "hermes-linkedin.preflight_check"
+    args:
+      mode: "lurking"
+  - name: "Day 7-10 ramp connects"
+    tool: "hermes-linkedin.start_campaign"
+    args:
+      campaign_type: "connect"
+      daily_cap: 5
+  - name: "Day 11-13 reply patterns"
+    tool: "hermes-llm.route"
+    args:
+      task_type: "creative_ptbr"
+      prompt: "Reply pattern profissional warmup d11-13"
+  - name: "Day 14+ outreach offer"
+    tool: "hermes-llm.route"
+    args:
+      task_type: "creative_ptbr"
+      prompt: "Outreach offer Caio Leao Designer Cuiaba"

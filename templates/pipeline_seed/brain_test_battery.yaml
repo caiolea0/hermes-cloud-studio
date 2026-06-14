@@ -1,0 +1,27 @@
+# F.9.1 D5 — Brain Test Battery
+# Run hermes-brain-test 6 baterias + report
+name: "Brain Test Battery"
+description: "Pre-merge gate brain regression test 6 dimensions"
+tags:
+  - brain
+  - test
+  - regression
+  - f6
+steps:
+  - name: "Run brain golden cases pytest"
+    tool: "hermes-skills.test_skill_dryrun"
+    args:
+      command: "python -m pytest tests/test_brain_golden.py -v"
+  - name: "Run brain smoke offline"
+    tool: "hermes-skills.test_skill_dryrun"
+    args:
+      command: "HERMES_BRAIN_OFFLINE=1 python -m brain._smoke"
+  - name: "Run validate phase A B C D E"
+    tool: "hermes-skills.test_skill_dryrun"
+    args:
+      command: "python scripts/validate_implementation.py --phase A B C D E"
+  - name: "Aggregate results report"
+    tool: "hermes-llm.route"
+    args:
+      task_type: "summarize"
+      prompt: "Aggregate Brain test battery 6 baterias results + PASS/FAIL/WARN summary"

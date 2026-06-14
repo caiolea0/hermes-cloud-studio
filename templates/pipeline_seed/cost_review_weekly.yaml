@@ -1,0 +1,28 @@
+# F.9.1 D5 — Cost Review Weekly
+# mcp_coverage_audit → analyze_top_skills → suggest_provider_switch
+name: "Cost Review Weekly"
+description: "F.8 observability weekly review + provider switch suggestions"
+tags:
+  - cost
+  - observability
+  - weekly
+  - f8
+steps:
+  - name: "MCP coverage audit"
+    tool: "hermes-skills.get_metrics"
+    args:
+      range: "7d"
+  - name: "Analyze top skills cost"
+    tool: "postgres.execute_sql"
+    args:
+      sql: "SELECT model, SUM(cost_credits) AS total FROM mcp_calls WHERE created_at > datetime('now','-7 days') GROUP BY model ORDER BY total DESC LIMIT 10"
+  - name: "Suggest provider switch"
+    tool: "hermes-llm.route"
+    args:
+      task_type: "reasoning"
+      prompt: "Analyze cost trends top 10 skills + suggest provider switch T1->T2->T3 fallback"
+  - name: "Generate report markdown"
+    tool: "hermes-llm.route"
+    args:
+      task_type: "summarize"
+      prompt: "Weekly cost report markdown for owner dashboard"
