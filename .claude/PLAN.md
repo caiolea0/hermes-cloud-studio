@@ -1887,6 +1887,109 @@ async def cobaia_daily_cycle():
 +- F.8.4 UI MCP Coverage tab + closeout (Sonnet 4.6, ~2-3h) — 5ª tab observability shell: SummaryRow 5 cards + MatrixCoveragePanel heatmap Phase × MCP + sortable list + SparklineHistory 6 meses (reusa F.5.5 audit cron data .claude/audits/mcp-coverage/*.md+json + dashboard/vendor/chart.min.js JÁ commit F.8.3)
 +- Total ~11-15h spread 1 semana
 +
++**🎯 F.8.4 Decisões Cristalizadas (UI MCP Coverage 5ª tab + F.8 CLOSEOUT) — incorporado 2026-06-14**:
++
++F.8.1+F.8.2+F.8.3 ✅ done (Backend + UI 4 tabs LIVE). F.8.4 = ÚLTIMA sub-sessão F.8 (4/4). 5ª tab MCP Coverage REUSE F.5.5 audit cron data já populada (`.claude/audits/mcp-coverage/MCP-COVERAGE-2026-06.json` 19.3K + .md 5.6K verified pre-flight). F.8 CLOSEOUT aggregated pattern F.6.6. Task #8 [pending] → [completed]. Sub-sessão MAIS SIMPLES F.8.
++
++Pre-req F.8.4:
++- F.8.1+F.8.2+F.8.3 endpoints + UI 4 tabs funcional
++- Chart.js vendor `dashboard/vendor/chart.min.js` JÁ committed F.8.3 (reuse)
++- F.5.5 audit data presente `.claude/audits/mcp-coverage/MCP-COVERAGE-2026-06.json` (19.3K)
++- Pattern observability_decisions.js (table + filters + accordion) reference reuse
++
++**D1 Heatmap render = CUSTOM CSS GRID** (NÃO Chart.js matrix plugin):
++- CSS Grid `display: grid; grid-template-columns: <phase-count>; grid-template-rows: <mcp-count>`
++- Cada cell `<div class="heatmap-cell" data-tier="active|warning|orphan|deprecated|reserved">` colored via CSS var (tokens.css alinhar)
++- Tooltip hover mostra `{phase, mcp_server, tier, calls_30d, last_call}`
++- ARIA `role="grid"` + `aria-label="MCP coverage matrix"` + cells `role="gridcell"`
++- Vantagens vs Chart.js matrix:
++  - Zero deps extra (Chart.js matrix plugin = +50KB vendor)
++  - Accessible nativo (screen reader friendly)
++  - Editable owner-side (CSS tokens consistency F.5.6/F.6.4/F.8.3 design system)
++  - DOM render performance (5-15 MCPs × 6-9 phases = 30-135 cells trivial)
++- NÃO Chart.js matrix (over-engineering scale solo + design system drift)
++- NÃO SVG raw (acessibilidade pior + manual coordenadas)
++
++**D2 Audit data source = JSON FILE LOCAL** (`.claude/audits/mcp-coverage/*.json` versionado git):
++- F.5.5 audit cron mensal já gera JSON sibling MD (D3 cristalizada F.5.5)
++- Frontend fetch `/api/observability/mcp-coverage-history` NOVO endpoint serve audit files
++- Backend endpoint NOVO `api/observability.py` adicional: `GET /api/observability/mcp-coverage-history?months=6` lista + parse JSON files glob
++- Owner pode commit/diff audit files git (transparência)
++- F.future API endpoint live aggregate (audit cron mensal = baseline, live = futuro)
++- NÃO API live endpoint (overhead + F.5.5 audit cron já cobre use-case)
++- NÃO upload externo (offline-safe pattern projeto)
++
++**D3 Sparkline 6 meses = TOP 10 MCPs** (não todos):
++- Chart.js line sparkline per top 10 MCPs (ranking by total calls last 6 months)
++- DOM render: 10 lines × 6 data points = 60 nodes (performance trivial)
++- "Show all" link expand → fetch full + render todos (defer F.future ux refinement)
++- ORDER BY total_calls DESC LIMIT 10 (Python backend filter audit JSON)
++- NÃO todos MCPs (DOM 50+ sparklines = render slow + visual noise)
++- NÃO single chart all (perde per-MCP comparison)
++
++**D4 F.8 closeout block = AGGREGATED F.8.1-F.8.4** (pattern F.6.6 D3):
++- PLAN.md F.8 STATUS COMPLETE block estrutura:
++  1. F.8 CHAPTER COMPLETE header
++  2. F.8.1-F.8.4 sub-sections (1 paragraph cada)
++  3. F.8 Decisões cristalizadas aggregated D1-D27 (10 F.8 global + 10 F.8.1 + 6 F.8.2 + 7 F.8.3 + 5 F.8.4)
++  4. Endpoints summary (8 endpoints REAL)
++  5. UI 5 tabs functional summary
++  6. Backend tables (mcp_pricing 17 rows + perf_metrics + errors_inbox + nim_credit_history)
++  7. 4 reviewers verdict aggregated
++  8. BLACKLIST R2 INTACTO 4 consecutive F.8 sub-sessions (+ 6 F.6 = 10 total chapter span)
++  9. F.4 cobaia OR F.9 unblocked nota (per ordem cristalizada F.5 → F.6 → F.8 → F.9 → F.4 → F.7)
++- Section size estimate 6-10K (PLAN.md cresce ~100K → ~110K, manageable)
++- NÃO short summary (perde F.future reference doc value)
++
++**D5 Final reviewer F.8 = HOLISTIC AGENT** (pattern F.6.6 D2):
++- Subagent_type: general-purpose (NÃO code-reviewer scope limitado)
++- Prompt: audit F.8 stack 1750+ LOC UI + ~1000 LOC backend cross-file invariants
++- Validar:
++  - 5 tabs consistency (4 horizontal F.8.3 + 1 MCP Coverage F.8.4 same tab nav D1)
++  - Backend endpoints REAL (zero stubs F.8.X_implements_* remaining)
++  - F.5.5 audit data integration correct
++  - dashboard/app.js MATURE F.2 Mission Control NÃO regression
++  - Chart.js destroy() chamado todos componentes (memory leak prevention)
++  - WS namespace consistency (obs.* dot-notation F.2.3)
++  - SENSITIVE_KEYS sanitize todos endpoints
++  - BLACKLIST R2 INTACTO F.8 4 sub-sessions consecutive
++- Output: PASS / PASS-WITH-NOTES + holistic findings
++- NÃO code-reviewer single-commit scope (perde cross-file invariants)
++
++**Files F.8.4** (1 NOVO + 2 MATURE):
++- `dashboard/components/observability_mcp_coverage.js` NOVO (~200 LOC IIFE):
++  - SummaryRow 5 cards (TotalMCPs / Active / Drift / Quarantine / PaidIdle$)
++  - MatrixCoveragePanel heatmap CSS grid Phase × MCP (D1)
++  - MCP List Table sortable/filterable (REUSE pattern observability_decisions.js)
++  - SparklineHistory top 10 MCPs 6 meses (D3)
++  - window.ObservabilityMcpCoverage namespace
++- `api/observability.py` MATURE — adicionar `GET /api/observability/mcp-coverage-history?months=6` (D2 reads JSON files glob + ranking top 10)
++- `dashboard/index.html` MATURE — adicionar 5ª tab button + panel `<div data-tab="mcp-coverage">`
++- `dashboard/components/observability_shell.js` MATURE — adicionar 'mcp-coverage' ao tabs array (5 tabs total)
++- `.claude/PLAN.md` MATURE — F.8 CHAPTER COMPLETE aggregated block D4 + F.4/F.9 PREP nota
++
++**Sub-task split F.8.4 (2 commits sub-session)**:
++- **C1** Backend `GET /api/observability/mcp-coverage-history` + frontend `observability_mcp_coverage.js` NOVO + index.html 5ª tab + shell.js MATURE
++- **C2** Holistic reviewer F.8 + PLAN.md F.8 CHAPTER COMPLETE aggregated + Task #8 [completed] + memory_save + mark_chapter "F.8 CHAPTER CLOSED"
++
++**🚨 Riscos F.8.4** (low — REUSE pattern + audit data ready):
++- **Audit JSON parse edge cases** — F.5.5 cron pode produzir malformed JSON (rare). Pydantic schema validator opcional fallback empty
++- **CSS grid heatmap responsive** — D7 F.8.3 mobile F.future mantém (desktop only)
++- **F.5.5 audit data 1 mês only (2026-06)** — sparkline 6 meses vai mostrar 1 month single point inicial (F.future months acumular)
++- **Chart.js sparkline reuse vendor F.8.3** — validate import path consistent
++- **dashboard/app.js MATURE diff zero** — F.8.4 NÃO toca app.js (5ª tab adicionada via shell.js MATURE)
++- **BLACKLIST R2 INTACTO** — F.8.4 zero touch linkedin/* (trivial)
++- **Holistic reviewer escope F.8 stack 2750+ LOC** — agent invocation timeout risk (~5-10min, paciência)
++- **Task #8 [completed]** validate idempotente (correct task ID #8 não #9 nem #7)
++
++**Cross-ref F.8.4**:
++- F.5.5 audit data `.claude/audits/mcp-coverage/MCP-COVERAGE-2026-06.{md,json}` (19.3K JSON + 5.6K MD)
++- F.8.3 dashboard/vendor/chart.min.js + tabs nav pattern (5ª tab append)
++- F.8.1+F.8.2 api/observability.py (endpoint add via append, mesma module)
++- `dashboard/components/observability_decisions.js` F.8.3 (table sortable pattern reference)
++- Memory: mem_mqdxux9n (F.8.3) + mem_mqdvi9ts (F.8 global) + audit cron F.5.5 reference
++- F.4 cobaia (próximo per ordem) OR F.9 (per analysis F.8.4 closeout)
++
 +**🎯 F.8.3 Decisões Cristalizadas (UI shell observability + 4 tabs + Chart.js vendor) — incorporado 2026-06-14**:
 +
 +F.8.1 + F.8.2 ✅ done (Backend layer completo: 5 endpoints + helpers + EXPLAIN PLAN 5/5 idx). F.8.3 = primeira UI observability owner-facing. 4 tabs consumindo backend endpoints existentes. Chart.js vendor local pra render charts. Pattern UI reference F.5.6 mcp_gateway.js + F.6.4 brain_confirm_drawer.js (IIFE components).
