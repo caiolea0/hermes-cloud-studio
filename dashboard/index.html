@@ -48,6 +48,7 @@
 <script src="/dashboard/components/observability_errors.js" defer></script>
 <script src="/dashboard/components/observability_decisions.js" defer></script>
 <script src="/dashboard/components/observability_resolve_modal.js" defer></script>
+<script src="/dashboard/components/observability_mcp_coverage.js" defer></script>
 </head>
 <body>
 
@@ -1789,6 +1790,7 @@
                         <button class="observability-tab-btn" data-tab="perf" role="tab" aria-selected="false" aria-controls="observability-tab-perf" id="observability-tab-btn-perf" type="button" tabindex="-1">Performance</button>
                         <button class="observability-tab-btn" data-tab="errors" role="tab" aria-selected="false" aria-controls="observability-tab-errors" id="observability-tab-btn-errors" type="button" tabindex="-1">Errors</button>
                         <button class="observability-tab-btn" data-tab="decisions" role="tab" aria-selected="false" aria-controls="observability-tab-decisions" id="observability-tab-btn-decisions" type="button" tabindex="-1">Decisions</button>
+                        <button class="observability-tab-btn" data-tab="mcp-coverage" role="tab" aria-selected="false" aria-controls="observability-tab-mcp-coverage" id="observability-tab-btn-mcp-coverage" type="button" tabindex="-1">MCP Coverage</button>
                     </nav>
 
                     <div class="observability-panels">
@@ -1803,6 +1805,9 @@
                         </section>
                         <section class="observability-panel" data-tab="decisions" id="observability-tab-decisions" role="tabpanel" aria-labelledby="observability-tab-btn-decisions" hidden>
                             <div data-component="observability-decisions"></div>
+                        </section>
+                        <section class="observability-panel" data-tab="mcp-coverage" id="observability-tab-mcp-coverage" role="tabpanel" aria-labelledby="observability-tab-btn-mcp-coverage" hidden>
+                            <div data-component="observability-mcp-coverage"></div>
                         </section>
                     </div>
                 </div>

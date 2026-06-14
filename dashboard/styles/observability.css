@@ -535,3 +535,288 @@
 .observability-error-banner.active {
     display: block;
 }
+
+/* ============================================================
+   F.8.4 — MCP Coverage tab styles
+   ============================================================ */
+
+/* ---- Section layout ---- */
+.mcp-coverage-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+
+.mcp-coverage-section-title {
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* ---- Summary cards row ---- */
+.mcp-coverage-summary-row {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.mcp-coverage-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    min-width: 100px;
+    flex: 1;
+}
+
+.mcp-coverage-card.is-success {
+    border-color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 10%, transparent);
+}
+
+.mcp-coverage-card.is-warning {
+    border-color: var(--color-warn);
+    background: color-mix(in srgb, var(--color-warn) 10%, transparent);
+}
+
+.mcp-coverage-card-value {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-fg);
+    font-variant-numeric: tabular-nums;
+}
+
+.mcp-coverage-card-label {
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+    text-align: center;
+}
+
+/* ---- Heatmap CSS grid (D1 — NÃO Chart.js) ---- */
+.mcp-coverage-heatmap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-x: auto;
+}
+
+.heatmap-header-row,
+.heatmap-row {
+    display: grid;
+    grid-template-columns: 160px repeat(6, 1fr);
+    gap: 2px;
+}
+
+.heatmap-header-cell {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-fg-muted);
+    text-align: center;
+    padding: var(--space-xs) 2px;
+}
+
+.heatmap-label-cell {
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 var(--space-xs);
+    display: flex;
+    align-items: center;
+}
+
+.heatmap-cell {
+    min-height: 28px;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-3);
+    cursor: default;
+    transition: transform 100ms ease;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.08);
+    z-index: 5;
+    position: relative;
+}
+
+.heatmap-cell[data-tier="active"] {
+    background: color-mix(in srgb, var(--color-success) 30%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-success) 50%, transparent);
+}
+
+.heatmap-cell[data-tier="warning"] {
+    background: color-mix(in srgb, var(--color-warn) 30%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-warn) 50%, transparent);
+}
+
+.heatmap-cell[data-tier="orphan"] {
+    background: color-mix(in srgb, var(--color-fg-muted) 18%, transparent);
+}
+
+.heatmap-cell[data-tier="deprecated"] {
+    background: color-mix(in srgb, var(--color-error) 20%, transparent);
+    opacity: 0.65;
+}
+
+.heatmap-cell[data-tier="quarantine"] {
+    background: color-mix(in srgb, var(--color-error) 35%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-error) 55%, transparent);
+}
+
+.heatmap-cell[data-tier="reserved"] {
+    background: var(--color-bg-2);
+    opacity: 0.5;
+}
+
+.heatmap-cell[data-tier="none"] {
+    background: transparent;
+}
+
+/* ---- Sparklines (D3 — top 10 MCPs, 6 meses) ---- */
+.mcp-coverage-sparklines {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.sparkline-row {
+    display: grid;
+    grid-template-columns: 160px 1fr 48px;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.sparkline-label {
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sparkline-canvas {
+    display: block;
+    width: 100%;
+    height: 36px;
+}
+
+.sparkline-total {
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Full table ---- */
+.mcp-coverage-table-wrap {
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+}
+
+.mcp-coverage-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+}
+
+.mcp-coverage-table th {
+    background: var(--color-bg-3);
+    color: var(--color-fg-muted);
+    font-weight: 600;
+    text-align: left;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+}
+
+.mcp-coverage-table td {
+    padding: var(--space-xs) var(--space-sm);
+    color: var(--color-fg);
+    border-bottom: 1px solid var(--color-border);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+}
+
+.mcp-coverage-table tr:last-child td {
+    border-bottom: none;
+}
+
+.mcp-coverage-table tr:hover td {
+    background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+}
+
+/* ---- Tier badge (table column) ---- */
+.mcp-coverage-tier-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.mcp-coverage-tier-badge[data-tier="active"] {
+    background: color-mix(in srgb, var(--color-success) 20%, transparent);
+    color: var(--color-success);
+}
+
+.mcp-coverage-tier-badge[data-tier="warning"] {
+    background: color-mix(in srgb, var(--color-warn) 20%, transparent);
+    color: var(--color-warn);
+}
+
+.mcp-coverage-tier-badge[data-tier="orphan"] {
+    background: color-mix(in srgb, var(--color-fg-muted) 15%, transparent);
+    color: var(--color-fg-muted);
+}
+
+.mcp-coverage-tier-badge[data-tier="deprecated"],
+.mcp-coverage-tier-badge[data-tier="quarantine"] {
+    background: color-mix(in srgb, var(--color-error) 18%, transparent);
+    color: var(--color-error);
+}
+
+.mcp-coverage-tier-badge[data-tier="reserved"] {
+    background: color-mix(in srgb, var(--color-border) 40%, transparent);
+    color: var(--color-fg-muted);
+    opacity: 0.8;
+}
+
+/* ---- Drift badge ---- */
+.mcp-coverage-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    font-weight: 600;
+}
+
+.mcp-coverage-badge.is-warning {
+    background: color-mix(in srgb, var(--color-warn) 20%, transparent);
+    color: var(--color-warn);
+}
+
+/* ---- Empty state ---- */
+.mcp-coverage-empty {
+    padding: var(--space-lg);
+    text-align: center;
+    color: var(--color-fg-muted);
+    font-size: var(--text-sm);
+}

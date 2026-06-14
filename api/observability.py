@@ -593,6 +593,53 @@ async def get_decisions(
 
 
 # ---------------------------------------------------------------------------
+# GET /api/observability/mcp-coverage-history — F.8.4 D2 JSON files glob
+# ---------------------------------------------------------------------------
+
+@router.get("/mcp-coverage-history")
+async def get_mcp_coverage_history(
+    months: int = Query(6, ge=1, le=24, description="Max months to return (1-24)"),
+):
+    """F.8.4 D2 — Read audit JSON snapshots from .claude/audits/mcp-coverage/ glob.
+
+    Returns latest month first. No live DB query — reads F.5.5 cron audit files.
+    Pattern: MCP-COVERAGE-YYYY-MM.json (sorted desc by filename = chronological desc).
+    Graceful: missing dir OR malformed JSON → skip + warning (NÃO 500).
+    """
+    from pathlib import Path
+
+    audit_dir = Path(__file__).parent.parent / ".claude" / "audits" / "mcp-coverage"
+
+    if not audit_dir.exists():
+        return {
+            "months_requested": months,
+            "months_found": 0,
+            "history": [],
+            "latest": None,
+            "warning": "no_audit_dir",
+        }
+
+    json_files = sorted(audit_dir.glob("MCP-COVERAGE-*.json"), reverse=True)[:months]
+
+    history: list[dict] = []
+    for jf in json_files:
+        try:
+            data = json.loads(jf.read_text(encoding="utf-8"))
+            data["_file"] = jf.name
+            history.append(data)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Skip malformed audit %s: %s", jf.name, exc)
+            continue
+
+    return {
+        "months_requested": months,
+        "months_found": len(history),
+        "latest": history[0] if history else None,
+        "history": history,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Debug helper — reviewer dim 13 EXPLAIN PLAN smoke
 # ---------------------------------------------------------------------------
 
