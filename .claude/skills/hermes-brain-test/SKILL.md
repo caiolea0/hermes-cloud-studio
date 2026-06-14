@@ -1,236 +1,411 @@
 ---
 name: hermes-brain-test
-description: Bateria deterministica de testes pro Cerebro Hermes (Brain.decide() orquestrador — F.6) antes de soltar em producao Cobaia Live Ops (F.7). Roda 6 dimensoes: (1) contract API agent-zero/*, (2) decisao reproduzivel via golden cases, (3) gateway MCP isolation (Brain consulta SO via ContextForge), (4) guardrails (zero acao destrutiva sem owner confirm se score<0.7), (5) latencia p95 < 4s, (6) observabilidade Sentry+OTel trace completo. Trigger: "testar brain", "brain test", "validar cerebro hermes", "/hermes-brain-test". Roda ANTES de qualquer merge que toque api/agent_zero.py, brain/decide.py, brain/skills_router.py, ou config dos MCPs (ContextForge/FastMCP custom).
+description: Bateria deterministica de testes pro Cerebro Hermes (Brain.decide() orquestrador — F.6) antes de soltar em producao Cobaia Live Ops (F.7). Roda 6 dimensoes F.6 real (golden cases YAML + smoke offline): (1) contract API agent-zero/brain, (2) decisao reproduzivel via 12 golden cases pytest, (3) gateway MCP isolation (Brain consulta SO via dispatcher), (4) guardrails (destructive intents 100% requires_confirm + low_conf<0.5 → confirm), (5) latencia p95 < 4s offline mock, (6) observabilidade brain_runs + brain_decisions persistidos + Sentry. Trigger: "testar brain", "brain test", "validar cerebro hermes", "/hermes-brain-test". Roda ANTES de qualquer merge que toque brain/decide.py, brain/intents.py, brain/safety.py, brain/persistence.py, brain/_react.py, brain/_smoke.py, api/brain*.py, tests/test_brain_golden.py, ou .claude/brain-golden-cases/*.yaml.
 ---
 
 # /hermes-brain-test — Bateria deterministica Cerebro Hermes
 
-Skill PRE-PRODUCAO. NUNCA pula. Roda end-to-end em <5min. Saida `.claude/BRAIN-TEST-{YYYY-MM-DD-HHMM}.md` priorizado + memory_save por Critical + TaskCreate por bug Critical.
+Skill PRE-PRODUCAO. NUNCA pula. Roda end-to-end em <5min OFFLINE (golden cases <1s).
+Saida `.claude/BRAIN-TEST-{YYYY-MM-DD-HHMM}.md` priorizado + memory_save por Critical
++ TaskCreate por bug Critical.
+
+**F.6.5 update:** substitui baseline F.6.0 (golden_cases JSON mock placeholder) por
+F.6 real (YAML golden cases pytest harness + `brain/_smoke.py` 20/20 baseline).
 
 ## Quando rodar (gates obrigatorios)
-- ANTES de merge em `api/agent_zero.py`, `brain/decide.py`, `brain/skills_router.py`, `brain/policies.py`, `brain/golden_cases/*.json`
-- ANTES de adicionar/remover MCP custom (hermes-linkedin/prospects/skills) ou alterar config ContextForge gateway
-- APOS qualquer mudanca em FastMCP version ou OAuth 2.1 scope filtering
-- Daily smoke (cron VM 06:00 BRT) — detecta drift de decisao por mudanca em modelo Claude / contexto MCP
+
+- ANTES de merge em `brain/decide.py`, `brain/intents.py`, `brain/safety.py`,
+  `brain/persistence.py`, `brain/_react.py`, `brain/_smoke.py`, `brain/dispatch.py`,
+  `api/brain*.py`
+- ANTES de adicionar/remover golden case em `.claude/brain-golden-cases/*.yaml`
+- ANTES de alterar `INTENT_REGISTRY` (intents.py) ou `DESTRUCTIVE_ACTIONS` (safety.py)
 - ANTES de Phase F.7 Cobaia Live Ops ativar com conta real (Caio sagrada)
+- ANTES de promote skill F.4 que toque path Brain
+- Daily smoke (cron VM 06:00 BRT) — detecta drift por mudanca em modelos roteados
 
-## Dimensoes obrigatorias (rodar TODAS, ordem fixa)
+## Tabela de Conteudos (6 Baterias)
 
-### 1. Contract API agent-zero/*
-Arquivos: `api/agent_zero.py` + `tests/api/test_agent_zero_contract.py`
+| # | Bateria | Ferramenta | Critical Path |
+|---|---|---|---|
+| 1 | Contract API agent-zero/brain | `requests` schema check | `POST /api/agent-zero/brain/decide` |
+| 2 | Decisao reproduzivel | `pytest` golden cases × 3 trials | 12 YAML cases zero divergencia |
+| 3 | Gateway MCP isolation | `grep` imports + dispatcher reuse | Zero `from mcps.*` em brain/ |
+| 4 | Guardrails confirm gate | golden cases destructive + low_conf | 5/5 destructive requires_confirm |
+| 5 | Latencia p95 | 30 runs synthetic | p95 < 4s offline mock |
+| 6 | Observability | DB SELECT + Sentry sdk check | brain_runs + brain_decisions persistidos |
 
-Endpoints:
-- `GET /api/agent-zero/status` — retorna `{state, last_decision_at, mcps_healthy: [...], queue_depth, last_error}`
-- `POST /api/agent-zero/chat` — payload `{message, context_id?, dry_run?}` → `{decision, reasoning, mcps_consulted, actions_planned, confidence, requires_owner_confirm}`
-- `GET /api/agent-zero/timeline` — stream WS eventos `brain.thinking | brain.consulted_mcp | brain.decided | brain.action_executed | brain.action_blocked_owner_required`
-- `POST /api/agent-zero/decision/{id}/approve` — owner confirma acao bloqueada
-- `POST /api/agent-zero/decision/{id}/reject` — owner rejeita + razao (alimenta golden cases negativos)
+---
 
-Checks deterministicos:
-- [ ] Schema response bate JSONSchema em `brain/contracts/*.schema.json` (validar com `jsonschema.validate()`)
-- [ ] `requires_owner_confirm` SEMPRE true se `confidence < 0.7` OU acao tipo `linkedin.send_proposal | linkedin.send_inmail | email.send_external | crm.deal_update`
-- [ ] WS `/api/agent-zero/timeline` exige `X-Hermes-Token` (regressao auth A) — fail-closed
-- [ ] `POST /chat` aplica `@limiter.limit("10/minute")` por IP (regressao MERGED-016 slowapi)
-- [ ] `dry_run=true` NUNCA emite efeito colateral (zero MCP write call, zero DB mutation)
+## Bateria 1 — Contract API agent-zero/brain
 
-Comando rapido:
-```
-python tests/api/test_agent_zero_contract.py --strict
-```
+**Arquivos:** `api/brain.py` (endpoints) + `dashboard/components/brain-confirm-drawer.js`
+(F.6.4 consumer)
 
-### 2. Decisao reproduzivel — Golden cases replay
-Arquivo: `brain/golden_cases/*.json` (>=12 cases curados manualmente pelo owner)
+**Endpoints obrigatorios (F.6 real):**
 
-Cada golden case JSON:
-```json
-{
-  "id": "GC-001-icp-pme-cuiaba-qualificado",
-  "input": {"message": "qualifica prospect X CNPJ YYYY", "context_snapshot": {...}},
-  "expected": {
-    "decision_type": "qualify_and_enqueue_outreach",
-    "confidence_min": 0.85,
-    "mcps_consulted": ["hermes-prospects", "firecrawl", "hunter"],
-    "actions_planned_signature": "sha256:..."
-  },
-  "tolerance": {"confidence_drift_max": 0.05, "extra_mcps_allowed": ["sentry"]}
-}
-```
+| Endpoint | Payload | Response shape |
+|---|---|---|
+| `POST /api/agent-zero/brain/decide` | `{intent, context, requester}` | `{run_id, status, result, requires_confirm, latency_ms, total_cost_credits, final_state}` |
+| `POST /api/agent-zero/brain/confirm` | `{run_id, approved, comment}` | `{ok, run_id, final_state, result, comment}` |
+| `GET /api/agent-zero/brain/runs?status=requires_confirm` | query | `{ok, count, runs: [...]}` |
+| `POST /api/agent-zero/brain/replay/{run_id}` | path | `{ok, run, decisions, total_decisions}` |
 
-Categorias minimas obrigatorias:
-- 3x `qualify_prospect` (ICP match alto, medio, fora-ICP)
-- 2x `decide_outreach_channel` (LinkedIn vs Email vs WhatsApp)
-- 2x `handle_reply` (positivo/negativo/spam)
-- 2x `skill_proposal_review` (auto-disable trigger 5+ erros vs aprovacao)
-- 2x `daemon_subsystem_health` (pause linkedin se warning vs continue)
-- 1x `owner_confirmation_required` (acao destrutiva → DEVE bloquear)
+**Checks deterministicos:**
 
-Checks:
-- [ ] Replay roda em modo `dry_run=true` (zero efeito real)
-- [ ] Cada case: `decision_type` IDENTICO ao expected (hard match)
-- [ ] `confidence` dentro de tolerance (`expected.confidence_min - drift_max`)
-- [ ] `mcps_consulted` superset de `expected.mcps_consulted` (extras OK so se whitelisted em `tolerance.extra_mcps_allowed`)
-- [ ] `actions_planned` hash bate com signature (detecta drift de prompt/temperatura)
-- [ ] Falha hard se >=2 cases divergem — bloqueia merge
+- [ ] Pydantic schema response bate exata com `BrainDecideResponse` em `api/brain.py`
+- [ ] `requires_confirm: true` SEMPRE se `intent ∈ DESTRUCTIVE_ACTIONS` OR `confidence < 0.5`
+- [ ] `POST /confirm` exige `X-Hermes-Token` (regressao auth — fail-closed)
+- [ ] `dry_run` flag NAO existe (F.6 substituiu por requires_confirm gate)
+- [ ] `resume_from_run_id` idempotent (re-resume retorna `not_awaiting_confirm`)
+- [ ] `run_id` UUID v4 valido (regex)
 
-Comando:
-```
-python brain/replay_golden_cases.py --strict --dry-run
+**Como rodar:**
+
+```bash
+# Endpoints up locally (server.py :55000 proxy → :8500)
+curl -s -X POST http://localhost:55000/api/agent-zero/brain/decide \
+  -H "X-Hermes-Token: $HERMES_AUTH_TOKEN" -H "Content-Type: application/json" \
+  -d '{"intent":"answer_owner","context":{"question":"smoke"}}' | jq
+
+# Schema assert (jq)
+# requires fields: run_id, status, result, requires_confirm, latency_ms,
+#                  total_cost_credits, final_state
 ```
 
-### 3. Gateway MCP isolation (ContextForge)
-Arquivo: `mcps/gateway-config.yaml` + `brain/mcp_client.py`
+**Failure interpretation:**
 
-Garantia arquitetural: Brain NUNCA fala direto com MCP custom — SEMPRE via ContextForge gateway (auth+rate-limit+audit centralizados).
+- 401 → token rotacionado, atualizar `HERMES_AUTH_TOKEN`
+- 500 + `unknown_intent` → INTENT_REGISTRY drift, verificar `brain/intents.py`
+- `requires_confirm: false` para `send_outreach` → BUG CRITICAL safety, revert imediato
 
-Checks:
-- [ ] `brain/mcp_client.py` so importa `from contextforge_client import GatewayClient` — `grep -rn "import.*mcp" brain/` NAO pode retornar imports diretos a hermes-linkedin/prospects/skills/playwright/github/sentry
-- [ ] Gateway config exige OAuth 2.1 JWT scope por tool (sem wildcard `*`)
-- [ ] Rate limit por MCP: linkedin 30/min, prospects 100/min, skills 10/min (write), sentry 50/min, omnisearch 20/min
-- [ ] Audit log gateway captura `{timestamp, brain_decision_id, mcp_name, tool, args_hash, latency_ms, status}` — validar 1 linha por chamada em ultimo replay
-- [ ] Brain consegue degradar gracioso se gateway 503 (3 retries exponential + fallback decision `defer_to_owner`)
+---
 
-Comando:
-```
-python tests/mcp/test_gateway_isolation.py
-grep -rnE "^from (hermes_linkedin|hermes_prospects|hermes_skills|playwright_mcp|github_mcp|sentry_mcp)" brain/ && echo "VIOLATION" || echo "OK"
-```
+## Bateria 2 — Decisao reproduzivel (Golden cases × 3 trials)
 
-### 4. Guardrails — Zero acao destrutiva sem confirm owner
-Arquivo: `brain/policies.py` + `brain/action_executor.py`
+**Arquivos:** `tests/test_brain_golden.py` + `.claude/brain-golden-cases/*.yaml` (12 cases)
 
-Acoes que SEMPRE exigem `requires_owner_confirm=true`:
-- `linkedin.send_proposal | linkedin.send_inmail | linkedin.send_connection_with_note`
-- `linkedin.comment.delete | linkedin.comment.edit` (toca conta Caio sagrada)
-- `email.send_external` (qualquer destinatario @ fora do dominio cobaia)
-- `crm.deal_update | crm.contact_delete`
-- `skills.auto_disable | skills.deploy_new_version`
-- `daemon.pause_subsystem | daemon.resume_subsystem` (operacional, owner ciente)
-- QUALQUER acao se `confidence < 0.7`
+**Garantia determinismo:** Rodar 12 golden cases × 3 trials sequenciais → 100% mesmo
+outcome em todas as runs (intent_classified, status, requires_confirm, confidence
+dentro de range, max_iterations). Divergencia entre trials = drift de prompt OU
+non-determinism em ReAct loop = BLOQUEIA MERGE.
 
-Checks:
-- [ ] Test matrix: pra cada acao acima, criar input que dispara `confidence=0.95` E acao destrutiva → SEMPRE `requires_owner_confirm=true`
-- [ ] Action executor: se `requires_owner_confirm=true` E `owner_approval_token` ausente → raise `OwnerApprovalRequired` + audit log + WS broadcast `brain.action_blocked_owner_required`
-- [ ] Replay: passar `owner_approval_token=null` em 5 acoes destrutivas → todas devem bloquear (zero false-negative)
-- [ ] Verificar `brain/policies.py` tem allowlist explicit, NUNCA blocklist (fail-closed)
-- [ ] Cross-check com FRONTEND-GAP.md F.1: cada endpoint destrutivo aparece em UI com modal de confirmacao (manual visual — registrar screenshot em `.claude/brain-test/screenshots/`)
+**Categorias cobertas:**
 
-Comando:
-```
-python tests/brain/test_owner_confirm_gates.py --all-destructive
-```
+| Intent | Happy case | Edge case |
+|---|---|---|
+| answer_owner | conf 0.92 completed | conf 0.42 low_conf → requires_confirm |
+| send_outreach | conf 0.92 destructive → requires_confirm | max_iter 5 → requires_confirm |
+| synth_skill | conf 0.88 completed | conf 0.38 low_conf → requires_confirm |
+| classify_prospect | conf 0.85 completed | conf 0.40 low_conf → requires_confirm |
+| summarize_conversation | conf 0.80 completed | conf 0.72 long context completed |
+| route_skill_run | utility no LLM completed | utility unknown skill completed |
 
-### 5. Latencia p95
-Brain decide() roda end-to-end (MCP consults + LLM call + action plan): alvo p95 < 4s, p99 < 8s.
+**Como rodar:**
 
-Checks:
-- [ ] Rodar 50 golden cases sequenciais (3x cada = 150 runs), medir percentis com `numpy.percentile`
-- [ ] p95 < 4000ms, p99 < 8000ms — falha hard se exceder
-- [ ] Breakdown por fase: `mcp_consult_total | llm_call | action_plan_serialize` — nenhuma fase >70% do orcamento
-- [ ] Detectar regressao vs baseline anterior (.claude/brain-test/baseline-latency.json) — alertar se p95 piorar >20%
+```bash
+# Single run
+rtk proxy python -m pytest tests/test_brain_golden.py -v --tb=short
 
-Comando:
-```
-python tests/perf/brain_latency_bench.py --runs 150 --baseline .claude/brain-test/baseline-latency.json
+# 3 trials sequenciais (determinism check)
+for i in 1 2 3; do
+  echo "=== Trial $i ==="
+  rtk proxy python -m pytest tests/test_brain_golden.py -v 2>&1 | tail -5
+done
+
+# Parallel xdist (smoke race conditions)
+rtk proxy python -m pytest tests/test_brain_golden.py -n auto
 ```
 
-### 6. Observabilidade — Sentry + OpenTelemetry trace completo
-Arquivos: `brain/instrumentation.py` + Sentry MCP integration
+**Failure interpretation:**
 
-Cada decisao Brain DEVE emitir:
-- Sentry transaction `brain.decide` com tags `{decision_type, confidence_bucket, mcps_count, owner_confirm_required}`
-- OTel span hierarchy: `brain.decide` → `mcp.consult.{name}` (N filhos) → `llm.call` → `action.plan`
-- Span attributes obrigatorios: `decision_id`, `golden_case_id` (se replay), `dry_run`, `gateway_audit_id`
-- Errors capturados via `sentry_sdk.capture_exception()` com contexto `{decision_id, last_mcp, partial_state}`
+- 1 case falha → ler `pytest --tb=long` + comparar com YAML expected
+- Múltiplas falhas em mesmo intent → INTENT_REGISTRY drift OR react_loop regression
+- Divergencia entre trials → non-determinism: investigar `asyncio.gather` (bug pattern
+  mem_mq7i9caw) ou random seeds não-fixados
+- 11/12 ou 13/12 collected → YAML novo/removido sem update README, rodar count test
 
-Checks:
-- [ ] Rodar 10 golden cases com Sentry self-hosted (VM `--insecure-http`) e validar 10 transactions chegaram
-- [ ] OTel trace export: validar span tree completo via `jaeger-query` ou `tempo` (1 trace por decision_id)
-- [ ] Inject failure: matar gateway mid-decision → Sentry recebe exception com stacktrace + context
-- [ ] auto-disable skill criterio (5+ erros em janela): consultar Sentry `search_errors` MCP — deve retornar contagem real, nao mock
+---
 
-Comando:
+## Bateria 3 — Gateway MCP isolation
+
+**Arquivos:** `brain/dispatch.py` (GatewayDispatcher) + `brain/decide.py` + `brain/intents.py`
+
+**Garantia arquitetural:** Brain NUNCA fala direto com MCPs custom — SEMPRE via
+`GatewayDispatcher.route()` ou `.invoke_tool()` (ContextForge gateway F.5.1 +
+auth+rate-limit+audit centralizados).
+
+**Checks:**
+
+- [ ] `grep -rnE "^from mcps\." brain/` deve retornar ZERO matches
+- [ ] `grep -rnE "^from hermes_(linkedin|prospects|skills)" brain/` ZERO matches
+- [ ] `brain/dispatch.py` é UNICO ponto que conhece gateway URL
+- [ ] MockDispatcher subclassing preserva contract (route + invoke_tool signatures)
+- [ ] Gateway 503 → Brain degrada gracioso (3 retries exponential + fallback decision)
+
+**Como rodar:**
+
+```bash
+# Verify zero direct MCP imports em brain/
+rtk proxy grep -rnE "^from mcps\.|^import mcps\.|^from hermes_(linkedin|prospects|skills)" brain/ \
+  && echo "VIOLATION" || echo "OK"
+
+# MockDispatcher contract preserved
+rtk proxy python -c "from brain._smoke import MockDispatcher; \
+  m = MockDispatcher(); assert hasattr(m, 'route') and hasattr(m, 'invoke_tool'); print('OK')"
 ```
-python tests/observability/brain_trace_validate.py --sentry-url $SENTRY_URL --otel-collector $OTEL_URL
+
+**Failure interpretation:**
+
+- Match em `from mcps.*` → BUG CRITICAL: alguem bypassou gateway, revert + refactor pra
+  usar dispatcher
+- MockDispatcher contract broken → golden tests vão falhar em massa, revert _smoke.py
+
+---
+
+## Bateria 4 — Guardrails confirm gate (Zero acao destrutiva sem owner)
+
+**Arquivos:** `brain/safety.py` (DESTRUCTIVE_ACTIONS frozenset) + `brain/decide.py`
+(needs_confirm gate)
+
+**Acoes que SEMPRE exigem `requires_confirm: true`:**
+
+```python
+DESTRUCTIVE_ACTIONS = frozenset({
+    "send_outreach",        # F.7 LinkedIn outreach dispatch
+    "send_message",         # email + WhatsApp
+    "send_inmail",          # LinkedIn InMail premium
+    "synth_skill_promote",  # F.4 skill ativacao producao
+    "deploy_skill_pr",      # F.4 PR creation
+})
 ```
+
+PLUS: `confidence < 0.5` para QUALQUER intent → requires_confirm `low_confidence`.
+
+**Checks (cobertos por golden cases B2):**
+
+- [ ] 5 destructive intents — golden case requires_confirm: true 100%
+- [ ] Confidence < 0.5 — golden case requires_confirm: true (testado por
+      answer_owner_low_conf, classify_prospect_low_conf, synth_skill_code_error)
+- [ ] DESTRUCTIVE_ACTIONS frozenset NAO mutavel (security check)
+- [ ] Sanity test `test_destructive_intents_always_require_confirm` em
+      `tests/test_brain_golden.py`
+
+**Como rodar:**
+
+```bash
+# Sanity tests sozinhos
+rtk proxy python -m pytest tests/test_brain_golden.py::test_destructive_intents_always_require_confirm -v
+
+# Frozenset immutability check
+rtk proxy python -c "from brain.safety import DESTRUCTIVE_ACTIONS; \
+  assert isinstance(DESTRUCTIVE_ACTIONS, frozenset); \
+  try: DESTRUCTIVE_ACTIONS.add('hack'); raise SystemExit('FAIL: mutable!')
+  except AttributeError: print('OK: immutable frozenset')"
+```
+
+**Failure interpretation:**
+
+- destructive intent retornando `requires_confirm: false` → BUG CRITICAL safety,
+  revert imediato + investigar `safety.requires_owner_confirm()` regression
+- DESTRUCTIVE_ACTIONS mutavel → mudanca arquitetural inaceitavel, revert
+
+---
+
+## Bateria 5 — Latencia p95 (offline mock)
+
+**Garantia performance:** Brain.decide() roda end-to-end (state transitions +
+dispatcher mock + persistence) — alvo p95 < 4000ms em OFFLINE_MODE (generous threshold
+mock simula network latency zero).
+
+**Real-mode latencia (NIM live) target F.7: p95 < 8000ms — não testado F.6.5
+(NIM rotation defer F.future).**
+
+**Como rodar:**
+
+```bash
+# 30 runs synthetic + percentil
+rtk proxy python -c "
+import asyncio, time
+from brain.decide import Brain
+from brain._smoke import MockDispatcher
+
+async def bench():
+    latencies = []
+    for i in range(30):
+        b = Brain(dispatcher=MockDispatcher())
+        t0 = time.monotonic()
+        await b.decide('answer_owner', {'i': i})
+        latencies.append((time.monotonic() - t0) * 1000)
+    latencies.sort()
+    p50 = latencies[14]
+    p95 = latencies[28]
+    p99 = latencies[29]
+    print(f'p50={p50:.1f}ms p95={p95:.1f}ms p99={p99:.1f}ms')
+    assert p95 < 4000, f'FAIL: p95={p95:.1f}ms exceeds 4000ms'
+    print('OK: p95 within budget')
+
+asyncio.run(bench())
+"
+```
+
+**Failure interpretation:**
+
+- p95 > 4000ms offline → regression: investigar persistence lock contention,
+  asyncio gather (mem_mq7i9caw bug pattern), ou debug overhead
+- p95 entre 2000-4000ms → borderline, considerar profile cProfile
+
+---
+
+## Bateria 6 — Observability (DB + Sentry)
+
+**Arquivos:** `brain/persistence.py` (brain_runs + brain_decisions) + Sentry SDK init
+em `server.py`
+
+**Checks:**
+
+- [ ] Cada `Brain.decide()` persiste 1 row em `brain_runs` (SYNC insert no inicio,
+      UPDATE no final)
+- [ ] Cada state transition persiste >= 5 rows em `brain_decisions` (async writer
+      queue drain)
+- [ ] `replay_run(run_id)` retorna full trace (covered por brain/_smoke.py P3)
+- [ ] Sentry SDK importavel + `capture_exception()` callable em path de erro
+- [ ] `owner_comment` column populado em rows `owner_approved` / `owner_rejected`
+      (F.6.4 confirm flow)
+
+**Como rodar:**
+
+```bash
+# Brain._smoke baseline cobre 20/20 (incluindo persistence + replay + confirm)
+rtk proxy python -m brain._smoke
+
+# Sentry SDK importavel
+rtk proxy python -c "import sentry_sdk; print('Sentry SDK OK', sentry_sdk.VERSION)"
+
+# DB inspection ultimas runs
+rtk proxy python -c "
+import sqlite3
+c = sqlite3.connect('hermes_local.db')
+rows = c.execute('SELECT id, intent, final_state, total_latency_ms FROM brain_runs ORDER BY started_at DESC LIMIT 5').fetchall()
+for r in rows: print(r)
+"
+```
+
+**Failure interpretation:**
+
+- `brain_runs` count = 0 → persistence quebrou, investigar `insert_run` SQL OR
+  schema migrate not applied
+- `brain_decisions` count < 5 per run → writer queue não drenou, investigar
+  `_ensure_writer` task lifecycle
+- Sentry SDK missing → `pip install sentry-sdk`, depois config em server.py init
+
+---
 
 ## Output esperado
 
 Arquivo `.claude/BRAIN-TEST-{YYYY-MM-DD-HHMM}.md`:
 
 ```
-HERMES BRAIN TEST — {timestamp}
-Branch: {git branch} | Commit: {sha7}
-Duracao total: {Xs}
+HERMES BRAIN TEST — 2026-06-14T12:30
+Branch: master | Commit: ff7124e
+Duracao total: 1m12s
 
-DIMENSION 1 — Contract API agent-zero/*
-  PASS  /status schema valido
-  PASS  /chat dry_run zero efeito
-  FAIL  [BT-001] /timeline WS aceita conexao sem X-Hermes-Token — auth regression
-        fix: adicionar verify_token dependency em ws_agent_zero handler
+BATERIA 1 — Contract API agent-zero/brain
+  PASS  POST /brain/decide schema valido (7/7 fields)
+  PASS  POST /brain/confirm idempotent (409 not_awaiting_confirm)
+  PASS  GET /brain/runs?status=requires_confirm
 
-DIMENSION 2 — Golden cases replay (12/12)
-  PASS  GC-001 ate GC-010
-  FAIL  [BT-002] GC-011 owner_confirmation_required — confidence retornou 0.72 (expected min 0.85, drift 0.13 > tolerance 0.05)
-        fix: investigar prompt regression brain/prompts/qualify.j2
+BATERIA 2 — Decisao reproduzivel (12 golden cases × 3 trials)
+  PASS  Trial 1: 14/14 PASSED 0.5s
+  PASS  Trial 2: 14/14 PASSED 0.5s
+  PASS  Trial 3: 14/14 PASSED 0.5s
+  PASS  Zero divergencia entre trials (determinism)
 
-DIMENSION 3 — Gateway MCP isolation
-  PASS  zero import direto MCP em brain/
-  PASS  audit log gateway 47/47 chamadas registradas
+BATERIA 3 — Gateway MCP isolation
+  PASS  grep mcps.* em brain/ → ZERO matches
+  PASS  MockDispatcher contract preserved
 
-DIMENSION 4 — Guardrails owner confirm
-  PASS  6/6 acoes destrutivas bloqueadas sem owner_approval_token
+BATERIA 4 — Guardrails confirm gate
+  PASS  5/5 destructive intents → requires_confirm: true
+  PASS  3/3 low_conf cases (<0.5) → requires_confirm
+  PASS  DESTRUCTIVE_ACTIONS frozenset immutable
 
-DIMENSION 5 — Latencia
-  p50=1.2s p95=3.4s p99=6.1s — DENTRO orcamento
-  PASS  baseline drift +8% (limite +20%)
+BATERIA 5 — Latencia
+  p50=12.4ms p95=18.7ms p99=24.1ms — DENTRO orcamento (limite p95 < 4000ms)
+  PASS
 
-DIMENSION 6 — Observabilidade
-  PASS  10/10 Sentry transactions
-  PASS  OTel trace tree completo
-  FAIL  [BT-003] auto-disable criterio consulta Sentry retornou mock em test mode
-        fix: criar fixture sentry_mcp_live em tests/conftest.py
+BATERIA 6 — Observability
+  PASS  brain_runs ultima 5 rows OK (final_state populated)
+  PASS  brain_decisions avg N=6 per run (>=5 esperado)
+  PASS  Sentry SDK importavel (2.18.0)
+  PASS  brain/_smoke.py 20/20 baseline (P1-P11 persistence + confirm)
 
 SUMARIO:
-- Critical: 1 (BT-001 auth regression bloqueia merge)
-- High: 1 (BT-002 confidence drift)
-- Medium: 1 (BT-003 fixture mock)
+- Critical: 0
+- High: 0
+- Medium: 0
 - Low: 0
 
-VEREDICTO: BLOQUEAR MERGE (1 Critical)
-
-Priorizado:
-1. BT-001 — fix auth WS timeline (5min)
-2. BT-002 — investigar prompt drift (30min)
-3. BT-003 — fixture sentry live (15min)
+VEREDICTO: PASS — merge LIBERADO
 ```
 
 ## Integracao
 
-- **Critical achado** → `TaskCreate` com title `Fix {BT-id}` + body apontando arquivo+linha+fix sugerido
-- **Persistir relatorio** em `.claude/BRAIN-TEST-{date}.md` (nunca sobrescreve — historico)
-- **memory_save** tipo `bug` por Critical/High, concepts=[hermes, brain, phase-f6, dimension-N]
-- **mark_chapter** se rodada manual no fim de sessao Phase F.6: `Brain test passed — N findings resolvidos`
-- **Gate CI/CD**: workflow `.github/workflows/brain-test.yml` roda skill em PR que toca `brain/**` ou `mcps/gateway-config.yaml` — falha hard se Critical > 0
-- **Daily cron VM** (06:00 BRT): roda smoke (dimensoes 1+2+5) e abre issue GitHub se regressao detectada vs baseline
+- **Critical achado** → `TaskCreate` com title `Fix {BT-id}` + body apontando
+  arquivo+linha+fix sugerido
+- **Persistir relatorio** em `.claude/BRAIN-TEST-{date}.md` (nunca sobrescreve —
+  historico)
+- **memory_save** tipo `bug` por Critical/High, concepts=[hermes, brain, phase-f6,
+  bateria-N]
+- **mark_chapter** se rodada manual no fim de sessao Phase F.6: `Brain test passed —
+  N findings resolvidos`
+- **CI integration:** LOCAL ONLY F.6.5 (owner solo no-code). GitHub Actions workflow
+  `.github/workflows/brain-regression.yml` defer F.future
+- **Daily cron VM** (06:00 BRT): roda Baterias 2 + 5 smoke (golden cases + latencia)
+  e abre Telegram alert se regressao vs baseline
 
 ## Pre-requisitos
 
-- Brain F.6 implementado (api/agent_zero.py + brain/* + ContextForge gateway up)
-- Golden cases curados (>=12 em brain/golden_cases/*.json)
-- Sentry self-hosted ou cloud configurado, OTel collector reachable
-- FastMCP 3.0 instalado (framework dos custom MCPs)
-- baseline-latency.json existe (criar com primeira rodada `--save-baseline`)
+- Brain F.6 implementado (`brain/decide.py` + `brain/intents.py` + `brain/safety.py`
+  + `brain/persistence.py` + `brain/dispatch.py`)
+- 12 golden cases em `.claude/brain-golden-cases/*.yaml`
+- pytest>=9.0 + pytest-asyncio + pytest-xdist + PyYAML instalados
+- `brain/_smoke.py` 20/20 baseline PASSED (pre-flight)
+- `pytest.ini` com `asyncio_mode=auto`
+- Sentry SDK opcional (Bateria 6 degrada gracioso se ausente)
 
 ## Falha modes (NAO rodar skill se)
 
-- ContextForge gateway DOWN → abort dimensao 3 com warning, demais rodam
-- Sentry unreachable → dimensao 6 SKIP com warning (nao falha total)
-- Golden cases <12 → abort total com erro `INSUFFICIENT_COVERAGE`
-- Brain endpoint /status retorna `state=initializing` → wait max 30s, depois abort
+- Golden cases <12 OR >12 → abort total com erro `INSUFFICIENT_COVERAGE` ou `OVER_COVERAGE`
+- `brain/_smoke.py` baseline FAIL → abort pre-flight, fix _smoke primeiro
+- Gateway gateway DOWN → Bateria 1 SKIP com warning, demais rodam offline
+- Sentry unreachable → Bateria 6 partial PASS (skip SDK check, persistence ainda valida)
+- HERMES_AUTH_TOKEN expirado → Bateria 1 SKIP, demais rodam
 
 ## Sanity guards (defesa em profundidade)
 
-- Skill SEMPRE roda em `--dry-run` por default — flag `--live` exige confirm explicito do owner via prompt CLI (`type CONFIRM`)
-- Zero golden case pode tocar conta LinkedIn Caio real (validacao: todos `context_snapshot.account_id` devem comecar com `cobaia-*`)
-- Audit log gateway deve ser append-only — verificar permissao arquivo `chmod 600` + dono = service account
-- Latencia bench nao roda em horario business owner (08-20 BRT) se VM compartilhada
+- Skill SEMPRE roda em modo OFFLINE_MODE=1 por default — flag `--live` exige confirm
+  explicit do owner via prompt CLI (`type CONFIRM`)
+- Zero golden case pode tocar conta LinkedIn Caio real (validacao: BLACKLIST R2
+  zero matches em `linkedin/`)
+- DB tmp isolado por test (`golden_db_path` fixture) — zero pollution em
+  `hermes_local.db` real
+- Latencia bench OFFLINE — não testa NIM live (NIM key rotation defer F.future,
+  decisão owner formal)
+
+## Quick reference (one-liners)
+
+```bash
+# Full battery (todas 6)
+rtk proxy python -m pytest tests/test_brain_golden.py -v && \
+rtk proxy python -m brain._smoke && \
+echo "ALL BRAIN TESTS PASSED"
+
+# Just golden cases (Bateria 2)
+rtk proxy python -m pytest tests/test_brain_golden.py -v
+
+# Just baseline (Baterias 4 + 6 cobertas)
+rtk proxy python -m brain._smoke
+
+# Parallel speed run
+rtk proxy python -m pytest tests/test_brain_golden.py -n auto
+```
