@@ -165,56 +165,300 @@ async def get_credits():
 
 
 # ---------------------------------------------------------------------------
-# GET /api/observability/errors — F.8.2 STUB (schema ready, full impl F.8.2)
+# F.8.2 Errors HYBRID Sentry MCP + local errors_inbox (D1+D2+D3+D5)
 # ---------------------------------------------------------------------------
 
-@router.get("/errors")
-async def get_errors(
-    status: str = Query("open", description="open | resolved | wontfix"),
-    category: Optional[str] = Query(None, description="filter category"),
-    limit: int = Query(100, ge=1, le=1000),
-):
-    """⚠️ F.8.2 STUB: returns local errors_inbox rows only.
+_DEFAULT_CATEGORIES = ("mcp_bypass", "brain_safety_gate", "validation_phase_fail")
+_ALLOWED_STATUS = {"open", "resolved", "wontfix"}
+# D5 — Sentry MCP timeout cap (graceful fallback to local-only).
+_SENTRY_TIMEOUT_SECS = 10.0
 
-    F.8.2 implementa Sentry MCP F.5.6 hybrid query + triage workflow + POST
-    resolve endpoint. F.8.1 expose local read-only.
+# Lazy gateway dispatcher (per-request would re-init httpx client; module-level reuse).
+_DISPATCHER: GatewayDispatcher | None = None
+
+
+def _get_dispatcher() -> GatewayDispatcher:
+    global _DISPATCHER
+    if _DISPATCHER is None:
+        _DISPATCHER = GatewayDispatcher(timeout=_SENTRY_TIMEOUT_SECS)
+    return _DISPATCHER
+
+
+async def _query_sentry_issues(category: str, range_str: str) -> list[dict[str, Any]]:
+    """D1 — Sentry MCP F.5.6 FILTER by category tag + severity level.
+
+    Returns [] gracefully on timeout/connect_error/MCP-missing (preserves local-only
+    fallback path). NEVER raises — defense-in-depth (errors UI must not crash).
     """
-    if status not in ("open", "resolved", "wontfix"):
-        return JSONResponse(status_code=400,
-                            content={"detail": "status must be open|resolved|wontfix"})
-    if not DB_PATH.exists():
-        return {"items": [], "note": f"DB not found: {DB_PATH}",
-                "stub_label": "F.8.2_implements_sentry_mcp_hybrid"}
+    stats_period = range_str if range_str in {"24h", "7d", "30d"} else "24h"
+    args = {
+        "level": "warning,error,fatal",          # D1 severity filter
+        "query": f"tags[category]:{category}",   # D1 category filter via Sentry tags
+        "statsPeriod": stats_period,
+        "limit": 100,
+    }
+    try:
+        resp = await _get_dispatcher().invoke_tool(
+            server="sentry", tool="list_issues", args=args,
+        )
+    except Exception as exc:  # noqa: BLE001 — defensive boundary
+        log.warning("sentry list_issues exception: %s", type(exc).__name__)
+        return []
+    if not resp.get("ok"):
+        log.debug("sentry list_issues not_ok: %s", resp.get("error"))
+        return []
+    payload = resp.get("response") or {}
+    if isinstance(payload, dict):
+        issues = payload.get("issues") or payload.get("data") or []
+    elif isinstance(payload, list):
+        issues = payload
+    else:
+        issues = []
+    return [i for i in issues if isinstance(i, dict)]
 
-    conn = sqlite3.connect(str(DB_PATH))
+
+def _query_local_errors(
+    db_path,
+    category: str,
+    range_str: str,
+    status: str,
+) -> list[dict[str, Any]]:
+    """Local errors_inbox query aligned on category + status + time range."""
+    interval = _RANGE_INTERVALS.get(range_str, "-1 day")
+    if not db_path.exists():
+        return []
+    conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     try:
         existing = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='errors_inbox'"
         ).fetchone()
         if not existing:
-            return {"items": [], "note": "errors_inbox missing — apply F.8.1 migration",
-                    "stub_label": "F.8.2_implements_sentry_mcp_hybrid"}
+            return []
+        rows = conn.execute(
+            """SELECT id, category, severity, title, message, sentry_issue_id,
+                      status, resolved_by, resolved_at, metadata_json, created_at
+               FROM errors_inbox
+               WHERE category = ? AND status = ? AND created_at > datetime('now', ?)
+               ORDER BY created_at DESC
+               LIMIT 500""",
+            (category, status, interval),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
-        params: list = [status]
-        where = "WHERE status = ?"
-        if category:
-            where += " AND category = ?"
-            params.append(category)
-        params.append(limit)
-        rows = [dict(r) for r in conn.execute(
-            f"""SELECT id, category, severity, title, message,
-                       sentry_issue_id, status, resolved_by, resolved_at, created_at
-                FROM errors_inbox
-                {where}
-                ORDER BY created_at DESC
-                LIMIT ?""", params
-        ).fetchall()]
-        return {
-            "items": rows,
-            "filters": {"status": status, "category": category, "limit": limit},
-            "stub_label": "F.8.2_implements_sentry_mcp_hybrid",
+
+def _merge_errors(
+    sentry_items: list[dict[str, Any]],
+    local_items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Merge Sentry MCP issues + local errors_inbox rows.
+
+    Dedup key: sentry_issue_id (when local row references same Sentry issue).
+    Sentry-only items are tagged source='sentry'; local-only source='local';
+    overlap source='both' (local resolution wins for status).
+    """
+    by_sentry_id: dict[str, dict[str, Any]] = {}
+    out: list[dict[str, Any]] = []
+
+    for s in sentry_items:
+        sid = str(s.get("id") or s.get("issue_id") or "")
+        if not sid:
+            continue
+        s_norm = {
+            "source": "sentry",
+            "sentry_issue_id": sid,
+            "title": s.get("title") or s.get("message") or "(no title)",
+            "category": (s.get("tags") or {}).get("category") if isinstance(s.get("tags"), dict) else None,
+            "severity": s.get("level") or s.get("severity") or "warning",
+            "status": s.get("status") or "open",
+            "created_at": s.get("lastSeen") or s.get("firstSeen") or s.get("created_at"),
+            "count": s.get("count"),
+            "permalink": s.get("permalink"),
         }
+        by_sentry_id[sid] = s_norm
+        out.append(s_norm)
+
+    for loc in local_items:
+        sid = loc.get("sentry_issue_id")
+        if sid and str(sid) in by_sentry_id:
+            existing = by_sentry_id[str(sid)]
+            existing["source"] = "both"
+            existing["local_id"] = loc["id"]
+            existing["status"] = loc["status"]                  # local resolution wins
+            existing["resolved_by"] = loc.get("resolved_by")
+            existing["resolved_at"] = loc.get("resolved_at")
+            existing["metadata_json"] = loc.get("metadata_json")
+        else:
+            out.append({
+                "source": "local",
+                "local_id": loc["id"],
+                "sentry_issue_id": loc.get("sentry_issue_id"),
+                "title": loc.get("title"),
+                "message": loc.get("message"),
+                "category": loc.get("category"),
+                "severity": loc.get("severity"),
+                "status": loc.get("status"),
+                "resolved_by": loc.get("resolved_by"),
+                "resolved_at": loc.get("resolved_at"),
+                "metadata_json": loc.get("metadata_json"),
+                "created_at": loc.get("created_at"),
+            })
+
+    out.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    return out
+
+
+@router.get("/errors")
+async def get_errors(
+    range: str = Query("24h", description="D2 24h | 7d | 30d"),
+    status: str = Query("open", description="open | resolved | wontfix"),
+    category: Optional[str] = Query(None, description="filter single category (else 3 defaults)"),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+):
+    """F.8.2 REAL — Errors HYBRID Sentry MCP + local errors_inbox.
+
+    D1 Sentry MCP filter level + tags category (graceful fallback local-only).
+    D2 ?range=24h|7d|30d default 24h.
+    D3 ?offset=&limit= per category (default 50 max 200) + X-Total-Count header.
+
+    Returns items_by_category{cat -> {items, total, offset, limit}} + total_count.
+    """
+    if range not in _ALLOWED_RANGES:
+        raise HTTPException(400, f"range must be one of {sorted(_ALLOWED_RANGES)}")
+    if status not in _ALLOWED_STATUS:
+        raise HTTPException(400, f"status must be one of {sorted(_ALLOWED_STATUS)}")
+
+    categories = (category,) if category else _DEFAULT_CATEGORIES
+
+    result: dict[str, Any] = {
+        "period": range,
+        "status_filter": status,
+        "items_by_category": {},
+        "total_count": 0,
+        "sentry_available": True,
+    }
+
+    for cat in categories:
+        sentry_items = await _query_sentry_issues(cat, range)
+        if not sentry_items:
+            result["sentry_available"] = False
+        local_items = _query_local_errors(DB_PATH, cat, range, status)
+        merged = _merge_errors(sentry_items, local_items)
+        # Status filter (Sentry items may not match requested status)
+        merged = [m for m in merged if m.get("status") == status or m.get("source") == "sentry"]
+
+        total = len(merged)
+        paginated = merged[offset:offset + limit]
+        result["items_by_category"][cat] = {
+            "items": paginated,
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+        }
+        result["total_count"] += total
+
+    return Response(
+        content=json.dumps(result, default=str),
+        media_type="application/json",
+        headers={"X-Total-Count": str(result["total_count"])},
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/observability/errors/{id}/resolve — F.8.2 D5 atomic + optimistic lock
+# ---------------------------------------------------------------------------
+
+class ResolveErrorRequest(BaseModel):
+    """D5 payload — action + optional 500-char comment (sanitized server-side)."""
+    action: str = Field(..., pattern="^(resolve|wontfix)$")
+    comment: str = Field(default="", max_length=500)
+
+
+@router.post("/errors/{error_id}/resolve")
+async def resolve_error(error_id: str, req: ResolveErrorRequest):
+    """F.8.2 D5 — atomic Sentry MCP resolve + local UPDATE optimistic lock 409.
+
+    Flow:
+      1. Load local errors_inbox row (404 if not_found).
+      2. Optimistic lock: 409 if status != 'open' (idempotent re-check).
+      3. Sanitize comment via brain.dispatch.sanitize (SENSITIVE_KEYS — defesa em
+         profundidade vs Pydantic max_length already 500).
+      4. If sentry_issue_id present: dispatch sentry.resolve_issue (timeout 10s).
+         Fallback graceful: local UPDATE still proceeds + warning.
+      5. Local UPDATE WHERE status='open' (atomic — race-free with other tabs).
+    """
+    if not DB_PATH.exists():
+        raise HTTPException(503, "DB unavailable")
+
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT id, status, sentry_issue_id FROM errors_inbox WHERE id = ?",
+            (error_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "error_not_found")
+        error = dict(row)
+
+        if error["status"] != "open":
+            raise HTTPException(409, f"already_{error['status']}")
+
+        # Sanitize comment SENSITIVE_KEYS (pattern F.6.4 D2)
+        sanitized = sanitize({"comment": req.comment or ""})
+        safe_comment = str(sanitized.get("comment") or "")[:500]
+
+        sentry_resolved = False
+        sentry_warning: str | None = None
+        if error.get("sentry_issue_id"):
+            try:
+                sresp = await _get_dispatcher().invoke_tool(
+                    server="sentry",
+                    tool="resolve_issue",
+                    args={"issue_id": error["sentry_issue_id"]},
+                )
+                sentry_resolved = bool(sresp.get("ok"))
+                if not sentry_resolved:
+                    sentry_warning = "sentry_mcp_failed_fallback_local_only"
+            except Exception as exc:  # noqa: BLE001
+                sentry_warning = f"sentry_mcp_exception:{type(exc).__name__}"
+
+        new_status = "resolved" if req.action == "resolve" else "wontfix"
+        metadata = json.dumps({
+            "comment": safe_comment,
+            "sentry_resolved": sentry_resolved,
+            "sentry_warning": sentry_warning,
+        })
+        resolved_at_iso = datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z"
+
+        # Optimistic lock — UPDATE WHERE status='open' atomic (rowcount=0 → race)
+        cursor = conn.execute(
+            """UPDATE errors_inbox
+                  SET status = ?,
+                      resolved_by = ?,
+                      resolved_at = ?,
+                      metadata_json = ?
+                WHERE id = ? AND status = 'open'""",
+            (new_status, "owner", resolved_at_iso, metadata, error_id),
+        )
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(409, "race_condition_status_changed")
+
+        response: dict[str, Any] = {
+            "ok": True,
+            "error_id": error_id,
+            "action": req.action,
+            "new_status": new_status,
+            "sentry_resolved": sentry_resolved,
+            "resolved_at": resolved_at_iso,
+        }
+        if sentry_warning:
+            response["warning"] = sentry_warning
+        return response
     finally:
         conn.close()
 
