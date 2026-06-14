@@ -495,7 +495,8 @@ function navigate(page) {
         claude: 'AI Terminal',
         lab: 'Lab Cockpit',
         'mcp-gateway': 'MCP Gateway',
-        observability: 'Observability'
+        observability: 'Observability',
+        'pipeline-studio': 'Pipeline Studio'
     };
     if (page === 'linkedin') {
         loadLinkedInPage();
@@ -554,6 +555,12 @@ function navigate(page) {
         if (window.ObservabilityShell && typeof window.ObservabilityShell.init === 'function') {
             try { window.ObservabilityShell.init('[data-component="observability-shell"]'); }
             catch (e) { console.warn('ObservabilityShell init failed', e); }
+        }
+    } else if (page === 'pipeline-studio') {
+        // F.9.3 — Pipeline Studio shell init (idempotent: re-entry refresh).
+        if (window.PipelineStudioShell && typeof window.PipelineStudioShell.init === 'function') {
+            try { window.PipelineStudioShell.init('[data-component="pipeline-studio-shell"]'); }
+            catch (e) { console.warn('PipelineStudioShell init failed', e); }
         }
     }
 }

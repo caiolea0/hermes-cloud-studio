@@ -49,6 +49,13 @@
 <script src="/dashboard/components/observability_decisions.js" defer></script>
 <script src="/dashboard/components/observability_resolve_modal.js" defer></script>
 <script src="/dashboard/components/observability_mcp_coverage.js" defer></script>
+<!-- F.9.3 — Pipeline Studio shell + builder + step picker + templates + runs monitor -->
+<link rel="stylesheet" href="/dashboard/styles/pipeline-studio.css">
+<script src="/dashboard/components/pipeline_studio_shell.js" defer></script>
+<script src="/dashboard/components/pipeline_studio_builder.js" defer></script>
+<script src="/dashboard/components/pipeline_studio_step_picker_modal.js" defer></script>
+<script src="/dashboard/components/pipeline_studio_templates.js" defer></script>
+<script src="/dashboard/components/pipeline_studio_runs_monitor.js" defer></script>
 </head>
 <body>
 
@@ -271,9 +278,9 @@
                 <svg><use href="#i-clipboard"/></svg>
                 <span class="nav-label">Auditoria</span>
             </div>
-            <div class="nav-item" data-page="pipeline" onclick="navigate('pipeline')">
+            <div class="nav-item" data-page="pipeline-studio" onclick="navigate('pipeline-studio')">
                 <svg><use href="#i-bar-chart"/></svg>
-                <span class="nav-label">Pipeline</span>
+                <span class="nav-label">Pipeline Studio</span>
             </div>
             <div class="nav-item" data-page="tasks" onclick="navigate('tasks')">
                 <svg><use href="#i-check-square"/></svg>
@@ -1771,6 +1778,50 @@
                 </div>
             </div>
 
+            <!-- ========================== PAGE: PIPELINE STUDIO (F.9.3) ========================== -->
+            <div class="page" id="page-pipeline-studio" data-component="pipeline-studio-shell">
+                <div class="ps-page">
+                    <header class="ps-header">
+                        <h2 class="ps-title">Pipeline Studio</h2>
+                        <div class="ps-meta">
+                            <span id="ps-last-refresh" class="ps-last-refresh" aria-live="polite">—</span>
+                        </div>
+                    </header>
+
+                    <nav class="ps-tabnav" role="tablist" aria-label="Pipeline Studio views">
+                        <button class="ps-tab-btn active" id="ps-tab-btn-builder"
+                                data-tab="builder" role="tab"
+                                aria-selected="true" aria-controls="ps-panel-builder"
+                                tabindex="0" type="button">🔨 Builder</button>
+                        <button class="ps-tab-btn" id="ps-tab-btn-templates"
+                                data-tab="templates" role="tab"
+                                aria-selected="false" aria-controls="ps-panel-templates"
+                                tabindex="-1" type="button">📋 Templates</button>
+                        <button class="ps-tab-btn" id="ps-tab-btn-runs-monitor"
+                                data-tab="runs-monitor" role="tab"
+                                aria-selected="false" aria-controls="ps-panel-runs-monitor"
+                                tabindex="-1" type="button">📊 Runs Monitor</button>
+                        <button class="ps-tab-btn" id="ps-tab-btn-ab-compare"
+                                data-tab="ab-compare" role="tab"
+                                aria-selected="false" aria-controls="ps-panel-ab-compare"
+                                tabindex="-1" type="button">⚖️ A/B Compare</button>
+                    </nav>
+
+                    <div class="ps-panels">
+                        <div class="ps-panel" id="ps-panel-builder"
+                             role="tabpanel" aria-labelledby="ps-tab-btn-builder"></div>
+                        <div class="ps-panel" id="ps-panel-templates"
+                             role="tabpanel" aria-labelledby="ps-tab-btn-templates" hidden></div>
+                        <div class="ps-panel" id="ps-panel-runs-monitor"
+                             role="tabpanel" aria-labelledby="ps-tab-btn-runs-monitor" hidden></div>
+                        <div class="ps-panel" id="ps-panel-ab-compare"
+                             role="tabpanel" aria-labelledby="ps-tab-btn-ab-compare" hidden>
+                            <div class="ps-stub-placeholder">A/B Compare — F.9.4</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- ========================== PAGE: OBSERVABILITY (F.8.3) ========================== -->
             <div class="page" id="page-observability">
                 <div data-component="observability-shell" class="observability-shell" aria-labelledby="observability-heading">
@@ -1840,6 +1891,41 @@
         <div class="observability-modal-actions">
             <button type="button" class="observability-modal-btn" data-action="cancel">Cancelar</button>
             <button type="button" class="observability-modal-btn is-primary" id="observability-resolve-modal-submit" data-action="submit">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     F.9.3 — Pipeline Studio Step Picker Modal (z-index 1100)
+     ============================================================ -->
+<div id="ps-step-picker-modal" hidden role="dialog" aria-modal="true" aria-labelledby="ps-modal-title">
+    <div class="ps-modal-backdrop" id="ps-modal-backdrop"></div>
+    <div class="ps-modal-panel" role="document">
+        <header class="ps-modal-header">
+            <h2 id="ps-modal-title" class="ps-modal-title">Selecionar step tool</h2>
+            <button class="ps-modal-btn-icon" id="ps-modal-refresh-btn" type="button"
+                    aria-label="Recarregar lista de tools">↻</button>
+            <button class="ps-modal-btn-icon" id="ps-modal-close-btn" type="button"
+                    aria-label="Fechar modal">×</button>
+        </header>
+        <div class="ps-modal-filters" role="search" aria-label="Filtros de tools">
+            <select class="ps-filter-select" id="ps-filter-chapter" aria-label="Filtrar por chapter">
+                <option value="">Todos os chapters</option>
+            </select>
+            <select class="ps-filter-select" id="ps-filter-tier" aria-label="Filtrar por tier">
+                <option value="active,warning" selected>Active + Warning</option>
+                <option value="active">Somente Active</option>
+                <option value="">Todos os tiers</option>
+            </select>
+            <input class="ps-filter-input" id="ps-filter-search" type="search"
+                   placeholder="Buscar tool..." aria-label="Buscar tool por nome">
+            <button class="ps-btn ps-btn-ghost" id="ps-filter-reset-btn" type="button"
+                    aria-label="Limpar filtros">Limpar</button>
+            <span class="ps-filter-count" id="ps-filter-count" aria-live="polite"></span>
+        </div>
+        <div class="ps-tools-list" id="ps-tools-list" role="list"
+             aria-label="Lista de tools disponíveis">
+            <div class="ps-tools-empty">Carregando...</div>
         </div>
     </div>
 </div>

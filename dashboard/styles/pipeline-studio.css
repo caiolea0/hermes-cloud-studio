@@ -1,0 +1,738 @@
+/* ============================================================
+   Hermes Cloud Studio — Pipeline Studio (F.9.3)
+   ============================================================
+   Design tokens REUSE F.8.3 observability.css pattern.
+   Zero hex literals — tudo via :root tokens de tokens.css.
+
+   Decisões F.9.3 (cristalizadas commit 92e4ab0):
+   D1 builder VERTICAL form + YAML side panel 50/50
+   D3 YAML preview side panel 50/50 + debounce 300ms
+   D7 60s auto-refresh + visibilitychange
+   Modal z-index 1100 (alinha F.8.3, acima brain-confirm 950)
+   IIFE namespace window.PipelineStudio*
+   ============================================================ */
+
+/* ---- Shell / Page ---------------------------------------- */
+
+.ps-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg, #0a0a0c);
+    color: var(--text-1, #f0f0f0);
+}
+
+.ps-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+    flex-shrink: 0;
+}
+
+.ps-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-1);
+    margin: 0;
+}
+
+.ps-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-3, #666);
+}
+
+.ps-last-refresh {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Tab nav (horizontal top, aria roles) --------------- */
+
+.ps-tabnav {
+    display: flex;
+    gap: 2px;
+    padding: 8px 16px 0;
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+    flex-shrink: 0;
+    background: var(--s1, rgba(255,255,255,0.03));
+}
+
+.ps-tab-btn {
+    padding: 8px 16px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text-3, #888);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.ps-tab-btn:hover {
+    color: var(--text-1);
+    background: var(--s2, rgba(255,255,255,0.05));
+}
+
+.ps-tab-btn.active,
+.ps-tab-btn[aria-selected="true"] {
+    color: var(--accent-l, #a78bfa);
+    border-bottom-color: var(--accent, #7c3aed);
+    background: var(--s2, rgba(255,255,255,0.05));
+    font-weight: 600;
+}
+
+.ps-tab-btn:focus-visible {
+    outline: 2px solid var(--accent, #7c3aed);
+    outline-offset: 2px;
+}
+
+/* ---- Tab panels ------------------------------------------ */
+
+.ps-panels {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.ps-panel {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    padding: 16px 20px;
+}
+
+.ps-panel[hidden] {
+    display: none;
+}
+
+/* ---- Builder split layout (D1 + D3) --------------------- */
+
+.ps-builder-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    height: 100%;
+    min-height: 0;
+}
+
+.ps-builder-form {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-right: 4px;
+}
+
+.ps-yaml-panel {
+    overflow-y: auto;
+    background: var(--s2, rgba(255,255,255,0.04));
+    border: 1px solid var(--border, rgba(255,255,255,0.08));
+    border-radius: var(--r, 14px);
+    display: flex;
+    flex-direction: column;
+}
+
+.ps-yaml-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+    flex-shrink: 0;
+}
+
+.ps-yaml-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-3, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.ps-yaml-pre {
+    flex: 1;
+    margin: 0;
+    padding: 14px;
+    font-family: "Fira Code", "Cascadia Code", ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-2, #ccc);
+    overflow-x: auto;
+    white-space: pre;
+}
+
+/* ---- Form fields ---------------------------------------- */
+
+.ps-field-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-3, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.ps-input,
+.ps-textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border, rgba(255,255,255,0.1));
+    border-radius: var(--r-sm, 8px);
+    background: var(--s1, rgba(255,255,255,0.04));
+    color: var(--text-1, #f0f0f0);
+    font-size: 13px;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+    resize: none;
+}
+
+.ps-input:focus,
+.ps-textarea:focus {
+    outline: none;
+    border-color: var(--accent, #7c3aed);
+}
+
+.ps-textarea {
+    min-height: 64px;
+    resize: vertical;
+}
+
+/* ---- Steps list ----------------------------------------- */
+
+.ps-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 48px;
+}
+
+.ps-step-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--s2, rgba(255,255,255,0.04));
+    border: 1px solid var(--border, rgba(255,255,255,0.08));
+    border-radius: var(--r-sm, 8px);
+    padding: 10px 12px;
+}
+
+.ps-step-idx {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-3);
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.ps-step-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ps-step-tool {
+    font-size: 11px;
+    color: var(--accent-l, #a78bfa);
+    font-family: ui-monospace, monospace;
+    flex-shrink: 0;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ps-step-remove {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: var(--r-xs, 4px);
+    background: transparent;
+    color: var(--text-3);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
+}
+
+.ps-step-remove:hover {
+    background: rgba(239,68,68,0.15);
+    color: var(--red, #ef4444);
+}
+
+.ps-steps-empty {
+    font-size: 12px;
+    color: var(--text-3);
+    text-align: center;
+    padding: 16px;
+    border: 1px dashed var(--border);
+    border-radius: var(--r-sm, 8px);
+}
+
+/* ---- Action buttons ------------------------------------- */
+
+.ps-btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ps-btn {
+    padding: 8px 14px;
+    border: none;
+    border-radius: var(--r-sm, 8px);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ps-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.ps-btn-ghost {
+    background: var(--s2, rgba(255,255,255,0.06));
+    color: var(--text-2, #ccc);
+    border: 1px solid var(--border);
+}
+
+.ps-btn-ghost:hover {
+    background: var(--s3, rgba(255,255,255,0.1));
+    color: var(--text-1);
+}
+
+.ps-btn-primary {
+    background: var(--accent, #7c3aed);
+    color: #fff;
+}
+
+.ps-btn-primary:hover {
+    background: var(--accent-l, #8b5cf6);
+}
+
+.ps-btn-success {
+    background: var(--green, #10b981);
+    color: #fff;
+}
+
+.ps-btn-success:hover {
+    opacity: 0.88;
+}
+
+.ps-btn-danger {
+    background: rgba(239,68,68,0.15);
+    color: var(--red, #ef4444);
+    border: 1px solid rgba(239,68,68,0.3);
+}
+
+.ps-btn-danger:hover {
+    background: rgba(239,68,68,0.25);
+}
+
+/* ---- Templates gallery ---------------------------------- */
+
+.ps-templates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.ps-template-card {
+    background: var(--s2, rgba(255,255,255,0.04));
+    border: 1px solid var(--border);
+    border-radius: var(--r, 14px);
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.ps-template-card:hover {
+    border-color: var(--accent, #7c3aed);
+    background: var(--s3, rgba(255,255,255,0.07));
+}
+
+.ps-template-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-1);
+    margin-bottom: 6px;
+}
+
+.ps-template-desc {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.ps-template-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-3);
+}
+
+.ps-template-steps-badge {
+    background: var(--s3);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-weight: 600;
+}
+
+/* ---- Runs monitor --------------------------------------- */
+
+.ps-runs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.ps-ws-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-3);
+}
+
+.ps-ws-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.ps-ws-dot.green { background: var(--green, #10b981); }
+.ps-ws-dot.amber { background: var(--amber, #f59e0b); }
+.ps-ws-dot.red   { background: var(--red, #ef4444); }
+
+.ps-runs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ps-run-row {
+    background: var(--s2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm, 8px);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ps-run-status-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+
+.ps-run-status-badge.running {
+    background: rgba(124,58,237,0.2);
+    color: var(--accent-l, #a78bfa);
+}
+
+.ps-run-status-badge.completed {
+    background: rgba(16,185,129,0.2);
+    color: var(--green, #10b981);
+}
+
+.ps-run-status-badge.error {
+    background: rgba(239,68,68,0.2);
+    color: var(--red, #ef4444);
+}
+
+.ps-run-status-badge.aborted {
+    background: rgba(107,114,128,0.2);
+    color: var(--text-3, #888);
+}
+
+.ps-run-status-badge.queued,
+.ps-run-status-badge.pending {
+    background: rgba(245,158,11,0.2);
+    color: var(--amber, #f59e0b);
+}
+
+.ps-run-id {
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--text-3);
+    flex-shrink: 0;
+}
+
+.ps-run-draft {
+    font-size: 12px;
+    color: var(--text-2);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ps-run-progress {
+    font-size: 11px;
+    color: var(--text-3);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.ps-run-time {
+    font-size: 11px;
+    color: var(--text-3);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.ps-abort-btn {
+    padding: 4px 10px;
+    border: 1px solid rgba(239,68,68,0.4);
+    border-radius: var(--r-xs, 4px);
+    background: rgba(239,68,68,0.1);
+    color: var(--red, #ef4444);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s;
+    font-family: inherit;
+    flex-shrink: 0;
+}
+
+.ps-abort-btn:hover {
+    background: rgba(239,68,68,0.2);
+}
+
+.ps-abort-btn:focus-visible {
+    outline: 2px solid var(--red);
+    outline-offset: 2px;
+}
+
+.ps-runs-empty {
+    font-size: 13px;
+    color: var(--text-3);
+    text-align: center;
+    padding: 32px;
+}
+
+/* ---- Step picker modal (z-index 1100) ------------------- */
+
+.ps-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 1100;
+}
+
+.ps-modal-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1101;
+    width: min(720px, 92vw);
+    max-height: min(600px, 90vh);
+    background: var(--s1, #111115);
+    border: 1px solid var(--border);
+    border-radius: var(--r, 14px);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+}
+
+.ps-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.ps-modal-title {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-1);
+    margin: 0;
+}
+
+.ps-modal-btn-icon {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: var(--r-xs, 4px);
+    background: transparent;
+    color: var(--text-3);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s;
+    font-family: inherit;
+}
+
+.ps-modal-btn-icon:hover {
+    background: var(--s2);
+    color: var(--text-1);
+}
+
+.ps-modal-btn-icon:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.ps-modal-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.ps-filter-select,
+.ps-filter-input {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-xs, 4px);
+    background: var(--s2, rgba(255,255,255,0.05));
+    color: var(--text-1);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.ps-filter-select:focus,
+.ps-filter-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.ps-filter-input {
+    flex: 1;
+    min-width: 140px;
+}
+
+.ps-filter-count {
+    font-size: 11px;
+    color: var(--text-3);
+    white-space: nowrap;
+    margin-left: auto;
+}
+
+.ps-tools-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.ps-tool-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--border);
+}
+
+.ps-tool-row:last-child {
+    border-bottom: none;
+}
+
+.ps-tool-row:hover {
+    background: var(--s2);
+}
+
+.ps-tool-id {
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--accent-l, #a78bfa);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ps-tool-chapter {
+    font-size: 10px;
+    color: var(--text-3);
+    flex-shrink: 0;
+}
+
+.ps-tool-tier {
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.ps-tool-tier.active  { background: rgba(16,185,129,0.2); color: var(--green, #10b981); }
+.ps-tool-tier.warning { background: rgba(245,158,11,0.2); color: var(--amber, #f59e0b); }
+.ps-tool-tier.error   { background: rgba(239,68,68,0.2); color: var(--red, #ef4444); }
+
+.ps-tools-empty {
+    font-size: 13px;
+    color: var(--text-3);
+    text-align: center;
+    padding: 32px;
+}
+
+/* ---- Responsive collapse (< 1024px) --------------------- */
+
+@media (max-width: 1024px) {
+    .ps-builder-split {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+    }
+
+    .ps-yaml-panel {
+        min-height: 240px;
+        position: relative;
+    }
+}
+
+/* ---- Stub placeholder ----------------------------------- */
+
+.ps-stub-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    font-size: 14px;
+    color: var(--text-3);
+    font-style: italic;
+}
