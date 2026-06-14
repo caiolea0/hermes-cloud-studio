@@ -2675,10 +2675,105 @@ Pre-req F.9.3:
 +- A/B compare tab: UI compara 2 runs lado-a-lado (latency p50/p95 + cost_credits + success_rate) via Chart.js bar (vendor REUSE F.8.3)
 +- Métricas compare source: GET /api/pipeline-studio/runs?ab_group=A|B&parent_run_id=... (aggregação backend)
 +- WARNs F.9.3 reviewer deferidos: W1 template keydown + W3 focus-visible + W4 rgba tokens + W5 --text-3 contrast
-+
-+---
-+
-+### Regra inviolável FASE F — Regression-test gate
+
+**🎯 F.9.4 Decisões Cristalizadas (Templates clone-real + A/B compare metrics Chart.js) — incorporado 2026-06-14**:
+
+F.9.1+F.9.2+F.9.3 ✅ done (Backend + Engine + UI shell). F.9.4 = enhance UX final pré-closeout F.9.5. REUSE pesado F.8.3 Chart.js + F.9.1 CRUD + F.9.2 ab_group column propagation. Sub-sessão simples (Sonnet 4.6, 3 commits).
+
+Pre-req F.9.4:
+- F.9.3 UI shell + 4 sub-tabs funcionando (Templates + A/B Compare tabs já placeholder)
+- dashboard/vendor/chart.min.js 200KB committed F.8.3 (REUSE pra A/B bars)
+- F.9.2 engine ab_group='A|B' propagation funcional + pipeline_runs_granular.ab_group column
+- F.9.1 CRUD endpoints + 5 templates seed
+
+**D1 Clone behavior = SERVER-SIDE POST /clone** (atomic + audit log + version=1 reset):
+- `POST /api/pipeline-studio/drafts/{id}/clone` endpoint NOVO
+- Server: SELECT original draft → INSERT new draft (new UUID + name "{original} (copy)" + version=1 + status='draft' + ab_group=null + last_executed_at=null + cloned_from_id=original_id new column nullable)
+- Atomic transaction (single INSERT)
+- Audit preservation: original mantém immutable, cópia clean state
+- Migration NOVA `ALTER TABLE pipeline_drafts ADD COLUMN cloned_from_id TEXT NULL REFERENCES pipeline_drafts(id)` (audit cross-ref)
+- NÃO client-side fetch+POST (race conditions + audit complex)
+- NÃO clone-as-version (perde clean draft state)
+
+**D2 Clone naming = "{original} (copy)" auto** + owner edita Builder após:
+- Server-side gera `f"{original.name} (copy)"` default
+- Frontend após clone success → switch tab Builder + load cloned draft → owner edita inline
+- Multiple clones same template = "X (copy)" + "X (copy) (copy)" (acumulativo, sem dedup numérico F.future)
+- Owner UX rápido (1 click clone + immediate edit)
+- NÃO modal pre-create naming (atrito UX)
+- NÃO auto-numbering (over-engineering single-owner)
+
+**D3 A/B metrics fetch source = AGGREGATE pipeline_runs_granular** (single table):
+- Endpoint NOVO `GET /api/pipeline-studio/runs?ab_group=A|B&limit=50&draft_id=`
+- Aggregate query: `SELECT ab_group, AVG(latency_ms) p50, percentile_cont(latency_ms, 0.95) p95, SUM(cost_credits) total_cost, SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) success_rate, COUNT(*) total_runs FROM pipeline_runs_granular WHERE ab_group IN ('A','B') GROUP BY ab_group`
+- SQLite percentile_cont fallback: ORDER BY latency_ms LIMIT N para approximation se função não disponível
+- Response: `{A: {p50, p95, total_cost, success_rate, total_runs}, B: {...}}`
+- Index `idx_pipeline_runs_granular_ab_group` NOVO (sparse WHERE ab_group IS NOT NULL)
+- NÃO mcp_calls join (perde context pipeline_drafts + over-complex F.9.4)
+- NÃO compute frontend (over-the-wire bandwidth N runs)
+
+**D4 A/B compare timeframe = LAST N RUNS default 50** + ?limit= parameter:
+- Default limit=50 most recent runs per ab_group
+- Max limit=200 hard (server validation)
+- ?limit= query parameter (overridable)
+- ORDER BY started_at DESC (most recent first)
+- F.future: configurable date range pickers UI (defer F.future quando volume > 200/dia)
+- NÃO configurable date range F.9.4 (over-engineering, last N suffices)
+- NÃO all-time (degrades performance volume crescer)
+
+**D5 Chart.js bar comparison = VERTICAL bars side-by-side** (pattern F.8.3):
+- Chart.js `type: 'bar'` + dataset A green + dataset B blue per metric
+- 4 charts grid 2x2: Latency p50 | Latency p95 | Total cost | Success rate
+- Cada chart 2 bars vertical (A vs B)
+- Legend top + tooltips hover with absolute values
+- Color tokens reusar F.8.3 design system (CSS vars)
+- NÃO horizontal bars (vertical pattern F.8.3 consistency)
+- NÃO single chart multi-metric (overwhelm visual)
+
+**D6 reply_rate metric F.7 future = OMIT F.9.4** (placeholder bad UX):
+- F.7 cobaia ainda future + reply_rate column não existe (pipeline_runs_granular não tracks LinkedIn replies)
+- F.9.4 incluir 4 métricas reais (latency p50 + latency p95 + total_cost + success_rate)
+- F.7 cobaia future enhance: ADD COLUMN reply_rate + extra chart bar F.9.4 backport (F.future)
+- NÃO placeholder "TBD" chart (UX ruim, owner confuse)
+- NÃO mock data zero (mente sobre realidade)
+
+**Files F.9.4** (1 NOVO + 4 MATURE):
+- `dashboard/components/pipeline_studio_ab_compare.js` NOVO (~250 LOC IIFE Chart.js 4 bars vertical 2x2 grid + draft selector dropdown + limit selector)
+- `dashboard/components/pipeline_studio_templates.js` MATURE — botão Clone REAL (POST /clone + switch tab Builder + load cloned draft)
+- `dashboard/components/pipeline_studio_builder.js` MATURE — método `loadDraft(draftId)` pra receive clone redirect
+- `dashboard/components/pipeline_studio_shell.js` MATURE — switchTab support draft_id param ?draft={id}
+- `api/pipeline_studio.py` MATURE — endpoints `POST /drafts/{id}/clone` + `GET /runs?ab_group=&limit=&draft_id=`
+- `migrations/2026_06_<next>_pipeline_clone_ab_compare.sql` NOVO — ALTER TABLE pipeline_drafts ADD cloned_from_id + CREATE INDEX idx_pipeline_runs_granular_ab_group
+
+**Sub-task split F.9.4 (3 commits sub-session)**:
+- **C1** Backend POST /clone + GET /runs aggregate + migration ALTER + INDEX
+- **C2** Templates clone UI button real + Builder loadDraft method + Shell switchTab draft param
+- **C3** AB compare component Chart.js 2x2 grid + smoke E2E + reviewer + closeout F.9.4
+
+**🚨 Riscos críticos F.9.4**:
+- **SQLite percentile_cont fallback** — função SQLite pode não estar disponível default. Fallback: ORDER BY latency_ms + Python compute index N*0.95
+- **Chart.js destroy() multiple charts** — 4 charts em grid 2x2 = 4 instances. Destroy todos antes new render (memory leak prevention pattern F.8.3)
+- **Clone race condition** — owner double-click "Clone" → 2 cópias. Disable button durante request + button state loading
+- **Builder loadDraft state pollution** — F.9.3 Builder draft state in-memory. loadDraft deve RESET state completo antes load (não merge stale)
+- **dashboard/app.js MATURE NÃO touch** — F.9.4 zero modifica app.js (shell.js handles tab+draft routing internal)
+- **BLACKLIST R2 INTACTO** — F.9.4 zero touch linkedin/* (14 consecutive target)
+- **frontend-ux-reviewer agent OBRIGATÓRIO** Commit 3 (GUARDRAILS UI gate)
+- **Chart.js bar accessibility** — ARIA `aria-label` per chart + descriptive titles
+- **A/B compare no runs case** — empty state "No A/B runs yet" graceful (não Chart.js render quando data empty)
+- **Vanilla JS XSS** — template name owner-input → escape textContent (NÃO innerHTML)
+
+**Cross-ref F.9.4**:
+- F.9.1 api/pipeline_studio.py CRUD (extend with clone + runs aggregate)
+- F.9.2 pipeline_runs_granular.ab_group column (F.9.4 query source)
+- F.9.3 dashboard/components/pipeline_studio_{templates,builder,shell}.js (MATURE touchpoints)
+- F.8.3 dashboard/vendor/chart.min.js (REUSE bar charts)
+- F.8.3 dashboard/styles/observability.css (tokens reuse + bar chart styles reference)
+- F.6.4 confirm modal pattern (não usado F.9.4, mas color tokens reference)
+- Memory: mem_mqe7ipm5 (F.9.3) + mem_mqe6kuml (F.9.2) + mem_mqe10phw (F.9 global)
+
+---
+
+### Regra inviolável FASE F — Regression-test gate
  - [ ] Toda task que toca MADURO exige pre_test + post_test
  - [ ] `validate_implementation.py --phase A B C D E` antes E depois de cada chapter
  - [ ] 20/22 PASS preservado é gate de merge inegociável
