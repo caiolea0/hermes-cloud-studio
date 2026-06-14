@@ -24,7 +24,7 @@
 +| F.5     | MCP Gateway + Discovery + Custom MCPs               | backend+infra | 4        | 4       | PLANEJADO   | F.1         |
 +| F.6     | Cérebro Hermes (Brain orchestrator)                 | backend+ui    | 9        | 6       | PLANEJADO   | F.1, F.5    |
 +| F.7     | Cobaia Live Ops + Warmup 14d automatizado           | backend+ui    | 8        | 5       | PLANEJADO   | F.2, F.5    |
-+| F.8     | Cost & Performance Observability                    | backend+ui    | 7        | 3       | PLANEJADO   | F.2, F.6    |
++| F.8     | Cost & Performance Observability                    | backend+ui    | 7        | 4       | **CONCLUÍDO 2026-06-14** | F.2, F.6    |
 +| F.9     | Pipeline Studio Visual (form-driven)                | ui+backend    | 9        | 5       | PLANEJADO   | F.1, F.6    |
 +
 +**Total estimado**: 38 sessões (1 + 5 + 4 + 5 + 4 + 6 + 5 + 3 + 5). Banda histórica 50-150k tokens/sessão = 4-6 semanas calendário owner solo, ritmo 1-2 sessões/dia.
@@ -1884,7 +1884,7 @@ async def cobaia_daily_cycle():
 +- F.8.1 ✅ COMPLETE 2026-06-14 (3 commits fa0396b+6156c2d+62c420e) — migration mcp_pricing+perf_metrics+errors_inbox (17 seed rows) + core/observability.py PerfMetricsCollector+middleware+cost_aggregate + scripts/check_nim_credits.py NIM polling cron 09h BRT registered + api/observability.py 5 endpoints (costs/perf/credits/errors-stub/decisions-stub) + EXPLAIN PLAN uses idx_mcp_calls_provider confirmed + reviewer PASS-WITH-NOTES 4 WARNs zero BLOCKERS + 20/22 PASS + brain 20/20 + pytest 14/14 + BLACKLIST R2 INTACTO. F.8.2 UNBLOCKED.
 +- F.8.2 ✅ COMPLETE 2026-06-14 (2 commits 995f5ce+SHA-final) — api/observability.py MATURE +427 LOC: brain audit endpoints REAL D3+D4+D6 (paginate offset/limit max 200 + filters intent/search/status/run_id combinable + tool_args/result/rationale TRUNCATED 2000 chars via SQL SUBSTR + X-Total-Count header) + errors HYBRID Sentry MCP D1+D2 (FILTER level=warning,error,fatal + tags[category] + statsPeriod range 24h/7d/30d + 3 categories default + fallback graceful local-only timeout 10s) + POST /errors/{id}/resolve D5 (atomic Sentry MCP resolve_issue + local UPDATE WHERE status='open' optimistic lock 409 + sanitize comment via brain.dispatch.sanitize SENSITIVE_KEYS + race condition handling) + EXPLAIN PLAN 5/5 idx confirmed (idx_brain_runs_intent + idx_brain_runs_started + idx_brain_decisions_run + idx_errors_inbox_status_time + idx_errors_inbox_category) + smoke 12 cases PASS (decisions 5/5 + errors 4/4 + resolve atomic 7/7 incl 404+409+422 validation) + reviewer PASS-WITH-NOTES 20/20 dim 2 WARNs F.future (X-Total-Count semantics doc + TRUNCATE_LIMIT DRY import) zero BLOCKERS + brain 20/20 + pytest 14/14 + validate A-D 18/18 (E.2/E.3 channels stubs pre-existentes) + BLACKLIST R2 INTACTO + 0 stubs labels F.8.2_implements_* remaining. F.8.3 UI shell UNBLOCKED.
 +- F.8.3 ✅ COMPLETE 2026-06-14 (3 commits 7dca534+0502e83+SHA-final) — dashboard/vendor/chart.min.js NOVO (Chart.js 4.4.0 UMD 200KB NÃO gitignored) + dashboard/styles/observability.css NOVO (537 LOC tokens.css 100%) + dashboard/components/observability_{shell,costs,perf,errors,decisions,resolve_modal}.js NOVOS 6 IIFE (~1216 LOC totais, window.Observability* namespace pattern F.5.6) + dashboard/index.html MATURE (nav entry observability + section #page-observability 4 tabs role=tablist + modal container z-index 1100) + dashboard/app.js MATURE +8 LOC (titles entry + navigate handler ObservabilityShell.init idempotent, F.2 Mission Control NÃO regression) + D1 tabs horizontal top + D2 Chart.js bar (costs/errors) bar/line conditional (perf live/history) + D3 60s auto-refresh + manual btn + visibilitychange API pause + D4 modal confirm + textarea max 500 + counter live + ESC/backdrop close + 409 race graceful + D5 inline accordion decisions sub-table sequence/state/tool/rationale/latency + D6 CSV export server-side ?format=csv reuse F.8.1 + D7 mobile F.future + smoke E2E browser PC:55001 PASS (tabs cycle + modal ESC/backdrop/404/409 + zero console.error + Chart.js loaded + z-index 1100 computed) + reviewer frontend-ux-reviewer PASS-WITH-NOTES 24/24 dim 6 WARNs F.future (shadow token + Chart.js getComputedStyle CSS var + focus trap circular + inline style refactor) zero BLOCKERS + validate phase A-D 18/18 + E 2/4 baseline (E.2/E.3 stubs F.8.1/F.8.2 preexistentes) + brain 20/20 + pytest 14/14 + BLACKLIST R2 INTACTO 6 consecutive. F.8.4 MCP Coverage tab UNBLOCKED.
-+- F.8.4 UI MCP Coverage tab + closeout (Sonnet 4.6, ~2-3h) — 5ª tab observability shell: SummaryRow 5 cards + MatrixCoveragePanel heatmap Phase × MCP + sortable list + SparklineHistory 6 meses (reusa F.5.5 audit cron data .claude/audits/mcp-coverage/*.md+json + dashboard/vendor/chart.min.js JÁ commit F.8.3)
++- F.8.4 ✅ COMPLETE 2026-06-14 (2 commits 4e1b183+dd7cb41) — observability_mcp_coverage.js NOVO ~230 LOC IIFE (SummaryRow 5 cards + MatrixCoveragePanel heatmap Phase × Server CSS grid D1 + SparklineHistory top 10 D3 + tabela completa) + api/observability.py MATURE GET /mcp-coverage-history?months=6 D2 (glob audit/*.json graceful) + shell.js MATURE 5 tabs + index.html MATURE 5th tab ARIA + observability.css MATURE heatmap+sparkline CSS tokens + holistic reviewer PASS-WITH-NOTES 8 dim 2 WARNs F.future zero BLOCKERS + G1 A-D PASS + G8 BLACKLIST R2 INTACTO + G11 brain 20/20 + G12 zero stubs + G13 app.js zero diff. F.8 CHAPTER CLOSED.
 +- Total ~11-15h spread 1 semana
 +
 +**🎯 F.8.4 Decisões Cristalizadas (UI MCP Coverage 5ª tab + F.8 CLOSEOUT) — incorporado 2026-06-14**:
@@ -1989,6 +1989,62 @@ async def cobaia_daily_cycle():
 +- `dashboard/components/observability_decisions.js` F.8.3 (table sortable pattern reference)
 +- Memory: mem_mqdxux9n (F.8.3) + mem_mqdvi9ts (F.8 global) + audit cron F.5.5 reference
 +- F.4 cobaia (próximo per ordem) OR F.9 (per analysis F.8.4 closeout)
++
++---
++
++## 🎯 F.8 CHAPTER COMPLETE — Cost & Performance Observability Production-Ready (2026-06-14)
++
++### F.8.1 — Backend cost + perf + NIM polling (commits fa0396b+6156c2d+62c420e)
++- 3 NOVOS files: core/observability.py + api/observability.py + scripts/check_nim_credits.py
++- Migration 3 tables: mcp_pricing (17 seed rows) + perf_metrics + errors_inbox
++- 5 endpoints: costs + perf + credits + errors-stub + decisions-stub
++- Cron NIM credit poll daily 09h BRT registered (hermes-mcp-coverage-audit)
++- EXPLAIN PLAN: uses idx_mcp_calls_provider confirmed
++- Reviewer 20 dim PASS-WITH-NOTES 4 WARNs F.future zero BLOCKERS
++
++### F.8.2 — Errors hybrid + Brain audit endpoints REAL (commits 995f5ce+cbafe72)
++- api/observability.py MATURE +427 LOC substituiu 2 stubs F.8.1
++- POST /errors/{id}/resolve atomic optimistic lock 409
++- EXPLAIN PLAN 5/5 idx: brain_runs_intent + started + decisions_run + errors status_time + category
++- Reviewer 20 dim PASS-WITH-NOTES 2 WARNs F.future zero BLOCKERS
++
++### F.8.3 — UI shell + 4 tabs + Chart.js vendor (commits 7dca534+0502e83+SHA-final)
++- 8 NOVOS files: chart.min.js 200KB + CSS 537 LOC + 6 components IIFE ~1216 LOC totais
++- 4 tabs horizontal top + modal resolve + accordion decisions
++- D1-D7 implementadas + smoke E2E browser PASS (tabs + modal + zero console.error + Chart.js)
++- Frontend-ux-reviewer 24 dim PASS-WITH-NOTES 6 WARNs F.future zero BLOCKERS
++
++### F.8.4 — UI MCP Coverage 5ª tab + closeout (commits 4e1b183+dd7cb41)
++- observability_mcp_coverage.js NOVO ~230 LOC (SummaryRow + Heatmap CSS grid D1 + Sparklines D3 + Table)
++- api/observability.py MATURE: GET /mcp-coverage-history?months=6 endpoint D2
++- 5ª tab appended shell.js + index.html + observability.css heatmap styles
++- Holistic reviewer general-purpose 8 dim PASS-WITH-NOTES 2 WARNs F.future zero BLOCKERS
++
++### F.8 Decisões cristalizadas aggregated (D1-D27 total)
++- F.8 global D1-D10 + F.8.1 D1-D10 + F.8.2 D1-D6 + F.8.3 D1-D7 + F.8.4 D1-D5 = 38 decisões
++
++### 8 endpoints REAL (zero stubs F.8.X_implements_* remaining)
++- GET /costs + /perf + /credits + /errors + /decisions + /mcp-coverage-history + POST /errors/{id}/resolve + GET /_debug/explain_cost_plan
++
++### UI 5 tabs functional
++- Costs · Performance · Errors · Decisions · MCP Coverage
++
++### Backend tables (4 NOVAS F.8)
++- mcp_pricing (17 seed rows) · perf_metrics · errors_inbox · (nim_credit_history F.5.7 reuse)
++
++### 4 reviewers verdict aggregated
++- F.8.1 20 dim · F.8.2 20 dim · F.8.3 24 dim · F.8.4 holistic 8 dim
++- TODOS PASS-WITH-NOTES zero BLOCKERS
++
++### BLACKLIST R2 INTACTO 4 consecutive F.8 sub-sessions (+ 6 F.6 = 10 total chapter span)
++- git diff HEAD~4..HEAD -- linkedin/ ZERO matches
++
++### F.9 Pipeline Studio Visual — PRÓXIMO
++- Per ordem cristalizada F.5 → F.6 → F.8 → **F.9** → F.4 → F.7
++- F.9 depende F.5 (MCP tools) + F.6 (Brain tools.invoke) + F.8 (observability instrumenta custo)
++- Estimate: 5 sub-sessions, form-driven builder + monitor + A/B pipeline
++
++---
 +
 +**🎯 F.8.3 Decisões Cristalizadas (UI shell observability + 4 tabs + Chart.js vendor) — incorporado 2026-06-14**:
 +
