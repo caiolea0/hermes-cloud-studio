@@ -25,3 +25,7 @@ transitions>=0.9.0
 pytest>=9.0
 pytest-asyncio>=1.4
 pytest-xdist>=3.6
+# F.9.2 — Pipeline Studio execution engine (Jinja2 strict templating variable substitution)
+# Rationale (D3): StrictUndefined raises on missing var → fail-fast, prevents silent corruption
+# em owner pipelines F.7 cobaia. SandboxedEnvironment blocks arbitrary attr access.
+jinja2>=3.1

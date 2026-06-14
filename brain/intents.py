@@ -91,6 +91,11 @@ async def handle_intent(
     For intents with task_type=None (utility like route_skill_run), react_loop
     short-circuits sem LLM call (returns status='utility_no_llm').
 
+    F.9.2 enhancement: when intent='route_skill_run' AND context has 'tool_call'
+    (PipelineEngine consumer), dispatch tool DIRETO via gateway (no LLM, no ReAct).
+    Preserves backward-compat com golden cases (skill_name context falls through to
+    react_loop utility_no_llm).
+
     Returns enriched intent_result shape compatible with Brain.decide() consumer:
       {ok, intent, task_type, destructive, tools_available, confidence,
        tools_used, final_answer, iterations, accumulated, cost_credits, status, ...}
@@ -99,6 +104,10 @@ async def handle_intent(
         return {"ok": False, "error": f"unknown_intent:{intent}"}
 
     config = INTENT_REGISTRY[intent]
+
+    # F.9.2 — route_skill_run direct dispatch path (Pipeline Engine consumer).
+    if intent == "route_skill_run" and isinstance(context.get("tool_call"), dict):
+        return await _dispatch_route_skill_run(context["tool_call"], dispatcher)
 
     # Lazy import (avoid circular brain.intents <-> brain._react if either grows).
     from ._react import react_loop
@@ -126,4 +135,77 @@ async def handle_intent(
         "status": react_result.get("status", "completed"),
         "error": react_result.get("error"),
         "note": react_result.get("note"),
+    }
+
+
+async def _dispatch_route_skill_run(
+    tool_call: dict[str, Any],
+    dispatcher: "GatewayDispatcher | None",
+) -> dict[str, Any]:
+    """F.9.2 — Direct gateway dispatch for Pipeline Engine consumer.
+
+    tool_call shape: {"server": str, "tool": str, "args": dict}
+    Returns handle_intent-compatible shape with accumulated step + cost_credits.
+    """
+    from .dispatch import GatewayDispatcher
+    dispatcher = dispatcher or GatewayDispatcher()
+
+    server = str(tool_call.get("server", "")).strip()
+    tool = str(tool_call.get("tool", "")).strip()
+    args = tool_call.get("args", {}) or {}
+    if not isinstance(args, dict):
+        args = {}
+
+    if not server or not tool:
+        return {
+            "ok": False,
+            "intent": "route_skill_run",
+            "task_type": None,
+            "destructive": False,
+            "tools_available": [],
+            "tools_used": [],
+            "final_answer": None,
+            "confidence": 0.0,
+            "iterations": 0,
+            "accumulated": [],
+            "cost_credits": 0.0,
+            "status": "error",
+            "error": "missing_server_or_tool",
+            "note": None,
+        }
+
+    tool_result = await dispatcher.invoke_tool(server=server, tool=tool, args=args)
+
+    # Extract cost_credits from gateway response inner (F.5.3 _log_mcp_call pattern).
+    cost = 0.0
+    if isinstance(tool_result, dict):
+        inner = tool_result.get("response", {})
+        if isinstance(inner, dict):
+            raw_cost = inner.get("cost_credits")
+            if isinstance(raw_cost, (int, float)):
+                cost = float(raw_cost)
+
+    ok = bool(tool_result.get("ok")) if isinstance(tool_result, dict) else False
+    accumulated = [{
+        "iteration": 1,
+        "thought": f"route_skill_run direct dispatch {server}.{tool}",
+        "tool_call": {"server": server, "tool": tool, "args": args},
+        "tool_result": tool_result if isinstance(tool_result, dict) else {"raw": str(tool_result)[:500]},
+    }]
+
+    return {
+        "ok": ok,
+        "intent": "route_skill_run",
+        "task_type": None,
+        "destructive": False,
+        "tools_available": [],
+        "tools_used": [{"server": server, "tool": tool}],
+        "final_answer": None,
+        "confidence": 1.0 if ok else 0.3,
+        "iterations": 1,
+        "accumulated": accumulated,
+        "cost_credits": cost,
+        "status": "completed" if ok else "error",
+        "error": None if ok else str(tool_result.get("error", "dispatch_failed"))[:300] if isinstance(tool_result, dict) else "dispatch_failed",
+        "note": None,
     }
