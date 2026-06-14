@@ -2381,6 +2381,118 @@ async def cobaia_daily_cycle():
 +  - WARN2 (dim 6/13): templates referenciam tools cross-MCP — confirmar mcp_registry seeded F.9.2
 +  - WARN3 (templates): Jinja-style {{ }} placeholders — F.9.2 executor define variable resolution contract
 +
++**🎯 F.9.2 Decisões Cristalizadas (Execution engine REUSE Brain.decide() route_skill_run) — incorporado 2026-06-14**:
++
++F.9.1 ✅ done (Backend CRUD + 9 MCPs step library + 5 templates seed). F.9.2 = execution engine real interpreta YAML drafts + chama tools via Brain.decide() route_skill_run REUSE F.6 + persist pipeline_runs_granular per step. Sub-sessão mais crítica F.9 (engine NOVEL design + cross-chapter integration F.5+F.6+F.8). WARN F.9.1 reviewer #3 (Jinja contract) endereçado D3.
++
++Pre-req F.9.2:
++- F.9.1 CRUD endpoints + step library funcional
++- F.6.2 Brain.decide() route_skill_run intent verified (F.9.1 Step 0 PASS)
++- mcp_calls.cost_credits + .caller_chapter columns (F.5.7 + F.8.1)
++- Jinja2 install PC venv (pip install jinja2>=3.1) — D3 strict requirement
++- pipeline_runs_granular table criada F.9.1
++
++**D1 Execution mode = ASYNC BACKGROUND + POLLING** (NÃO sync request bloqueante):
++- `POST /api/pipeline-studio/drafts/{id}/execute` retorna 202 + `{run_id, status: queued, poll_url}`
++- FastAPI BackgroundTasks dispatch `pipeline_engine.execute_run(run_id, draft_id, variables)`
++- `GET /api/pipeline-studio/runs/{run_id}` poll endpoint retorna current state + per-step progress
++- Razão: runs longas 5-10 steps × 15s LLM call = 1-2min total, sync request trava cliente HTTP
++- NÃO sync (UX ruim + browser timeout)
++- NÃO WebSocket apenas (F.9.3 entrega — F.9.2 polling fallback robusto)
++
++**D2 Step failure policy = STOP DEFAULT + per-step `continue_on_error: bool` opcional**:
++- Default: step error → pipeline run aborted (subsequent steps skipped, status="aborted")
++- Owner opt-in per step YAML: `continue_on_error: true` → step error → log + continue next step
++- Caso uso: cobaia warmup retry safe operations, hard fail destructive sends
++- pipeline_runs_granular row per step inclui `status` final (error|skipped|completed)
++- NÃO continue all errors (silent failures hard debug)
++- NÃO mandatory stop (perde flexibilidade owner cases edge)
++
++**D3 Variable resolution Jinja = STRICT MISSING VARS** (NÃO lenient):
++- Jinja2 Environment com `StrictUndefined` (default em jinja2.Environment)
++- Missing variable em template `{{ var }}` → raise `UndefinedError` → step error
++- Razão: silent missing var em outreach prompt = mensagem corrompida cobaia (high cost mistake)
++- Owner can use `{{ var | default('fallback') }}` Jinja syntax pra optional vars explicit
++- Variable context: merge request `variables` + previous step outputs + system context (timestamp + run_id)
++- NÃO lenient (silent corruption F.7 cobaia downstream catastrofe)
++- NÃO custom resolver (Jinja2 mature + safe sandbox SandboxedEnvironment optional)
++
++**D4 Tools validation = PRE-EXECUTE check** (fail-fast):
++- Engine ANTES start run loop: validate cada step tool em `mcp_registry.tools` (query DB)
++- Tool inexistente OR mcp_registry.status='quarantine' OR 'deprecated' → 400 Bad Request immediate (NÃO start run)
++- Tool tier='reserved' → 400 (não execute reserved MCPs)
++- Razão: fail-fast melhor que mid-run partial state (audit cleaner)
++- Reuses F.5.4 validate phase F BANNED-PATTERNS spirit (preemptive validation)
++- NÃO fail-on-dispatch (executa N steps depois falha = waste cost + tempo)
++- NÃO skip validation (perde safety net)
++
++**D5 Cost tracking per step = SYNC via mcp_calls trigger** (automatic):
++- Brain.decide() dispatch → mcp_calls INSERT (F.5.3 _log_mcp_call) com cost_credits + caller_chapter='F.9'
++- pipeline_runs_granular.cost_credits populated post-step via JOIN mcp_calls WHERE call_id = step.last_call_id
++- run completion total_cost = SUM(steps.cost_credits)
++- Automatic propagation F.5.7 → F.8.1 → F.9.2 (zero duplicate cost logic)
++- NÃO snapshot end-of-run (perde per-step granularity F.9.3 monitor)
++- NÃO custom cost calc F.9 (drift risk vs F.5.7+F.8.1)
++
++**D6 A/B test execution = PARALLEL asyncio.gather** (NÃO sequential):
++- A/B group draft pair (ab_group='A' + ab_group='B' linked via shared parent_run_id)
++- Engine spawn 2 concurrent runs: `await asyncio.gather(execute_run(A), execute_run(B), return_exceptions=True)`
++- Each group independent FSM + persist separate pipeline_runs_granular rows
++- F.9.4 UI compare metrics side-by-side (latency p50/p95 + cost + success_rate)
++- Razão: parallel = true comparison (sequential = time-of-day variance bias)
++- `return_exceptions=True` obrigatório (gotcha mem_mq7i9caw) + sanitize per group result
++- NÃO sequential (variance contamination)
++- NÃO single run alternating (complex bookkeeping)
++
++**D7 Run abort = SOFT** (current step finish + mark next aborted):
++- `POST /api/pipeline-studio/runs/{run_id}/abort` body `{reason: ""}`
++- Engine flag run.abort_requested=true → current step continues to completion (state machine integrity)
++- Subsequent steps NOT started → status="aborted" + abort_reason em pipeline_runs_granular
++- run.status="aborted" final + abort_reason persisted
++- Razão: kill mid-step = orphan resources (LLM API call charged + half-written outputs)
++- NÃO hard kill (mem_mq7i9caw asyncio gotcha + audit dirty)
++- NÃO can't abort (long runs sem owner escape route)
++
++**D8 Run timeout = PER-STEP 5min cap** (granular control):
++- Each step `asyncio.wait_for(brain.decide(...), timeout=300)` 5min hard cap per step
++- Step timeout → step status="error" + error="step_timeout_300s" + continue per D2 policy
++- F.future global cap (e.g., 30min total run) defer se F.7 cobaia precisa
++- Razão: per-step matches LLM call typical bounds (15-60s) + safety margin 5x
++- NÃO global cap F.9.2 (perde granularidade — step travada vs run accumulator)
++- NÃO no timeout (LLM hang infinite = pipeline parado forever)
++
++**Files F.9.2** (1 NOVO + 2 MATURE):
++- `core/pipeline_engine.py` NOVO (~300 LOC PipelineEngine class + execute_run + validate_tools + jinja_render + step_loop)
++- `api/pipeline_studio.py` MATURE — adicionar `POST /drafts/{id}/execute` (BackgroundTasks dispatch) + `GET /runs/{run_id}` poll + `POST /runs/{run_id}/abort`
++- `requirements.txt` MATURE — adicionar `jinja2>=3.1` (validar instalado primeiro)
++
++**Sub-task split F.9.2 (3 commits)**:
++- **C1** core/pipeline_engine.py NOVO (engine class + Jinja render + pre-execute validation + step loop) + requirements.txt jinja2 install
++- **C2** api/pipeline_studio.py MATURE add 3 endpoints (execute BackgroundTasks + runs poll + abort) + pipeline_runs_granular persistence
++- **C3** Smoke E2E execute lifecycle + reviewer + closeout F.9.2
++
++**🚨 Riscos críticos F.9.2**:
++- **Jinja2 dep install** — pre-flight valida `python -c "import jinja2"` antes começar (PC + VM venv ambos)
++- **Brain.decide() route_skill_run intent contract** — F.6.1 INTENT_REGISTRY define route_skill_run task_type=None (utility no LLM). F.9.2 engine assume Brain handles step dispatch via gateway. Validate F.9.1 Step 0 already done.
++- **asyncio.gather A/B test return_exceptions** OBRIGATÓRIO (mem_mq7i9caw gotcha — silent exception swallow)
++- **Pre-execute validation cost** — N steps × DB query mcp_registry = N round-trips. Batch validate single query JOIN
++- **Step timeout 5min vs LLM real bounds** — F.7 cobaia messages real LLM call NIM Free Endpoint latência p95 ~3-5s. Margem 5x suficiente
++- **Soft abort UX delay** — current step pode demorar até completion (max 5min). UI poll status mostra "aborting" intermediate state
++- **Cost tracking JOIN mcp_calls overhead** — pipeline_runs_granular UPDATE per step + JOIN mcp_calls. Validate idx_mcp_calls_call_id usage
++- **BLACKLIST R2 INTACTO** — F.9.2 engine NÃO chama linkedin/* direto (sempre via Brain.decide() → gateway dispatch)
++- **A/B test ab_group propagation** — execute_run signature aceita ab_group='A|B|null' + propaga pipeline_runs_granular row pra cross-tab compare F.9.4
++- **Validate phase A-E preservado** — api/pipeline_studio.py MATURE risk regression (low — adicionar endpoints only)
++
++**Cross-ref F.9.2**:
++- F.6.1 brain/intents.py INTENT_REGISTRY route_skill_run (utility intent reference)
++- F.6.2 brain/decide.py Brain.decide() + ReAct loop (engine dispatch reference)
++- F.5.3 mcps/gateway/server.py _log_mcp_call (cost_credits source)
++- F.5.7 mcps/hermes-llm/config.yaml routing matrix (provider selection via task_type)
++- F.8.1 mcp_calls.cost_credits + .caller_chapter columns (cost JOIN source)
++- F.9.1 api/pipeline_studio.py CRUD endpoints (extend with execute)
++- F.9.1 templates/pipeline_seed/*.yaml (5 templates Jinja variables resolution test)
++- Memory: mem_mqe10phw (F.9 D1-D8) + mem_mqe69k2f (F.9.1 complete) + mem_mq7i9caw (asyncio gotcha)
++
 +**🚨 Riscos críticos F.9**:
 +- Brain.decide() route_skill_run intent reuse (verify Step 0 F.9.1)
 +- WS scale 50+ steps × 3 events frontend buffer/throttle
