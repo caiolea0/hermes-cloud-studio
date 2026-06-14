@@ -2280,8 +2280,8 @@ async def cobaia_daily_cycle():
 +**Tasks**:
 +- [ ] Task 1: Backend CRUD `pipeline_drafts` + integração tools registry F.6 como step library; validação YAML schema
 +- [ ] Task 2: Backend execution engine — interpreta YAML drafts, chama tools via Brain dispatcher (F.6), grava granular per-step em `pipeline_runs_granular`
-+- [ ] Task 3: WS monitor — broadcast step_start/step_done/step_error events; client renderiza progress live
-+- [ ] Task 4: UI `/pipeline-studio` — form builder vertical (add step → modal step picker do registry → params form auto-gerado do tool schema); preview YAML lateral; botões save/execute/clone
++- [✅] Task 3: WS monitor — broadcast step_start/step_done/step_error events; client renderiza progress live
++- [✅] Task 4: UI `/pipeline-studio` — form builder vertical (add step → modal step picker do registry → params form auto-gerado do tool schema); preview YAML lateral; botões save/execute/clone
 +- [ ] Task 5: Template gallery — 5-8 templates seed (prospect → audit → proposta → site → entrega; lead enrichment; warmup cobaia; ...); clone-and-modify workflow
 +- [ ] Task 6: A/B test — execute draft em 2 grupos paralelo (50/50 rotation); UI compara métricas (latency, cost, success_rate) lado-a-lado
 +- [ ] Task 7: Substituição parcial `/pipeline` legado — flag feature-toggle no UI; legacy permanece read-only durante migração
@@ -2653,6 +2653,28 @@ Pre-req F.9.3:
 +- F.8.1 mcp_calls.cost_credits (cost tracking pipeline)
 +- WebSocket F.2.3 dot-notation `pipeline.step_*`
 +- Memory: mem_mqe10phw (F.9 D1-D8) + mem_mqdzvehq (F.8.4) + mem_mqd4chho (F.6.6)
++
++**F.9.3 STATUS COMPLETE** 2026-06-14 (5 commits fe87c95 + C2 builder+picker + C3 monitor+templates+engine + W-fixes + docs):
++- ✅ dashboard/styles/pipeline-studio.css NOVO ~350 LOC (zero hex literals, tokens-based, responsive collapse <1024px)
++- ✅ pipeline_studio_shell.js NOVO 207 LOC (4 tabs + auto-refresh 60s + visibilitychange pause + roving tabindex ArrowLeft/Right/Home/End)
++- ✅ pipeline_studio_builder.js NOVO ~380 LOC (D1 vertical form + D3 YAML side panel 50/50 + debounce 300ms + save/execute/copy)
++- ✅ pipeline_studio_step_picker_modal.js NOVO ~350 LOC (D2 live fetch + 60s sessionStorage cache + D6 3 filters AND intersect + focus trap + Esc + W2 _eventsWired guard + W7 refresh error toast)
++- ✅ pipeline_studio_runs_monitor.js NOVO ~400 LOC (D4 WS PRIMARY + 5s polling fallback + exponential backoff 1/2/4/8s + D5 inline abort + browser confirm + W6 _runs reset destroy)
++- ✅ pipeline_studio_templates.js NOVO ~150 LOC (fetch + DOM grid + clone stub disabled aria-disabled)
++- ✅ dashboard/index.html MATURE +88 LOC (nav + section 4 panels + step picker modal container + 5 script includes)
++- ✅ dashboard/app.js MATURE +8 LOC (pipeline-studio route + PipelineStudioShell.init)
++- ✅ core/pipeline_engine.py MATURE +61 LOC (_broadcast_pipeline_event + 5 WS emit calls fire-and-forget)
++- ✅ Reviewer frontend-ux-reviewer PASS-WITH-NOTES 22/22 dim 0 BLOCKERs 7 WARNs F.9.4/F.future
++- ✅ W2+W6+W7 post-review fixes aplicados (event accumulation guard + _runs stale + refresh toast)
++- ✅ Validate A-E 20/22 PASS baseline preserved (E:2 stubs whatsapp/instagram pre-existentes)
++- ✅ BLACKLIST R2 INTACTO (13 consecutive — 6 F.6 + 4 F.8 + 3 F.9.1/F.9.2/F.9.3)
++- ✅ F.9.4 NEXT: Templates clone-and-modify real + A/B compare metrics Chart.js + metrics side-by-side
++
++**F.9.4 PREP** (próxima sub-sessão Sonnet 4.6 ~3-4h):
++- Templates gallery: Clonar template → cria draft pré-preenchido, navega pra Builder
++- A/B compare tab: UI compara 2 runs lado-a-lado (latency p50/p95 + cost_credits + success_rate) via Chart.js bar (vendor REUSE F.8.3)
++- Métricas compare source: GET /api/pipeline-studio/runs?ab_group=A|B&parent_run_id=... (aggregação backend)
++- WARNs F.9.3 reviewer deferidos: W1 template keydown + W3 focus-visible + W4 rgba tokens + W5 --text-3 contrast
 +
 +---
 +
