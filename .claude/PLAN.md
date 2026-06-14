@@ -2300,6 +2300,92 @@ async def cobaia_daily_cycle():
 +
 +**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 5 F.9 + section 7 step library JOIN.
 +
++**🎯 F.9 Decisões Cristalizadas (Pipeline Studio Visual — pós F.6+F.8 reuse pesado) — incorporado 2026-06-14**:
++
++F.5 ✅ CLOSED · F.6 ✅ CHAPTER CLOSED · F.8 ✅ CHAPTER CLOSED. F.9 próximo per ordem cristalizada (F.5→F.6→F.8→**F.9**→F.4→F.7). 3 chapters production-ready habilitam reuse pesado. PLAN.md base 5 sub-sessions mantido.
++
++Pre-req F.9:
++- F.5 9 MCPs gateway LIVE (step library source)
++- F.6 Brain.decide() route_skill_run production-ready (engine reuse)
++- F.8 dashboard pattern 5 tabs + Chart.js vendor (UI reference reuse)
++- mcp_calls.cost_credits (cost tracking pipeline runs)
++
++**D1 Sub-task split 5 sub-sessions** (mantém PLAN.md base):
++- F.9.1 Backend CRUD + step library REUSE F.5 (Opus 4.7 ~3-4h)
++- F.9.2 Execution engine REUSE Brain.decide() route_skill_run (Opus 4.7 ~3-4h)
++- F.9.3 WS monitor + UI shell + step picker modal (Sonnet 4.6 + frontend-ux ~4-5h)
++- F.9.4 Templates 5 seed + A/B test 50/50 + metrics compare (Sonnet 4.6 ~3-4h)
++- F.9.5 Legacy /pipeline feature toggle + closeout + Task #9 [completed] (Sonnet 4.6 ~2-3h)
++- Total ~15-20h spread 1 semana
++
++**D2 Pipeline draft = TABLE DEDICADA pipeline_drafts** (PLAN base + NOVAS columns updated_at + last_executed_at + status + description + tags). CRUD REST + versionamento auto + ab_group nullable. NÃO YAML files (perde query SQL + version).
++
++**D3 Execution engine = Brain.decide() route_skill_run REUSE F.6** (zero duplicate dispatch). REUSE F.6.2 ReAct loop + F.5.3 fastmcp dispatch + F.5.4 BANNED-PATTERNS + F.5.7 routing matrix + F.8.1 cost tracking. NÃO engine custom (drift risk + perde safety F.6.4).
++
++**D4 WS events = `pipeline.step_*` namespace canonical** (F.2.3 dot-notation):
++- `pipeline.step_start` + `pipeline.step_done` + `pipeline.step_error` + `pipeline.run_complete` + `pipeline.run_aborted`
++- Payload `{run_id, step_idx, step_name, tool, status, output_preview (200 chars), latency_ms, cost_credits}`
++- NÃO daemon.pipeline_* (polui daemon F.2.3 canonical)
++
++**D5 5 TEMPLATES focused** (NÃO 8 over-engineering):
++- Cobaia Warmup 14d (sequence connect_safe → wait → reply → outreach)
++- Outreach Cold (search_prospects → classify_prospect → send_outreach → wait_reply → follow_up)
++- Skill Synthesis Loop (synth_skill → test_dryrun → propose_yaml → owner_review)
++- Cost Review Weekly (mcp_coverage_audit → analyze_top_skills → suggest_provider_switch)
++- Brain Test Battery (run hermes-brain-test 6 baterias + report)
++- F.future expand 8+ organic growth quando owner valida
++
++**D6 A/B test = 50/50 FIXED F.9** (configurable F.future). Chart.js bar compare latency p50/p95 + cost_credits + success_rate + reply_rate side-by-side. F.future ratios + statistical significance.
++
++**D7 UI = SECTION ÚNICA com sub-tabs HORIZONTAL TOP** (pattern F.8.3 reuse):
++- `/pipeline-studio` section única
++- Sub-tabs: **Builder** | **Templates** | **Runs Monitor** | **A/B Compare**
++- Default Builder (form-driven é primary UX)
++- IIFE pattern observability_shell.js (F.8.3) reuse
++
++**D8 Step picker = MODAL** (pattern F.6.4 destructive + F.8.3 resolve modal):
++- Click "Add step" → modal opens
++- Modal: search bar + filter chapter_owner + filter tier + table list MCPs/tools
++- Click tool → params form auto-gerado Pydantic introspect
++- Submit → step added draft YAML + modal close
++- ESC + backdrop close (cancel)
++- z-index 1100 (alinha F.8.3 resolve modal hierarchy explicit)
++
++**Files F.9 global** (~15 NOVOS + 8 MATURE):
++- `api/pipeline_studio.py` NOVO (~400 LOC CRUD + execute + monitor endpoints)
++- `core/pipeline_engine.py` NOVO (~300 LOC executor REUSE Brain.decide())
++- `migrations/2026_06_<next>_pipeline_studio.sql` NOVO (pipeline_drafts + pipeline_runs_granular)
++- `dashboard/components/pipeline_studio_{shell,builder,step_picker_modal,templates,runs_monitor,ab_compare}.js` NOVO 6 files (~1280 LOC)
++- `dashboard/styles/pipeline-studio.css` NOVO (~300 LOC)
++- `templates/pipeline_seed/` NOVO dir + 5 YAML files
++- `dashboard/index.html` + `app.js` + `server.py` MATURE
++- `requirements.txt` validar (no new deps esperado, REUSE F.6+F.8 infra)
++
++**Sub-task split F.9.1 (sub-sessão pioneer Opus 4.7, 3 commits)**:
++- C1 Migration pipeline_drafts + pipeline_runs_granular + seed 5 YAML templates
++- C2 Backend api/pipeline_studio.py CRUD endpoints + step library REUSE F.5 gateway tools
++- C3 Smoke endpoints E2E + reviewer + closeout F.9.1
++
++**🚨 Riscos críticos F.9**:
++- Brain.decide() route_skill_run intent reuse (verify Step 0 F.9.1)
++- WS scale 50+ steps × 3 events frontend buffer/throttle
++- A/B test isolation ab_group column index
++- Template YAML schema validation Pydantic
++- Legacy /pipeline migration feature toggle F.9.5 owner controla
++- BLACKLIST R2 INTACTO (Brain dispatch via gateway sempre)
++- frontend-ux-reviewer F.9.3 + F.9.5 OBRIGATÓRIO
++- Chart.js vendor REUSE F.8.3 (zero new vendor)
++- mcp_calls.caller_chapter='F.9' rastreabilidade obrigatório
++
++**Cross-ref F.9**:
++- F.5 mcp_registry + 9 MCPs (step library source)
++- F.6.2 Brain.decide() + ReAct loop (engine reuse)
++- F.6.4 brain_confirm_drawer (modal pattern reference)
++- F.8.3 observability_shell.js (sub-tabs pattern) + chart.min.js vendor reuse
++- F.8.1 mcp_calls.cost_credits (cost tracking pipeline)
++- WebSocket F.2.3 dot-notation `pipeline.step_*`
++- Memory: mem_mqe10phw (F.9 D1-D8) + mem_mqdzvehq (F.8.4) + mem_mqd4chho (F.6.6)
++
 +---
 +
 +### Regra inviolável FASE F — Regression-test gate
