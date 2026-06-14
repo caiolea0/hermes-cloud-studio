@@ -212,15 +212,15 @@ class PipelineEngine:
 
     def _insert_step_started(
         self, run_id: str, draft_id: str, step_idx: int, step_name: str,
-        tool: Optional[str],
+        tool: Optional[str], ab_group: Optional[str] = None,
     ) -> None:
         conn = _db_connect()
         try:
             conn.execute(
                 """INSERT INTO pipeline_runs_granular
-                   (run_id, draft_id, step_idx, step_name, tool_invoked, status, started_at)
-                   VALUES (?, ?, ?, ?, ?, 'running', CURRENT_TIMESTAMP)""",
-                (run_id, draft_id, step_idx, step_name, tool),
+                   (run_id, draft_id, step_idx, step_name, tool_invoked, status, started_at, ab_group)
+                   VALUES (?, ?, ?, ?, ?, 'running', CURRENT_TIMESTAMP, ?)""",
+                (run_id, draft_id, step_idx, step_name, tool, ab_group),
             )
             conn.commit()
         finally:
@@ -246,16 +246,16 @@ class PipelineEngine:
 
     def _insert_aborted_step(
         self, run_id: str, draft_id: str, step_idx: int, step_name: str,
-        tool: Optional[str], reason: str,
+        tool: Optional[str], reason: str, ab_group: Optional[str] = None,
     ) -> None:
         conn = _db_connect()
         try:
             conn.execute(
                 """INSERT INTO pipeline_runs_granular
                    (run_id, draft_id, step_idx, step_name, tool_invoked, status, error,
-                    started_at, ended_at, latency_ms, cost_credits)
-                   VALUES (?, ?, ?, ?, ?, 'skipped', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0)""",
-                (run_id, draft_id, step_idx, step_name, tool, f"aborted: {reason}"[:_OUTPUT_TRUNCATE]),
+                    started_at, ended_at, latency_ms, cost_credits, ab_group)
+                   VALUES (?, ?, ?, ?, ?, 'skipped', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 0, ?)""",
+                (run_id, draft_id, step_idx, step_name, tool, f"aborted: {reason}"[:_OUTPUT_TRUNCATE], ab_group),
             )
             conn.commit()
         finally:
@@ -337,6 +337,7 @@ class PipelineEngine:
                         rstep.get("name", f"step_{remaining_idx}"),
                         rstep.get("tool"),
                         reason,
+                        ab_group,
                     )
                 self._update_init_status(run_id, "aborted")
                 self._broadcast_pipeline_event("pipeline.run_aborted", {
@@ -349,7 +350,7 @@ class PipelineEngine:
             args = step.get("args", {}) or {}
             continue_on_error = bool(step.get("continue_on_error", False))
 
-            self._insert_step_started(run_id, draft_id, step_idx, step_name, tool)
+            self._insert_step_started(run_id, draft_id, step_idx, step_name, tool, ab_group)
             self._broadcast_pipeline_event("pipeline.step_start", {
                 "run_id": run_id, "step_idx": step_idx, "step_name": step_name,
                 "tool": tool, "draft_id": draft_id,

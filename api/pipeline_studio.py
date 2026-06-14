@@ -434,15 +434,15 @@ def _ensure_runs_table_exists() -> bool:
         conn.close()
 
 
-def _reserve_run_init_row(run_id: str, draft_id: str) -> None:
+def _reserve_run_init_row(run_id: str, draft_id: str, ab_group: Optional[str] = None) -> None:
     """Insert step_idx=-1 _run_init_ row reserving run_id (D1 polling visibility)."""
     conn = _connect()
     try:
         conn.execute(
             """INSERT INTO pipeline_runs_granular
-               (run_id, draft_id, step_idx, step_name, status, started_at)
-               VALUES (?, ?, -1, '_run_init_', 'pending', CURRENT_TIMESTAMP)""",
-            (run_id, draft_id),
+               (run_id, draft_id, step_idx, step_name, status, started_at, ab_group)
+               VALUES (?, ?, -1, '_run_init_', 'pending', CURRENT_TIMESTAMP, ?)""",
+            (run_id, draft_id, ab_group),
         )
         conn.commit()
     finally:
@@ -503,7 +503,7 @@ async def execute_draft(
         )
 
     run_id = str(uuid.uuid4())
-    _reserve_run_init_row(run_id, draft_id)
+    _reserve_run_init_row(run_id, draft_id, req.ab_group)
 
     bg.add_task(
         engine.execute_run,
@@ -584,6 +584,157 @@ async def get_run_status(run_id: str):
         "total_cost_credits": round(total_cost, 4),
         "started_at": init_row["started_at"] if init_row else None,
         "ended_at": init_row["ended_at"] if init_row else None,
+    }
+
+
+# ---------------------------------------------------------------------------
+# F.9.4 D1 — POST /drafts/{id}/clone — server-side atomic clone
+# ---------------------------------------------------------------------------
+
+@router.post("/drafts/{draft_id}/clone", status_code=201)
+async def clone_draft(draft_id: str):
+    """D1 server-side atomic clone. version=1 reset + cloned_from_id audit cross-ref.
+
+    Cannot clone archived drafts (409). New draft gets name '{original} (copy)'.
+    """
+    if not _ensure_table_exists():
+        raise HTTPException(503, "pipeline_drafts table missing — apply migration")
+
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT * FROM pipeline_drafts WHERE id = ?", (draft_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "original_draft_not_found")
+        if row["status"] == "archived":
+            raise HTTPException(409, "cannot_clone_archived_draft")
+
+        new_id = str(uuid.uuid4())
+        new_name = f"{row['name']} (copy)"
+        conn.execute(
+            """INSERT INTO pipeline_drafts
+               (id, name, description, yaml_blob, version, status, tags,
+                ab_group, owner, cloned_from_id)
+               VALUES (?, ?, ?, ?, 1, 'draft', ?, NULL, ?, ?)""",
+            (
+                new_id,
+                new_name,
+                row["description"],
+                row["yaml_blob"],
+                row["tags"] or "[]",
+                row["owner"] or "caio",
+                draft_id,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {
+        "id": new_id,
+        "name": new_name,
+        "version": 1,
+        "status": "draft",
+        "cloned_from_id": draft_id,
+    }
+
+
+# ---------------------------------------------------------------------------
+# F.9.4 D3+D4 — GET /runs — aggregate metrics per ab_group
+# ---------------------------------------------------------------------------
+
+@router.get("/runs")
+async def list_runs_aggregate(
+    ab_group: Optional[str] = Query(None, description="A | B — filter to single group"),
+    draft_id: Optional[str] = Query(None, description="filter to single draft"),
+    limit: int = Query(50, ge=1, le=200, description="max rows per ab_group for p50/p95 compute"),
+):
+    """D3+D4 aggregate pipeline_runs_granular per ab_group.
+
+    Returns metrics dict keyed by ab_group ('A', 'B', or 'null').
+    D3: SQLite has no PERCENTILE_CONT — p50/p95 computed in Python on sorted list.
+    D4: limit default=50, max=200 hard (no configurable date range — last N suffices).
+    """
+    if ab_group is not None and ab_group not in _ALLOWED_AB_GROUP:
+        raise HTTPException(400, "ab_group must be 'A', 'B', or omit for all")
+    if not _ensure_runs_table_exists():
+        return {"limit": limit, "ab_group_filter": ab_group, "draft_id_filter": draft_id,
+                "metrics": {}, "note": "pipeline_runs_granular missing — apply migration"}
+
+    # Base WHERE (excludes the init row, optionally filters draft + ab_group)
+    base_parts: list[str] = ["step_idx >= 0"]
+    base_params: list[Any] = []
+    if ab_group:
+        base_parts.append("ab_group = ?")
+        base_params.append(ab_group)
+    if draft_id:
+        base_parts.append("draft_id = ?")
+        base_params.append(draft_id)
+    base_where = " AND ".join(base_parts)
+
+    conn = _connect()
+    try:
+        agg_rows = conn.execute(
+            f"""SELECT
+                    ab_group,
+                    COUNT(DISTINCT run_id) AS total_runs,
+                    AVG(latency_ms) AS avg_latency_ms,
+                    SUM(cost_credits) AS total_cost,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) * 100.0
+                        / NULLIF(COUNT(*), 0) AS success_rate
+                FROM pipeline_runs_granular
+                WHERE {base_where}
+                GROUP BY ab_group""",
+            base_params,
+        ).fetchall()
+
+        def _percentiles(group_val: Optional[str]) -> tuple[int, int]:
+            """Fetch sorted latencies for a specific group; compute p50 + p95 in Python."""
+            grp_parts = list(base_parts)
+            grp_params = list(base_params)
+            # Replace/add the exact group filter (override the base ab_group filter if any)
+            if group_val is not None:
+                if "ab_group = ?" not in grp_parts:
+                    grp_parts.append("ab_group = ?")
+                    grp_params.append(group_val)
+                # If already filtered by ab_group, the base_params already have the value
+            else:
+                grp_parts.append("ab_group IS NULL")
+            grp_where = " AND ".join(grp_parts)
+            rows = conn.execute(
+                f"SELECT latency_ms FROM pipeline_runs_granular WHERE {grp_where} ORDER BY latency_ms ASC LIMIT ?",
+                grp_params + [limit],
+            ).fetchall()
+            vals = [r["latency_ms"] for r in rows if r["latency_ms"] is not None]
+            if not vals:
+                return 0, 0
+            p50 = vals[len(vals) // 2]
+            p95 = vals[min(int(len(vals) * 0.95), len(vals) - 1)]
+            return p50, p95
+
+        result: dict[str, Any] = {}
+        for agg in agg_rows:
+            group_val = agg["ab_group"]
+            group_key = group_val if group_val else "null"
+            p50, p95 = _percentiles(group_val)
+            result[group_key] = {
+                "total_runs": int(agg["total_runs"] or 0),
+                "avg_latency_ms": round(float(agg["avg_latency_ms"] or 0), 1),
+                "p50_latency_ms": p50,
+                "p95_latency_ms": p95,
+                "total_cost_credits": round(float(agg["total_cost"] or 0), 4),
+                "success_rate": round(float(agg["success_rate"] or 0), 1),
+            }
+
+    finally:
+        conn.close()
+
+    return {
+        "limit": limit,
+        "ab_group_filter": ab_group,
+        "draft_id_filter": draft_id,
+        "metrics": result,
     }
 
 
