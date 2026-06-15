@@ -228,58 +228,78 @@ Write-Host "  VM gateway status: $vmStatus" -ForegroundColor Green
 Write-Host ""
 Write-Host "=== Smoke validation ===" -ForegroundColor Cyan
 
-# 1. PC server health
+# 1. PC server health (server.py expoe / e /docs, nao /health)
 try {
-    $pcResp = Invoke-WebRequest -Uri "http://localhost:55000/health" -UseBasicParsing -ErrorAction Stop
-    Write-Host "  PC :55000 health: $($pcResp.StatusCode)"
+    $pcResp = Invoke-WebRequest -Uri "http://localhost:55000/docs" -UseBasicParsing -ErrorAction Stop
+    $pcStatus = "  PC :55000 /docs: {0}" -f $pcResp.StatusCode
+    Write-Host $pcStatus
 } catch {
-    Write-Host "  PC :55000 health: DOWN" -ForegroundColor Yellow
+    Write-Host "  PC :55000: DOWN" -ForegroundColor Yellow
 }
 
 # 2. VM gateway health
 $vmHealth = ssh -o ConnectTimeout=5 hermes-gcp@136.115.74.69 'curl -s -o /dev/null -w "%{http_code}" http://localhost:55401/health' 2>&1
 Write-Host "  VM :55401 gateway: $vmHealth"
 
-# 3. PAT presence verify (boolean check sem logar value)
-# Python script em file temp pra evitar parser issues PS5.1
-$tempPy = New-TemporaryFile
-$pyCode = @'
-import os
-import sys
-sys.path.insert(0, ".")
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-k = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN", "")
-if k.startswith("ghp_") or k.startswith("github_pat_"):
-    print("present")
-else:
-    print("missing")
-'@
-$pyCode | Out-File -FilePath $tempPy -Encoding UTF8 -Force
-$patPresent = python $tempPy 2>&1
-Remove-Item $tempPy -Force -ErrorAction SilentlyContinue
-Write-Host "  PC PAT presence: $patPresent"
+# 3. PC PAT presence (leitura direta .env, encoding-safe)
+$pcPatLine = Select-String -Path $envPathPC -Pattern "^GITHUB_PERSONAL_ACCESS_TOKEN=(ghp_|github_pat_)" -Quiet
+if ($pcPatLine) {
+    Write-Host "  PC PAT presence: present" -ForegroundColor Green
+} else {
+    Write-Host "  PC PAT presence: missing" -ForegroundColor Red
+}
 
 # VM PAT check
 $vmPatScript = "grep -c '^GITHUB_PERSONAL_ACCESS_TOKEN=ghp_' ~/.hermes/.env 2>/dev/null || grep -c '^GITHUB_PERSONAL_ACCESS_TOKEN=github_pat_' ~/.hermes/.env 2>/dev/null || echo 0"
 $vmPat = ssh hermes-gcp@136.115.74.69 $vmPatScript 2>&1
 Write-Host "  VM PAT presence count: $vmPat (>=1 = OK)"
 
-# 4. GitHub MCP smoke via gateway dispatch
+# 4. GitHub MCP smoke via gateway dispatch (100% VM-side - secret esta na VM nao no PC)
 Write-Host ""
 Write-Host "  Smoke GitHub MCP via gateway..."
-$secretLine = Select-String -Path $envPathPC -Pattern "^HERMES_GATEWAY_OAUTH_SECRET=" -SimpleMatch | Select-Object -First 1
-$secret = $secretLine.Line.Substring("HERMES_GATEWAY_OAUTH_SECRET=".Length)
 
-$ghPayload = '{"args": {"query": "owner:caiolea0", "per_page": 3}}'
-$ghCmd = "curl -s -X POST http://localhost:55401/dispatch/github/search_repositories -H 'Authorization: Bearer $secret' -H 'Content-Type: application/json' -d '$ghPayload'"
-$ghSmoke = ssh hermes-gcp@136.115.74.69 $ghCmd 2>&1
+# Bash script remoto que: extrai secret VM + faz dispatch curl + retorna response
+$smokeBash = @"
+set -e
+SECRET=`$(grep -E '^HERMES_GATEWAY_OAUTH_SECRET=' ~/.hermes/.env | cut -d= -f2-)
+if [ -z "`$SECRET" ]; then
+  echo "ERRO: HERMES_GATEWAY_OAUTH_SECRET nao encontrado no .env VM"
+  exit 1
+fi
+curl -s -X POST http://localhost:55401/dispatch/github/search_repositories \
+  -H "Authorization: Bearer `$SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"args": {"query": "owner:caiolea0", "per_page": 3}}'
+"@
+
+$smokeBashLF = $smokeBash -replace "`r`n", "`n" -replace "`r", "`n"
+
+$psi2 = New-Object System.Diagnostics.ProcessStartInfo
+$psi2.FileName = "ssh"
+$psi2.Arguments = "-T -o ConnectTimeout=10 hermes-gcp@136.115.74.69 bash -s"
+$psi2.RedirectStandardInput = $true
+$psi2.RedirectStandardOutput = $true
+$psi2.RedirectStandardError = $true
+$psi2.UseShellExecute = $false
+$psi2.CreateNoWindow = $true
+
+$proc2 = [System.Diagnostics.Process]::Start($psi2)
+$utf8NoBom2 = New-Object System.Text.UTF8Encoding($false)
+$bytes2 = $utf8NoBom2.GetBytes($smokeBashLF)
+$proc2.StandardInput.BaseStream.Write($bytes2, 0, $bytes2.Length)
+$proc2.StandardInput.BaseStream.Flush()
+$proc2.StandardInput.Close()
+$ghSmoke = $proc2.StandardOutput.ReadToEnd()
+$ghErr = $proc2.StandardError.ReadToEnd()
+$proc2.WaitForExit()
+
+if ($ghErr) { Write-Host "  STDERR: $ghErr" -ForegroundColor Yellow }
+
 $ghLen = [Math]::Min(400, $ghSmoke.Length)
-$ghSmokeShort = $ghSmoke.Substring(0, $ghLen)
-Write-Host "  Response preview: $ghSmokeShort..." -ForegroundColor Gray
+if ($ghLen -gt 0) {
+    $ghSmokeShort = $ghSmoke.Substring(0, $ghLen)
+    Write-Host "  Response preview: $ghSmokeShort..." -ForegroundColor Gray
+}
 
 if ($ghSmoke -match '"ok":\s*true' -or $ghSmoke -match '"items"' -or $ghSmoke -match '"total_count"') {
     Write-Host "  GitHub MCP: FUNCIONAL OK" -ForegroundColor Green
@@ -291,6 +311,10 @@ if ($ghSmoke -match '"ok":\s*true' -or $ghSmoke -match '"items"' -or $ghSmoke -m
     Write-Host "  GitHub MCP: WARN response inesperado - validar manual" -ForegroundColor Yellow
 }
 
+$smokeBash = $null
+$smokeBashLF = $null
+$bytes2 = $null
+
 # ============================================================
 # Cleanup
 # ============================================================
@@ -298,8 +322,7 @@ $plainToken = $null
 $tokenLine = $null
 $envContent = $null
 $newContent = $null
-$secret = $null
-$secretLine = $null
+$ghSmoke = $null
 [System.GC]::Collect()
 
 Write-Host ""
