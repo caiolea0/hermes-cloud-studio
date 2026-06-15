@@ -16,6 +16,8 @@
     --green-dim: rgba(16,185,129,0.12);
     --red: #ef4444;
     --red-dim: rgba(239,68,68,0.12);
+    --red-l: #fca5a5;              /* F.4.3 C2 — danger light, WCAG AA 9.33:1 on --s2 */
+    --red-l-pressed: #f87171;      /* F.4.3 C2 — hover/active state for --red-l */
     --amber: #f59e0b;
     --amber-dim: rgba(245,158,11,0.12);
     --blue: #3b82f6;

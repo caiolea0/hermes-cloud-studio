@@ -629,7 +629,103 @@ Audit C2 surfaceou BLOCKER: `gateway VM /tools` retorna 0 workflow tools. Invest
 - **[✅] C2** GitHub MCP PR integration — dispatch_github_pr extend AutoSkillRunner (anchor github_mcp removido api/skills.py:184 + core/skill_proposals.py:209 docstring) + D2 PR auto-template (difflib unified_diff vs closest existing skill + lab results truncate 2000 chars + Brain rationale) + D3 branch slug+shortid + D4 BLOCK PR se lab_failed + D5 fail-fast GitHub MCP errors (429/401/5xx, Sentry capture, WS emit brain.skill_pr_create_failed, NÃO retry) + brain/dispatch.py invoke_tool +requester kwarg (D7 PIVOT enforce) + 9 unit tests novos PASS (block_lab_failed, success_full_template, branch_naming, yaml_diff_with/no_existing, 429/401 fail_fast, persists_pr_url, requester_brain_f4)
 - **[✅] C3** [PIVOT D6 HONEST SCAFFOLD] trigger_workflow_synthesis honest scaffold — anchors workflow_invoke removidos (api/skills.py:235+245) + Workflow MCP unavailable (harness feature NÃO public MCP server) + subscription-only constraint → F.4.2 entrega scaffold (persiste synthesis_runs queued + WS emit brain.skill_synthesis_queued + scaffold_notice response menciona F.4.6) + F.4.3 UI manual button consome queued (PATH 1) + F.4.6 NOVA backlog subprocess `claude --headless` (PATH 2 auto) + synthesis_runs table NOVA (6 cols + 2 indexes) + migration 2026_06_synthesis_runs.sql idempotent + 6 unit tests novos PASS (persists/ws_emit/manual_default/trigger_source_propagated/requester_brain_f4/ensure_table_idempotent)
 
-**F.4.2 CHAPTER CLOSED 2026-06-15** — 3 commits (C1 4fb9014 + C2 85e15c5 + C3 <SHA>) — 4/4 anchors `F.4.2_implements_real_*` substituídos — PIVOT D1/D6/D7 cristalizados — pioneer meta-recursive engine AutoSkillRunner (lab + GitHub PR + workflow scaffold) — BLACKLIST R2 INTACTO 20 consecutive sub-sessions. NEXT F.4.3 UI dashboard (Monaco editor proposals + manual button consome synthesis_runs queued).
+**F.4.2 CHAPTER CLOSED 2026-06-15** — 3 commits (C1 4fb9014 + C2 85e15c5 + C3 f2dcaf8) — 4/4 anchors `F.4.2_implements_real_*` substituídos — PIVOT D1/D6/D7 cristalizados — pioneer meta-recursive engine AutoSkillRunner (lab + GitHub PR + workflow scaffold) — BLACKLIST R2 INTACTO 20 consecutive sub-sessions. NEXT F.4.3 UI dashboard (Monaco editor proposals + manual button consome synthesis_runs queued).
+
+**🎯 F.4.3 Decisões Cristalizadas (UI Dashboard + PATH 1 Manual Trigger) — 2026-06-15**:
+
+**D1 Editor stack = Monaco editor 0.45+ vendor commit** (~2MB):
+- Monaco diffEditor built-in (split view) + Monaco editor read-only YAML
+- Cargo `dashboard/vendor/monaco/` similar Chart.js F.8.3 pattern (~2MB OK)
+- Monaco language YAML registered (default highlighter)
+- NÃO Prism.js (read-only sem diff = perde funcionalidade nativa)
+- NÃO CodeMirror 6 (modular setup mais complex)
+
+**D2 Diff display = TOGGLE split↔unified** (owner choice runtime):
+- Default: side-by-side split view (Monaco diffEditor renderSideBySide=true)
+- Button toggle: switches renderSideBySide false → inline unified
+- localStorage persist user preference per session
+- Diff source: closest existing skill.yaml via difflib (REUSE C2 _find_closest_skill_yaml helper) OR empty fallback
+- NÃO custom HTML diff (Monaco diffEditor superior)
+
+**D3 PATH 1 "Run Workflow Now" = MODAL PRIMARY + WS experimental flag** (PIVOT D6 fallback nativo):
+- Primary impl: Modal dialog HTML <dialog> mostra:
+  - Texto prompt completo pré-pronto (Workflow JSON args + script path `.claude/workflows/hermes-skill-forge.js`)
+  - Botão "Copy to Clipboard" (clipboard API + visual confirmation)
+  - Instrução: "Cole em Claude Code session local + execute"
+  - Status display: "Aguardando synthesis_runs.status → completed" (SSE poll 5s)
+- Experimental atrás `HERMES_F43_WS_LISTENER=1` flag (default OFF):
+  - Botão click → WS emit `brain.workflow_trigger_request` payload {run_id, script_path, args}
+  - Listener consumer (não construído F.4.3): Tauri desktop app F.future OR F.4.6 sub-session
+  - Fallback automático: se WS não receber ack em 5s → mostra modal primary
+- Backend ENV var lê via /api/config OR exposed na bootstrap
+- Owner manual toggle quando F.4.6 Tauri listener pronto
+- NÃO custom URL scheme claude:// (não documentado oficial)
+- NÃO browser extension (over-engineering F.4.3 scope)
+
+**D4 Accept action = POST /accept → dispatch_github_pr direto** (REUSE C2 chain):
+- Owner clica Accept → modal confirm com PR template preview (lab result + diff snippet)
+- POST `/api/skills/proposals/{id}/accept` → endpoint já existe C2 (chains dispatch_github_pr)
+- Response: PR URL + PR number → dashboard updates row status='pr_open' + link visual
+- Loading state spinner durante dispatch (~3-8s GitHub API)
+- Error handling: 429/401/5xx → toast notification + retry button
+- NÃO popup form re-edit PR template (Brain rationale + diff já curated)
+
+**D5 Reject action = POST /reject → status='rejected' + Sentry breadcrumb**:
+- Owner clica Reject → modal text input "Reason" (optional)
+- POST `/api/skills/proposals/{id}/reject` body: `{reason: optional_string}`
+- skill_proposals.status='rejected' + skill_proposals.reject_reason persisted
+- Sentry breadcrumb (não exception): track rejection patterns for Brain learning F.future
+- WS emit `brain.skill_proposal_rejected` event (F.6 Brain telemetry)
+- NÃO delete row (audit trail histórico)
+
+**D6 Dashboard layout = 3-pane** (matches PLAN.md F.2 dashboard pattern):
+- Pane 1 (left ~20%): Sidebar list skill_proposals filtered status (all/lab_passed/pr_open/rejected/lab_failed) + search bar nome
+- Pane 2 (center ~50%): Monaco editor + diff toggle + lab results panel below
+- Pane 3 (right ~30%): Brain rationale text + accept/reject buttons + PATH 1 trigger button (Run Workflow Now)
+- Sticky header com title "Skill Proposals" + filter chips + refresh button
+- WS subscriber: real-time updates lista quando novo proposal queued / status change
+
+**D7 frontend-ux-reviewer agent OBRIGATÓRIO** (PLAN.md F.4 risco):
+- Pre-commit reviewer invocation
+- Cover dimensions: accessibility (aria-labels Monaco), keyboard navigation, color contrast diff view, focus management modals, screen reader announcement WS updates
+- BLOCK merge se BLOCKERS detected
+- Sonnet 4.6 + frontend-ux-reviewer agent type (per PLAN.md original)
+
+**Files F.4.3** (3 NOVO + 2 MATURE):
+- `dashboard/vendor/monaco/` NOVO (~2MB Monaco editor 0.45+ vendor commit)
+- `dashboard/components/skill_proposals_studio.js` NOVO (~400 LOC IIFE component 3-pane)
+- `dashboard/components/skill_proposals_modal.js` NOVO (~200 LOC accept/reject/path1-trigger modals)
+- `dashboard/styles/skill_proposals.css` NOVO (~150 LOC layout 3-pane responsive)
+- `dashboard/pages/skill_proposals.html` NOVO entry point
+- `api/skills.py` MATURE — endpoint `/reject` adicionar reason body param + Sentry breadcrumb (D5 PIVOT)
+- `core/skill_proposals.py` MATURE — método update_status accept reason kwarg
+
+**Sub-task split F.4.3 (2 commits sub-session)**:
+- **[✅] C1** Monaco vendor + skill_proposals_studio.js 3-pane layout + sidebar list + Monaco diff toggle + PATH 1 button modal + accept/reject endpoints frontend wiring — commit 58eed06 (40 baseline pytest + frontend-ux-reviewer PASS-WITH-NOTES zero BLOCKERs após fix 3 CONTRAST + W1 url + W3 roving + W5 raw clipboard + W2 token drift; G1-G10 PASS)
+- **[✅] C2** WS RT throttle/dedup (W4 PIVOT) + filter chips ARIA role=radiogroup (W6 PIVOT) + --red-l token canonical em styles.css (DS-LITERAL PIVOT) + lab JSON tree collapsible + reject reason char counter + frontend-ux-reviewer FINAL PASS-WITH-NOTES zero BLOCKERs + closeout F.4.3 — commit <SHA-C2> (47 pytest = 40 baseline + 7 NOVOS F.4.3 smoke endpoints PASS)
+
+**F.4.3 CHAPTER CLOSED 2026-06-15** — 2 commits (C1 58eed06 + C2 <SHA-C2>) — D1/D2/D3/D4/D5/D6/D7 cristalizados — Monaco editor 0.45+ vendored 4MB + 3-pane Mission Control + PATH 1 manual modal (PIVOT D6 honest scaffold) + WCAG 2.1 AA frontend-ux-reviewer 2 PASSes — BLACKLIST R2 INTACTO 22 consecutive sub-sessions. NEXT F.4.4 sync VM auto + Sentry quarantine cron.
+
+**🚨 Riscos críticos F.4.3**:
+- **Monaco vendor size 2MB** — first load impact dashboard. Defer load lazy (import só rota /skills/proposals)
+- **PATH 1 D6 listener experimental** — flag default OFF mandatório (não breakage UX)
+- **Accept dispatch_github_pr blocking** — UI loading state 3-8s OR async toast notification
+- **WS real-time race conditions** — proposal status update durante user view = handle gracefully (alert "updated, refresh?")
+- **frontend-ux-reviewer 2026 standards** — WCAG 2.1 AA mínimo
+- **BLACKLIST R2 INTACTO** — F.4.3 zero touch linkedin/* (UI only)
+- **localStorage diff toggle persist** — graceful fallback browser localStorage disabled
+- **Monaco YAML language registration** — default highlight Monaco YAML correto (validate runtime)
+- **Tauri app coexistence** — Hermes.lnk runs Tauri webview localhost:55000, F.4.3 page acessível Tauri normal
+
+**Cross-ref F.4.3**:
+- F.4.2 C2 dispatch_github_pr (D4 Accept REUSE)
+- F.4.2 C3 synthesis_runs table (D3 PATH 1 poll status)
+- F.6.2 Brain rationale field (D6 right pane display)
+- F.5.3 mcp_calls.requester='brain-f4' (D7 cost aggregate F.8 dashboard)
+- F.8.3 Chart.js vendor pattern (D1 Monaco vendor commit pattern)
+- F.2 dashboard layout 3-pane (D6 consistency)
+- Memory: mem_mqfey4f5 (F.4.2 closed) + mem_mqfeje97 (PIVOT D6)
+
 
 **🚨 Riscos críticos F.4.2**:
 - **Meta-recursive synthesis bug compounding** — Brain gera código → lab → PR. Bug em qualquer stage propaga. Lab D1 obrigatório + fail-fast D5

@@ -29,6 +29,11 @@
         { key: "archived",     label: "Rejected" },
     ];
 
+    /* F.4.3 C2 W4 — WS dedup + throttle config */
+    var WS_DEDUP_WINDOW_MS = 500;     /* skip identical event payloads inside window */
+    var WS_DEDUP_LRU_CAP   = 100;     /* cap Set size, evict oldest on overflow */
+    var WS_REFRESH_DEBOUNCE_MS = 250; /* coalesce burst of WS events into 1 refresh */
+
     var _state = {
         initialized: false,
         root: null,
@@ -44,7 +49,54 @@
         diffEditor: null,
         diffMode: "unified",
         existingYaml: "",
+        /* C2 W4 — WS RT throttle/dedup */
+        wsDedupSet: new Map(),       /* hash → timestamp insert order; Map iter preserves insertion */
+        wsRefreshTimer: null,
+        wsRefreshSelectedId: null,
+        wsLastTickAt: 0,
+        wsDedupSkipped: 0,
+        /* C2 lab tree expand state — keys collapsed by default except status+latency */
+        labTreeOpen: { status: true, latency_ms: true, ok: true },
     };
+
+    /* ---- C2 W4 — WS dedup + throttle helpers ------------- */
+
+    function _wsEventHash(event) {
+        if (!event || !event.event_type) return null;
+        var p = event.payload || {};
+        return event.event_type + ":" + (p.proposal_id || p.run_id || "") + ":" + (p.status || p.new_status || "");
+    }
+
+    function _wsDedupSeen(hash) {
+        if (!hash) return false;
+        var now = Date.now();
+        var prev = _state.wsDedupSet.get(hash);
+        if (prev != null && (now - prev) < WS_DEDUP_WINDOW_MS) {
+            _state.wsDedupSkipped += 1;
+            return true;
+        }
+        _state.wsDedupSet.set(hash, now);
+        /* LRU cap — evict oldest (Map keeps insertion order). */
+        if (_state.wsDedupSet.size > WS_DEDUP_LRU_CAP) {
+            var firstKey = _state.wsDedupSet.keys().next().value;
+            _state.wsDedupSet.delete(firstKey);
+        }
+        return false;
+    }
+
+    function _scheduleWsRefresh(payload) {
+        if (payload && payload.proposal_id && payload.proposal_id === _state.selectedId) {
+            _state.wsRefreshSelectedId = payload.proposal_id;
+        }
+        if (_state.wsRefreshTimer) return; /* already scheduled */
+        _state.wsRefreshTimer = setTimeout(function () {
+            _state.wsRefreshTimer = null;
+            var reselect = _state.wsRefreshSelectedId;
+            _state.wsRefreshSelectedId = null;
+            refreshList();
+            if (reselect) selectProposal(reselect);
+        }, WS_REFRESH_DEBOUNCE_MS);
+    }
 
     /* ---- helpers ---------------------------------------- */
 
@@ -237,11 +289,14 @@
                 _setFilter(btn.dataset.filter);
             });
             chipsEl.addEventListener("keydown", function (e) {
-                if (e.key !== "Enter" && e.key !== " ") return;
-                var btn = e.target.closest(".sp-chip[data-filter]");
-                if (!btn) return;
-                e.preventDefault();
-                _setFilter(btn.dataset.filter);
+                if (e.key === "Enter" || e.key === " ") {
+                    var btn = e.target.closest(".sp-chip[data-filter]");
+                    if (!btn) return;
+                    e.preventDefault();
+                    _setFilter(btn.dataset.filter);
+                    return;
+                }
+                _handleChipsKeydown(e);
             });
         }
         var searchEl = _$("#sp-search");
@@ -270,8 +325,32 @@
         if (!chipsEl) return;
         var chips = chipsEl.querySelectorAll(".sp-chip[data-filter]");
         chips.forEach(function (c) {
-            c.setAttribute("aria-pressed", c.dataset.filter === _state.filterStatus ? "true" : "false");
+            var on = (c.dataset.filter === _state.filterStatus);
+            c.setAttribute("aria-checked", on ? "true" : "false");
+            c.setAttribute("tabindex", on ? "0" : "-1");
         });
+    }
+
+    /* C2 W6 — arrow-key roving navigation per APG radiogroup pattern. */
+    function _handleChipsKeydown(e) {
+        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight"
+            && e.key !== "ArrowUp"   && e.key !== "ArrowDown"
+            && e.key !== "Home"      && e.key !== "End") return;
+        var chipsEl = _$("#sp-filter-chips");
+        if (!chipsEl) return;
+        var chips = Array.from(chipsEl.querySelectorAll(".sp-chip[data-filter]"));
+        if (!chips.length) return;
+        var idx = chips.indexOf(document.activeElement);
+        if (idx === -1) return;
+        e.preventDefault();
+        var next = idx;
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp")   next = (idx - 1 + chips.length) % chips.length;
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (idx + 1) % chips.length;
+        if (e.key === "Home") next = 0;
+        if (e.key === "End")  next = chips.length - 1;
+        chips[next].focus();
+        var f = chips[next].dataset.filter;
+        if (f) _setFilter(f);
     }
 
     /* ---- Center pane (editor + diff) -------------------- */
@@ -399,15 +478,15 @@
 
         var rationale = detail.description || "(sem descrição/rationale)";
         var labResult = detail.lab_test_result;
-        var labText = "";
+        var labParsed = null;
         if (labResult) {
             try {
-                var parsed = (typeof labResult === "string") ? JSON.parse(labResult) : labResult;
-                labText = JSON.stringify(parsed, null, 2);
+                labParsed = (typeof labResult === "string") ? JSON.parse(labResult) : labResult;
             } catch (e) {
-                labText = String(labResult);
+                labParsed = { raw: String(labResult) };
             }
         }
+        var labTreeHtml = labParsed ? _renderLabTree(labParsed) : "";
 
         var prRow = "";
         if (detail.pr_url) {
@@ -436,10 +515,12 @@
                 '<h4 class="sp-section-title">Brain rationale</h4>' +
                 '<div class="sp-rationale">' + _escape(rationale) + '</div>' +
             '</div>' +
-            (labText ? (
+            (labTreeHtml ? (
                 '<div>' +
                     '<h4 class="sp-section-title">Lab result</h4>' +
-                    '<pre class="sp-lab-results">' + _escape(labText) + '</pre>' +
+                    '<div class="sp-lab-tree" id="sp-lab-tree" role="tree" aria-label="Lab result details">' +
+                        labTreeHtml +
+                    '</div>' +
                 '</div>'
             ) : "") +
             '<div class="sp-actions">' +
@@ -450,6 +531,93 @@
         );
 
         _wireActionButtons();
+        _wireLabTree();
+    }
+
+    /* ---- C2 — Lab result JSON tree (collapsible) -------- */
+
+    function _renderLabTree(obj) {
+        if (obj == null) return "";
+        var keys = Object.keys(obj);
+        if (!keys.length) return '<div class="sp-tree-empty">(vazio)</div>';
+        return keys.map(function (k) {
+            var v = obj[k];
+            return _renderTreeNode(k, v);
+        }).join("");
+    }
+
+    function _renderTreeNode(key, value) {
+        var open = (_state.labTreeOpen[key] === true) ? "true" : "false";
+        var isObj = (value && typeof value === "object" && !Array.isArray(value));
+        var isArr = Array.isArray(value);
+        var preview;
+        var body;
+        if (isObj) {
+            preview = "{" + Object.keys(value).length + " keys}";
+            body = '<div class="sp-tree-children" ' + (open === "true" ? "" : "hidden") + '>' + _renderLabTree(value) + '</div>';
+        } else if (isArr) {
+            preview = "[" + value.length + "]";
+            var arrChildren = value.map(function (item, i) {
+                return _renderTreeNode("[" + i + "]", item);
+            }).join("");
+            body = '<div class="sp-tree-children" ' + (open === "true" ? "" : "hidden") + '>' + arrChildren + '</div>';
+        } else {
+            preview = _formatLeaf(value);
+            body = "";
+        }
+        var hasChildren = isObj || isArr;
+        /* APG: aria-expanded MUST be absent on non-expandable treeitems (leaves). */
+        var expandedAttr = hasChildren ? (' aria-expanded="' + open + '"') : "";
+        var chev = hasChildren ? ('<span class="sp-tree-chev" aria-hidden="true">' + (open === "true" ? "▼" : "▶") + '</span>') : '<span class="sp-tree-chev sp-tree-chev-leaf" aria-hidden="true">•</span>';
+        return (
+            '<div class="sp-tree-node" role="treeitem"' + expandedAttr + '>' +
+                '<div class="sp-tree-row" tabindex="0" data-key="' + _escape(key) + '" data-toggleable="' + (hasChildren ? "1" : "0") + '">' +
+                    chev +
+                    '<span class="sp-tree-key">' + _escape(key) + '</span>' +
+                    '<span class="sp-tree-preview">' + _escape(preview) + '</span>' +
+                '</div>' +
+                body +
+            '</div>'
+        );
+    }
+
+    function _formatLeaf(v) {
+        if (v == null) return String(v);
+        if (typeof v === "string") {
+            return v.length > 200 ? (v.substring(0, 200) + "…") : v;
+        }
+        if (typeof v === "number" || typeof v === "boolean") return String(v);
+        try { return JSON.stringify(v); } catch (e) { return String(v); }
+    }
+
+    function _wireLabTree() {
+        var treeEl = _$("#sp-lab-tree");
+        if (!treeEl) return;
+        function toggleRow(row) {
+            if (!row || row.dataset.toggleable !== "1") return;
+            var node = row.parentElement;
+            var children = node.querySelector(":scope > .sp-tree-children");
+            var chev = row.querySelector(".sp-tree-chev");
+            var willOpen = node.getAttribute("aria-expanded") !== "true";
+            node.setAttribute("aria-expanded", willOpen ? "true" : "false");
+            _state.labTreeOpen[row.dataset.key] = willOpen;
+            if (children) {
+                if (willOpen) children.removeAttribute("hidden");
+                else children.setAttribute("hidden", "");
+            }
+            if (chev) chev.textContent = willOpen ? "▼" : "▶";
+        }
+        treeEl.addEventListener("click", function (e) {
+            var row = e.target.closest(".sp-tree-row");
+            toggleRow(row);
+        });
+        treeEl.addEventListener("keydown", function (e) {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            var row = e.target.closest(".sp-tree-row");
+            if (!row) return;
+            e.preventDefault();
+            toggleRow(row);
+        });
     }
 
     function _wireActionButtons() {
@@ -538,29 +706,39 @@
     function handleWSEvent(event) {
         if (!event || !event.event_type) return;
         var t = event.event_type;
-        if (t === "brain.skill_proposal_created"
+        var relevant = (
+            t === "brain.skill_proposal_created"
             || t === "brain.skill_proposal_updated"
             || t === "brain.skill_proposal_rejected"
             || t === "brain.skill_lab_done"
             || t === "brain.skill_pr_dispatched"
             || t === "brain.skill_synthesis_queued"
-            || t === "brain.skill_synthesis_completed") {
-            refreshList();
-            /* If currently selected proposal changed, refresh its detail */
-            var payload = event.payload || {};
-            if (payload.proposal_id && payload.proposal_id === _state.selectedId) {
-                selectProposal(_state.selectedId);
-            }
-        }
+            || t === "brain.skill_synthesis_completed"
+        );
+        if (!relevant) return;
+
+        /* C2 W4 — dedup identical events inside 500ms window. */
+        var hash = _wsEventHash(event);
+        if (_wsDedupSeen(hash)) return;
+
+        /* C2 W4 — debounce refresh into single 250ms window (coalesce burst). */
+        _scheduleWsRefresh(event.payload || {});
     }
 
     /* ---- Init / destroy --------------------------------- */
 
     function _renderShell() {
         if (!_state.root) return;
+        /* C2 W6 — filter chips refactored to APG radiogroup pattern.
+           Mutually-exclusive single-select → role=radio + aria-checked.
+           Roving tabindex: only the checked radio is tabbable. */
         var filterChipsHtml = STATUS_FILTERS.map(function (f) {
-            var pressed = (f.key === _state.filterStatus) ? "true" : "false";
-            return '<button class="sp-chip" data-filter="' + _escape(f.key) + '" type="button" aria-pressed="' + pressed + '">' + _escape(f.label) + '</button>';
+            var checked = (f.key === _state.filterStatus);
+            var tabidx = checked ? "0" : "-1";
+            return '<button class="sp-chip" data-filter="' + _escape(f.key) +
+                   '" type="button" role="radio" aria-checked="' + (checked ? "true" : "false") +
+                   '" tabindex="' + tabidx +
+                   '" aria-label="Filtro: ' + _escape(f.label) + '">' + _escape(f.label) + '</button>';
         }).join("");
 
         _state.root.innerHTML = (
@@ -575,7 +753,7 @@
                 '<div class="sp-body">' +
                     '<aside class="sp-pane-sidebar" aria-label="Lista de proposals">' +
                         '<div class="sp-sidebar-header">' +
-                            '<div class="sp-filter-chips" id="sp-filter-chips" role="group" aria-label="Filtro por status">' +
+                            '<div class="sp-filter-chips" id="sp-filter-chips" role="radiogroup" aria-label="Filtrar proposals por status">' +
                                 filterChipsHtml +
                             '</div>' +
                             '<input type="search" class="sp-search" id="sp-search" placeholder="Buscar por nome..." aria-label="Buscar proposal por nome">' +

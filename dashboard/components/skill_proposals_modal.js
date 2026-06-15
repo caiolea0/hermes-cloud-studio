@@ -264,10 +264,13 @@
                     '<h3 class="sp-modal-title" id="sp-reject-title">Rejeitar proposal</h3>' +
                 '</header>' +
                 '<div class="sp-modal-body">' +
-                    '<label class="sp-modal-label">' +
+                    '<label class="sp-modal-label" for="sp-reject-reason">' +
                         'Motivo (opcional, máx 500 chars)' +
-                        '<textarea class="sp-modal-textarea" id="sp-reject-reason" maxlength="500" placeholder="Ex: lógica conflita com skill X / unsafe permission /..." data-autofocus></textarea>' +
                     '</label>' +
+                    '<textarea class="sp-modal-textarea" id="sp-reject-reason" maxlength="500" ' +
+                        'placeholder="Ex: lógica conflita com skill X / unsafe permission /..." ' +
+                        'data-autofocus aria-describedby="sp-reject-counter"></textarea>' +
+                    '<div class="sp-modal-counter" id="sp-reject-counter" aria-live="polite">0 / 500</div>' +
                     '<p class="sp-modal-status" id="sp-reject-status" aria-live="polite" hidden></p>' +
                 '</div>' +
                 '<footer class="sp-modal-footer">' +
@@ -277,9 +280,22 @@
             '</div>'
         );
         var wrapper = _showModal(html, { labelledBy: "sp-reject-title" });
+        var textarea = wrapper.querySelector("#sp-reject-reason");
+        var counter = wrapper.querySelector("#sp-reject-counter");
+        var confirmBtn = wrapper.querySelector("#sp-reject-confirm");
+        function updateCounter() {
+            var len = (textarea.value || "").length;
+            counter.textContent = len + " / 500";
+            /* Visual warn near limit (>450) */
+            if (len > 450) counter.classList.add("is-warn");
+            else counter.classList.remove("is-warn");
+            /* Soft guard: maxlength=500 enforced by HTML, no need to disable submit */
+        }
+        textarea.addEventListener("input", updateCounter);
+        updateCounter();
         wrapper.querySelector("[data-action='cancel']").addEventListener("click", function () { _closeModal(); });
-        wrapper.querySelector("#sp-reject-confirm").addEventListener("click", function () {
-            var reason = wrapper.querySelector("#sp-reject-reason").value || "";
+        confirmBtn.addEventListener("click", function () {
+            var reason = textarea.value || "";
             _confirmReject(proposal.id, reason, wrapper);
         });
     }

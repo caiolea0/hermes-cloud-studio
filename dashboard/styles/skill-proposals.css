@@ -138,7 +138,8 @@
 
 .sp-chip:hover { background: var(--s3, #1f1f24); color: var(--text, #f0f0f4); }
 .sp-chip:focus-visible { outline: 2px solid var(--accent, #7c3aed); outline-offset: 2px; }
-.sp-chip[aria-pressed="true"] {
+.sp-chip[aria-pressed="true"],
+.sp-chip[aria-checked="true"] {
     background: var(--accent, #7c3aed);
     color: #fff;
     border-color: var(--accent, #7c3aed);
@@ -223,7 +224,7 @@
                          border-color: var(--accent-l, #a78bfa); }
 .sp-status-lab_passed  { background: var(--s2, #18181c); color: var(--green, #10b981);
                          border-color: var(--green, #10b981); }
-.sp-status-lab_failed  { background: var(--s2, #18181c); color: #fca5a5;
+.sp-status-lab_failed  { background: var(--s2, #18181c); color: var(--red-l, #fca5a5);
                          border-color: var(--red, #ef4444); }
 .sp-status-pr_open     { background: var(--s2, #18181c); color: var(--accent-l, #a78bfa);
                          border-color: var(--accent-l, #a78bfa); }
@@ -260,7 +261,8 @@
     gap: 4px;
 }
 
-.sp-diff-toggle .sp-chip[aria-pressed="true"] {
+.sp-diff-toggle .sp-chip[aria-pressed="true"],
+.sp-diff-toggle .sp-chip[aria-checked="true"] {
     background: var(--accent, #7c3aed);
     color: #fff;
 }
@@ -348,6 +350,71 @@
     white-space: pre-wrap;
     max-height: 240px;
     overflow-y: auto;
+}
+
+/* F.4.3 C2 — Lab result collapsible JSON tree */
+.sp-lab-tree {
+    background: var(--s2, #18181c);
+    border: 1px solid var(--border, rgba(255,255,255,0.06));
+    border-radius: 8px;
+    padding: 6px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.sp-tree-empty {
+    padding: 8px;
+    color: var(--text-2, #8b8b98);
+    font-style: italic;
+}
+
+.sp-tree-node {
+    display: block;
+}
+
+.sp-tree-children {
+    margin-left: 16px;
+    border-left: 1px dashed var(--border, rgba(255,255,255,0.06));
+    padding-left: 6px;
+}
+
+.sp-tree-row {
+    display: grid;
+    grid-template-columns: 16px auto 1fr;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text, #f0f0f4);
+}
+
+.sp-tree-row:hover { background: var(--s3, #1f1f24); }
+.sp-tree-row:focus-visible { outline: 2px solid var(--accent, #7c3aed); outline-offset: 1px; }
+.sp-tree-row[data-toggleable="0"] { cursor: default; }
+.sp-tree-row[data-toggleable="0"]:hover { background: transparent; }
+
+.sp-tree-chev {
+    text-align: center;
+    color: var(--text-2, #8b8b98);
+    font-size: 10px;
+    user-select: none;
+}
+
+.sp-tree-chev-leaf { color: var(--text-3, #55556a); }
+
+.sp-tree-key {
+    color: var(--accent-l, #a78bfa);
+    font-weight: 600;
+}
+
+.sp-tree-preview {
+    color: var(--text-2, #8b8b98);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .sp-actions {
@@ -491,6 +558,15 @@
 }
 
 .sp-modal-textarea:focus-visible { outline: 2px solid var(--accent, #7c3aed); outline-offset: 0; border-color: var(--accent, #7c3aed); }
+
+/* F.4.3 C2 — Reject reason char counter (visual feedback near 500 limit) */
+.sp-modal-counter {
+    font-size: 11px;
+    color: var(--text-2, #8b8b98);
+    text-align: right;
+    margin-top: -8px;
+}
+.sp-modal-counter.is-warn { color: var(--red-l, #fca5a5); }
 
 .sp-modal-preview {
     background: var(--s2, #18181c);
