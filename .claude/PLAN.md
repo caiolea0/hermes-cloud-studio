@@ -593,6 +593,20 @@ Owner aprovou pivot decisões D1 + D7:
 - NÃO cron F.4.2 (auto-storm risk antes UI F.4.3 + feedback F.4.4)
 - NÃO Workflow webhook (Workflow tool side-channel, manual API mais simple)
 
+**🚨 PIVOT D6 2026-06-15 — Workflow MCP NÃO existe publish + subscription-only constraint owner**:
+
+Audit C2 surfaceou BLOCKER: `gateway VM /tools` retorna 0 workflow tools. Investigação: Workflow tool é feature do harness Claude Code SDK (NÃO MCP server público). Constraint owner adicional: consume tokens ONLY via Claude Code subscription tunnel (NÃO ANTHROPIC API paga).
+
+**D6 PIVOT — F.4.2 C3 = HONEST SCAFFOLD sem trigger Workflow real** (split scope):
+- F.4.2 C3 entrega APENAS: endpoint `/generate` + `synthesis_runs` table 6 cols + WS emit `brain.skill_synthesis_queued` scaffold
+- C3 retorna `{status: queued, run_id, message: "Trigger via F.4.3 UI button OR F.4.6 auto"}`
+- NÃO invoca Workflow real C3 (honest scaffold match PIVOT D1 pattern)
+- F.4.3 UI dashboard (já planejado) inclui **botão manual "Run Workflow Now"** PATH 1 fallback nativo — owner clica → abre Claude Code session local → cola `Workflow({script: hermes-skill-forge.js})` → POST output back to /api/skills/proposals/synthesis-result
+- F.4.6 NOVA sub-session (4-6h spec): PATH 2 auto-trigger via subprocess `claude --headless --workflow` PC (consome subscription tunnel) + SSH bridge VM↔PC + scheduler 00h-05am + detection PC offline / token quota limit hit → fallback PATH 1 trigger UI dashboard
+- F.4.6 PRÉ-FLIGHT crítico: validar `claude --headless --workflow script.js` flag existe + funciona via subscription tunnel (não documentado oficial Anthropic — pode requerer fallback Selenium-like injection se não suporta)
+- Razão: Workflow tool gap arquitetural cross-cutting + scope F.4.2 conteção evita 6-8h sub-session gigante token-budget risk
+- BACKLOG F.future: Re-avaliar se Anthropic publica Workflow MCP server oficial (elimina F.4.6 custom)
+
 **D7 Workflow cost tracking = REUSE mcp_calls.caller_chapter='F.4'** (single source truth F.8.1):
 - Engine Brain.decide() invocations já populam mcp_calls via _log_mcp_call F.5.3
 - F.4.2 sets caller_chapter='F.4' em context Brain.decide() call (existing field F.8.1)
@@ -613,7 +627,9 @@ Owner aprovou pivot decisões D1 + D7:
 **Sub-task split F.4.2 (3 commits sub-session)**:
 - **[✅] C1** core/auto_skill_runner.py NOVO orchestrator + lab sandbox dispatch — **PIVOT D1 inline YAML validation + mock** (NÃO REUSE test_skill_dryrun direct; F.5.2 signature accepts skill_name disk, não yaml_blob) + **PIVOT D7 requester='brain-f4'** (NÃO new caller_chapter column; F.5.3 schema 9 cols original) + 11 unit tests PASS (smoke validation + slugify + shortid + dispatch persistence)
 - **[✅] C2** GitHub MCP PR integration — dispatch_github_pr extend AutoSkillRunner (anchor github_mcp removido api/skills.py:184 + core/skill_proposals.py:209 docstring) + D2 PR auto-template (difflib unified_diff vs closest existing skill + lab results truncate 2000 chars + Brain rationale) + D3 branch slug+shortid + D4 BLOCK PR se lab_failed + D5 fail-fast GitHub MCP errors (429/401/5xx, Sentry capture, WS emit brain.skill_pr_create_failed, NÃO retry) + brain/dispatch.py invoke_tool +requester kwarg (D7 PIVOT enforce) + 9 unit tests novos PASS (block_lab_failed, success_full_template, branch_naming, yaml_diff_with/no_existing, 429/401 fail_fast, persists_pr_url, requester_brain_f4)
-- **C3** Workflow invoke trigger (anchor workflow_invoke) + smoke generate endpoint + reviewer + closeout F.4.2
+- **[✅] C3** [PIVOT D6 HONEST SCAFFOLD] trigger_workflow_synthesis honest scaffold — anchors workflow_invoke removidos (api/skills.py:235+245) + Workflow MCP unavailable (harness feature NÃO public MCP server) + subscription-only constraint → F.4.2 entrega scaffold (persiste synthesis_runs queued + WS emit brain.skill_synthesis_queued + scaffold_notice response menciona F.4.6) + F.4.3 UI manual button consome queued (PATH 1) + F.4.6 NOVA backlog subprocess `claude --headless` (PATH 2 auto) + synthesis_runs table NOVA (6 cols + 2 indexes) + migration 2026_06_synthesis_runs.sql idempotent + 6 unit tests novos PASS (persists/ws_emit/manual_default/trigger_source_propagated/requester_brain_f4/ensure_table_idempotent)
+
+**F.4.2 CHAPTER CLOSED 2026-06-15** — 3 commits (C1 4fb9014 + C2 85e15c5 + C3 <SHA>) — 4/4 anchors `F.4.2_implements_real_*` substituídos — PIVOT D1/D6/D7 cristalizados — pioneer meta-recursive engine AutoSkillRunner (lab + GitHub PR + workflow scaffold) — BLACKLIST R2 INTACTO 20 consecutive sub-sessions. NEXT F.4.3 UI dashboard (Monaco editor proposals + manual button consome synthesis_runs queued).
 
 **🚨 Riscos críticos F.4.2**:
 - **Meta-recursive synthesis bug compounding** — Brain gera código → lab → PR. Bug em qualquer stage propaga. Lab D1 obrigatório + fail-fast D5

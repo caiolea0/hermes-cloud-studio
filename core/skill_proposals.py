@@ -55,6 +55,48 @@ def _table_exists() -> bool:
         conn.close()
 
 
+def ensure_synthesis_runs_table(conn: Optional[sqlite3.Connection] = None) -> None:
+    """F.4.2 C3 (PIVOT D6) — idempotent CREATE IF NOT EXISTS for synthesis_runs.
+
+    Called by AutoSkillRunner.trigger_workflow_synthesis defensively so the
+    scaffold works even when the migration has not been applied at startup.
+    """
+    own_conn = conn is None
+    if own_conn:
+        conn = _connect()
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS synthesis_runs (
+                id              TEXT PRIMARY KEY,
+                trigger_type    TEXT NOT NULL,
+                status          TEXT NOT NULL,
+                queued_at       TEXT NOT NULL,
+                requester       TEXT NOT NULL,
+                trigger_source  TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_synthesis_runs_status ON synthesis_runs(status);
+            CREATE INDEX IF NOT EXISTS idx_synthesis_runs_queued_at ON synthesis_runs(queued_at);
+            """
+        )
+        conn.commit()
+    finally:
+        if own_conn:
+            conn.close()
+
+
+def get_synthesis_run(run_id: str) -> Optional[dict[str, Any]]:
+    """F.4.2 C3 helper — read single synthesis_runs row by id."""
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT * FROM synthesis_runs WHERE id = ?", (run_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
 class SkillProposalsManager:
     """Lifecycle state machine for skill_proposals.
 

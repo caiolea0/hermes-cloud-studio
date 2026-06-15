@@ -36,14 +36,22 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import time
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 
 from brain.dispatch import GatewayDispatcher
-from core.skill_proposals import SkillProposalsManager, manager as proposals_manager
+from core.skill_proposals import (
+    SkillProposalsManager,
+    _connect as _sp_connect,
+    ensure_synthesis_runs_table,
+    manager as proposals_manager,
+)
 
 log = logging.getLogger("hermes.auto_skill_runner")
 
@@ -505,6 +513,77 @@ class AutoSkillRunner:
             "pr_url": pr_url,
             "pr_number": pr_number,
             "branch": branch_name,
+        }
+
+    # ------------------------------------------------------------------
+    # C3 — trigger_workflow_synthesis (PIVOT D6 honest scaffold)
+    # ------------------------------------------------------------------
+
+    async def trigger_workflow_synthesis(
+        self,
+        manual: bool = True,
+        trigger_source: str = "api_manual",
+    ) -> dict[str, Any]:
+        """C3 PIVOT D6 — honest scaffold: persist synthesis_runs row + WS emit.
+
+        Does NOT invoke Workflow tool. Workflow MCP is unavailable (Workflow is
+        a Claude Code SDK harness feature, NOT a public MCP server) AND owner
+        constraint subscription-only (zero paid API).
+
+        Path forward:
+          - F.4.3 UI manual button consumes 'queued' rows.
+          - F.4.6 NOVA wires PATH 2 subprocess `claude --headless` consumer.
+
+        Returns:
+            {status: 'queued', run_id, trigger_type, message, scaffold_notice}
+        """
+        run_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc).isoformat()
+
+        conn = _sp_connect()
+        try:
+            ensure_synthesis_runs_table(conn)
+            conn.execute(
+                """INSERT INTO synthesis_runs
+                   (id, trigger_type, status, queued_at, requester, trigger_source)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    run_id,
+                    "manual" if manual else "cron",
+                    "queued",
+                    now,
+                    F4_REQUESTER,
+                    trigger_source,
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        await self._ws_emit("brain.skill_synthesis_queued", {
+            "run_id": run_id,
+            "trigger_type": "manual" if manual else "cron",
+            "queued_at": now,
+            "trigger_source": trigger_source,
+            "next_action": "F.4.3 UI manual button OR F.4.6 auto trigger",
+        })
+
+        log.info(
+            "synthesis queued (scaffold honest D6) run_id=%s requester=%s source=%s",
+            run_id, F4_REQUESTER, trigger_source,
+        )
+
+        return {
+            "status": "queued",
+            "run_id": run_id,
+            "trigger_type": "manual" if manual else "cron",
+            "queued_at": now,
+            "trigger_source": trigger_source,
+            "message": "Workflow execution scheduled. F.4.3 UI button OR F.4.6 auto.",
+            "scaffold_notice": (
+                "PIVOT D6 honest scaffold — Workflow MCP unavailable. "
+                "F.4.6 NOVA delivers PATH 2 subscription subprocess."
+            ),
         }
 
     async def _handle_pr_failure(

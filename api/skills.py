@@ -227,23 +227,33 @@ async def reject_proposal(proposal_id: str, req: DecisionRequest):
 
 
 # ---------------------------------------------------------------------------
-# POST /api/skills/proposals/generate — STUB (F.4.2 implements workflow invoke)
+# POST /api/skills/proposals/generate — F.4.2 C3 (PIVOT D6 honest scaffold)
 # ---------------------------------------------------------------------------
 
-@router.post("/proposals/generate", status_code=202)
-async def trigger_synthesis():
-    """F.4.1 STUB — F.4.2_implements_real_workflow_invoke.
+class GenerateRequest(BaseModel):
+    trigger_source: Optional[str] = Field(
+        "api_manual",
+        pattern="^(api_manual|ui_button|cron_auto|subprocess_path2)$",
+    )
 
-    Returns 202 + job_id placeholder. F.4.2 will spawn
-    .claude/workflows/hermes-skill-forge.js via Workflow tool dispatch.
+
+@router.post("/proposals/generate", status_code=202)
+async def trigger_synthesis(req: Optional[GenerateRequest] = None):
+    """F.4.2 C3 (PIVOT D6 honest scaffold) — queue a synthesis run.
+
+    Workflow MCP is unavailable (harness feature, not public MCP) AND owner
+    constraint subscription-only. Endpoint persists a 'queued' row in
+    synthesis_runs + emits brain.skill_synthesis_queued WS event. Owner
+    triggers the actual Workflow execution via F.4.3 UI manual button OR
+    F.4.6 NOVA subprocess `claude --headless` (PATH 2).
     """
     _ensure_table_or_503()
-    job_id = str(uuid.uuid4())
-    return {
-        "job_id": job_id,
-        "status": "queued",
-        "note": "F.4.2_implements_real_workflow_invoke — F.4.1 STUB returns job_id only",
-    }
+    from core.auto_skill_runner import AutoSkillRunner
+    runner = AutoSkillRunner()
+    source = (req.trigger_source if req else None) or "api_manual"
+    return await runner.trigger_workflow_synthesis(
+        manual=True, trigger_source=source,
+    )
 
 
 # ---------------------------------------------------------------------------

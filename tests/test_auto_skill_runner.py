@@ -367,3 +367,114 @@ def test_dispatch_github_pr_requester_brain_f4(runner_with_tmp_db):
     assert dispatcher.calls[0]["requester"] == "brain-f4"
     assert dispatcher.calls[0]["server"] == "github"
     assert dispatcher.calls[0]["tool"] == "create_pull_request"
+
+
+# ---------------------------------------------------------------------------
+# C3 — trigger_workflow_synthesis (PIVOT D6 honest scaffold)
+# ---------------------------------------------------------------------------
+
+def test_trigger_workflow_synthesis_persists_synthesis_runs(runner_with_tmp_db):
+    runner, _manager, db_path = runner_with_tmp_db
+    result = asyncio.run(runner.trigger_workflow_synthesis(
+        manual=True, trigger_source="api_manual",
+    ))
+    assert result["status"] == "queued"
+    assert "scaffold_notice" in result
+    assert "F.4.6" in result["scaffold_notice"]
+
+    import sqlite3 as sq
+    conn = sq.connect(str(db_path))
+    conn.row_factory = sq.Row
+    row = conn.execute(
+        "SELECT * FROM synthesis_runs WHERE id = ?", (result["run_id"],),
+    ).fetchone()
+    conn.close()
+    assert row is not None
+    assert row["status"] == "queued"
+    assert row["trigger_type"] == "manual"
+    assert row["trigger_source"] == "api_manual"
+    assert row["requester"] == "brain-f4"
+
+
+def test_trigger_workflow_synthesis_emits_ws_queued_event(runner_with_tmp_db, monkeypatch):
+    runner, _manager, _ = runner_with_tmp_db
+    captured: list[dict] = []
+
+    async def _capture_emit(event_type, payload):
+        captured.append({"event_type": event_type, "payload": payload})
+
+    monkeypatch.setattr(runner, "_ws_emit", _capture_emit)
+    asyncio.run(runner.trigger_workflow_synthesis(
+        manual=True, trigger_source="api_manual",
+    ))
+    assert len(captured) == 1
+    assert captured[0]["event_type"] == "brain.skill_synthesis_queued"
+    assert "run_id" in captured[0]["payload"]
+    assert captured[0]["payload"]["trigger_type"] == "manual"
+    assert "F.4.3 UI" in captured[0]["payload"]["next_action"]
+
+
+def test_trigger_workflow_synthesis_manual_default_true(runner_with_tmp_db):
+    runner, _manager, _ = runner_with_tmp_db
+    result = asyncio.run(runner.trigger_workflow_synthesis())
+    assert result["trigger_type"] == "manual"
+    assert result["trigger_source"] == "api_manual"
+
+
+def test_trigger_workflow_synthesis_trigger_source_propagated(runner_with_tmp_db):
+    runner, _manager, db_path = runner_with_tmp_db
+    result = asyncio.run(runner.trigger_workflow_synthesis(
+        manual=False, trigger_source="cron_auto",
+    ))
+    assert result["trigger_type"] == "cron"
+    assert result["trigger_source"] == "cron_auto"
+
+    import sqlite3 as sq
+    conn = sq.connect(str(db_path))
+    conn.row_factory = sq.Row
+    row = conn.execute(
+        "SELECT trigger_type, trigger_source FROM synthesis_runs WHERE id = ?",
+        (result["run_id"],),
+    ).fetchone()
+    conn.close()
+    assert row["trigger_type"] == "cron"
+    assert row["trigger_source"] == "cron_auto"
+
+
+def test_trigger_workflow_synthesis_requester_brain_f4(runner_with_tmp_db):
+    """D7 PIVOT enforce — synthesis_runs.requester='brain-f4' persisted."""
+    runner, _manager, db_path = runner_with_tmp_db
+    result = asyncio.run(runner.trigger_workflow_synthesis(manual=True))
+
+    import sqlite3 as sq
+    conn = sq.connect(str(db_path))
+    row = conn.execute(
+        "SELECT requester FROM synthesis_runs WHERE id = ?", (result["run_id"],),
+    ).fetchone()
+    conn.close()
+    assert row[0] == "brain-f4"
+
+
+def test_ensure_synthesis_runs_table_idempotent(runner_with_tmp_db):
+    """G9 — ensure_synthesis_runs_table CREATE IF NOT EXISTS safe re-run."""
+    from core.skill_proposals import ensure_synthesis_runs_table
+    runner, _manager, db_path = runner_with_tmp_db
+
+    # First call (via trigger_workflow_synthesis indirectly).
+    asyncio.run(runner.trigger_workflow_synthesis())
+
+    import sqlite3 as sq
+    # Second call direct should not error.
+    conn = sq.connect(str(db_path))
+    ensure_synthesis_runs_table(conn)
+    # Verify table + 2 indexes exist.
+    tables = [r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='synthesis_runs'"
+    ).fetchall()]
+    idxs = [r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='synthesis_runs'"
+    ).fetchall()]
+    conn.close()
+    assert "synthesis_runs" in tables
+    assert "idx_synthesis_runs_status" in idxs
+    assert "idx_synthesis_runs_queued_at" in idxs
