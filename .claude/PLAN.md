@@ -20,7 +20,7 @@
 +| F.1     | Backend↔Frontend Gap Audit                          | research+ui   | 3        | 1       | CONCLUÍDO 2026-06-08 | —    |
 +| F.2     | Mission Control Real-Time + Design System Polish    | ui+backend    | 9        | 7       | **CONCLUÍDO 2026-06-08** | F.1         |
 +| F.3     | Lab Cockpit + Stealth UX                            | ui+backend    | 8        | 4       | **CONCLUÍDO 2026-06-10** (4 sub-sessões ☒) | F.1         |
-+| F.4     | Auto-Skill Loop W3 + GitHub PR-based deploy         | backend+ui    | 7        | 5       | **UNBLOCKED 2026-06-10** | F.1, F.5    |
++| F.4     | Auto-Skill Loop W3 + GitHub PR-based deploy         | backend+ui    | 7        | 5       | **F.4.1 ✅ 2026-06-14 (1/5)** · F.4.2 NEXT | F.1, F.5    |
 +| F.5     | MCP Gateway + Discovery + Custom MCPs               | backend+infra | 4        | 4       | PLANEJADO   | F.1         |
 +| F.6     | Cérebro Hermes (Brain orchestrator)                 | backend+ui    | 9        | 6       | PLANEJADO   | F.1, F.5    |
 +| F.7     | Cobaia Live Ops + Warmup 14d automatizado           | backend+ui    | 8        | 5       | PLANEJADO   | F.2, F.5    |
@@ -469,10 +469,13 @@
 +- `server.py` MATURE — include_router skills proposals
 +- `scripts/sync_skills_to_vm.py` NOVO (~80 LOC scp skills/ + systemd restart trigger)
 +
-+**Sub-task split F.4.1 (sub-sessão pioneer Opus 4.7, 3 commits)**:
-+- C1 Migration `skill_proposals` + `skill_runs` tables + indexes
-+- C2 Backend `core/skill_proposals.py` CRUD + `api/skills.py` MATURE endpoints
-+- C3 `.claude/workflows/hermes-skill-forge.js` NOVO + hermes-skill-forge-runner skill MATURE F.4 real + reviewer + closeout F.4.1
++**Sub-task split F.4.1 (sub-sessão pioneer Opus 4.7, 3 commits)** — ✅ **COMPLETE 2026-06-14**:
++- [x] C1 (20cc322) Migration `skill_proposals` (16 cols) + `skill_runs` (11 cols) + 3 indexes — idempotent CREATE IF NOT EXISTS
++- [x] C2 (ab0f3fc) Backend `core/skill_proposals.py` SkillProposalsManager lifecycle state machine + `api/skills.py` NEW 8 endpoints (prefix /api/skills) — smoke 12/12 PASS via TestClient (list/create/get/yaml-preview/accept/reject/generate/health/list-filter/404/401/422-validation). Decisão: api/skills.py NEW (NÃO MATURE — não existia); /api/hermes/skills proxy VM INTACTO em api/hermes.py.
++- [x] C3 (aa27679) Workflow hermes-skill-forge.js EXISTENT preserved (~600 LOC) + ADDITIVE Persist phase POST /api/skills/proposals + postToHermes helper + WS db_persisted counter; SKILL.md F.4 real status table pre-pend (5 sub-sessions mapping + 7-step flow) preservando 6 triggers D7
++- Reviewer general-purpose verdict: **PASS-WITH-NOTES 19/20** (5 CORRECTNESS + 4 ARCHITECTURE + 10 SPECIFIC + 1 WARN baselines re-exec — verified pre-commit: brain/_smoke 20 + pytest 14 + validate A-E 20/22). **Zero BLOCKERS**.
++- BLACKLIST R2 INTACTO **16 consecutive** (15 F.9.x + F.4.1).
++- F.4.2 UNBLOCKED — GitHub MCP + Lab sandbox actual dispatch via 4 anchor stubs `F.4.2_implements_real_*` (sandbox_dispatch + github_mcp + lab_dispatch + workflow_invoke).
 +
 +**🚨 Riscos críticos F.4**:
 +- **Skill synthesis NOVEL meta-recursive** — Brain gera código Python → execute sandbox. Bug compounding risk. Lab test obrigatório ANTES PR.
