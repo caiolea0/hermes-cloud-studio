@@ -126,15 +126,29 @@ else
 fi
 "@
 
+# Normalize CRLF -> LF (bash quebra com \r em if/fi structures)
+$sshScriptLF = $sshScript -replace "`r`n", "`n"
+$sshScriptLF = $sshScriptLF -replace "`r", "`n"
+
+# Escrever em temp file LF, depois pipe via Get-Content -Raw para preservar LF puro
+$tempSh = [System.IO.Path]::GetTempFileName()
+[System.IO.File]::WriteAllText($tempSh, $sshScriptLF, [System.Text.UTF8Encoding]::new($false))
+
 try {
-    $sshOutput = $sshScript | ssh -o ConnectTimeout=10 -o BatchMode=yes hermes-gcp@136.115.74.69 'bash -s' 2>&1
+    # -T disable pseudo-tty (clean stdin pipe), cat temp file via Get-Content
+    $sshOutput = Get-Content $tempSh -Raw | ssh -T -o ConnectTimeout=10 -o BatchMode=yes hermes-gcp@136.115.74.69 'bash -s' 2>&1
     Write-Host $sshOutput -ForegroundColor Green
 } catch {
     Write-Host "  ERRO SSH: $_" -ForegroundColor Red
+    Remove-Item $tempSh -Force -ErrorAction SilentlyContinue
     $plainToken = $null
     $sshScript = $null
+    $sshScriptLF = $null
     exit 1
 }
+
+Remove-Item $tempSh -Force -ErrorAction SilentlyContinue
+$sshScriptLF = $null
 
 # Cleanup token from intermediate var
 $sshScript = $null
