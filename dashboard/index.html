@@ -57,6 +57,10 @@
 <script src="/dashboard/components/pipeline_studio_templates.js" defer></script>
 <script src="/dashboard/components/pipeline_studio_runs_monitor.js" defer></script>
 <script src="/dashboard/components/pipeline_studio_ab_compare.js" defer></script>
+<!-- F.4.3 — Skill Proposals Studio (Monaco editor + 3-pane) -->
+<link rel="stylesheet" href="/dashboard/styles/skill-proposals.css">
+<script src="/dashboard/components/skill_proposals_studio.js" defer></script>
+<script src="/dashboard/components/skill_proposals_modal.js" defer></script>
 </head>
 <body>
 
@@ -290,6 +294,10 @@
             <div class="nav-item" data-page="skills" onclick="navigate('skills')">
                 <svg><use href="#i-zap"/></svg>
                 <span class="nav-label">Skills</span>
+            </div>
+            <div class="nav-item" data-page="skill-proposals" onclick="navigate('skill-proposals')">
+                <svg><use href="#i-zap"/></svg>
+                <span class="nav-label">Skill Proposals</span>
             </div>
             <div class="nav-item" data-page="linkedin" onclick="navigate('linkedin')">
                 <svg><use href="#i-linkedin"/></svg>
@@ -1822,6 +1830,9 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ========================== PAGE: SKILL PROPOSALS (F.4.3) ========================== -->
+            <div class="page" id="page-skill-proposals" data-component="skill-proposals-studio"></div>
 
             <!-- ========================== PAGE: OBSERVABILITY (F.8.3) ========================== -->
             <div class="page" id="page-observability">

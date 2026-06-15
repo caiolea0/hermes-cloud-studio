@@ -498,7 +498,8 @@ function navigate(page) {
         lab: 'Lab Cockpit',
         'mcp-gateway': 'MCP Gateway',
         observability: 'Observability',
-        'pipeline-studio': 'Pipeline Studio'
+        'pipeline-studio': 'Pipeline Studio',
+        'skill-proposals': 'Skill Proposals'
     };
     if (page === 'linkedin') {
         loadLinkedInPage();
@@ -563,6 +564,12 @@ function navigate(page) {
         if (window.PipelineStudioShell && typeof window.PipelineStudioShell.init === 'function') {
             try { window.PipelineStudioShell.init('[data-component="pipeline-studio-shell"]'); }
             catch (e) { console.warn('PipelineStudioShell init failed', e); }
+        }
+    } else if (page === 'skill-proposals') {
+        // F.4.3 — Skill Proposals Studio init (idempotent: re-entry refresh).
+        if (window.SkillProposalsStudio && typeof window.SkillProposalsStudio.init === 'function') {
+            try { window.SkillProposalsStudio.init('[data-component="skill-proposals-studio"]'); }
+            catch (e) { console.warn('SkillProposalsStudio init failed', e); }
         }
     }
 }
@@ -3017,6 +3024,14 @@ function connectWS() {
         try {
             const event = JSON.parse(e.data);
             handleWSEvent(event);
+            // F.4.3 — fan-out for component listeners (modal PATH 1 ack, etc).
+            if (event && event.event_type) {
+                document.dispatchEvent(new CustomEvent('hermes-ws-event', { detail: event }));
+                if (window.SkillProposalsStudio && typeof window.SkillProposalsStudio.handleWSEvent === 'function') {
+                    try { window.SkillProposalsStudio.handleWSEvent(event); }
+                    catch (err) { console.warn('SkillProposalsStudio WS handler failed', err); }
+                }
+            }
         } catch (err) {}
     };
     ws.onopen  = () => {

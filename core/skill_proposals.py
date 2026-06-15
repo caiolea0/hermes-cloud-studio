@@ -303,11 +303,11 @@ class SkillProposalsManager:
         decision: str,
         reason: Optional[str] = None,
     ) -> dict[str, Any]:
-        """F.4.3_implements_real_ui_modal — F.4.1 stores decision atomically.
+        """Atomic owner decision persistence (F.4.1 base; F.4.3 UI modal consumer).
 
         decision must be 'accept' or 'reject'.
         accept → lab_running (queues lab test via F.4.2 trigger)
-        reject → archived (terminal)
+        reject → archived (terminal, reason persisted to owner_decision_reason)
         """
         if decision not in ("accept", "reject"):
             raise ValueError("decision must be 'accept' or 'reject'")

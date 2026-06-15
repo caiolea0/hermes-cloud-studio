@@ -33,6 +33,7 @@ from core.skill_proposals import (
     SkillProposalsManager,
     _connect,
     _table_exists,
+    get_synthesis_run,
     manager as proposals_manager,
 )
 
@@ -141,11 +142,29 @@ async def get_proposal(proposal_id: str):
 
 @router.get("/proposals/{proposal_id}/yaml-preview")
 async def get_yaml_preview(proposal_id: str):
+    """F.4.3 D2 — Monaco diff editor needs existing_yaml for compare.
+
+    REUSE _find_closest_skill_yaml helper from AutoSkillRunner (C2 F.4.2).
+    Returns {id, name, status, yaml_blob, chars, existing_yaml?, existing_filename?}.
+    """
     _ensure_table_or_503()
     try:
-        return proposals_manager.get_yaml_preview(proposal_id)
+        preview = proposals_manager.get_yaml_preview(proposal_id)
     except LookupError:
         raise HTTPException(404, "proposal_not_found")
+
+    # F.4.3 D2 — best-effort lookup of closest existing skill YAML for diff.
+    try:
+        from core.auto_skill_runner import AutoSkillRunner
+        existing = AutoSkillRunner._find_closest_skill_yaml(preview.get("name", ""))
+        if existing:
+            fname, text = existing
+            preview["existing_filename"] = fname
+            preview["existing_yaml"] = text
+    except Exception as exc:  # noqa: BLE001 — diff is enhancement, never block
+        log.debug("yaml-preview existing lookup failed: %s", exc)
+
+    return preview
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +233,12 @@ async def accept_proposal(proposal_id: str, req: DecisionRequest):
 
 @router.post("/proposals/{proposal_id}/reject")
 async def reject_proposal(proposal_id: str, req: DecisionRequest):
+    """F.4.3 D5 — owner reject + Sentry breadcrumb + WS emit (audit trail).
+
+    Persists owner_decision_reason (NOT a hard delete — keeps history for
+    Brain learning F.future). Emits brain.skill_proposal_rejected so the
+    dashboard updates real-time.
+    """
     _ensure_table_or_503()
     try:
         result = proposals_manager.owner_decision(
@@ -223,7 +248,50 @@ async def reject_proposal(proposal_id: str, req: DecisionRequest):
         raise HTTPException(404, "proposal_not_found")
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+
+    # D5 — Sentry breadcrumb (NOT exception, fire-and-forget).
+    try:
+        import sentry_sdk  # type: ignore[import-not-found]
+        sentry_sdk.add_breadcrumb(
+            category="skill_proposal_rejected",
+            message=f"proposal {proposal_id} rejected by owner",
+            level="info",
+            data={
+                "proposal_id": proposal_id,
+                "reason_len": len(req.reason or ""),
+            },
+        )
+    except Exception:  # noqa: BLE001 — telemetry must never block dispatch
+        pass
+
+    # D5 — WS emit (fire-and-forget).
+    try:
+        from core.state import ws_manager
+        await ws_manager.broadcast({
+            "event_type": "brain.skill_proposal_rejected",
+            "payload": {
+                "proposal_id": proposal_id,
+                "status": result.get("status"),
+                "reason_provided": bool(req.reason),
+            },
+        })
+    except Exception as exc:  # noqa: BLE001 — broadcast must never block
+        log.debug("ws emit brain.skill_proposal_rejected failed: %s", exc)
+
     return result
+
+
+# ---------------------------------------------------------------------------
+# GET /api/skills/synthesis-runs/{run_id} — F.4.3 PATH 1 modal poll target
+# ---------------------------------------------------------------------------
+
+@router.get("/synthesis-runs/{run_id}")
+async def get_synthesis_run_status(run_id: str):
+    """F.4.3 D3 — PATH 1 modal polls this endpoint every 5s for status."""
+    row = get_synthesis_run(run_id)
+    if not row:
+        raise HTTPException(404, "synthesis_run_not_found")
+    return row
 
 
 # ---------------------------------------------------------------------------
