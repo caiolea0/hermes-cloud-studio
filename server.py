@@ -287,6 +287,7 @@ from api.observability import router as observability_router  # F.8.1c
 from api.mcp_coverage import router as mcp_coverage_router  # F.5.6f — MCP Gateway UI proxy
 from api.brain import router as brain_router  # F.6.1 — Brain orchestrator scaffold
 from api.pipeline_studio import router as pipeline_studio_router  # F.9.1 — Pipeline Studio CRUD + step library
+from api.skills import router as skills_router  # F.4.1 — Skill Proposals CRUD + lifecycle
 
 app.include_router(pipelines_router)
 app.include_router(linkedin_router)
@@ -302,6 +303,7 @@ app.include_router(observability_router)  # F.8.1c — /api/observability/* (cos
 app.include_router(mcp_coverage_router)  # F.5.6f — /api/mcp/coverage/latest + /api/mcp/gateway/health (UI proxy)
 app.include_router(brain_router)  # F.6.1 — /api/brain/* (Brain orchestrator scaffold)
 app.include_router(pipeline_studio_router)  # F.9.1 — /api/pipeline-studio/* (CRUD + step library + templates)
+app.include_router(skills_router)  # F.4.1 — /api/skills/proposals/* CRUD + /api/skills/health
 
 
 if __name__ == "__main__":
