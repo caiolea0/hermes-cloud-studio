@@ -228,7 +228,8 @@ async def auth_middleware(request: Request, call_next):
     path = request.url.path
     # /api/internal/* tem auth proprio via _check_internal (X-Internal-Token + loopback bind).
     # /api/_bootstrap tem check loopback proprio no endpoint, sem token (retorna tokens pra clientes locais).
-    if path.startswith("/api/internal/") or path.startswith("/api/_bootstrap"):
+    # /api/skills/webhook/* usa HMAC SHA-256 + IP allowlist (F.4.4 D7) — sem X-Hermes-Token.
+    if path.startswith("/api/internal/") or path.startswith("/api/_bootstrap") or path.startswith("/api/skills/webhook/"):
         return await call_next(request)
     if path.startswith("/api/"):
         token = request.headers.get("X-Hermes-Token", "")
@@ -289,6 +290,7 @@ from api.brain import router as brain_router  # F.6.1 — Brain orchestrator sca
 from api.pipeline_studio import router as pipeline_studio_router  # F.9.1 — Pipeline Studio CRUD + step library
 from api.skills import router as skills_router  # F.4.1 — Skill Proposals CRUD + lifecycle
 from api.config import router as config_router  # F.4.3 — /api/config whitelisted feature flags
+from api.skills_webhook import router as skills_webhook_router  # F.4.4 — GitHub webhook PR merged sync
 
 app.include_router(pipelines_router)
 app.include_router(linkedin_router)
@@ -306,6 +308,7 @@ app.include_router(brain_router)  # F.6.1 — /api/brain/* (Brain orchestrator s
 app.include_router(pipeline_studio_router)  # F.9.1 — /api/pipeline-studio/* (CRUD + step library + templates)
 app.include_router(skills_router)  # F.4.1 — /api/skills/proposals/* CRUD + /api/skills/health
 app.include_router(config_router)  # F.4.3 — /api/config whitelisted feature flags
+app.include_router(skills_webhook_router)  # F.4.4 — /api/skills/webhook/pr-merged (GitHub webhook)
 
 
 if __name__ == "__main__":

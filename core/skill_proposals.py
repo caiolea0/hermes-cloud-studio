@@ -85,6 +85,89 @@ def ensure_synthesis_runs_table(conn: Optional[sqlite3.Connection] = None) -> No
             conn.close()
 
 
+def ensure_skill_sync_runs_table(conn: Optional[sqlite3.Connection] = None) -> None:
+    """F.4.4 C1 — idempotent CREATE IF NOT EXISTS for skill_sync_runs.
+
+    Called by api/skills_webhook.py before every insert so the table is
+    available even when the migration has not been applied at startup.
+    """
+    own_conn = conn is None
+    if own_conn:
+        conn = _connect()
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS skill_sync_runs (
+                id              TEXT PRIMARY KEY,
+                trigger_type    TEXT NOT NULL,
+                pr_number       INTEGER NULL,
+                pr_url          TEXT NULL,
+                sync_status     TEXT NOT NULL,
+                started_at      TEXT NOT NULL,
+                completed_at    TEXT NULL,
+                error_message   TEXT NULL,
+                affected_skills TEXT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_skill_sync_runs_status
+                ON skill_sync_runs(sync_status);
+            CREATE INDEX IF NOT EXISTS idx_skill_sync_runs_started_at
+                ON skill_sync_runs(started_at);
+            """
+        )
+        conn.commit()
+    finally:
+        if own_conn:
+            conn.close()
+
+
+def insert_skill_sync_run(
+    *,
+    run_id: str,
+    trigger_type: str,
+    pr_number: Optional[int],
+    pr_url: Optional[str],
+    started_at: str,
+) -> str:
+    """F.4.4 C1 — insert initial 'started' row. Returns run_id."""
+    conn = _connect()
+    try:
+        conn.execute(
+            """
+            INSERT INTO skill_sync_runs
+                (id, trigger_type, pr_number, pr_url, sync_status, started_at)
+            VALUES (?, ?, ?, ?, 'started', ?)
+            """,
+            (run_id, trigger_type, pr_number, pr_url, started_at),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return run_id
+
+
+def update_skill_sync_run(run_id: str, **kwargs: Any) -> None:
+    """F.4.4 C1 — atomic UPDATE of skill_sync_runs fields by run_id.
+
+    Accepted kwargs: sync_status, completed_at, error_message, affected_skills.
+    Unknown keys are silently ignored (forward-compat).
+    """
+    _allowed = {"sync_status", "completed_at", "error_message", "affected_skills"}
+    fields = {k: v for k, v in kwargs.items() if k in _allowed}
+    if not fields:
+        return
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    values = list(fields.values()) + [run_id]
+    conn = _connect()
+    try:
+        conn.execute(
+            f"UPDATE skill_sync_runs SET {set_clause} WHERE id = ?",  # noqa: S608
+            values,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def get_synthesis_run(run_id: str) -> Optional[dict[str, Any]]:
     """F.4.2 C3 helper — read single synthesis_runs row by id."""
     conn = _connect()

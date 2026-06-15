@@ -68,6 +68,10 @@ class HermesSettings(BaseSettings):
     google_places_api_key: str = Field(default="", validation_alias="GOOGLE_PLACES_API_KEY")
     openrouter_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
 
+    # --- GitHub (F.4.2 PAT + F.4.4 webhook secret) ---
+    github_personal_access_token: str = Field(default="", validation_alias="GITHUB_PERSONAL_ACCESS_TOKEN")
+    github_webhook_secret: str = Field(default="", validation_alias="GITHUB_WEBHOOK_SECRET")
+
     # --- AgentMemory ---
     agentmemory_url: str = Field(default="http://localhost:3111", validation_alias="AGENTMEMORY_URL")
 

@@ -91,3 +91,6 @@ dashboard/dev-bootstrap.html
 
 # Schedule lock
 .claude/scheduled_tasks.lock
+
+# F.4.4 — quarantine dir (C2 scope)
+skills/_quarantine/*
