@@ -375,6 +375,130 @@
 +
 +**Cross-ref**: `.claude/MCP-ENFORCEMENT-STRATEGY.md` section 5 F.4 patches.
 +
++**🎯 F.4 Decisões Cristalizadas (Auto-Skill Loop W3 + GitHub PR deploy) — incorporado 2026-06-14**:
++
++F.5+F.6+F.8+F.9 ✅ CHAPTERS CLOSED. F.4 = penúltimo chapter (antes F.7 cobaia). **Meta-recursivo**: Hermes propõe próprias skills via Brain F.6 + GitHub MCP F.5.6 PR deploy. Pre-reqs todos satisfeitos. PLAN.md base 5 sub-sessions mantido.
++
++Pre-req F.4:
++- F.5 9 MCPs gateway (hermes-skills + github + sentry todos active)
++- F.6 Brain.decide() route_skill_run + synth_skill intents production-ready
++- F.6.4 owner confirm UI side-drawer (skill_propose destructive flow)
++- F.8 errors_inbox + Sentry MCP integration (auto-disable signal source)
++- F.9 pipeline_engine REUSE Brain (template synth via Pipeline Studio possible F.future)
++- mcp.github + mcp.sentry + mcp.hermes-skills active gateway
++- `.claude/skills/hermes-skill-forge-runner/SKILL.md` existing (`/hermes-skill-forge-runner` trigger)
++
++**D1 Sub-task split F.4 = 5 sub-sessions** (mantém PLAN.md base):
++- **F.4.1** Backend skill_proposals CRUD + migration + skill-forge-runner workflow trigger (Opus 4.7 ~3-4h)
++- **F.4.2** GitHub MCP PR integration + Lab sandbox test (Opus 4.7 ~3-4h)
++- **F.4.3** UI `/skills/proposals` dashboard + Monaco editor read-only YAML + diff vs existing (Sonnet 4.6 + frontend-ux ~4-5h)
++- **F.4.4** Sync VM auto on accept + Sentry auto-disable scheduled cron (Sonnet 4.6 ~2-3h)
++- **F.4.5** Closeout F.4 + Task #4 [completed] + holistic reviewer + F.7 PREP (Sonnet 4.6 ~2-3h)
++- Total ~15-20h spread 1 semana
++
++**D2 Skill synthesis model = `qwen3-coder-480b`** (PLAN routing matrix F.5.7 default code_gen):
++- Brain.decide(intent="synth_skill", task_type="code_gen") → routing matrix T1 qwen/qwen3-coder-480b
++- T2 fallback DeepSeek V4 Pro (per F.5.7 cristalizada)
++- T3 fallback Ollama PC qwen2.5-coder:3b (offline-safe)
++- NÃO custom model selection F.4 (REUSE routing matrix F.5.7 single source truth)
++- NÃO Claude OpenRouter (paid + owner zero-API-paga preference)
++
++**D3 Skill sandbox = SUBPROCESS isolated** (mcp.hermes-skills.test_skill_dryrun existing):
++- REUSE F.5.2 `mcp.hermes-skills.test_skill_dryrun` tool (já implementado)
++- Subprocess Python isolated env via `asyncio.create_subprocess_exec` + sys.executable
++- Timeout 60s per skill dry-run (margem mais ampla que Brain step 5min porque skill arbitrary code)
++- Capture stdout/stderr → analyse error patterns
++- NÃO Docker container (over-engineering + Docker pode não estar PC + VM SETUP complex)
++- NÃO production direct (skill bugada queima Brain run + cost waste)
++
++**D4 GitHub PR auto-merge = OWNER MANUAL APPROVE** (safety gate F.6.4 D8 spirit):
++- Lab sandbox PASS + Sentry zero pre-existing errors → mcp.github.create_pull_request (branch `skill/proposal-{id}`)
++- Owner reviewa PR no GitHub (diff + lab test results comment auto)
++- Owner manual merge (NÃO auto-merge GitHub API)
++- Webhook OR cron polling: detect merged → sync VM auto via systemd
++- Razão: skills/ MATURE = qualquer regressão afeta cobaia F.7 produção real
++- NÃO auto-merge (safety gate destructive equivalent F.6.4)
++- NÃO require dashboard approve duplicate (PR já é approve channel)
++
++**D5 Feedback loop cadence = DAILY AGGREGATE** (cron pattern F.5.5/F.8.1):
++- Cron daily 09h BRT (alinha NIM credit poll F.8.1)
++- Query `skill_runs` table last 24h: success_rate per skill + Sentry errors aggregate per skill
++- Brain.decide(intent="analyze_skill_health") → propose disable OR improve recommendations
++- Owner review weekly digest dashboard `/skills/health`
++- NÃO per-skill_run (high volume overhead)
++- NÃO weekly (lag too long, bad skill queima cobaia 7 dias)
++
++**D6 Skill quarantine threshold = SUCCESS RATE < 0.5 last 10 runs** (granular + meaningful):
++- Per skill: SELECT COUNT runs last 10 + SUM completed status / 10
++- Threshold success_rate < 0.5 → auto-flag `quarantine` + emit `brain.skill_quarantine` WS event
++- Plus secondary: Sentry errors > 5 last 24h (per PLAN.md base) → corroborate quarantine
++- Manual override owner via dashboard `/skills/health` (re-enable button)
++- NÃO error count only (over-sensitive volume noise)
++- NÃO success rate any window (10-run granularity meaningful + responsive)
++
++**D7 hermes-skill-forge-runner skill existing = REUSE** (skill já criada `.claude/skills/hermes-skill-forge-runner/`):
++- Skill existing SKILL.md doc (~12KB)
++- F.4 sub-sessions EXTEND skill (não redesign): adicionar Brain.decide(intent="synth_skill") + GitHub MCP integration + Sentry auto-disable hooks
++- Trigger preservation: "rodar skill X" + "/hermes-skill-forge-runner" + "promote skill" + "dry-run skill"
++- F.4.1 update SKILL.md F.4 real (substitui F.6.0 baseline placeholder)
++- NÃO redesign (skill é asset)
++- NÃO desconsider existing (workflow Hermes pattern consistency)
++
++**D8 Skills source-of-truth = GIT REPO skills/ PRIMARY + DB skill_proposals workflow staging**:
++- `skills/*.yaml` git repo = production source-of-truth (audit + git history + diff via GitHub)
++- `skill_proposals` table = workflow staging (proposal → lab test → PR created → owner approve → merge → sync VM)
++- Skills production paths: PC `skills/*.yaml` + VM `~/.hermes/skills/*.yaml` (sync via webhook merge)
++- F.4 workflow: proposal (DB) → lab pass → PR (GitHub) → owner approve → merge (GitHub) → sync VM (webhook) → skills/ git updated
++- NÃO DB only (perde git history audit)
++- NÃO filesystem direto (perde workflow staging + lab test gate)
++
++**Files F.4 global** (~12 NOVOS + 5 MATURE):
++- `core/skill_proposals.py` NOVO (~250 LOC CRUD + skill_proposals lifecycle state machine)
++- `core/auto_skill_runner.py` NOVO (~300 LOC workflow trigger + Brain.decide() synth + sandbox dispatch)
++- `core/auto_skill_promoter.py` NOVO (~200 LOC GitHub PR creator + webhook merge handler + sync VM trigger)
++- `core/auto_skill_health.py` NOVO (~150 LOC daily cron analyzer + quarantine logic D6)
++- `api/skills.py` MATURE (existing skills endpoints) — adicionar `/api/skills/proposals` CRUD + `/health` aggregate
++- `dashboard/components/skills_proposals.js` NOVO (~250 LOC card list + Monaco editor + diff + accept/reject modal)
++- `dashboard/components/skills_health_dashboard.js` NOVO (~180 LOC table per-skill metrics + quarantine status)
++- `dashboard/styles/skills-proposals.css` NOVO (~200 LOC tokens reuse F.8.3 design system)
++- `dashboard/vendor/monaco-editor-vendor.js` NOVO (Monaco editor read-only OR alternative simpler — defer F.future se peso)
++- `migrations/2026_06_<next>_skill_proposals.sql` NOVO (skill_proposals + skill_runs tables + indexes)
++- `.claude/workflows/hermes-skill-forge.js` NOVO (~300 LOC Workflow script pipeline activity 30d → classify → 3 candidatos)
++- `.claude/skills/hermes-skill-forge-runner/SKILL.md` MATURE — substitui F.6.0 baseline por F.4 real
++- `dashboard/index.html` + `app.js` MATURE — nav `/skills/proposals` + section + script includes
++- `server.py` MATURE — include_router skills proposals
++- `scripts/sync_skills_to_vm.py` NOVO (~80 LOC scp skills/ + systemd restart trigger)
++
++**Sub-task split F.4.1 (sub-sessão pioneer Opus 4.7, 3 commits)**:
++- C1 Migration `skill_proposals` + `skill_runs` tables + indexes
++- C2 Backend `core/skill_proposals.py` CRUD + `api/skills.py` MATURE endpoints
++- C3 `.claude/workflows/hermes-skill-forge.js` NOVO + hermes-skill-forge-runner skill MATURE F.4 real + reviewer + closeout F.4.1
++
++**🚨 Riscos críticos F.4**:
++- **Skill synthesis NOVEL meta-recursive** — Brain gera código Python → execute sandbox. Bug compounding risk. Lab test obrigatório ANTES PR.
++- **GitHub MCP rate limit** — PR creation + merge polling. Validate F.5.6 GitHub MCP credentials + rate budget.
++- **Sentry MCP false positives** — pre-existing errors unrelated skill = false quarantine. Filter por tags.skill_id only.
++- **skills/*.yaml git history risk** — auto-commit skills/ via webhook. Validate commit msg explicit "skill: auto-merged proposal #X owner_approved".
++- **VM sync race** — webhook merge → sync VM. Owner manual edit skills/ same time = conflict. Lock file OR optimistic version check.
++- **BLACKLIST R2 INTACTO** — F.4 zero touch linkedin/* (skills consumem mcp.hermes-linkedin via Brain dispatch sempre).
++- **frontend-ux-reviewer F.4.3 OBRIGATÓRIO** (UI changes gate + Monaco editor accessibility).
++- **Monaco editor vendor commit** — Monaco ~2MB vs Chart.js 200KB F.8.3. Avaliar simpler alternativa (Prism.js read-only highlight) F.future.
++- **D8 dual source-of-truth git+DB** — sync invariant. F.4.4 webhook handler atomic transaction.
++- **Skill bugada queima Brain runs** — sandbox isolation D3 obrigatório + lab test gate D4.
++- **mcp_calls.caller_chapter='F.4'** rastreabilidade.
++- **Validate phase A-E preservado** — daemon/orchestrator.py + core/* MATURE risk (caution gate).
++
++**Cross-ref F.4**:
++- F.5.2 mcp.hermes-skills (existing 6 tools — REUSE list_skills + test_skill_dryrun)
++- F.5.6 mcp.github + mcp.sentry (PR creation + errors source)
++- F.6.2 Brain.decide(intent="synth_skill") + ReAct loop
++- F.6.4 owner confirm pattern (PR approve flow equivalent)
++- F.6.5 `.claude/skills/hermes-brain-test/` pattern reference (skill update F.4 real similar)
++- F.8.1 mcp_calls + errors_inbox.category='auto_skill' (NEW category D5 feedback)
++- F.9.2 pipeline_runs_granular (skill_runs schema similar reference)
++- `.claude/skills/hermes-skill-forge-runner/SKILL.md` (existing skill MATURE F.4)
++- Memory: mem_mqe8vdyj (F.9.4) + mem_mqd4chho (F.6.6) + mem_mqdvi9ts (F.8 global)
++
 +### Chapter F.5 — MCP Gateway + Discovery + Custom MCPs
 +
 +**Classification**: backend+infra · **UI score**: 4 · **Estimated sessions**: 4 · **Status**: PLANEJADO · **Dependencies**: F.1
