@@ -86,9 +86,9 @@ if ($envContent -match "(?m)^GITHUB_PERSONAL_ACCESS_TOKEN=") {
     Write-Host "  PC .env: linha ADICIONADA" -ForegroundColor Green
 }
 
-$verifyPC = Select-String -Path $envPathPC -Pattern "^GITHUB_PERSONAL_ACCESS_TOKEN=ghp_" -SimpleMatch -Quiet
+$verifyPC = Select-String -Path $envPathPC -Pattern "^GITHUB_PERSONAL_ACCESS_TOKEN=ghp_" -Quiet
 if (-not $verifyPC) {
-    $verifyPC = Select-String -Path $envPathPC -Pattern "^GITHUB_PERSONAL_ACCESS_TOKEN=github_pat_" -SimpleMatch -Quiet
+    $verifyPC = Select-String -Path $envPathPC -Pattern "^GITHUB_PERSONAL_ACCESS_TOKEN=github_pat_" -Quiet
 }
 if ($verifyPC) {
     Write-Host "  PC verify: token presente" -ForegroundColor Green
