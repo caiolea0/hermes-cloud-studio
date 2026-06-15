@@ -154,19 +154,34 @@ async def get_yaml_preview(proposal_id: str):
 
 @router.post("/proposals/{proposal_id}/accept", status_code=202)
 async def accept_proposal(proposal_id: str, req: DecisionRequest):
-    """F.4.1 transition draft → lab_running. F.4.2 background task triggers lab dispatch."""
+    """F.4.2 C1: owner accept → lab_running → inline YAML validation → lab_passed|lab_failed.
+
+    C2 will chain dispatch_github_pr on lab_passed (D4 BLOCK PR on lab_failed).
+    """
     _ensure_table_or_503()
     try:
-        result = proposals_manager.owner_decision(
+        owner_result = proposals_manager.owner_decision(
             proposal_id, decision="accept", reason=req.reason,
         )
     except LookupError:
         raise HTTPException(404, "proposal_not_found")
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+
+    # F.4.2 C1 — dispatch lab sandbox (inline YAML validation, D1 PIVOT).
+    from core.auto_skill_runner import AutoSkillRunner
+    runner = AutoSkillRunner()
+    try:
+        lab_outcome = await runner.dispatch_sandbox_test(proposal_id)
+    except LookupError:
+        raise HTTPException(404, "proposal_not_found")
+
     return {
-        **result,
-        "note": "F.4.2_implements_real_lab_dispatch + F.4.2_implements_real_github_mcp",
+        "status": "ok",
+        "owner_decision": owner_result,
+        "lab_test_result": lab_outcome["lab_test_result"],
+        "new_status": lab_outcome["new_status"],
+        "note": "F.4.2_implements_real_github_mcp",
     }
 
 

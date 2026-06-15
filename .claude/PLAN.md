@@ -611,7 +611,7 @@ Owner aprovou pivot decisões D1 + D7:
 - `requirements.txt` validar (no new deps esperado — httpx + asyncio + jsonschema já presentes)
 
 **Sub-task split F.4.2 (3 commits sub-session)**:
-- **C1** core/auto_skill_runner.py NOVO orchestrator + lab sandbox dispatch (anchor sandbox_dispatch + lab_dispatch) + smoke unit
+- **[✅] C1** core/auto_skill_runner.py NOVO orchestrator + lab sandbox dispatch — **PIVOT D1 inline YAML validation + mock** (NÃO REUSE test_skill_dryrun direct; F.5.2 signature accepts skill_name disk, não yaml_blob) + **PIVOT D7 requester='brain-f4'** (NÃO new caller_chapter column; F.5.3 schema 9 cols original) + 11 unit tests PASS (smoke validation + slugify + shortid + dispatch persistence)
 - **C2** GitHub MCP PR integration (anchor github_mcp) + PR body template + branch naming D3 + smoke E2E (sandbox PASS → PR criado real OR mock se GitHub rate)
 - **C3** Workflow invoke trigger (anchor workflow_invoke) + smoke generate endpoint + reviewer + closeout F.4.2
 

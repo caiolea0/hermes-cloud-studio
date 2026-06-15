@@ -165,9 +165,9 @@ class SkillProposalsManager:
         lab_test_result: dict[str, Any],
         lab_test_status: str,
     ) -> dict[str, Any]:
-        """F.4.2_implements_real_sandbox_dispatch — F.4.1 stores result post-test.
+        """Persist lab_test_result + transition status (F.4.2 C1 wires AutoSkillRunner).
 
-        Transitions status: draft → lab_running → lab_passed | lab_failed.
+        Transitions status: lab_running → lab_passed | lab_failed.
         """
         if lab_test_status not in _ALLOWED_LAB_STATUS:
             raise ValueError(
