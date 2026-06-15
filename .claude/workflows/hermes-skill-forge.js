@@ -555,6 +555,29 @@ state.history.push({
 
 await writeFile(STATE_PATH, JSON.stringify(state, null, 2));
 
+// F.4.1 — additive POST /api/skills/proposals per confirmed proposal.
+// File persistence above stays as audit backup; DB row drives F.4.3 UI dashboard
+// + F.4.2 lab dispatch + F.4.2 GitHub PR creation. Best-effort: backend down
+// does NOT fail cycle (state.json already updated above).
+let dbPersisted = 0;
+try {
+  for (const v of confirmed) {
+    const p = v.proposal;
+    const resp = await postToHermes("/api/skills/proposals", {
+      name: p.slug,
+      description: p.title,
+      yaml_blob: p.yaml_content,
+      source_pattern: "activity_30d_pattern",
+    });
+    if (resp?.id) {
+      dbPersisted += 1;
+      log(`DB persisted skill_proposals row id=${resp.id} slug=${p.slug}`);
+    }
+  }
+} catch (e) {
+  log(`DB persist falhou (nao-bloqueante, file backup OK): ${e?.message || e}`);
+}
+
 // Emit WS event 'skill_proposal' pra Mission Control F.2 consumir
 // (best-effort — se backend down, NAO falhar o ciclo)
 try {
@@ -562,11 +585,12 @@ try {
     await emitWS("skill_proposal", {
       cycle: timestamp,
       count: confirmed.length,
+      db_persisted: dbPersisted,
       slugs: confirmed.map((v) => v.proposal.slug),
       requires_review_count: confirmed.filter((v) => v.proposal.requires_owner_review).length,
       proposed_dir: PROPOSED_DIR,
     });
-    log(`WS event 'skill_proposal' emitido (${confirmed.length} proposals)`);
+    log(`WS event 'skill_proposal' emitido (${confirmed.length} proposals, ${dbPersisted} DB rows)`);
   }
 } catch (e) {
   log(`WS emit falhou (nao-bloqueante): ${e?.message || e}`);
@@ -596,4 +620,24 @@ async function readFileOptional(path) {
   } catch {
     return null;
   }
+}
+
+// F.4.1 — best-effort POST to Hermes backend (env HERMES_AUTH_TOKEN required).
+// Returns parsed JSON on 2xx, throws otherwise (caller wraps in try/catch).
+async function postToHermes(pathSuffix, body) {
+  const base = process.env.HERMES_API_BASE || "http://127.0.0.1:8500";
+  const token = process.env.HERMES_AUTH_TOKEN || "";
+  const url = `${base}${pathSuffix}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Hermes-Token": token,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`POST ${pathSuffix} → ${res.status}`);
+  }
+  return await res.json();
 }

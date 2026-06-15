@@ -5,6 +5,27 @@ description: Executor controlado de skills forjadas pelo Hermes Brain (Fase F.4 
 
 # /hermes-skill-forge-runner — Executor controlado de skills forjadas
 
+## F.4 Real Implementation Status
+
+Esta skill cresce em fatias acopladas as 5 sub-sessoes F.4 (PLAN.md D1):
+
+| Sub-sessao | Entrega                                                                                | Status     |
+|------------|---------------------------------------------------------------------------------------|------------|
+| **F.4.1**  | Backend `skill_proposals` + `skill_runs` tables + CRUD `/api/skills/proposals/*` + workflow `hermes-skill-forge.js` POST DB integration + SKILL.md F.4 real | **DONE**   |
+| F.4.2      | GitHub MCP `create_pull_request` (branch `skill/proposal-{id}`) + Lab sandbox via `mcp.hermes-skills.test_skill_dryrun` + lab_test_result update         | PLANEJADO  |
+| F.4.3      | UI `/skills/proposals` dashboard + Monaco editor read-only YAML + accept/reject modal owner                                                              | PLANEJADO  |
+| F.4.4      | Sync VM auto on merge (webhook handler atomic transaction) + Sentry MCP cron quarantine signal (D6 success_rate < 0.5 last 10 runs)                       | PLANEJADO  |
+| F.4.5      | Closeout F.4 + holistic reviewer + F.7 PREP                                                                                                              | PLANEJADO  |
+
+Fluxo F.4 end-to-end (alvo F.4.5):
+1. Workflow `hermes-skill-forge.js` cron daily 09h BRT → analise activity 30d → 3 candidatos paralelos
+2. POST `/api/skills/proposals` (F.4.1) → `skill_proposals` row status=draft
+3. Owner aprova via UI dashboard (F.4.3) → status=lab_running
+4. Backend background dispatch `mcp.hermes-skills.test_skill_dryrun` (F.4.2) → status=lab_passed|lab_failed
+5. Se lab_passed: `mcp.github.create_pull_request` branch skill/proposal-{id} (F.4.2) → status=pr_open
+6. Owner reviewa PR no GitHub → manual merge → webhook (F.4.4) → status=pr_merged → sync VM `~/.hermes/skills/`
+7. Cron daily analyzer (F.4.4) lê `skill_runs` last 24h → Sentry MCP errors → propose quarantine via Brain
+
 ## Proposito
 
 Fase F.4 (auto-skill loop) sintetiza skills novas a partir de padroes observados (ex: "owner sempre faz X depois de Y → forjar skill X-after-Y"). Skill recem-forjada NAO pode ir direto pra producao — precisa de gate de validacao mecanizado. Esta skill e esse gate.
