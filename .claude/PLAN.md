@@ -489,7 +489,34 @@ Pre-req F.4.2:
 - skill_proposals + skill_runs tables criadas F.4.1
 - Workflow tool disponível (Workflow MCP server connected)
 
-**D1 Lab sandbox isolation = SUBPROCESS Python REUSE mcp.hermes-skills.test_skill_dryrun** (D3 F.4 cristalizado):
+**🚨 PIVOT 2026-06-14 BLOCKER #2 + #3 detectados Step 0 F.4.2 (owner Claude catch)**:
+
+Owner Claude F.4.2 Step 0 surfaceou 2 contradições prompt vs realidade:
+- BLOCKER #2: `mcp_calls.caller_chapter` column NÃO EXISTE (F.5.3 migration original 9 cols, F.5.7/F.8.1 adicionaram outras 5 mas não caller_chapter). Meu prompt D7 assumiu erroneamente.
+- BLOCKER #3: `test_skill_dryrun(skill_name, input_data, mock_llm=True)` reads disk (F.5.2 mock scaffold). NÃO `(yaml_blob, input_data)` direct como assumi D1.
+
+Owner aprovou pivot decisões D1 + D7:
+
+**D1 PIVOT — Lab sandbox VALIDAÇÃO INLINE + MOCK honest** (NÃO REUSE direct test_skill_dryrun):
+- F.5.2 `test_skill_dryrun` é mock_llm scaffold (não subprocess real). F.4.2 honest match: validação YAML inline + mock execution result mesma semantics F.5.2.
+- core/auto_skill_runner.py `_validate_yaml_inline(yaml_blob)` — yaml.safe_load + check required keys (name, version, provider OR steps) + return lab_test_result mock dict
+- lab_test_result schema mantido: `{status, stdout (validation msg), stderr (errors), latency_ms (~10ms), exit_code, mock: true}`
+- F.future: F.5.2 enhance test_skill_dryrun accept yaml_blob param → F.future F.4 sub-session refactor REUSE direct
+- NÃO temp file write skills/_lab_{id}.yaml (pollution risk D8 git history)
+- NÃO expandir test_skill_dryrun F.4.2 (fora scope)
+
+**D7 PIVOT — Cost tracking REQUESTER ENCODING `"brain-f4"`** (NÃO caller_chapter column):
+- F.5.3 mcp_calls original 9 cols sem caller_chapter (verified owner Claude Step 0)
+- F.4.2 uses existing `requester` field com prefix encoding: `requester="brain-f4"` em todos invoke_tool calls
+- G14 verify via `SELECT DISTINCT requester FROM mcp_calls WHERE requester LIKE 'brain-%'`
+- F.future: migration própria `caller_chapter TEXT NULL` quando F.8 dashboard/F.future precisar query consistent
+- F.8.1 + F.9.2 + F.4.2 todas cristalizações que referenciaram caller_chapter column = backlog F.future migration explicit
+- NÃO Migration nova F.4.2 (expande scope cross-cutting cap risk)
+- NÃO bypass tracking (perde F.8 visibility)
+
+**D1 + D7 cristalizações originais abaixo preservadas para audit history**:
+
+**D1 ORIGINAL (substituído pivot acima) — Lab sandbox isolation = SUBPROCESS Python REUSE mcp.hermes-skills.test_skill_dryrun** (D3 F.4 cristalizado):
 - Engine invoca `mcp.hermes-skills.test_skill_dryrun(yaml_blob, input_data)` via gateway dispatch
 - mcp.hermes-skills.test_skill_dryrun (F.5.2) já implementa subprocess Python isolated + timeout
 - F.4.2 NÃO implementa subprocess próprio (REUSE existing tool)
