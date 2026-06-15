@@ -130,25 +130,51 @@ fi
 $sshScriptLF = $sshScript -replace "`r`n", "`n"
 $sshScriptLF = $sshScriptLF -replace "`r", "`n"
 
-# Escrever em temp file LF, depois pipe via Get-Content -Raw para preservar LF puro
-$tempSh = [System.IO.Path]::GetTempFileName()
-[System.IO.File]::WriteAllText($tempSh, $sshScriptLF, [System.Text.UTF8Encoding]::new($false))
+# CRITICAL: PowerShell pipe `|` re-introduz CRLF mesmo de source LF.
+# Solucao: ProcessStartInfo + StandardInput.BaseStream.Write(bytes) bypass total.
+$psi = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName = "ssh"
+$psi.Arguments = "-T -o ConnectTimeout=10 -o BatchMode=yes hermes-gcp@136.115.74.69 bash -s"
+$psi.RedirectStandardInput = $true
+$psi.RedirectStandardOutput = $true
+$psi.RedirectStandardError = $true
+$psi.UseShellExecute = $false
+$psi.CreateNoWindow = $true
 
 try {
-    # -T disable pseudo-tty (clean stdin pipe), cat temp file via Get-Content
-    $sshOutput = Get-Content $tempSh -Raw | ssh -T -o ConnectTimeout=10 -o BatchMode=yes hermes-gcp@136.115.74.69 'bash -s' 2>&1
-    Write-Host $sshOutput -ForegroundColor Green
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $bytes = $utf8NoBom.GetBytes($sshScriptLF)
+    $proc.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
+    $proc.StandardInput.BaseStream.Flush()
+    $proc.StandardInput.Close()
+    $sshOutput = $proc.StandardOutput.ReadToEnd()
+    $sshErr = $proc.StandardError.ReadToEnd()
+    $proc.WaitForExit()
+    $exitCode = $proc.ExitCode
+
+    if ($sshOutput) { Write-Host $sshOutput -ForegroundColor Green }
+    if ($sshErr) { Write-Host "  STDERR: $sshErr" -ForegroundColor Yellow }
+
+    if ($exitCode -ne 0) {
+        Write-Host "  ERRO SSH: exit code $exitCode" -ForegroundColor Red
+        $plainToken = $null
+        $sshScript = $null
+        $sshScriptLF = $null
+        $bytes = $null
+        exit 1
+    }
 } catch {
     Write-Host "  ERRO SSH: $_" -ForegroundColor Red
-    Remove-Item $tempSh -Force -ErrorAction SilentlyContinue
     $plainToken = $null
     $sshScript = $null
     $sshScriptLF = $null
+    $bytes = $null
     exit 1
 }
 
-Remove-Item $tempSh -Force -ErrorAction SilentlyContinue
 $sshScriptLF = $null
+$bytes = $null
 
 # Cleanup token from intermediate var
 $sshScript = $null
