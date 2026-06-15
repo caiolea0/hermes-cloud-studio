@@ -206,7 +206,7 @@ class SkillProposalsManager:
         pr_branch: Optional[str],
         pr_status: str,
     ) -> dict[str, Any]:
-        """F.4.2_implements_real_github_mcp — F.4.1 stores PR metadata post-create.
+        """Persist PR metadata + transition status (F.4.2 C2 wires AutoSkillRunner).
 
         Transitions status: lab_passed → pr_open → pr_merged | pr_rejected.
         """

@@ -612,7 +612,7 @@ Owner aprovou pivot decisões D1 + D7:
 
 **Sub-task split F.4.2 (3 commits sub-session)**:
 - **[✅] C1** core/auto_skill_runner.py NOVO orchestrator + lab sandbox dispatch — **PIVOT D1 inline YAML validation + mock** (NÃO REUSE test_skill_dryrun direct; F.5.2 signature accepts skill_name disk, não yaml_blob) + **PIVOT D7 requester='brain-f4'** (NÃO new caller_chapter column; F.5.3 schema 9 cols original) + 11 unit tests PASS (smoke validation + slugify + shortid + dispatch persistence)
-- **C2** GitHub MCP PR integration (anchor github_mcp) + PR body template + branch naming D3 + smoke E2E (sandbox PASS → PR criado real OR mock se GitHub rate)
+- **[✅] C2** GitHub MCP PR integration — dispatch_github_pr extend AutoSkillRunner (anchor github_mcp removido api/skills.py:184 + core/skill_proposals.py:209 docstring) + D2 PR auto-template (difflib unified_diff vs closest existing skill + lab results truncate 2000 chars + Brain rationale) + D3 branch slug+shortid + D4 BLOCK PR se lab_failed + D5 fail-fast GitHub MCP errors (429/401/5xx, Sentry capture, WS emit brain.skill_pr_create_failed, NÃO retry) + brain/dispatch.py invoke_tool +requester kwarg (D7 PIVOT enforce) + 9 unit tests novos PASS (block_lab_failed, success_full_template, branch_naming, yaml_diff_with/no_existing, 429/401 fail_fast, persists_pr_url, requester_brain_f4)
 - **C3** Workflow invoke trigger (anchor workflow_invoke) + smoke generate endpoint + reviewer + closeout F.4.2
 
 **🚨 Riscos críticos F.4.2**:

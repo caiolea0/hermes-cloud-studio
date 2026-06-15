@@ -123,15 +123,25 @@ class GatewayDispatcher:
             },
         )
 
-    async def invoke_tool(self, server: str, tool: str, args: dict[str, Any]) -> dict[str, Any]:
+    async def invoke_tool(
+        self,
+        server: str,
+        tool: str,
+        args: dict[str, Any],
+        requester: str = "brain",
+    ) -> dict[str, Any]:
         """Generic gateway dispatch: POST /dispatch/{server}/{tool}.
+
+        F.4.2 PIVOT D7 — `requester` kwarg forwards to gateway payload
+        (persisted in mcp_calls.requester for cost aggregation). Default
+        "brain"; callers like AutoSkillRunner pass "brain-f4".
 
         Returns:
             On success: {ok: True, call_id, server, tool, response, duration_ms}
             On error:   {ok: False, error, status_code?}
         """
         url = f"{self.base_url}/dispatch/{server}/{tool}"
-        payload = {"args": args, "requester": "brain"}
+        payload = {"args": args, "requester": requester}
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:

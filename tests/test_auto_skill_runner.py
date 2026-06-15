@@ -166,3 +166,204 @@ def test_dispatch_sandbox_test_proposal_not_found(runner_with_tmp_db):
     runner, _manager, _ = runner_with_tmp_db
     with pytest.raises(LookupError):
         asyncio.run(runner.dispatch_sandbox_test("does-not-exist"))
+
+
+# ---------------------------------------------------------------------------
+# C2 — dispatch_github_pr (mock dispatcher — no real GitHub API hits)
+# ---------------------------------------------------------------------------
+
+class _MockDispatcher:
+    """Capture-only dispatcher for C2 tests. Records invoke_tool calls."""
+
+    def __init__(self, response: dict | None = None, raise_exc: Exception | None = None):
+        self.response = response
+        self.raise_exc = raise_exc
+        self.calls: list[dict] = []
+
+    async def invoke_tool(self, server, tool, args, requester="brain"):
+        self.calls.append({
+            "server": server, "tool": tool, "args": args, "requester": requester,
+        })
+        if self.raise_exc is not None:
+            raise self.raise_exc
+        return self.response or {"ok": True, "response": {}}
+
+
+def _make_passed_proposal(manager, name="cobaia-daily"):
+    """Helper — create proposal + force lab_passed via runner inline validation."""
+    created = manager.create(
+        name=name,
+        description="C2 fixture rationale",
+        yaml_blob=(
+            f"name: {name}\n"
+            "version: 0.1\n"
+            "provider: openrouter\n"
+        ),
+    )
+    manager.owner_decision(created["id"], decision="accept", reason="t")
+    # Persist lab_passed directly (skip runner; we test dispatch_github_pr unit).
+    manager.update_lab_result(
+        created["id"],
+        {
+            "status": "passed", "stdout": "ok", "stderr": "",
+            "latency_ms": 5, "exit_code": 0, "mock": True,
+        },
+        lab_test_status="passed",
+    )
+    return created["id"]
+
+
+def test_dispatch_github_pr_blocks_on_lab_failed(runner_with_tmp_db):
+    runner, manager, _ = runner_with_tmp_db
+    dispatcher = _MockDispatcher(response={"ok": True, "response": {"html_url": "x"}})
+    runner.dispatcher = dispatcher
+    created = manager.create(
+        name="bad", description="r", yaml_blob="name: bad\n",
+    )
+    manager.owner_decision(created["id"], decision="accept", reason="t")
+    manager.update_lab_result(
+        created["id"],
+        {"status": "failed", "stdout": "", "stderr": "missing version",
+         "latency_ms": 1, "exit_code": 1, "mock": True},
+        lab_test_status="failed",
+    )
+    result = asyncio.run(runner.dispatch_github_pr(created["id"]))
+    assert result["status"] == "blocked"
+    assert result["reason"] == "lab_not_passed"
+    # D4 — no GitHub MCP call attempted.
+    assert dispatcher.calls == []
+
+
+def test_dispatch_github_pr_success_full_template(runner_with_tmp_db):
+    runner, manager, _ = runner_with_tmp_db
+    dispatcher = _MockDispatcher(response={
+        "ok": True,
+        "response": {
+            "html_url": "https://github.com/caiolea0/hermes-cloud-studio/pull/42",
+            "number": 42,
+        },
+    })
+    runner.dispatcher = dispatcher
+    proposal_id = _make_passed_proposal(manager, name="cobaia-daily")
+
+    result = asyncio.run(runner.dispatch_github_pr(proposal_id))
+    assert result["status"] == "ok"
+    assert result["pr_url"] == "https://github.com/caiolea0/hermes-cloud-studio/pull/42"
+    assert result["pr_number"] == 42
+    assert result["branch"].startswith("skill/proposal-cobaia-daily-")
+
+    # D2 template fields present in body.
+    body = dispatcher.calls[0]["args"]["body"]
+    assert "Skill Proposal: cobaia-daily" in body
+    assert "Lab test result" in body
+    assert "YAML diff" in body
+    assert "Brain rationale" in body
+
+
+def test_dispatch_github_pr_branch_naming_correct(runner_with_tmp_db):
+    runner, manager, _ = runner_with_tmp_db
+    dispatcher = _MockDispatcher(response={
+        "ok": True, "response": {"html_url": "u", "number": 1},
+    })
+    runner.dispatcher = dispatcher
+    proposal_id = _make_passed_proposal(manager, name="Cobaia Monitor Daily")
+    result = asyncio.run(runner.dispatch_github_pr(proposal_id))
+    # D3 — skill/proposal-{slug}-{shortid first 6 chars uuid}
+    branch = result["branch"]
+    assert branch.startswith("skill/proposal-cobaia-monitor-daily-")
+    suffix = branch.split("-")[-1]
+    assert len(suffix) == 6
+
+
+def test_dispatch_github_pr_yaml_diff_no_existing(runner_with_tmp_db, tmp_path, monkeypatch):
+    runner, manager, _ = runner_with_tmp_db
+    dispatcher = _MockDispatcher(response={
+        "ok": True, "response": {"html_url": "u", "number": 1},
+    })
+    runner.dispatcher = dispatcher
+    # Force closest-skill lookup to a non-existent dir → fallback message.
+    monkeypatch.setattr(
+        "core.auto_skill_runner.AutoSkillRunner._find_closest_skill_yaml",
+        staticmethod(lambda name, skills_dir=None: None),
+    )
+    proposal_id = _make_passed_proposal(manager, name="brand-new-skill")
+    asyncio.run(runner.dispatch_github_pr(proposal_id))
+    body = dispatcher.calls[0]["args"]["body"]
+    assert "no diff available" in body
+
+
+def test_dispatch_github_pr_yaml_diff_with_existing(runner_with_tmp_db, tmp_path, monkeypatch):
+    runner, manager, _ = runner_with_tmp_db
+    dispatcher = _MockDispatcher(response={
+        "ok": True, "response": {"html_url": "u", "number": 1},
+    })
+    runner.dispatcher = dispatcher
+    existing_yaml = "name: cobaia-daily\nversion: 0.1\nprovider: ollama\n"
+    monkeypatch.setattr(
+        "core.auto_skill_runner.AutoSkillRunner._find_closest_skill_yaml",
+        staticmethod(lambda name, skills_dir=None: ("cobaia-daily.yaml", existing_yaml)),
+    )
+    proposal_id = _make_passed_proposal(manager, name="cobaia-daily")
+    asyncio.run(runner.dispatch_github_pr(proposal_id))
+    body = dispatcher.calls[0]["args"]["body"]
+    assert "-provider: ollama" in body or "+provider: openrouter" in body
+
+
+def test_dispatch_github_pr_github_429_fail_fast(runner_with_tmp_db):
+    runner, manager, _ = runner_with_tmp_db
+    dispatcher = _MockDispatcher(response={
+        "ok": False, "status_code": 429,
+        "error": "rate limit exceeded",
+    })
+    runner.dispatcher = dispatcher
+    proposal_id = _make_passed_proposal(manager, name="rl-test")
+    result = asyncio.run(runner.dispatch_github_pr(proposal_id))
+    # D5 — fail-fast, NO retry, returns status='failed'.
+    assert result["status"] == "failed"
+    assert result["status_code"] == 429
+    assert len(dispatcher.calls) == 1
+
+
+def test_dispatch_github_pr_github_401_fail_fast(runner_with_tmp_db):
+    runner, manager, _ = runner_with_tmp_db
+    dispatcher = _MockDispatcher(response={
+        "ok": False, "status_code": 401, "error": "bad credentials",
+    })
+    runner.dispatcher = dispatcher
+    proposal_id = _make_passed_proposal(manager, name="auth-test")
+    result = asyncio.run(runner.dispatch_github_pr(proposal_id))
+    assert result["status"] == "failed"
+    assert result["status_code"] == 401
+    assert len(dispatcher.calls) == 1
+
+
+def test_dispatch_github_pr_persists_pr_url_on_success(runner_with_tmp_db):
+    runner, manager, _ = runner_with_tmp_db
+    dispatcher = _MockDispatcher(response={
+        "ok": True,
+        "response": {
+            "html_url": "https://github.com/o/r/pull/7", "number": 7,
+        },
+    })
+    runner.dispatcher = dispatcher
+    proposal_id = _make_passed_proposal(manager, name="persist-test")
+    asyncio.run(runner.dispatch_github_pr(proposal_id))
+    updated = manager.get(proposal_id)
+    assert updated["status"] == "pr_open"
+    assert updated["pr_url"] == "https://github.com/o/r/pull/7"
+    assert updated["pr_branch"].startswith("skill/proposal-persist-test-")
+    assert updated["pr_status"] == "open"
+
+
+def test_dispatch_github_pr_requester_brain_f4(runner_with_tmp_db):
+    """D7 PIVOT — dispatcher.invoke_tool receives requester='brain-f4'."""
+    runner, manager, _ = runner_with_tmp_db
+    dispatcher = _MockDispatcher(response={
+        "ok": True, "response": {"html_url": "u", "number": 1},
+    })
+    runner.dispatcher = dispatcher
+    proposal_id = _make_passed_proposal(manager, name="d7-test")
+    asyncio.run(runner.dispatch_github_pr(proposal_id))
+    assert dispatcher.calls[0]["requester"] == "brain-f4"
+    assert dispatcher.calls[0]["server"] == "github"
+    assert dispatcher.calls[0]["tool"] == "create_pull_request"

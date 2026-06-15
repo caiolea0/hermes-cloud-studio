@@ -154,9 +154,12 @@ async def get_yaml_preview(proposal_id: str):
 
 @router.post("/proposals/{proposal_id}/accept", status_code=202)
 async def accept_proposal(proposal_id: str, req: DecisionRequest):
-    """F.4.2 C1: owner accept → lab_running → inline YAML validation → lab_passed|lab_failed.
+    """F.4.2 owner accept → lab dispatch → (if lab_passed) GitHub MCP PR.
 
-    C2 will chain dispatch_github_pr on lab_passed (D4 BLOCK PR on lab_failed).
+    Pipeline:
+      1. owner_decision → status=lab_running
+      2. dispatch_sandbox_test (C1) → lab_passed | lab_failed
+      3. if lab_passed → dispatch_github_pr (C2) → pr_open | blocked | failed
     """
     _ensure_table_or_503()
     try:
@@ -168,7 +171,6 @@ async def accept_proposal(proposal_id: str, req: DecisionRequest):
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
-    # F.4.2 C1 — dispatch lab sandbox (inline YAML validation, D1 PIVOT).
     from core.auto_skill_runner import AutoSkillRunner
     runner = AutoSkillRunner()
     try:
@@ -176,13 +178,34 @@ async def accept_proposal(proposal_id: str, req: DecisionRequest):
     except LookupError:
         raise HTTPException(404, "proposal_not_found")
 
-    return {
+    response: dict[str, Any] = {
         "status": "ok",
         "owner_decision": owner_result,
         "lab_test_result": lab_outcome["lab_test_result"],
         "new_status": lab_outcome["new_status"],
-        "note": "F.4.2_implements_real_github_mcp",
     }
+
+    if not lab_outcome.get("ok"):
+        # Lab failed → D4 BLOCK PR (no GitHub MCP attempt).
+        response["pr"] = {"status": "blocked", "reason": "lab_failed"}
+        return response
+
+    # C2 — lab passed, chain GitHub MCP PR creation.
+    try:
+        pr_outcome = await runner.dispatch_github_pr(proposal_id)
+    except LookupError:
+        raise HTTPException(404, "proposal_not_found")
+    except Exception as exc:  # noqa: BLE001 — D5 fail-fast surface (already logged/Sentry'd)
+        response["pr"] = {
+            "status": "failed",
+            "error": str(exc)[:200],
+        }
+        return response
+
+    response["pr"] = pr_outcome
+    if pr_outcome.get("status") == "ok":
+        response["new_status"] = "pr_open"
+    return response
 
 
 # ---------------------------------------------------------------------------
