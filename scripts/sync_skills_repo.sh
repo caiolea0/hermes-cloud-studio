@@ -71,6 +71,26 @@ if [ -n "$PAT" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# D2 PIVOT — stash dirty working tree antes pull (cristalizado PLAN.md F.4.4)
+# Implementado 2026-06-16 (debt audit orquestrador resolved).
+# Cobre cenário: owner OR script terceiro editou repo VM manualmente entre
+# webhooks → git pull aborts com "would be overwritten by merge".
+# Estratégia: stash → pull → auto-pop. Conflict pop → sync_status='conflict_manual'.
+# ---------------------------------------------------------------------------
+STASHED=0
+if ! git diff --quiet 2>/dev/null || ! git diff --quiet --cached 2>/dev/null; then
+    STASH_MSG="auto-pull-stash-$(date +%s)-$RUN_ID"
+    log "Working tree dirty — stashing as: $STASH_MSG"
+    if ! git stash push -u -m "$STASH_MSG" 2>&1; then
+        log "ERRO: git stash push failed"
+        echo '{"status":"failed","affected_skills":[]}'
+        exit 2
+    fi
+    STASHED=1
+    log "Stash created OK (untracked included)"
+fi
+
+# ---------------------------------------------------------------------------
 # Snapshot skills/ before pull
 # ---------------------------------------------------------------------------
 BEFORE_HASH="$(git ls-files -s skills/ 2>/dev/null | sha256sum | cut -d' ' -f1)"
@@ -84,8 +104,26 @@ BEFORE_HASH="$(git ls-files -s skills/ 2>/dev/null | sha256sum | cut -d' ' -f1)"
 log "git pull origin $BRANCH ..."
 if ! git pull origin "$BRANCH" 2>&1; then
     log "ERRO: git pull failed"
+    # If stashed, leave stash intact for owner manual recovery
+    if [ "$STASHED" -eq 1 ]; then
+        log "Stash preservado: ver 'git stash list' VM pra recuperar mudanças locais"
+    fi
     echo '{"status":"failed","affected_skills":[]}'
     exit 2
+fi
+
+# ---------------------------------------------------------------------------
+# D2 PIVOT — auto-pop stash após pull successful
+# ---------------------------------------------------------------------------
+if [ "$STASHED" -eq 1 ]; then
+    log "Restaurando stashed changes..."
+    if ! git stash pop 2>&1; then
+        log "ERRO: git stash pop CONFLICT — resolução manual necessária"
+        log "Stash preservado VM. Owner: 'cd $REPO_DIR; git stash list; git stash apply stash@{0}; resolver conflicts'"
+        echo '{"status":"conflict_manual","affected_skills":[]}'
+        exit 1
+    fi
+    log "Stash pop OK — mudanças locais restauradas"
 fi
 
 # ---------------------------------------------------------------------------
