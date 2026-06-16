@@ -63,6 +63,13 @@
 <script src="/dashboard/components/skill_proposals_modal.js" defer></script>
 <!-- F.7 C1 — Cobaia Warmup Status Card -->
 <script src="/dashboard/components/cobaia_status_card.js" defer></script>
+<!-- F.7 C3 — Cobaia Live Ops dashboard -->
+<link rel="stylesheet" href="/dashboard/styles/cobaia.css">
+<script src="/dashboard/components/cobaia_emergency_stop.js" defer></script>
+<script src="/dashboard/components/cobaia_timeline.js" defer></script>
+<script src="/dashboard/components/cobaia_kpi_cards.js" defer></script>
+<script src="/dashboard/components/cobaia_activity_feed.js" defer></script>
+<script src="/dashboard/components/cobaia_studio.js" defer></script>
 </head>
 <body>
 
@@ -304,6 +311,10 @@
             <div class="nav-item" data-page="linkedin" onclick="navigate('linkedin')">
                 <svg><use href="#i-linkedin"/></svg>
                 <span class="nav-label">LinkedIn</span>
+            </div>
+            <div class="nav-item" data-page="cobaia" onclick="navigate('cobaia')">
+                <svg><use href="#i-eye"/></svg>
+                <span class="nav-label">Cobaia</span>
             </div>
             <div class="nav-item" data-page="lab" onclick="navigate('lab')">
                 <svg><use href="#i-eye"/></svg>
@@ -2310,6 +2321,38 @@
             <button class="btn btn-ghost" onclick="liCloseBatchConnectModal()">Cancelar</button>
             <button class="btn btn-primary" onclick="liConfirmBatchConnect()">Enviar</button>
         </div>
+    </div>
+</div>
+
+<!-- ========================== PAGE: COBAIA LIVE OPS (F.7 C3) ========================== -->
+<div class="page" id="page-cobaia">
+    <div class="cobaia-page" role="main" aria-label="Cobaia Live Ops">
+        <!-- Header + Emergency Stop -->
+        <section class="cobaia-section cobaia-section--header" aria-label="Status cobaia">
+            <div class="cobaia-header">
+                <h2 class="cobaia-header-title">Cobaia Live Ops</h2>
+                <div id="cobaia-header-mount" class="cobaia-header-meta" aria-live="polite"></div>
+            </div>
+            <div id="cobaia-emergency-stop-mount"></div>
+        </section>
+
+        <!-- 14-day Warmup Timeline -->
+        <section class="cobaia-section" aria-label="Timeline warmup 14 dias">
+            <h3 class="cobaia-section-title">Warmup Timeline</h3>
+            <div id="cobaia-timeline-mount"></div>
+        </section>
+
+        <!-- KPI Cards -->
+        <section class="cobaia-section" aria-label="KPIs cobaia">
+            <h3 class="cobaia-section-title">KPIs — 7 dias</h3>
+            <div id="cobaia-kpi-mount"></div>
+        </section>
+
+        <!-- Activity Feed -->
+        <section class="cobaia-section cobaia-section--feed" aria-label="Feed de atividade cobaia">
+            <h3 class="cobaia-section-title">Atividade em Tempo Real</h3>
+            <div id="cobaia-feed-mount" class="cobaia-feed-wrap"></div>
+        </section>
     </div>
 </div>
 

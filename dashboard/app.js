@@ -499,8 +499,14 @@ function navigate(page) {
         'mcp-gateway': 'MCP Gateway',
         observability: 'Observability',
         'pipeline-studio': 'Pipeline Studio',
-        'skill-proposals': 'Skill Proposals'
+        'skill-proposals': 'Skill Proposals',
+        cobaia: 'Cobaia Live Ops',
     };
+    if (page === 'cobaia') {
+        if (window.CobaiaStudio) window.CobaiaStudio.mount();
+    } else if (window.CobaiaStudio) {
+        window.CobaiaStudio.unmount();
+    }
     if (page === 'linkedin') {
         loadLinkedInPage();
         _liStartLiveTickers();

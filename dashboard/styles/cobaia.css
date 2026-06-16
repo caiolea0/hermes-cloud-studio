@@ -1,0 +1,545 @@
+/* ============================================================
+   F.7 C3 — Cobaia Live Ops page styles
+   Design system: var(--color-*) + var(--space-*) + var(--radius-*)
+   NO hex literals outside tokens.css per anti-hex-literal rule.
+   WCAG 2.1 AA: all text contrast >= 4.5:1 against backgrounds.
+   ============================================================ */
+
+/* --- Page layout --- */
+.cobaia-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    padding: var(--space-lg);
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* --- Section shared card --- */
+.cobaia-section {
+    background: var(--color-bg-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+}
+
+.cobaia-section-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-md);
+}
+
+/* ── Header section ──────────────────────────────────────────── */
+.cobaia-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+}
+
+.cobaia-header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.cobaia-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.cobaia-status-badge--lurking {
+    background: color-mix(in srgb, var(--color-fg-muted) 15%, transparent);
+    color: var(--color-fg-muted);
+    border: 1px solid color-mix(in srgb, var(--color-fg-muted) 30%, transparent);
+}
+
+.cobaia-status-badge--ramp {
+    background: color-mix(in srgb, var(--color-warn) 15%, transparent);
+    color: var(--color-warn);
+    border: 1px solid color-mix(in srgb, var(--color-warn) 30%, transparent);
+}
+
+.cobaia-status-badge--normal {
+    background: color-mix(in srgb, var(--color-success) 15%, transparent);
+    color: var(--color-success);
+    border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+}
+
+.cobaia-status-badge--paused {
+    background: color-mix(in srgb, var(--color-error) 15%, transparent);
+    color: var(--red-l); /* --red-l WCAG AA 9.33:1 on dark bg (F.4.3 C2 tokens) */
+    border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
+}
+
+.cobaia-status-badge--inactive {
+    background: color-mix(in srgb, var(--color-fg-muted) 10%, transparent);
+    color: var(--color-fg-muted);
+    border: 1px solid var(--color-border);
+}
+
+.cobaia-day-counter {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-fg);
+}
+
+.cobaia-day-counter span {
+    font-size: var(--text-base);
+    font-weight: 400;
+    color: var(--color-fg-muted);
+}
+
+/* ── Emergency stop button ───────────────────────────────────── */
+.cobaia-emergency-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-lg);
+    background: color-mix(in srgb, var(--color-error) 15%, transparent);
+    color: var(--color-error);
+    border: 1px solid color-mix(in srgb, var(--color-error) 40%, transparent);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-out),
+                transform var(--motion-fast) var(--ease-out);
+    min-height: 44px; /* WCAG touch target */
+    min-width: 44px;
+}
+
+.cobaia-emergency-btn:hover {
+    background: color-mix(in srgb, var(--color-error) 25%, transparent);
+}
+
+.cobaia-emergency-btn:focus-visible {
+    outline: 2px solid var(--color-error);
+    outline-offset: 2px;
+}
+
+.cobaia-emergency-btn:active {
+    transform: scale(0.97);
+}
+
+.cobaia-emergency-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.cobaia-resume-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-lg);
+    background: color-mix(in srgb, var(--color-success) 15%, transparent);
+    color: var(--color-success);
+    border: 1px solid color-mix(in srgb, var(--color-success) 40%, transparent);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-out);
+    min-height: 44px;
+    min-width: 44px;
+}
+
+.cobaia-resume-btn:hover {
+    background: color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
+.cobaia-resume-btn:focus-visible {
+    outline: 2px solid var(--color-success);
+    outline-offset: 2px;
+}
+
+/* ── Timeline ────────────────────────────────────────────────── */
+.cobaia-timeline {
+    display: flex;
+    gap: var(--space-xs);
+    overflow-x: auto;
+    padding-bottom: var(--space-sm);
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+}
+
+.cobaia-timeline::-webkit-scrollbar {
+    height: 4px;
+}
+
+.cobaia-timeline::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.cobaia-timeline::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: var(--radius-full);
+}
+
+.cobaia-day-cell {
+    flex: 0 0 56px;
+    height: 72px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    transition: border-color var(--motion-fast) var(--ease-out),
+                background var(--motion-fast) var(--ease-out);
+    position: relative;
+}
+
+.cobaia-day-cell:hover {
+    border-color: var(--color-accent);
+}
+
+.cobaia-day-cell:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+.cobaia-day-cell--lurking {
+    background: color-mix(in srgb, var(--color-fg-muted) 8%, transparent);
+}
+
+.cobaia-day-cell--ramp {
+    background: color-mix(in srgb, var(--color-warn) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-warn) 25%, transparent);
+}
+
+.cobaia-day-cell--normal {
+    background: color-mix(in srgb, var(--color-success) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
+.cobaia-day-cell--paused {
+    background: color-mix(in srgb, var(--color-error) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-error) 40%, transparent);
+}
+
+.cobaia-day-cell--today {
+    border-color: var(--color-accent) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+.cobaia-day-cell--future {
+    opacity: 0.35;
+}
+
+.cobaia-day-num {
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--color-fg);
+}
+
+.cobaia-day-phase-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+}
+
+.cobaia-day-cell--lurking .cobaia-day-phase-dot { background: var(--color-fg-muted); }
+.cobaia-day-cell--ramp    .cobaia-day-phase-dot { background: var(--color-warn); }
+.cobaia-day-cell--normal  .cobaia-day-phase-dot { background: var(--color-success); }
+.cobaia-day-cell--paused  .cobaia-day-phase-dot { background: var(--color-error); }
+.cobaia-day-cell--future  .cobaia-day-phase-dot { background: var(--color-border); }
+
+/* Timeline tooltip */
+.cobaia-day-tooltip {
+    position: absolute;
+    bottom: calc(100% + var(--space-sm));
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-bg-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm);
+    font-size: var(--text-xs);
+    color: var(--color-fg);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity var(--motion-fast) var(--ease-out);
+}
+
+.cobaia-day-cell:hover .cobaia-day-tooltip,
+.cobaia-day-cell:focus-visible .cobaia-day-tooltip {
+    opacity: 1;
+}
+
+/* ── KPI cards ───────────────────────────────────────────────── */
+.cobaia-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+}
+
+@media (max-width: 640px) {
+    .cobaia-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.cobaia-kpi-card {
+    background: var(--color-bg-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+}
+
+.cobaia-kpi-label {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-fg-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: var(--space-sm);
+}
+
+.cobaia-kpi-value {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--color-fg);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: var(--space-xs);
+}
+
+.cobaia-kpi-value--green { color: var(--color-success); }
+.cobaia-kpi-value--yellow { color: var(--color-warn); }
+.cobaia-kpi-value--red { color: var(--color-error); }
+
+.cobaia-kpi-threshold {
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+    margin-bottom: var(--space-sm);
+}
+
+.cobaia-kpi-sparkline {
+    height: 40px;
+    width: 100%;
+}
+
+/* ── Activity feed ───────────────────────────────────────────── */
+.cobaia-feed-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+}
+
+.cobaia-feed-search {
+    flex: 1;
+    background: var(--color-bg-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--text-sm);
+    color: var(--color-fg);
+    outline: none;
+    transition: border-color var(--motion-fast) var(--ease-out);
+    min-height: 32px;
+}
+
+.cobaia-feed-search:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+}
+
+.cobaia-feed-search:focus {
+    border-color: var(--color-border-focus);
+}
+
+.cobaia-feed-count {
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+    white-space: nowrap;
+}
+
+.cobaia-feed-list {
+    height: 280px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+}
+
+.cobaia-feed-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+    font-size: var(--text-sm);
+    line-height: 1.4;
+}
+
+.cobaia-feed-item:last-child {
+    border-bottom: none;
+}
+
+.cobaia-feed-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    margin-top: var(--space-xs);
+}
+
+.cobaia-feed-dot--engagement { background: var(--color-warn); }
+.cobaia-feed-dot--connect    { background: var(--color-accent); }
+.cobaia-feed-dot--reply      { background: var(--color-success); }
+.cobaia-feed-dot--error      { background: var(--color-error); }
+.cobaia-feed-dot--pause      { background: var(--color-fg-muted); }
+.cobaia-feed-dot--default    { background: var(--color-border); }
+
+.cobaia-feed-msg {
+    flex: 1;
+    color: var(--color-fg);
+    word-break: break-word;
+}
+
+.cobaia-feed-ts {
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.cobaia-feed-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--color-fg-muted);
+    font-size: var(--text-sm);
+    padding: var(--space-lg);
+}
+
+/* ── Emergency stop confirmation dialog ──────────────────────── */
+.cobaia-confirm-dialog {
+    border: 1px solid var(--color-error);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-2);
+    padding: var(--space-xl);
+    color: var(--color-fg);
+    max-width: 420px;
+    width: 90vw;
+    box-shadow: var(--shadow-lg);
+}
+
+.cobaia-confirm-dialog::backdrop {
+    /* var() does not inherit in ::backdrop pseudo-element — literal intentional */
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.cobaia-confirm-title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--color-error);
+    margin-bottom: var(--space-sm);
+}
+
+.cobaia-confirm-body {
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+    margin-bottom: var(--space-lg);
+    line-height: 1.6;
+}
+
+.cobaia-confirm-actions {
+    display: flex;
+    gap: var(--space-sm);
+    justify-content: flex-end;
+}
+
+.cobaia-confirm-cancel {
+    padding: var(--space-sm) var(--space-md);
+    background: transparent;
+    color: var(--color-fg-muted);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    min-height: 44px;
+}
+
+.cobaia-confirm-cancel:hover {
+    border-color: var(--color-fg-muted);
+    color: var(--color-fg);
+}
+
+.cobaia-confirm-cancel:focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+}
+
+.cobaia-confirm-proceed {
+    padding: var(--space-sm) var(--space-md);
+    background: color-mix(in srgb, var(--color-error) 20%, transparent);
+    color: var(--color-error);
+    border: 1px solid var(--color-error);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 44px;
+    transition: background var(--motion-fast) var(--ease-out);
+}
+
+.cobaia-confirm-proceed:hover {
+    background: color-mix(in srgb, var(--color-error) 30%, transparent);
+}
+
+.cobaia-confirm-proceed:focus-visible {
+    outline: 2px solid var(--color-error);
+    outline-offset: 2px;
+}
+
+/* ── Loading spinner ─────────────────────────────────────────── */
+.cobaia-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: cobaia-spin 0.6s linear infinite;
+}
+
+@keyframes cobaia-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Nav badge (paused indicator) ────────────────────────────── */
+.cobaia-nav-badge {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: var(--color-error);
+    margin-left: var(--space-xs);
+    animation: cobaia-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes cobaia-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
