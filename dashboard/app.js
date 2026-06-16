@@ -504,6 +504,10 @@ function navigate(page) {
     if (page === 'linkedin') {
         loadLinkedInPage();
         _liStartLiveTickers();
+        // F.7 C1 — mount cobaia warmup status card
+        if (window.CobaiaStatusCard && document.getElementById('cobaia-status-card-mount')) {
+            window.CobaiaStatusCard.mount('cobaia-status-card-mount');
+        }
     } else if (typeof _liStopLiveTickers === 'function') {
         _liStopLiveTickers();
     }

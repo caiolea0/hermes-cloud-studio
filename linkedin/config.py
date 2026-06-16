@@ -112,3 +112,25 @@ class LinkedInConfig:
             self.session_file = str(SESSION_DIR / f"{safe_name}.json")
         if not self.geolocation:
             self.geolocation = {"latitude": -15.601, "longitude": -56.0974}
+
+
+@dataclass
+class CobaiaConfig:
+    """Configuration for Cobaia (test account) warmup lifecycle.
+
+    Separate from LinkedInConfig — cobaia has extended working hours,
+    disabled weekends, and slower ramp than default production config.
+    """
+    account_handle: str = "caio-leao-cobaia"
+    warmup_days: int = 14
+    lurking_days: int = 7
+    working_hours_start: str = "07:00"   # extended window per D2.2
+    working_hours_end: str = "22:00"     # 07h-22h = 15h window
+    weekends_enabled: bool = False        # D2.3 — zero weekend activity
+    timezone: str = "America/Cuiaba"
+    min_connections_seed: int = 50        # manual connections before auto-mode
+    reply_rate_threshold: float = 0.08
+    accept_rate_threshold: float = 0.20
+    view_to_connect_threshold: float = 0.03
+    auto_pause_consecutive_errors: int = 3  # D4
+    first_skill_lurking: str = "linkedin-engagement"  # D3.4

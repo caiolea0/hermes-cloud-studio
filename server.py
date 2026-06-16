@@ -150,6 +150,17 @@ async def lifespan(app: FastAPI):
             logger.info("F.8.1 observability migration applied (mcp_pricing + perf_metrics + errors_inbox)")
     except Exception as e:
         logger.warning(f"F.8.1 observability migration failed: {e}")
+    # F.7 C1 — Apply cobaia warmup migration (idempotent)
+    try:
+        mig_path = PROJECT_ROOT / "migrations" / "2026_06_cobaia_warmup_state.sql"
+        if mig_path.exists():
+            conn = get_db()
+            conn.executescript(mig_path.read_text(encoding="utf-8"))
+            conn.commit()
+            conn.close()
+            logger.info("F.7 C1 cobaia warmup migration applied")
+    except Exception as e:
+        logger.warning(f"F.7 C1 cobaia migration failed: {e}")
     # Restaurar globals persistidos em runtime_state (MERGED-004 / MERGED-016)
     state._LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
     state._LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)
@@ -173,6 +184,19 @@ async def lifespan(app: FastAPI):
     # F.8.1 perf metrics hourly flush (rolling 1h -> perf_metrics table)
     from core.observability import perf_flush_loop
     perf_flush_task = spawn(perf_flush_loop(DB_PATH))
+    # F.7 C1 — Cobaia warmup APScheduler (09:00 BRT daily check)
+    _cobaia_scheduler = None
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from daemon.cobaia_warmup_scheduler import init_cobaia_scheduler
+        _cobaia_scheduler = AsyncIOScheduler()
+        _cobaia_scheduler.start()
+        init_cobaia_scheduler(_cobaia_scheduler)
+        logger.info("F.7 C1 cobaia APScheduler started")
+    except ImportError:
+        logger.info("APScheduler not installed — cobaia daily scheduler disabled")
+    except Exception as _e:
+        logger.warning(f"F.7 C1 cobaia scheduler start failed: {_e}")
     yield
     task.cancel()
     li_task.cancel()
@@ -181,6 +205,11 @@ async def lifespan(app: FastAPI):
     li_scheduler_task.cancel()
     vm_watchdog_task.cancel()
     perf_flush_task.cancel()
+    if _cobaia_scheduler:
+        try:
+            _cobaia_scheduler.shutdown(wait=False)
+        except Exception:
+            pass
 
 
 app = FastAPI(title="Hermes Command Center", version="2.0.0", lifespan=lifespan)
@@ -291,6 +320,7 @@ from api.pipeline_studio import router as pipeline_studio_router  # F.9.1 — Pi
 from api.skills import router as skills_router  # F.4.1 — Skill Proposals CRUD + lifecycle
 from api.config import router as config_router  # F.4.3 — /api/config whitelisted feature flags
 # F.4.4 FIX: webhook router MOVED to VM hermes_api.py — see api/skills_webhook.py
+from api.cobaia import router as cobaia_router  # F.7 C1 — Cobaia warmup endpoints
 
 app.include_router(pipelines_router)
 app.include_router(linkedin_router)
@@ -309,6 +339,7 @@ app.include_router(pipeline_studio_router)  # F.9.1 — /api/pipeline-studio/* (
 app.include_router(skills_router)  # F.4.1 — /api/skills/proposals/* CRUD + /api/skills/health
 app.include_router(config_router)  # F.4.3 — /api/config whitelisted feature flags
 # F.4.4 FIX: webhook include removed (endpoint lives on VM via Cloudflare tunnel)
+app.include_router(cobaia_router)  # F.7 C1 — /api/linkedin/cobaia/* warmup endpoints
 
 
 if __name__ == "__main__":
