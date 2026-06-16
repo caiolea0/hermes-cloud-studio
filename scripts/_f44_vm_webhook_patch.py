@@ -174,6 +174,20 @@ async def skills_webhook_pr_merged(request: Request):
     if payload.get("_skills_changed", True) is False:
         return {"status": "skipped", "reason": "no_skills_changed"}
 
+    # W3 — X-GitHub-Delivery dedup: same UUID on retry → return cached result
+    delivery_id = request.headers.get("x-github-delivery") or None
+    if delivery_id:
+        conn = get_db()
+        try:
+            _dup = conn.execute(
+                "SELECT id, sync_status FROM skill_sync_runs WHERE delivery_id = ? LIMIT 1",
+                (delivery_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        if _dup:
+            return {"status": "duplicate", "existing_run_id": _dup[0], "sync_status": _dup[1]}
+
     run_id = str(_f44_uuid.uuid4())
     pr_number = pr.get("number")
     pr_url = pr.get("html_url", "")
@@ -182,9 +196,9 @@ async def skills_webhook_pr_merged(request: Request):
     conn = get_db()
     try:
         conn.execute(
-            "INSERT INTO skill_sync_runs (id, trigger_type, pr_number, pr_url, sync_status, started_at) "
-            "VALUES (?,?,?,?,?,?)",
-            (run_id, "webhook", pr_number, pr_url, "started", started_at),
+            "INSERT INTO skill_sync_runs (id, trigger_type, pr_number, pr_url, sync_status, started_at, delivery_id) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (run_id, "webhook", pr_number, pr_url, "started", started_at, delivery_id),
         )
         conn.commit()
     finally:

@@ -282,19 +282,13 @@ def test_conflict_during_pop_status_conflict_manual(client, monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_concurrent_sync_409_lock_busy(client, monkeypatch):
-    """When _sync_lock.locked() == True, second request gets 409 + Retry-After header."""
-    import api.skills_webhook as wh_mod
-
+    """W1: _is_sync_in_progress True → 409 + Retry-After header (DB-based lock)."""
     monkeypatch.setattr("api.skills_webhook._verify_signature", lambda *_: True)
     monkeypatch.setattr("api.skills_webhook._ip_in_github_ranges", lambda _ip: True)
+    # W1: mock DB flag check instead of asyncio.Lock (lock is now process-restart-safe)
+    monkeypatch.setattr("api.skills_webhook._is_sync_in_progress", lambda: True)
 
     body = json.dumps(_make_pr_payload()).encode()
-
-    # Create a mock lock that reports as already locked
-    mock_lock = MagicMock()
-    mock_lock.locked.return_value = True
-
-    monkeypatch.setattr(wh_mod, "_sync_lock", mock_lock)
     r = client.post(
         "/api/skills/webhook/pr-merged",
         content=body,
@@ -414,3 +408,75 @@ def test_ipv6_github_ranges_recognized(monkeypatch):
     # IPv4 still works
     assert _ip_in_github_ranges("192.30.252.1") is True, "IPv4 range regressed"
     assert _ip_in_github_ranges("10.0.0.1") is False, "private IPv4 should be blocked"
+
+
+# ---------------------------------------------------------------------------
+# W3 — X-GitHub-Delivery dedup
+# ---------------------------------------------------------------------------
+
+def test_delivery_id_dedup_second_returns_duplicate(client, monkeypatch):
+    """W3: same X-GitHub-Delivery on retry → 200 duplicate, no second sync row."""
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr("api.skills_webhook._verify_signature", lambda *_: True)
+    monkeypatch.setattr("api.skills_webhook._ip_in_github_ranges", lambda _ip: True)
+    monkeypatch.setattr("api.skills_webhook._is_sync_in_progress", lambda: False)
+    monkeypatch.setattr(
+        "api.skills_webhook._run_sync_on_vm",
+        lambda _run_id: ("completed", ["cobaia-daily"], None),
+    )
+    monkeypatch.setattr("api.skills_webhook.ws_manager.broadcast", AsyncMock())
+
+    delivery_id = "abc-123-dedup-test"
+    body = json.dumps(_make_pr_payload(pr_number=99)).encode()
+    headers = {"content-type": "application/json", "x-github-delivery": delivery_id}
+
+    try:
+        # First request — new sync
+        r1 = client.post("/api/skills/webhook/pr-merged", content=body, headers=headers)
+        assert r1.status_code == 200
+        assert r1.json()["status"] == "completed"
+        first_run_id = r1.json()["run_id"]
+
+        # Second request — same delivery_id (GitHub retry)
+        r2 = client.post("/api/skills/webhook/pr-merged", content=body, headers=headers)
+        assert r2.status_code == 200
+        assert r2.json()["status"] == "duplicate"
+        assert r2.json()["existing_run_id"] == first_run_id
+
+        # Confirm only 1 DB row for this delivery
+        from core.state import DB_PATH
+        conn_check = sqlite3.connect(str(DB_PATH))
+        try:
+            count = conn_check.execute(
+                "SELECT COUNT(*) FROM skill_sync_runs WHERE delivery_id = ?", (delivery_id,)
+            ).fetchone()[0]
+        finally:
+            conn_check.close()
+        assert count == 1, f"W3: expected 1 row for delivery_id, got {count}"
+    finally:
+        _cleanup_sync_runs()
+
+
+def test_delivery_id_missing_header_inserts_null(client, monkeypatch):
+    """W3: missing X-GitHub-Delivery header → sync proceeds with NULL delivery_id (legacy)."""
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr("api.skills_webhook._verify_signature", lambda *_: True)
+    monkeypatch.setattr("api.skills_webhook._ip_in_github_ranges", lambda _ip: True)
+    monkeypatch.setattr("api.skills_webhook._is_sync_in_progress", lambda: False)
+    monkeypatch.setattr(
+        "api.skills_webhook._run_sync_on_vm",
+        lambda _run_id: ("completed", [], None),
+    )
+    monkeypatch.setattr("api.skills_webhook.ws_manager.broadcast", AsyncMock())
+
+    body = json.dumps(_make_pr_payload(pr_number=100)).encode()
+    headers = {"content-type": "application/json"}  # no X-GitHub-Delivery
+
+    try:
+        r = client.post("/api/skills/webhook/pr-merged", content=body, headers=headers)
+        assert r.status_code == 200
+        assert r.json()["status"] == "completed"
+    finally:
+        _cleanup_sync_runs()

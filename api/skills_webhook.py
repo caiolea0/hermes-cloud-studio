@@ -12,20 +12,20 @@ Original F.4.4 C1 — GitHub webhook endpoint: POST /api/skills/webhook/pr-merge
 
 Security (D7):
   - HMAC SHA-256 hmac.compare_digest constant-time (skipped if secret not configured)
-  - IP allowlist: 4 GitHub CIDR ranges (140.82.112.0/20, 192.30.252.0/22,
-    185.199.108.0/22, 143.55.64.0/20). Handles CF-Connecting-IP proxy header.
+  - IP allowlist: 6 GitHub CIDR ranges (4 IPv4 + 2 IPv6). Handles CF-Connecting-IP.
   - SlowAPI 60/minute rate-limit (REUSE core.limiter pattern F.5.3).
 
 Sync flow (D2, D8):
-  - asyncio.Lock guards concurrent dispatches on PC side (D8 atomic invariant).
+  - W1: asyncio.Lock DEPRECATED — lost on process restart. Replaced by DB flag check
+    (_is_sync_in_progress). VM uses fcntl.flock /tmp/hermes-sync.lock (cross-process).
+  - W3: X-GitHub-Delivery dedup — duplicate delivery_id returns 200 without re-syncing.
   - SSH subprocess runs sync_skills_repo.sh on VM: git stash + pull + stash pop.
-  - fcntl.LOCK_EX / fcntl.flock available on VM via shell script flock(1).
   - Conflict → sync_status='conflict_manual' + WS alert (NÃO auto-force-pop).
 
 Fanout (D6):
-  - skill_sync_runs DB row (audit trail).
+  - skill_sync_runs DB row (audit trail, delivery_id for dedup).
   - WS broadcast brain.skill_sync_completed.
-  - Sentry breadcrumb + capture on conflict/failure.
+  - Sentry breadcrumb + capture on conflict/failure (W6: secrets scrubbed).
 """
 from __future__ import annotations
 
@@ -45,18 +45,11 @@ from fastapi.responses import JSONResponse
 from core.limiter import limiter
 from core.skill_proposals import (
     ensure_skill_sync_runs_table,
+    get_skill_sync_run_by_delivery_id,
     insert_skill_sync_run,
     update_skill_sync_run,
 )
 from core.state import ws_manager
-
-# fcntl.LOCK_EX / fcntl.flock — available on Linux VM, used in sync_skills_repo.sh
-# On PC (Windows) asyncio.Lock() is the concurrency guard (D8).
-try:
-    import fcntl as _fcntl  # noqa: F401 — presence referenced in D8 VM script
-    _HAS_FCNTL = True
-except ImportError:
-    _HAS_FCNTL = False
 
 router = APIRouter()
 
@@ -72,9 +65,6 @@ _GH_IP_RANGES: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = [
     ipaddress.ip_network("2a0a:a440::/29"),
     ipaddress.ip_network("2606:50c0::/32"),
 ]
-
-# Global asyncio.Lock — one sync at a time per D8 atomic invariant.
-_sync_lock: asyncio.Lock = asyncio.Lock()
 
 _VM_USER = "hermes-gcp"
 _VM_HOST = "136.115.74.69"
@@ -96,12 +86,39 @@ def _verify_signature(body: bytes, signature: str, secret: str) -> bool:
 
 
 def _ip_in_github_ranges(ip_str: str) -> bool:
-    """Return True if ip_str is within one of GitHub's 4 webhook CIDR ranges (D7)."""
+    """Return True if ip_str is within GitHub webhook CIDR ranges — IPv4 and IPv6 (D7/W10)."""
     try:
         addr = ipaddress.ip_address(ip_str)
     except ValueError:
         return False
     return any(addr in net for net in _GH_IP_RANGES)
+
+
+def _is_sync_in_progress() -> bool:
+    """W1: DB-based concurrency check — survives process restart (replaces asyncio.Lock).
+
+    Checks skill_sync_runs for a 'started' row without completed_at.
+    The row is inserted BEFORE the sync begins, so concurrent requests see it immediately.
+    VM uses fcntl.flock /tmp/hermes-sync.lock for process-level exclusion.
+    """
+    try:
+        conn = _local_connect()
+        row = conn.execute(
+            """SELECT 1 FROM skill_sync_runs
+               WHERE sync_status = 'started' AND completed_at IS NULL LIMIT 1"""
+        ).fetchone()
+        conn.close()
+        return row is not None
+    except Exception:
+        return False
+
+
+def _local_connect():
+    """Open DB connection to local hermes_local.db for concurrency flag check."""
+    import sqlite3 as _sqlite3
+    from core.state import DB_PATH
+    conn = _sqlite3.connect(str(DB_PATH), timeout=5.0)
+    return conn
 
 
 def _get_client_ip(request: Request) -> str:
@@ -211,15 +228,26 @@ async def webhook_pr_merged(request: Request) -> JSONResponse:
     if payload.get("_skills_changed", True) is False:
         return JSONResponse({"status": "skipped", "reason": "no_skills_changed"})
 
-    # D8 — one sync at a time
-    if _sync_lock.locked():
+    ensure_skill_sync_runs_table()
+
+    # W3 — X-GitHub-Delivery dedup: same delivery_id on retry → return cached result
+    delivery_id: Optional[str] = request.headers.get("x-github-delivery") or None
+    if delivery_id:
+        existing_run = get_skill_sync_run_by_delivery_id(delivery_id)
+        if existing_run:
+            return JSONResponse({
+                "status": "duplicate",
+                "existing_run_id": existing_run["id"],
+                "sync_status": existing_run["sync_status"],
+            })
+
+    # W1 — DB-based concurrency check (replaces asyncio.Lock lost on process restart)
+    if _is_sync_in_progress():
         return JSONResponse(
             {"status": "busy", "reason": "sync_in_progress"},
             status_code=409,
             headers={"Retry-After": "30"},
         )
-
-    ensure_skill_sync_runs_table()
 
     run_id = str(uuid.uuid4())
     started_at = datetime.now(timezone.utc).isoformat()
@@ -229,19 +257,14 @@ async def webhook_pr_merged(request: Request) -> JSONResponse:
         pr_number=pr_number,
         pr_url=pr_url,
         started_at=started_at,
+        delivery_id=delivery_id,
     )
 
-    # Acquire lock — between .locked() check and here, no await (asyncio cooperative
-    # scheduling: no other coroutine can run), so no TOCTOU race.
-    await _sync_lock.acquire()
-    try:
-        t0 = datetime.now(timezone.utc)
-        sync_status, affected_skills, error_msg = await asyncio.to_thread(
-            _run_sync_on_vm, run_id
-        )
-        latency_ms = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
-    finally:
-        _sync_lock.release()
+    t0 = datetime.now(timezone.utc)
+    sync_status, affected_skills, error_msg = await asyncio.to_thread(
+        _run_sync_on_vm, run_id
+    )
+    latency_ms = int((datetime.now(timezone.utc) - t0).total_seconds() * 1000)
 
     completed_at = datetime.now(timezone.utc).isoformat()
     update_skill_sync_run(

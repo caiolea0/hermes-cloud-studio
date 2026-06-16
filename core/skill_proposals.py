@@ -85,11 +85,29 @@ def ensure_synthesis_runs_table(conn: Optional[sqlite3.Connection] = None) -> No
             conn.close()
 
 
+def _ensure_delivery_id_column(conn: sqlite3.Connection) -> None:
+    """W3: idempotent ALTER TABLE to add delivery_id + partial UNIQUE index."""
+    try:
+        conn.execute("ALTER TABLE skill_sync_runs ADD COLUMN delivery_id TEXT NULL")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists
+    try:
+        conn.execute(
+            """CREATE UNIQUE INDEX IF NOT EXISTS idx_skill_sync_runs_delivery_id
+               ON skill_sync_runs(delivery_id) WHERE delivery_id IS NOT NULL"""
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # index already exists
+
+
 def ensure_skill_sync_runs_table(conn: Optional[sqlite3.Connection] = None) -> None:
     """F.4.4 C1 — idempotent CREATE IF NOT EXISTS for skill_sync_runs.
 
     Called by api/skills_webhook.py before every insert so the table is
     available even when the migration has not been applied at startup.
+    W3: also ensures delivery_id column exists (added post-C1).
     """
     own_conn = conn is None
     if own_conn:
@@ -115,9 +133,23 @@ def ensure_skill_sync_runs_table(conn: Optional[sqlite3.Connection] = None) -> N
             """
         )
         conn.commit()
+        _ensure_delivery_id_column(conn)
     finally:
         if own_conn:
             conn.close()
+
+
+def get_skill_sync_run_by_delivery_id(delivery_id: str) -> Optional[dict[str, Any]]:
+    """W3: look up existing run by X-GitHub-Delivery ID for dedup check."""
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT id, sync_status FROM skill_sync_runs WHERE delivery_id = ? LIMIT 1",
+            (delivery_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
 
 
 def insert_skill_sync_run(
@@ -127,17 +159,21 @@ def insert_skill_sync_run(
     pr_number: Optional[int],
     pr_url: Optional[str],
     started_at: str,
+    delivery_id: Optional[str] = None,
 ) -> str:
-    """F.4.4 C1 — insert initial 'started' row. Returns run_id."""
+    """F.4.4 C1 — insert initial 'started' row. Returns run_id.
+
+    W3: delivery_id (X-GitHub-Delivery header) stored for dedup; NULL for non-webhook.
+    """
     conn = _connect()
     try:
         conn.execute(
             """
             INSERT INTO skill_sync_runs
-                (id, trigger_type, pr_number, pr_url, sync_status, started_at)
-            VALUES (?, ?, ?, ?, 'started', ?)
+                (id, trigger_type, pr_number, pr_url, sync_status, started_at, delivery_id)
+            VALUES (?, ?, ?, ?, 'started', ?, ?)
             """,
-            (run_id, trigger_type, pr_number, pr_url, started_at),
+            (run_id, trigger_type, pr_number, pr_url, started_at, delivery_id),
         )
         conn.commit()
     finally:
