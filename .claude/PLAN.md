@@ -704,7 +704,103 @@ Audit C2 surfaceou BLOCKER: `gateway VM /tools` retorna 0 workflow tools. Invest
 - **[✅] C1** Monaco vendor + skill_proposals_studio.js 3-pane layout + sidebar list + Monaco diff toggle + PATH 1 button modal + accept/reject endpoints frontend wiring — commit 58eed06 (40 baseline pytest + frontend-ux-reviewer PASS-WITH-NOTES zero BLOCKERs após fix 3 CONTRAST + W1 url + W3 roving + W5 raw clipboard + W2 token drift; G1-G10 PASS)
 - **[✅] C2** WS RT throttle/dedup (W4 PIVOT) + filter chips ARIA role=radiogroup (W6 PIVOT) + --red-l token canonical em styles.css (DS-LITERAL PIVOT) + lab JSON tree collapsible + reject reason char counter + frontend-ux-reviewer FINAL PASS-WITH-NOTES zero BLOCKERs + closeout F.4.3 — commit <SHA-C2> (47 pytest = 40 baseline + 7 NOVOS F.4.3 smoke endpoints PASS)
 
-**F.4.3 CHAPTER CLOSED 2026-06-15** — 2 commits (C1 58eed06 + C2 <SHA-C2>) — D1/D2/D3/D4/D5/D6/D7 cristalizados — Monaco editor 0.45+ vendored 4MB + 3-pane Mission Control + PATH 1 manual modal (PIVOT D6 honest scaffold) + WCAG 2.1 AA frontend-ux-reviewer 2 PASSes — BLACKLIST R2 INTACTO 22 consecutive sub-sessions. NEXT F.4.4 sync VM auto + Sentry quarantine cron.
+**F.4.3 CHAPTER CLOSED 2026-06-15** — 2 commits (C1 58eed06 + C2 d92e8a8) — D1/D2/D3/D4/D5/D6/D7 cristalizados — Monaco editor 0.45+ vendored 4MB + 3-pane Mission Control + PATH 1 manual modal (PIVOT D6 honest scaffold) + WCAG 2.1 AA frontend-ux-reviewer 2 PASSes — BLACKLIST R2 INTACTO 22 consecutive sub-sessions. NEXT F.4.4 sync VM auto + Sentry quarantine cron.
+
+**🎯 F.4.4 Decisões Cristalizadas (Sync VM Auto + Sentry Quarantine Cron) — 2026-06-15**:
+
+**D1 Sync trigger = GitHub webhook → VM endpoint** (reactive ~5s latency):
+- GitHub repo settings webhook POST `https://<vm-public>/api/skills/webhook/pr-merged`
+- Event filter: pull_request.closed + merged=true + path skills/*
+- HMAC SHA-256 validate via `GITHUB_WEBHOOK_SECRET` env var (32-byte, .env PC+VM + GitHub settings)
+- Handler: extract PR head ref + skills/* diff → git pull skills/ → systemd-reload hermes-mcps
+- NÃO polling (1440x/dia waste + lag)
+
+**D2 Conflict handling = git stash + pull + auto-pop**:
+- Pre-pull check `git diff --quiet skills/`
+- Dirty → `git stash push -m "auto-pull-stash-{timestamp}-{webhook_event_id}" skills/`
+- `git pull origin master -- skills/`
+- Try `git stash pop`; conflict → mantém stash + WS emit brain.skill_sync_conflict + Sentry alert + skill_sync_runs.status='conflict_manual'
+- Owner manual `git stash list; git stash apply stash@{N}; resolve conflicts`
+
+**D3 Quarantine = success_rate<0.5 last 10 runs → rename skills/_quarantine/**:
+- Cron query skill_runs per skill last 10 (success/failed/timeout)
+- success_rate < 0.5 → `mv skills/{name}.yaml skills/_quarantine/{name}.yaml` + skill_proposals.status='quarantined' + quarantine_reason + systemd-reload + Sentry breadcrumb + WS emit brain.skill_quarantined
+
+**D4 Cron frequency = HOURLY systemd timer** (`OnCalendar=*:00:00`):
+- Idempotent skip se already quarantined
+- Lock file /tmp/hermes-sync.lock previne race quarantine-during-sync
+
+**D5 Unquarantine UX = API endpoint imediato + dashboard button F.future**:
+- F.4.4 entrega: POST /api/skills/{name}/unquarantine body {reason}
+- mv skills/_quarantine/{name}.yaml back + status='active' + systemd-reload + Sentry breadcrumb
+- F.4.3 UI defer: F.future button "Unquarantine" (low priority, curl manual OK curto-prazo)
+
+**D6 Notification fanout = WS + Sentry + skill_sync_runs DB** (NÃO email/Telegram F.4.4 scope):
+- WS events: brain.skill_sync_started/completed/conflict + brain.skill_quarantined/unquarantined
+- DB skill_sync_runs (8 cols: id, trigger_type, pr_number, pr_url, sync_status, started_at, completed_at, error_message)
+
+**D7 Webhook security = HMAC SHA-256 + IP allowlist GitHub ranges**:
+- hmac.compare_digest constant-time validation
+- IP allowlist GitHub ranges (140.82.112.0/20, 192.30.252.0/22, 185.199.108.0/22, 143.55.64.0/20)
+- 401 + Sentry capture invalid signature OR IP forbidden
+- slowapi rate limit 60/min REUSE F.5.3
+- Endpoint NÃO require Bearer gateway auth (webhook callback GitHub)
+
+**D8 Sync atomic invariant** (F.4 risk D8 cristalizado):
+- Single source truth: GitHub repo skills/*
+- VM = read-only mirror (only auto-sync writes)
+- Owner edits SEMPRE PC → commit → PR → merge → webhook sync VM
+- Quarantine `mv skills/_quarantine/` PERMITIDO (bypass intencional)
+- Lock /tmp/hermes-sync.lock previne race
+
+**Files F.4.4** (4 NOVO + 3 MATURE):
+- `api/skills_webhook.py` NOVO (~200 LOC webhook handler HMAC + IP allowlist + git subprocess)
+- `scripts/quarantine_skills.py` NOVO (~150 LOC cron entry SQLite + mv + systemd-reload + WS broadcaster)
+- `scripts/install_quarantine_timer.sh` NOVO (systemd user timer install bash idempotent)
+- `scripts/setup_github_webhook_secret.ps1` NOVO (similar setup_github_pat.ps1 pattern — secure secret input + .env PC+VM update)
+- `migrations/2026_06_skill_sync_runs.sql` NOVO (table 8 cols + indexes)
+- `core/skill_proposals.py` MATURE — update_quarantine_status + unquarantine + get_skill_runs_success_rate
+- `api/skills.py` MATURE — POST /api/skills/{name}/unquarantine (D5)
+- `server.py` MATURE — include_router(skills_webhook_router)
+
+**Sub-task split F.4.4 (2 commits ~3-4h)**:
+- **C1** Webhook endpoint /api/skills/webhook/pr-merged + sync git stash flow + skill_sync_runs migration + setup_github_webhook_secret.ps1 + smoke tests
+- **C2** Sentry quarantine cron scripts/quarantine_skills.py + systemd timer install + unquarantine endpoint + smoke + closeout F.4.4
+
+**🚨 Riscos críticos F.4.4**:
+- Webhook URL público VM (cloudflare tunnel OR :55401 public ✓ already gateway)
+- HMAC secret leak .env gitignored + chmod 600
+- git stash pop conflicts unattended → WS + Sentry mandatory
+- systemd timer race quarantine-during-sync → lock file obrigatório
+- skills/_quarantine/ git track → .gitignore rule add
+- Cron idempotent re-run skip
+- BLACKLIST R2 INTACTO — F.4.4 zero touch linkedin/* (sync apenas skills/*)
+- systemd hermes-mcps reload graceful (não kill ongoing Brain requests)
+- F.7 cobaia prep — F.4.4 unblock F.7 com skills self-healing
+
+**Cross-ref F.4.4**:
+- F.4.2 C2 dispatch_github_pr (D1 webhook callback PR merged trigger)
+- F.4.3 dashboard `/skills/proposals` (D5 button F.future)
+- F.5.6 mcp.github (D1 webhook validation Github source)
+- F.8.1 mcp_calls (audit trail D5 unquarantine requester='brain-f4-unquarantine')
+- F.5.3 SlowAPI rate limit (D7 60/min REUSE)
+- Memory: mem_mqfm9c04 (F.4.3 closed) + mem_mqf18zy2 (F.4.2 C1)
+
+**F.4.4 C1 ✅ 2026-06-15** commit 008b3a8 — 9 files 1075 insertions — G1-G12 PASS — 56 pytest PASS.
+- `migrations/2026_06_skill_sync_runs.sql` + `api/skills_webhook.py` + `core/skill_proposals.py` (3 helpers) + `scripts/sync_skills_repo.sh` + `scripts/setup_github_webhook_secret.ps1` + `config.py` + `.gitignore` + `tests/test_skills_webhook.py`
+- HMAC SHA-256 + IP allowlist 4 GitHub CIDRs + asyncio.Lock D8 + slowapi 60/min
+
+**F.4.4 FIX ✅ 2026-06-16** commits cf9a033 (PC cleanup) + VM patch (hermes_api.py in-place):
+- VM zombie PID 1866613 killed → hermes-api NRestarts=0 active
+- cloudflared 2026.6.0 installed + tunnel hermes-prod UUID=9f867aac-39dc-46eb-b898-140b7c2bcdc4
+- DNS CNAME hermes-api.caioleao.com → tunnel (cfargotunnel.com IPv6-only, tunnel DNS resolve needed)
+- systemd cloudflared.service active QUIC location=ord10
+- Webhook endpoint live VM: `https://hermes-api.caioleao.com/api/skills/webhook/pr-merged`
+- PC server.py cleanup: webhook router REMOVED (endpoint lives on VM), auth_middleware bypass REMOVED
+- ⚠️ **P1 PENDING (security)**: rotate old exposed secret `GITHUB_WEBHOOK_SECRET` via `scripts\setup_github_webhook_secret.ps1` + update GitHub webhook URL to `https://hermes-api.caioleao.com/api/skills/webhook/pr-merged`
+- BLACKLIST R2 INTACTO 24 consecutive sub-sessions
+
+**F.4.4 C2 NEXT**: Sentry quarantine cron `scripts/quarantine_skills.py` + hourly systemd timer + `/api/skills/{name}/unquarantine` endpoint + closeout F.4.4.
 
 **🚨 Riscos críticos F.4.3**:
 - **Monaco vendor size 2MB** — first load impact dashboard. Defer load lazy (import só rota /skills/proposals)
