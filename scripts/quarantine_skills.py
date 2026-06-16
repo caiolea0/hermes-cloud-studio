@@ -58,6 +58,8 @@ def _log(msg: str) -> None:
 def _skill_runs_success_rate(
     conn: sqlite3.Connection, skill_name: str, limit: int = MIN_SAMPLE
 ) -> dict[str, Any]:
+    # NOTE: similar logic exists in core/skill_proposals.get_skill_runs_success_rate (PC).
+    # Duplication is intentional — this script runs on VM where core/ is not importable.
     rows = conn.execute(
         "SELECT status FROM skill_runs WHERE skill_name = ? ORDER BY started_at DESC LIMIT ?",
         (skill_name, limit),
@@ -220,6 +222,7 @@ def main() -> int:
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
+        lock_fd.close()
         _log("LOCK BUSY — concurrent sync in progress, skipping quarantine run")
         print(json.dumps({"status": "lock_busy", "checked": 0, "quarantined": []}))
         return 1

@@ -20,7 +20,7 @@
 +| F.1     | Backend↔Frontend Gap Audit                          | research+ui   | 3        | 1       | CONCLUÍDO 2026-06-08 | —    |
 +| F.2     | Mission Control Real-Time + Design System Polish    | ui+backend    | 9        | 7       | **CONCLUÍDO 2026-06-08** | F.1         |
 +| F.3     | Lab Cockpit + Stealth UX                            | ui+backend    | 8        | 4       | **CONCLUÍDO 2026-06-10** (4 sub-sessões ☒) | F.1         |
-+| F.4     | Auto-Skill Loop W3 + GitHub PR-based deploy         | backend+ui    | 7        | 5       | **F.4.1 ✅ 2026-06-14 (1/5)** · F.4.2 NEXT | F.1, F.5    |
++| F.4     | Auto-Skill Loop W3 + GitHub PR-based deploy         | backend+ui    | 7        | 5       | **✅ CHAPTER CLOSED 2026-06-16** | F.1, F.5    |
 +| F.5     | MCP Gateway + Discovery + Custom MCPs               | backend+infra | 4        | 4       | PLANEJADO   | F.1         |
 +| F.6     | Cérebro Hermes (Brain orchestrator)                 | backend+ui    | 9        | 6       | PLANEJADO   | F.1, F.5    |
 +| F.7     | Cobaia Live Ops + Warmup 14d automatizado           | backend+ui    | 8        | 5       | PLANEJADO   | F.2, F.5    |
@@ -353,14 +353,14 @@
 +**DB migrations**: tabela `skill_proposals` PC (id, created_at, source_pattern, yaml_blob, lab_test_result, pr_url, status, owner_decision_at, owner_decision_reason)
 +
 +**Tasks**:
-+- [ ] Task 1: Workflow `.claude/workflows/hermes-skill-forge.js` — pipeline activity 30d → classify intents → 3 candidatos YAML
-+- [ ] Task 2: Backend `skill_proposals` CRUD + tabela; integração com hermes-skill-forge.js via API trigger
-+- [ ] Task 3: GitHub MCP integração — `create_pull_request` em branch `skill/proposal-{id}`; owner aprovação UI = merge via API
-+- [ ] Task 4: Lab test auto — antes de criar PR, roda skill em sandbox VM cobaia; fail = não cria PR, marca proposal como `lab_failed`
-+- [ ] Task 5: UI `/skills/proposals` — list cards com YAML preview (Monaco editor read-only), diff vs skills existentes, botões accept/reject com modal reason
-+- [ ] Task 6: Sync VM auto on accept — webhook GitHub merge → trigger `scp` skills/ + restart hermes_api_v2 via systemd
-+- [ ] Task 7: Sentry MCP auto-disable — task scheduled 6h check skills com 5+ erros 24h → toggle off + notify owner Telegram
-+- [ ] Task 8: Validação regressão + persistência — phase A B C D E (toca daemon/orchestrator.py se loop integrar); 20/22 PASS; PLAN.md F.4 ✅; commit `feat(skills): F.4 — auto-skill loop + GitHub PR deploy`
++- [x] Task 1: Workflow `.claude/workflows/hermes-skill-forge.js` — PIVOT D1 honest scaffold (AutoSkillRunner + synthesis_runs); F.4.2 C3
++- [x] Task 2: Backend `skill_proposals` CRUD + tabela; F.4.1 + F.4.4 C2 quarantine helpers; commit 4fb9014+f78cb19
++- [x] Task 3: GitHub MCP integração — `dispatch_github_pr` AutoSkillRunner; F.4.2 C2 commit 85e15c5
++- [x] Task 4: Lab test auto — `dispatch_sandbox_test` mock inline PIVOT; D4 block_on_lab_fail ✅; F.4.2 C1 commit 4fb9014
++- [x] Task 5: UI `/skills/proposals` — Monaco editor + 3-pane + PATH 1 modal; F.4.3 commits 58eed06+d92e8a8
++- [x] Task 6: Sync VM auto on accept — GitHub webhook + Cloudflare tunnel hermes-api.caioleao.com; F.4.4 C1+FIX commits 008b3a8+cf9a033
++- [ ] Task 7: Sentry MCP auto-disable — DEFERRED F.4.6 backlog (quarantine cron F.4.4 C2 partial substitute via success_rate threshold)
++- [x] Task 8: Validação regressão — 69 pytest PASS · BLACKLIST R2 25 SS INTACTO · F.4.5 holistic reviewer PASS-WITH-NOTES
 +
 +**Done criteria F.4**: Hermes propõe ≥1 skill útil/semana sem owner pedir · PR-based deploy substitui scp+restart manual · auto-disable previne skill bugada queimar cobaia · 20/22 PASS preservado.
 +
@@ -810,6 +810,54 @@ Audit C2 surfaceou BLOCKER: `gateway VM /tools` retorna 0 workflow tools. Invest
 - BLACKLIST R2 INTACTO 25 consecutive sub-sessions
 
 **F.4.4 CHAPTER CLOSED 2026-06-16** — 3 sub-sessions (C1 008b3a8 + FIX cf9a033 + C2 f78cb19) — D1-D6 cristalizados — GitHub webhook HMAC + IP allowlist + Cloudflare tunnel + quarantine cron + unquarantine endpoint — 69 pytest PASS — BLACKLIST R2 INTACTO 25 consecutive. NEXT F.7 Cobaia Live Ops.
+
+**F.4.5 ✅ 2026-06-16** — Holistic review PASS-WITH-NOTES zero BLOCKERs 10 WARNs (W9 WS key fix + W5 lock_fd close + W7 DRY comment applied) — F7-PREP.md criado — Task 1-4+5+6+8 [completed] Task 7 DEFERRED F.4.6 — PLAN.md F.4 CHAPTER CLOSED — memory 3 entries saved — BLACKLIST R2 INTACTO 26 SS.
+
+**Reviewer WARNs F.future (tolerated)**:
+- W1: asyncio.Lock lost on process restart (use DB flag or VM flock only)
+- W2: update_pr_status returns stale existing["status"] for not_created path
+- W3: webhook double-fire creates 2 skill_sync_runs rows (add X-GitHub-Delivery dedup)
+- W4: _skills_changed key internal convention (not GitHub-native, document clearly)
+- W6: Sentry captures raw str(exc) possibly containing token values (scrub before capture)
+- W8: quarantine columns not in migration; trigger_type enum stale in migration comment; PC sync_loop may not propagate VM quarantine state
+- W10: GitHub IPv6 CIDR ranges missing from _GH_IP_RANGES allowlist
+
+---
+
+## 🏁 F.4 AUTO-SKILL LOOP — CHAPTER CLOSED 2026-06-16
+
+**5 sub-sessions · 11 commits · ~1034+ LOC prod · 69 pytest**
+
+| Sub-session | Commit(s) | Entregável | Gate |
+|-------------|-----------|------------|------|
+| F.4.1 | (série pré-F.4.2) | skill_proposals CRUD 8 endpoints + AutoSkillRunner scaffold | 47 pytest |
+| F.4.2 C1 | 4fb9014 | AutoSkillRunner lab sandbox PIVOT + cost tracking PIVOT D7 | — |
+| F.4.2 C2 | 85e15c5 | GitHub MCP PR dispatch D2-D5 (template + branch + block_on_lab_fail + fail_fast) | — |
+| F.4.2 C3 | f2dcaf8 | trigger_workflow_synthesis honest scaffold PIVOT D6 + synthesis_runs table | 47 pytest |
+| F.4.3 C1 | 58eed06 | Monaco editor vendor + skill_proposals_studio 3-pane + PATH 1 modal | — |
+| F.4.3 C2 | d92e8a8 | WS throttle/dedup + chips ARIA + --red-l token + lab JSON tree + reject polish | 47 pytest |
+| F.4.4 C1 | 008b3a8 | GitHub webhook HMAC SHA-256 + IP allowlist + skill_sync_runs + setup script | 56 pytest |
+| F.4.4 FIX | cf9a033 | Cloudflare tunnel hermes-prod + CNAME hermes-api.caioleao.com + E2E smoke | — |
+| F.4.4 C2 | f78cb19 | Quarantine cron MIN_SAMPLE=10 + systemd timer + unquarantine PC+VM | 69 pytest |
+| F.4.5 | 69e2d9d + closeout | Holistic review PASS + F7-PREP.md + PLAN.md chapter close | 69 pytest |
+
+**Decisões cristalizadas D1–D8:**
+- **D1 PIVOT**: Sub-task split 5 sub-sessions; AutoSkillRunner dispatch honest scaffold (NÃO Workflow MCP real)
+- **D2**: Skill synthesis model = qwen3-coder-480b (routing matrix F.5.7 REUSE)
+- **D3**: Sandbox = subprocess isolated 60s timeout (NÃO Docker)
+- **D4**: lab_failed BLOCKS PR (segurança qualidade obrigatória)
+- **D5**: fail_fast surface error to owner (NÃO silent retry)
+- **D6 PIVOT**: PATH 1 manual trigger (NÃO auto cron F.4.2) — F.4.6 deferred PATH 2
+- **D7 PIVOT**: cost tracking REUSE mcp_calls.requester='brain-f4' (NÃO custom column)
+- **D8**: dual source-of-truth git+DB; quarantine_at IS NOT NULL proxy (CHECK constraint workaround)
+
+**BLACKLIST R2**: `linkedin/` ZERO TOUCH — 25 consecutive sub-sessions INTACTO (pós-F.4.5: 26 consecutive).
+
+**Backlog F.4.6** (DEFERRED — separate session):
+- Task 7: Sentry MCP auto-disable (quarantine cron partial substitute active)
+- PATH 2 auto-trigger via `claude --headless --workflow` subprocess
+
+**NEXT: F.7 Cobaia Live Ops** (ver `.claude/F7-PREP.md` para prerequisites + backlog decisões owner)
 
 **🚨 Riscos críticos F.4.3**:
 - **Monaco vendor size 2MB** — first load impact dashboard. Defer load lazy (import só rota /skills/proposals)

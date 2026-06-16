@@ -158,8 +158,8 @@ def test_unquarantine_ws_emit_brain_skill_unquarantined(client, tmp_path):
     # broadcast called at least once (fire-and-forget via asyncio.create_task)
     mock_mgr.broadcast.assert_called_once()
     call_payload = mock_mgr.broadcast.call_args[0][0]
-    assert call_payload["type"] == "brain.skill_unquarantined"
-    assert call_payload["skill_name"] == "cobaia-daily"
+    assert call_payload["event_type"] == "brain.skill_unquarantined"
+    assert call_payload["payload"]["skill_name"] == "cobaia-daily"
 
 
 # ---------------------------------------------------------------------------

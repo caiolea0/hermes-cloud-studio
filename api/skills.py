@@ -452,10 +452,12 @@ async def unquarantine_endpoint(skill_name: str, req: Optional[UnquarantineReque
         from core.state import ws_manager
         import asyncio
         asyncio.create_task(ws_manager.broadcast({
-            "type": "brain.skill_unquarantined",
-            "skill_name": skill_name,
-            "reason": reason,
-            "run_id": run_id,
+            "event_type": "brain.skill_unquarantined",
+            "payload": {
+                "skill_name": skill_name,
+                "reason": reason,
+                "run_id": run_id,
+            },
         }))
     except Exception:
         pass
