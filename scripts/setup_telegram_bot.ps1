@@ -61,10 +61,14 @@ Write-Host $okMsg -ForegroundColor Green
 Write-Host ""
 Write-Host "=== Step 2/4: Telegram Chat ID ===" -ForegroundColor Cyan
 Write-Host "Cole chat_id (numero grande tipo 6034756748):"
-$chatId = Read-Host
+$chatIdRaw = Read-Host
+# Cleanup: trim whitespace + remove leading ":" se paste acidental + strip non-digit prefix
+$chatId = $chatIdRaw.Trim() -replace '^[:\s]+', '' -replace '\s+$', ''
 
 if (-not ($chatId -match "^-?\d+$")) {
     Write-Host "ERRO: chat_id deve ser numero (positivo private OR negativo grupo)." -ForegroundColor Red
+    Write-Host "  Recebido raw: '$chatIdRaw' (len=$($chatIdRaw.Length))" -ForegroundColor Yellow
+    Write-Host "  Apos cleanup: '$chatId' (len=$($chatId.Length))" -ForegroundColor Yellow
     $plainToken = $null
     exit 1
 }
