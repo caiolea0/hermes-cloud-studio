@@ -1,4 +1,14 @@
-"""F.4.4 C1 — GitHub webhook endpoint: POST /api/skills/webhook/pr-merged.
+"""F.4.4 C1 → MOVED TO VM — F.4.4 FIX 2026-06-16.
+
+GitHub webhook endpoint was originally deployed on PC (server.py) but GitHub
+cannot reach PC behind NAT. Moved to VM hermes_api.py which is publicly
+accessible via Cloudflare tunnel (hermes-prod, port 8420).
+
+PC server.py no longer includes this router (see server.py F.4.4 FIX comment).
+This file kept for reference + future local-test use. VM endpoint is the
+source of truth.
+
+Original F.4.4 C1 — GitHub webhook endpoint: POST /api/skills/webhook/pr-merged.
 
 Security (D7):
   - HMAC SHA-256 hmac.compare_digest constant-time (skipped if secret not configured)

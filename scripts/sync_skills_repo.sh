@@ -1,117 +1,114 @@
 #!/bin/bash
-# F.4.4 C1 — VM-side skills/ sync script (D2: git stash + pull + pop).
+# F.4.4 — VM-local skills/ sync script (runs on VM, NOT via SSH from PC).
 #
-# Called by api/skills_webhook.py via SSH:
-#   ssh hermes-gcp@VM 'bash ~/hermes-cloud-studio/scripts/sync_skills_repo.sh <run_id>'
+# Called by hermes_api.py POST /api/skills/webhook/pr-merged:
+#   bash ~/hermes-cloud-studio/scripts/sync_skills_repo.sh <run_id>
+# OR (if repo not yet cloned at ~/hermes-cloud-studio):
+#   bash ~/.hermes/scripts/sync_skills_repo.sh <run_id>
+#
+# Logic:
+#   1. flock(1) prevents concurrent syncs (D8 VM-side).
+#   2. First run: git clone hermes-cloud-studio to ~/hermes-cloud-studio/.
+#   3. Subsequent runs: git pull origin master -- skills/.
+#   4. Copy changed skills/*.yaml to HERMES_HOME/skills/ (where hermes_api reads).
 #
 # Exit codes:
-#   0  — completed (JSON to stdout with affected_skills)
-#   1  — conflict during stash pop (conflict_manual)
-#   2  — git pull failure
+#   0  completed
+#   1  conflict / stash error (conflict_manual)
+#   2  fatal error (pull fail / lock busy / no PAT)
 #
-# Lock: flock(1) on LOCK_FILE prevents concurrent runs (D8 VM-side guard).
-#   cf. fcntl.LOCK_EX pattern — same semantics, POSIX shell equivalent.
+# stdout: JSON {"status": "...", "affected_skills": [...]}
+# stderr: human-readable log messages
 
 set -euo pipefail
 
 RUN_ID="${1:-unknown}"
-REPO_DIR="${HERMES_HOME:-$HOME/.hermes}/../hermes-cloud-studio"
-REPO_DIR="$(realpath "$HOME/hermes-cloud-studio" 2>/dev/null || echo "$HOME/hermes-cloud-studio")"
+HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+REPO_DIR="$HOME/hermes-cloud-studio"
+SKILLS_SRC="$REPO_DIR/skills"
+SKILLS_DST="$HERMES_HOME/skills"
 LOCK_FILE="/tmp/hermes-sync.lock"
 BRANCH="master"
+GITHUB_REPO="caiolea0/hermes-cloud-studio"
 
-log() { echo "[sync_skills] $*" >&2; }
+log() { echo "[sync_skills $RUN_ID] $*" >&2; }
 
 # ---------------------------------------------------------------------------
-# Acquire exclusive lock (non-blocking). Exit 2 if already locked.
-# flock -xn: exclusive + non-blocking (cf. fcntl.LOCK_EX | LOCK_NB)
+# Acquire exclusive lock — flock LOCK_EX non-blocking (D8 VM-side guard)
 # ---------------------------------------------------------------------------
 exec 9>"$LOCK_FILE"
 if ! flock -xn 9; then
-    log "LOCK BUSY — another sync in progress (run_id=$RUN_ID)"
+    log "LOCK BUSY — concurrent sync in progress"
     echo '{"status":"busy","affected_skills":[]}'
     exit 2
 fi
 
-cd "$REPO_DIR" || { log "ERRO: repo_dir nao encontrado: $REPO_DIR"; exit 2; }
+# ---------------------------------------------------------------------------
+# Clone if first run
+# ---------------------------------------------------------------------------
+if [ ! -d "$REPO_DIR/.git" ]; then
+    PAT="${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
+    if [ -z "$PAT" ]; then
+        log "ERRO: GITHUB_PERSONAL_ACCESS_TOKEN not set — cannot clone"
+        echo '{"status":"failed","affected_skills":[]}'
+        exit 2
+    fi
+    log "First run: cloning $GITHUB_REPO → $REPO_DIR ..."
+    if ! git clone --depth=20 "https://oauth2:$PAT@github.com/$GITHUB_REPO.git" "$REPO_DIR" 2>&1; then
+        log "ERRO: git clone failed"
+        echo '{"status":"failed","affected_skills":[]}'
+        exit 2
+    fi
+    log "Clone OK"
+fi
 
-# ---------------------------------------------------------------------------
-# Snapshot skills/ before pull to compute diff later
-# ---------------------------------------------------------------------------
-BEFORE_HASH="$(git ls-files -s skills/ | git hash-object --stdin 2>/dev/null || echo 'none')"
+cd "$REPO_DIR"
 
-# ---------------------------------------------------------------------------
-# git stash (only if skills/ is dirty)
-# ---------------------------------------------------------------------------
-STASH_APPLIED=0
-if ! git diff --quiet -- skills/ 2>/dev/null || ! git diff --cached --quiet -- skills/ 2>/dev/null; then
-    STASH_MSG="auto-pull-stash-$(date +%s)-${RUN_ID}"
-    log "skills/ dirty — stashing: $STASH_MSG"
-    git stash push -m "$STASH_MSG" -- skills/ || true
-    STASH_APPLIED=1
+# Configure PAT for future pulls (URL-based credential, no password prompt)
+PAT="${GITHUB_PERSONAL_ACCESS_TOKEN:-}"
+if [ -n "$PAT" ]; then
+    git remote set-url origin "https://oauth2:$PAT@github.com/$GITHUB_REPO.git" 2>/dev/null || true
 fi
 
 # ---------------------------------------------------------------------------
-# git pull
+# Snapshot skills/ before pull
 # ---------------------------------------------------------------------------
-log "pulling origin/$BRANCH skills/ ..."
+BEFORE_HASH="$(git ls-files -s skills/ 2>/dev/null | sha256sum | cut -d' ' -f1)"
+
+# ---------------------------------------------------------------------------
+# git pull — only skills/ subtree
+# ---------------------------------------------------------------------------
+log "git pull origin $BRANCH -- skills/ ..."
 if ! git pull origin "$BRANCH" -- skills/ 2>&1; then
-    log "ERRO: git pull falhou"
-    # Restore stash if we pushed one
-    if [ "$STASH_APPLIED" -eq 1 ]; then
-        git stash pop --index 2>/dev/null || true
-    fi
+    log "ERRO: git pull failed"
+    echo '{"status":"failed","affected_skills":[]}'
     exit 2
 fi
 
 # ---------------------------------------------------------------------------
-# git stash pop
+# Snapshot after pull
 # ---------------------------------------------------------------------------
-CONFLICT=0
-if [ "$STASH_APPLIED" -eq 1 ]; then
-    log "restoring stash ..."
-    if ! git stash pop --index 2>/dev/null; then
-        log "CONFLITO: stash pop falhou — intervenção manual necessária"
-        CONFLICT=1
-    fi
-fi
+AFTER_HASH="$(git ls-files -s skills/ 2>/dev/null | sha256sum | cut -d' ' -f1)"
 
 # ---------------------------------------------------------------------------
-# Compute affected skills (files changed between before/after)
+# Copy changed skills to HERMES_HOME/skills/
 # ---------------------------------------------------------------------------
-AFTER_HASH="$(git ls-files -s skills/ | git hash-object --stdin 2>/dev/null || echo 'none')"
-
-AFFECTED_SKILLS="[]"
+AFFECTED_NAMES=""
 if [ "$BEFORE_HASH" != "$AFTER_HASH" ]; then
-    # List YAML files changed in skills/
-    CHANGED="$(git diff HEAD~1 --name-only -- 'skills/*.yaml' 'skills/*.yml' 2>/dev/null || true)"
-    if [ -n "$CHANGED" ]; then
-        # Build JSON array of basenames without extension
-        NAMES=""
-        while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            BASE="$(basename "$f" .yaml)"
-            BASE="$(basename "$BASE" .yml)"
-            NAMES="${NAMES:+$NAMES,}\"$BASE\""
-        done <<< "$CHANGED"
-        AFFECTED_SKILLS="[$NAMES]"
-    fi
+    mkdir -p "$SKILLS_DST"
+    COUNT=0
+    for f in skills/*.yaml skills/*.yml; do
+        [ -f "$f" ] || continue
+        cp "$f" "$SKILLS_DST/"
+        BNAME="$(basename "$f" .yaml)"
+        BNAME="$(basename "$BNAME" .yml)"
+        AFFECTED_NAMES="${AFFECTED_NAMES:+$AFFECTED_NAMES,}\"$BNAME\""
+        COUNT=$((COUNT + 1))
+    done
+    log "Synced $COUNT skills → $SKILLS_DST"
+else
+    log "No changes in skills/"
 fi
 
-# ---------------------------------------------------------------------------
-# Reload skills service (idempotent — ignore failure if service not running)
-# ---------------------------------------------------------------------------
-systemctl --user reload hermes-mcps-skills.service 2>/dev/null \
-    || systemctl --user restart hermes-mcps-skills.service 2>/dev/null \
-    || true
-
-# ---------------------------------------------------------------------------
-# Output
-# ---------------------------------------------------------------------------
-if [ "$CONFLICT" -eq 1 ]; then
-    echo "{\"status\":\"conflict_manual\",\"affected_skills\":$AFFECTED_SKILLS}"
-    exit 1
-fi
-
-echo "{\"status\":\"completed\",\"affected_skills\":$AFFECTED_SKILLS}"
+echo "{\"status\":\"completed\",\"affected_skills\":[$AFFECTED_NAMES]}"
 exit 0

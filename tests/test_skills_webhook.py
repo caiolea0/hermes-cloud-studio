@@ -32,8 +32,20 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client():
-    from server import app
-    return TestClient(app)
+    # Endpoint moved to VM (F.4.4 FIX) — test in isolation via standalone app
+    # so tests don't depend on server.py include_router decision.
+    from fastapi import FastAPI
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.util import get_remote_address
+    from api.skills_webhook import router
+
+    test_app = FastAPI()
+    _limiter = Limiter(key_func=get_remote_address)
+    test_app.state.limiter = _limiter
+    test_app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    test_app.include_router(router)
+    return TestClient(test_app)
 
 
 @pytest.fixture
