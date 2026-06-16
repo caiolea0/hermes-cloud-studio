@@ -800,7 +800,16 @@ Audit C2 surfaceou BLOCKER: `gateway VM /tools` retorna 0 workflow tools. Invest
 - ⚠️ **P1 PENDING (security)**: rotate old exposed secret `GITHUB_WEBHOOK_SECRET` via `scripts\setup_github_webhook_secret.ps1` + update GitHub webhook URL to `https://hermes-api.caioleao.com/api/skills/webhook/pr-merged`
 - BLACKLIST R2 INTACTO 24 consecutive sub-sessions
 
-**F.4.4 C2 NEXT**: Sentry quarantine cron `scripts/quarantine_skills.py` + hourly systemd timer + `/api/skills/{name}/unquarantine` endpoint + closeout F.4.4.
+**F.4.4 C2 ✅ 2026-06-16** commit f78cb19 — 7 files 1034 insertions — 69 pytest PASS (1 skipped fcntl Windows) — VM timer active next 04:00 UTC:
+- `scripts/quarantine_skills.py` quarantine cron MIN_SAMPLE=10 THRESHOLD=0.5 last 10 runs
+- `scripts/install_quarantine_timer.sh` hermes-skill-quarantine.{service,timer} hourly + Persistent=true
+- `scripts/_f44c2_vm_unquarantine_patch.py` in-place patch VM hermes_api.py + unquarantine endpoint
+- `core/skill_proposals.py` quarantine helpers: get_by_name + update_quarantine_status + unquarantine
+- `api/skills.py` POST /{name}/unquarantine D5 PC-side state + skill_sync_runs audit + WS emit
+- `tests/test_quarantine_cron.py` 8 tests + `tests/test_unquarantine_endpoint.py` 5 tests
+- BLACKLIST R2 INTACTO 25 consecutive sub-sessions
+
+**F.4.4 CHAPTER CLOSED 2026-06-16** — 3 sub-sessions (C1 008b3a8 + FIX cf9a033 + C2 f78cb19) — D1-D6 cristalizados — GitHub webhook HMAC + IP allowlist + Cloudflare tunnel + quarantine cron + unquarantine endpoint — 69 pytest PASS — BLACKLIST R2 INTACTO 25 consecutive. NEXT F.7 Cobaia Live Ops.
 
 **🚨 Riscos críticos F.4.3**:
 - **Monaco vendor size 2MB** — first load impact dashboard. Defer load lazy (import só rota /skills/proposals)
