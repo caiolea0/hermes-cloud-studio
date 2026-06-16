@@ -76,10 +76,13 @@ fi
 BEFORE_HASH="$(git ls-files -s skills/ 2>/dev/null | sha256sum | cut -d' ' -f1)"
 
 # ---------------------------------------------------------------------------
-# git pull — only skills/ subtree
+# git pull — full master branch (pathspec restriction NOT supported by git pull)
+# skills/ changes filtered via BEFORE_HASH/AFTER_HASH diff below.
+# Fix 2026-06-16: removed invalid `-- skills/` refspec (caused "fatal: invalid
+# refspec" error → sync_status='failed' even when files synced via clone).
 # ---------------------------------------------------------------------------
-log "git pull origin $BRANCH -- skills/ ..."
-if ! git pull origin "$BRANCH" -- skills/ 2>&1; then
+log "git pull origin $BRANCH ..."
+if ! git pull origin "$BRANCH" 2>&1; then
     log "ERRO: git pull failed"
     echo '{"status":"failed","affected_skills":[]}'
     exit 2
