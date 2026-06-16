@@ -1,0 +1,8 @@
+# F.4.4 FIX smoke E2E test file - DELETE após merge
+name: _test_webhook
+version: 0.1
+description: "Smoke test webhook PR merge sync VM - F.4.4 FIX 2026-06-15"
+provider: noop
+steps:
+  - type: noop
+    args: {}
