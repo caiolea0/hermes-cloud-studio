@@ -19,6 +19,7 @@ Pydantic validation per endpoint (D9 pattern F.6.1 / F.8.2 / F.9.1).
 """
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 import time
@@ -34,6 +35,9 @@ from core.skill_proposals import (
     _connect,
     _table_exists,
     get_synthesis_run,
+    get_skill_runs_success_rate,
+    update_quarantine_status,
+    unquarantine as unquarantine_skill,
     manager as proposals_manager,
 )
 
@@ -387,5 +391,78 @@ async def skills_health(window_days: int = Query(7, ge=1, le=90)):
         "total_runs": sum(by_status.values()),
         "by_status": by_status,
         "by_skill": by_skill,
-        "note": "F.4.4_implements_sentry_integration + D6 quarantine signal (success_rate < 0.5 last 10)",
+        "note": "F.4.4 C2 quarantine cron active (success_rate < 0.5 last 10 runs → quarantine)",
+    }
+
+
+# ---------------------------------------------------------------------------
+# POST /api/skills/{name}/unquarantine — D5 (F.4.4 C2)
+# ---------------------------------------------------------------------------
+
+class UnquarantineRequest(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500)
+
+
+@router.post("/{skill_name}/unquarantine")
+async def unquarantine_endpoint(skill_name: str, req: Optional[UnquarantineRequest] = None):
+    """F.4.4 C2 D5 — mark a skill proposal as unquarantined (PC-side state).
+
+    Clears quarantine_at + quarantine_reason from skill_proposals row.
+    Returns 404 if proposal not found or not currently quarantined.
+    NOTE: to restore the YAML file on VM, use the VM unquarantine endpoint
+    (POST /api/skills/{name}/unquarantine on hermes-api.caioleao.com via tunnel).
+    """
+    _ensure_table_or_503()
+    reason = (req.reason if req else None) or "manual_unquarantine"
+
+    # First check if the proposal exists
+    proposal = proposals_manager.get_by_name(skill_name)
+    if proposal is None:
+        raise HTTPException(404, f"No skill proposal found for '{skill_name}'")
+
+    # unquarantine() returns False if not quarantined
+    updated = unquarantine_skill(skill_name)
+    if not updated:
+        raise HTTPException(
+            409,
+            f"Skill '{skill_name}' is not quarantined (quarantine_at is NULL)",
+        )
+
+    # Log audit trail in skill_sync_runs
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    run_id = str(uuid.uuid4())
+    conn = _connect()
+    try:
+        conn.execute(
+            """INSERT OR IGNORE INTO skill_sync_runs
+               (id, trigger_type, pr_number, pr_url, sync_status, started_at,
+                completed_at, error_message, affected_skills)
+               VALUES (?, 'manual_unquarantine', NULL, NULL, 'unquarantined', ?, ?, ?, ?)""",
+            (run_id, now, now, reason, json.dumps([skill_name])),
+        )
+        conn.commit()
+    except Exception:
+        pass
+    finally:
+        conn.close()
+
+    # WS emit (best-effort)
+    try:
+        from core.state import ws_manager
+        import asyncio
+        asyncio.create_task(ws_manager.broadcast({
+            "type": "brain.skill_unquarantined",
+            "skill_name": skill_name,
+            "reason": reason,
+            "run_id": run_id,
+        }))
+    except Exception:
+        pass
+
+    return {
+        "status": "ok",
+        "skill_name": skill_name,
+        "message": f"Skill '{skill_name}' unquarantined. Restore YAML on VM via VM endpoint.",
+        "run_id": run_id,
     }

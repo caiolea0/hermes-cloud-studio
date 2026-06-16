@@ -421,5 +421,121 @@ class SkillProposalsManager:
         }
 
 
+    def get_by_name(self, name: str) -> Optional[dict[str, Any]]:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT * FROM skill_proposals WHERE name = ? LIMIT 1", (name,)
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+
 # Module-level singleton (cheap — no in-memory state beyond DB connection per call).
 manager = SkillProposalsManager()
+
+
+# ---------------------------------------------------------------------------
+# F.4.4 C2 — Quarantine helpers (PC-side, reads from hermes_local.db)
+# ---------------------------------------------------------------------------
+
+def _ensure_quarantine_columns(conn: sqlite3.Connection) -> None:
+    """Idempotent ALTER TABLE to add quarantine_reason + quarantine_at columns."""
+    for col, typ in [("quarantine_reason", "TEXT"), ("quarantine_at", "TEXT")]:
+        try:
+            conn.execute(f"ALTER TABLE skill_proposals ADD COLUMN {col} {typ}")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
+
+
+def get_skill_runs_success_rate(
+    name: str,
+    limit: int = 10,
+    db_path: Optional[str] = None,
+) -> dict[str, Any]:
+    """Query skill_runs by skill_name and compute success_rate.
+
+    Returns dict with keys: success_rate, total, passed, failed, sample_size.
+    Uses PC's hermes_local.db unless db_path overridden.
+    """
+    _path = str(db_path) if db_path else str(DB_PATH)
+    conn = sqlite3.connect(_path, timeout=10.0)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """SELECT status FROM skill_runs
+               WHERE skill_name = ?
+               ORDER BY started_at DESC LIMIT ?""",
+            (name, limit),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    total = len(rows)
+    passed = sum(1 for r in rows if r["status"] == "completed")
+    failed = total - passed
+    return {
+        "success_rate": round(passed / total, 3) if total else 0.0,
+        "total": total,
+        "passed": passed,
+        "failed": failed,
+        "sample_size": total,
+    }
+
+
+def update_quarantine_status(
+    name: str,
+    reason: str,
+    db_path: Optional[str] = None,
+) -> bool:
+    """Mark a skill proposal as quarantined (sets quarantine_at + quarantine_reason).
+
+    Uses 'archived' status (valid in CHECK constraint) as quarantine proxy.
+    Returns True if a row was updated, False if not found or already quarantined.
+    """
+    _path = str(db_path) if db_path else str(DB_PATH)
+    conn = sqlite3.connect(_path, timeout=10.0)
+    try:
+        _ensure_quarantine_columns(conn)
+        cur = conn.execute(
+            """UPDATE skill_proposals
+               SET quarantine_reason = ?,
+                   quarantine_at = CURRENT_TIMESTAMP,
+                   status = 'archived',
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE name = ? AND quarantine_at IS NULL""",
+            (reason, name),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def unquarantine(
+    name: str,
+    db_path: Optional[str] = None,
+) -> bool:
+    """Clear quarantine state for a skill proposal.
+
+    Returns True if a row was updated, False if not found or not quarantined.
+    """
+    _path = str(db_path) if db_path else str(DB_PATH)
+    conn = sqlite3.connect(_path, timeout=10.0)
+    try:
+        _ensure_quarantine_columns(conn)
+        cur = conn.execute(
+            """UPDATE skill_proposals
+               SET quarantine_reason = NULL,
+                   quarantine_at = NULL,
+                   status = 'deployed',
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE name = ? AND quarantine_at IS NOT NULL""",
+            (name,),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
