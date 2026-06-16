@@ -1,4 +1,4 @@
-"""F.7 C1/C3 — Cobaia warmup API endpoints.
+"""F.7 C1/C3/C4 — Cobaia warmup API endpoints.
 
 All endpoints require X-Hermes-Token auth (enforced by server.py auth_middleware).
 LinkedIn execution is MOCK-DRIVEN in C1/C3; real wiring in C6.
@@ -13,6 +13,11 @@ Endpoints (C3):
   GET  /api/linkedin/cobaia/metrics?days=7
   GET  /api/linkedin/cobaia/timeline
   POST /api/linkedin/cobaia/emergency-stop  (alias → pause)
+
+Endpoints (C4 — D6 PIVOT Bug Export + health-score + sentry-env):
+  GET  /api/cobaia/bug-export?hours=24&format=json|markdown
+  GET  /api/cobaia/health-score
+  GET  /api/cobaia/sentry-env
 """
 from __future__ import annotations
 
@@ -241,4 +246,103 @@ async def cobaia_timeline():
         "overall_phase": status.get("phase"),
         "started_at": status.get("started_at"),
         "days": timeline,
+    }
+
+
+# ── F.7 C4 — Bug Export + Health Score + Sentry Env ──────────────────────────
+
+COBAIA_SENTRY_ENV = "cobaia-live"
+
+
+@router.get("/api/cobaia/bug-export")
+async def cobaia_bug_export(
+    hours: int = Query(default=24, ge=1, le=168),
+    format: str = Query(default="json", pattern="^(json|markdown)$"),
+    account_handle: str = Query(default="cobaia"),
+):
+    """D6 PIVOT — Aggregate failures from 3 sources + render structured export.
+
+    Aggregates skill_runs failures, errors_inbox (cobaia/linkedin), mcp_calls errors.
+    Returns JSON dict or markdown summary (Claude-paste ready).
+    """
+    from core.alert_aggregator import aggregate_bugs_24h, render_markdown_summary
+    from fastapi.responses import PlainTextResponse
+
+    try:
+        data = aggregate_bugs_24h(account_handle=account_handle, hours=hours)
+    except Exception as exc:
+        logger.error("cobaia bug-export error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    _sentry_breadcrumb("cobaia.bug_export_requested", {"hours": hours, "format": format})
+
+    if format == "markdown":
+        md = render_markdown_summary(data)
+        return PlainTextResponse(content=md, media_type="text/markdown; charset=utf-8")
+    return data
+
+
+@router.get("/api/cobaia/health-score")
+async def cobaia_health_score(account_handle: str = Query(default="cobaia")):
+    """Composite 0-100 health score: errors (50pts) + cooldown (25pts) + warmup (25pts)."""
+    from core.alert_aggregator import aggregate_bugs_24h
+    from core.state import get_db
+
+    score = 100
+    breakdown: dict[str, object] = {}
+
+    # Component 1: errors in last 1h (up to -50 pts)
+    try:
+        bug_data = aggregate_bugs_24h(account_handle=account_handle, hours=1)
+        errors_1h = bug_data.get("total", 0)
+        error_penalty = min(50, errors_1h * 10)
+        score -= error_penalty
+        breakdown["errors_1h"] = errors_1h
+        breakdown["error_penalty"] = error_penalty
+    except Exception:
+        breakdown["errors_1h"] = "unavailable"
+
+    # Component 2: cooldown state (−25 if not ok)
+    try:
+        conn = get_db()
+        warmup_row = conn.execute(
+            "SELECT phase, consecutive_errors FROM cobaia_warmup_state WHERE account_handle = ?",
+            (account_handle,),
+        ).fetchone()
+        conn.close()
+        if warmup_row:
+            phase = warmup_row["phase"] if hasattr(warmup_row, "__getitem__") else warmup_row[0]
+            consec = warmup_row["consecutive_errors"] if hasattr(warmup_row, "__getitem__") else warmup_row[1]
+            breakdown["warmup_phase"] = phase
+            breakdown["consecutive_errors"] = consec
+            if phase == "paused":
+                score -= 25
+                breakdown["warmup_penalty"] = 25
+            elif consec and consec > 0:
+                penalty = min(25, int(consec) * 5)
+                score -= penalty
+                breakdown["warmup_penalty"] = penalty
+            else:
+                breakdown["warmup_penalty"] = 0
+        else:
+            breakdown["warmup_phase"] = "not_started"
+    except Exception as exc:
+        logger.debug("cobaia health-score warmup query error: %s", exc)
+        breakdown["warmup_phase"] = "unavailable"
+
+    score = max(0, score)
+    return {
+        "account_handle": account_handle,
+        "health_score": score,
+        "grade": "A" if score >= 80 else "B" if score >= 60 else "C" if score >= 40 else "D",
+        "breakdown": breakdown,
+    }
+
+
+@router.get("/api/cobaia/sentry-env")
+async def cobaia_sentry_env():
+    """Return Sentry environment tag for cobaia captures (F.7 C4 config)."""
+    return {
+        "environment": COBAIA_SENTRY_ENV,
+        "description": "Sentry environment tag for all cobaia-related captures",
     }

@@ -185,14 +185,17 @@ async def lifespan(app: FastAPI):
     from core.observability import perf_flush_loop
     perf_flush_task = spawn(perf_flush_loop(DB_PATH))
     # F.7 C1 — Cobaia warmup APScheduler (09:00 BRT daily check)
+    # F.7 C4 — Email digest job registered on same scheduler instance
     _cobaia_scheduler = None
     try:
         from apscheduler.schedulers.asyncio import AsyncIOScheduler
         from daemon.cobaia_warmup_scheduler import init_cobaia_scheduler
+        from daemon.email_digest import init_email_digest_scheduler
         _cobaia_scheduler = AsyncIOScheduler()
         _cobaia_scheduler.start()
         init_cobaia_scheduler(_cobaia_scheduler)
-        logger.info("F.7 C1 cobaia APScheduler started")
+        init_email_digest_scheduler(_cobaia_scheduler)
+        logger.info("F.7 C1/C4 cobaia APScheduler started (warmup + email digest)")
     except ImportError:
         logger.info("APScheduler not installed — cobaia daily scheduler disabled")
     except Exception as _e:
