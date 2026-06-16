@@ -1,7 +1,7 @@
-"""F.7 C1/C3/C4 — Cobaia warmup API endpoints.
+"""F.7 C1/C3/C4/C5/C6 — Cobaia warmup API endpoints.
 
 All endpoints require X-Hermes-Token auth (enforced by server.py auth_middleware).
-LinkedIn execution is MOCK-DRIVEN in C1/C3; real wiring in C6.
+F.7 C6: Real execution wired via VM dispatch (_vm_cobaia_c6_patch.py on VM).
 
 Endpoints (C1):
   POST /api/linkedin/cobaia/start-warmup  {account_handle?, config?}
@@ -18,6 +18,15 @@ Endpoints (C4 — D6 PIVOT Bug Export + health-score + sentry-env):
   GET  /api/cobaia/bug-export?hours=24&format=json|markdown
   GET  /api/cobaia/health-score
   GET  /api/cobaia/sentry-env
+
+Endpoints (C5 — Autotune):
+  GET  /api/cobaia/autotune-history
+  GET  /api/cobaia/autotune-status
+  POST /api/cobaia/autotune-trigger-manual
+
+Endpoints (C6 — Pre-flight + F.7 closeout report):
+  GET  /api/cobaia/preflight
+  GET  /api/cobaia/f7-report
 """
 from __future__ import annotations
 
@@ -477,3 +486,256 @@ async def cobaia_autotune_trigger_manual(req: ManualAutotuneRequest):
         "bypass_cooldown": True,
         "reason": req.reason,
     }
+
+
+# ── F.7 C6 — Pre-flight checks + closeout report ─────────────────────────────
+
+
+@router.get("/api/cobaia/preflight")
+async def cobaia_preflight():
+    """Run all pre-flight checks from F7-PREP.md §5 before activating cobaia.
+
+    Returns {checks: {name: {pass, detail}}, all_pass, timestamp}.
+    Non-blocking: each check is best-effort (True if check unavailable).
+    """
+    import asyncio
+    from datetime import datetime, timezone
+
+    checks: dict = {}
+    all_pass = True
+
+    # C1: Webhook production live (expects 401 from unauthenticated POST)
+    try:
+        import httpx
+        from core.state import VM_API_URL
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.post(
+                f"{VM_API_URL.replace('8420', '').rstrip('/')}"
+                "/api/skills/webhook/pr-merged",
+                json={},
+            )
+        ok = r.status_code in (401, 403)
+        checks["webhook_live"] = {"pass": ok, "detail": f"HTTP {r.status_code}"}
+    except Exception as exc:
+        checks["webhook_live"] = {"pass": False, "detail": str(exc)[:100]}
+    all_pass = all_pass and checks["webhook_live"]["pass"]
+
+    # C2: Quarantine cron timer active on VM
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            from core.state import VM_API_URL, AUTH_TOKEN
+            r = await client.get(
+                f"{VM_API_URL}/api/skills/quarantine-timer-status",
+                headers={"X-Hermes-Token": AUTH_TOKEN},
+            )
+        ok = r.status_code == 200 and r.json().get("active", False)
+        checks["quarantine_timer"] = {"pass": ok, "detail": r.json() if r.status_code == 200 else f"HTTP {r.status_code}"}
+    except Exception as exc:
+        checks["quarantine_timer"] = {"pass": False, "detail": str(exc)[:100]}
+    all_pass = all_pass and checks["quarantine_timer"]["pass"]
+
+    # C3: Brain intents available (at least 6 in registry)
+    try:
+        from brain.intents import INTENT_REGISTRY
+        count = len(INTENT_REGISTRY)
+        ok = count >= 6
+        checks["brain_intents"] = {"pass": ok, "detail": f"{count} intents registered"}
+    except Exception as exc:
+        checks["brain_intents"] = {"pass": False, "detail": str(exc)[:100]}
+    all_pass = all_pass and checks["brain_intents"]["pass"]
+
+    # C4: MCP Gateway health
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get("http://localhost:55401/health")
+        ok = r.status_code == 200 and r.json().get("status") == "ok"
+        checks["mcp_gateway"] = {"pass": ok, "detail": r.json() if ok else f"HTTP {r.status_code}"}
+    except Exception as exc:
+        checks["mcp_gateway"] = {"pass": False, "detail": str(exc)[:100]}
+    all_pass = all_pass and checks["mcp_gateway"]["pass"]
+
+    # C5: At least 1 cobaia-relevant skill active
+    try:
+        from core.state import VM_API_URL, AUTH_TOKEN
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(
+                f"{VM_API_URL}/api/hermes/skills",
+                headers={"X-Hermes-Token": AUTH_TOKEN},
+            )
+        if r.status_code == 200:
+            skills = r.json() if isinstance(r.json(), list) else r.json().get("skills", [])
+            active = [s["name"] for s in skills if s.get("active")]
+            cobaia_skills = [n for n in active if "linkedin" in n.lower()]
+            ok = len(cobaia_skills) > 0
+            checks["skills_active"] = {"pass": ok, "detail": f"active LinkedIn skills: {cobaia_skills}"}
+        else:
+            checks["skills_active"] = {"pass": False, "detail": f"HTTP {r.status_code}"}
+    except Exception as exc:
+        checks["skills_active"] = {"pass": False, "detail": str(exc)[:100]}
+    all_pass = all_pass and checks["skills_active"]["pass"]
+
+    # C6: LinkedIn health (not blocked/challenge)
+    try:
+        from core.state import VM_API_URL, AUTH_TOKEN
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(
+                f"{VM_API_URL}/api/linkedin/health",
+                headers={"X-Hermes-Token": AUTH_TOKEN},
+            )
+        if r.status_code == 200:
+            state = r.json().get("overall_status") or r.json().get("state")
+            ok = state in ("ok", "cooldown")  # cooldown acceptable, not blocked/challenge
+            checks["linkedin_health"] = {"pass": ok, "detail": f"state={state}"}
+        else:
+            checks["linkedin_health"] = {"pass": False, "detail": f"HTTP {r.status_code}"}
+    except Exception as exc:
+        checks["linkedin_health"] = {"pass": False, "detail": str(exc)[:100]}
+    all_pass = all_pass and checks["linkedin_health"]["pass"]
+
+    # C7: Required DB tables exist
+    try:
+        from core.state import get_db
+        required = [
+            "cobaia_warmup_state", "cobaia_daily_metrics", "cobaia_autotune_triggers",
+            "skill_runs", "mcp_calls", "errors_inbox",
+        ]
+        conn = get_db()
+        existing = {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()}
+        conn.close()
+        missing = [t for t in required if t not in existing]
+        ok = len(missing) == 0
+        checks["db_tables"] = {
+            "pass": ok,
+            "detail": f"missing: {missing}" if missing else f"all {len(required)} tables present",
+        }
+    except Exception as exc:
+        checks["db_tables"] = {"pass": False, "detail": str(exc)[:100]}
+    all_pass = all_pass and checks["db_tables"]["pass"]
+
+    # C8: Sentry SDK importable
+    try:
+        import sentry_sdk  # noqa: F401
+        checks["sentry_sdk"] = {"pass": True, "detail": "sentry_sdk importable"}
+    except ImportError:
+        checks["sentry_sdk"] = {"pass": False, "detail": "sentry_sdk not installed (optional)"}
+    # Sentry is optional — doesn't affect all_pass
+
+    return {
+        "all_pass": all_pass,
+        "checks": checks,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "note": "C8 sentry_sdk is optional — not included in all_pass gate",
+    }
+
+
+@router.get("/api/cobaia/f7-report")
+async def cobaia_f7_report(days: int = Query(default=14, ge=1, le=90)):
+    """F.7 closeout report — metrics summary for the warmup period.
+
+    Aggregates daily metrics, KPI trends, autotune history, alert summary.
+    Returns data suitable for Brain intent=weekly_report or owner review.
+    """
+    from core.cobaia_metrics import compute_kpi_7d_avg
+    from core.state import get_db
+    from datetime import datetime, timezone
+
+    cfg_handle = "cobaia"
+    try:
+        from linkedin.config import CobaiaConfig
+        cfg_handle = CobaiaConfig().account_handle
+    except Exception:
+        pass
+
+    report: dict = {
+        "account_handle": cfg_handle,
+        "report_days": days,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Warmup state
+    try:
+        from linkedin.cobaia_warmup import CobaiaWarmupManager
+        from linkedin.config import CobaiaConfig
+        status = CobaiaWarmupManager(cfg=CobaiaConfig()).get_status()
+        report["warmup"] = {
+            "exists": status.get("exists"),
+            "current_day": status.get("current_day"),
+            "phase": status.get("phase"),
+            "started_at": status.get("started_at"),
+        }
+    except Exception as exc:
+        report["warmup"] = {"error": str(exc)[:100]}
+
+    # KPI averages (7d)
+    try:
+        report["kpi_7d"] = compute_kpi_7d_avg(cfg_handle)
+    except Exception as exc:
+        report["kpi_7d"] = {"error": str(exc)[:100]}
+
+    # Daily metrics aggregate
+    try:
+        from datetime import date, timedelta
+        conn = get_db()
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        rows = conn.execute(
+            """SELECT date, views_count, connects_sent, connects_accepted,
+                      replies_received, engagements_count, errors_count
+               FROM cobaia_daily_metrics
+               WHERE account_handle = ? AND date >= ?
+               ORDER BY date ASC""",
+            (cfg_handle, cutoff),
+        ).fetchall()
+        conn.close()
+        daily = [dict(r) for r in rows]
+        totals = {
+            "views": sum(r.get("views_count", 0) for r in daily),
+            "connects_sent": sum(r.get("connects_sent", 0) for r in daily),
+            "connects_accepted": sum(r.get("connects_accepted", 0) for r in daily),
+            "replies": sum(r.get("replies_received", 0) for r in daily),
+            "engagements": sum(r.get("engagements_count", 0) for r in daily),
+            "errors": sum(r.get("errors_count", 0) for r in daily),
+        }
+        report["daily_metrics"] = {"rows": daily, "totals": totals, "days_with_data": len(daily)}
+    except Exception as exc:
+        report["daily_metrics"] = {"error": str(exc)[:100]}
+
+    # Autotune history
+    try:
+        conn = get_db()
+        has_table = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='cobaia_autotune_triggers'"
+        ).fetchone()
+        if has_table:
+            at_rows = conn.execute(
+                """SELECT kpi_breached, result_status, trigger_at
+                   FROM cobaia_autotune_triggers
+                   WHERE account_handle = ?
+                   ORDER BY trigger_at DESC LIMIT 10""",
+                (cfg_handle,),
+            ).fetchall()
+            report["autotune_triggers"] = [dict(r) for r in at_rows]
+        else:
+            report["autotune_triggers"] = []
+        conn.close()
+    except Exception as exc:
+        report["autotune_triggers"] = {"error": str(exc)[:100]}
+
+    # Alert summary (errors_inbox cobaia category last N days)
+    try:
+        from datetime import timedelta
+        conn = get_db()
+        cutoff_dt = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        err_count = conn.execute(
+            """SELECT COUNT(*) FROM errors_inbox
+               WHERE (category LIKE '%cobaia%' OR category LIKE '%linkedin%')
+                 AND created_at > ? AND status != 'resolved'""",
+            (cutoff_dt,),
+        ).fetchone()
+        conn.close()
+        report["open_alerts"] = err_count[0] if err_count else 0
+    except Exception as exc:
+        report["open_alerts"] = {"error": str(exc)[:100]}
+
+    return report

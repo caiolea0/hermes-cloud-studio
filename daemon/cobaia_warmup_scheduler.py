@@ -1,9 +1,10 @@
-"""F.7 C1 — Cobaia warmup daily APScheduler job.
+"""F.7 C1/C6 — Cobaia warmup daily APScheduler job.
 
 Job 'cobaia_warmup_daily_check' fires at 09:00 BRT (America/Cuiaba).
 Increments current_day, computes phase, checks auto-pause, emits WS events.
 
-LinkedIn execution is STUBBED in C1 (MOCK-DRIVEN). Real wiring in C6.
+F.7 C6: Real execution — dispatches to VM /api/linkedin/cobaia/run-session.
+Graceful fail: VM unreachable → record_error() + log, scheduler continues.
 
 Usage (wired in server.py lifespan via init_cobaia_scheduler):
     from daemon.cobaia_warmup_scheduler import init_cobaia_scheduler
@@ -20,12 +21,89 @@ if TYPE_CHECKING:
 logger = logging.getLogger("hermes.cobaia.scheduler")
 
 
+def _dispatch_cobaia_session_to_vm(phase: str, caps: dict, account_handle: str) -> dict:
+    """POST to VM /api/linkedin/cobaia/run-session. Best-effort, never crashes.
+
+    Returns full response dict on success (session_id, status, actions_planned, metrics).
+    Returns {"error": reason} on HTTP error or connection failure.
+    Returns {"status": "skipped", "reason": ...} if VM returns skipped (COBAIA_LI_AT not set).
+    """
+    try:
+        import httpx
+        from core.state import VM_API_URL, AUTH_TOKEN
+        payload = {"phase": phase, "caps": caps, "account_handle": account_handle}
+        resp = httpx.post(
+            f"{VM_API_URL}/api/linkedin/cobaia/run-session",
+            json=payload,
+            headers={"X-Hermes-Token": AUTH_TOKEN},
+            timeout=30.0,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("status") == "skipped":
+                logger.info(
+                    "cobaia session skipped by VM: %s", data.get("reason", "no_reason"),
+                )
+            else:
+                logger.info(
+                    "cobaia session dispatched: phase=%s session_id=%s planned=%s",
+                    phase, data.get("session_id"), data.get("actions_planned"),
+                )
+            return data
+        logger.warning("cobaia VM dispatch HTTP %d: %s", resp.status_code, resp.text[:200])
+        return {"error": f"vm_http_{resp.status_code}"}
+    except Exception as exc:
+        logger.warning("cobaia VM dispatch failed (best-effort): %s", exc)
+        return {"error": str(exc)[:200]}
+
+
+def _record_cobaia_metrics(account_handle: str, delta: dict) -> None:
+    """Upsert cobaia_daily_metrics for today using incremental deltas from VM result."""
+    try:
+        from core.state import get_db
+        from datetime import date
+        today = date.today().isoformat()
+        conn = get_db()
+        try:
+            conn.execute(
+                """
+                INSERT INTO cobaia_daily_metrics
+                    (date, account_handle, views_count, connects_sent, connects_accepted,
+                     replies_received, engagements_count, errors_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(date, account_handle) DO UPDATE SET
+                    views_count      = views_count      + excluded.views_count,
+                    connects_sent    = connects_sent    + excluded.connects_sent,
+                    connects_accepted= connects_accepted+ excluded.connects_accepted,
+                    replies_received = replies_received + excluded.replies_received,
+                    engagements_count= engagements_count+ excluded.engagements_count,
+                    errors_count     = errors_count     + excluded.errors_count
+                """,
+                (
+                    today, account_handle,
+                    delta.get("views", 0),
+                    delta.get("connects", 0),
+                    delta.get("accepted", 0),
+                    delta.get("replies", 0),
+                    delta.get("engagements", 0),
+                    delta.get("errors", 0),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.warning("cobaia _record_cobaia_metrics error: %s", exc)
+
+
 def _run_daily_check():
     """Synchronous job callback for APScheduler."""
     try:
         from linkedin.cobaia_warmup import CobaiaWarmupManager
         from linkedin.config import CobaiaConfig
-        mgr = CobaiaWarmupManager(cfg=CobaiaConfig())
+        cfg = CobaiaConfig()
+        mgr = CobaiaWarmupManager(cfg=cfg)
+        account_handle = cfg.account_handle
         result = mgr.daily_check()
         if result.get("skipped"):
             logger.info("cobaia daily_check skipped: %s", result.get("reason"))
@@ -41,10 +119,31 @@ def _run_daily_check():
             _sentry_alert(result)
             return
         _ws_emit("cobaia.daily_check_done", {"phase": phase, "current_day": day, "caps": caps})
-        # STUB skill execution (lurking phase: fire linkedin-engagement mock)
-        if phase == "lurking":
-            stub_result = mgr.stub_execute_skill("linkedin-engagement", phase)
-            logger.info("cobaia skill stub: %s", stub_result)
+        # F.7 C6 — Real VM dispatch (replaces C1 stub_execute_skill)
+        dispatch_result = _dispatch_cobaia_session_to_vm(phase, caps, account_handle)
+        if dispatch_result.get("error"):
+            mgr.record_error(account_handle)
+            logger.warning(
+                "cobaia dispatch error → error recorded: %s", dispatch_result["error"],
+            )
+            _ws_emit("cobaia.session_error", {
+                "account_handle": account_handle,
+                "error": dispatch_result["error"],
+            })
+        else:
+            # skipped (COBAIA_LI_AT not configured) or queued — only reset errors on queued
+            if dispatch_result.get("status") != "skipped":
+                mgr.reset_errors(account_handle)
+            metrics = dispatch_result.get("metrics") or {}
+            if metrics:
+                _record_cobaia_metrics(account_handle, metrics)
+            _ws_emit("cobaia.session_dispatched", {
+                "account_handle": account_handle,
+                "session_id": dispatch_result.get("session_id"),
+                "status": dispatch_result.get("status"),
+                "actions_planned": dispatch_result.get("actions_planned", 0),
+                "phase": phase,
+            })
     except Exception as exc:
         logger.error("cobaia daily_check exception: %s", exc, exc_info=True)
 
@@ -91,8 +190,8 @@ def init_cobaia_scheduler(scheduler) -> bool:
             trigger=CronTrigger(hour=9, minute=0, timezone="America/Cuiaba"),
             id="cobaia_warmup_daily_check",
             replace_existing=True,
-            name="Cobaia warmup daily check (F.7 C1)",
-            misfire_grace_time=3600,  # fire up to 1h late if server was down
+            name="Cobaia warmup daily check (F.7 C6 — real dispatch)",
+            misfire_grace_time=3600,
         )
         logger.info("cobaia_warmup_daily_check registered — next fire: 09:00 BRT")
         return True
