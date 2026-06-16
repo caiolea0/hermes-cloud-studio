@@ -78,6 +78,13 @@ INTENT_REGISTRY: dict[str, dict[str, Any]] = {
         "default_tools": [],
         "agentmemory_save": False,  # F.6.3 D4: utility no LLM, no observation worth
     },
+    "cobaia_warmup_next_action": {
+        "description": "F.7 C2 cobaia warmup — deterministic phase-based action selector (no LLM)",
+        "task_type": None,  # fast-path: NÃO chama LLM (same as route_skill_run)
+        "destructive": False,
+        "default_tools": [],
+        "agentmemory_save": False,  # high-frequency utility, no LLM observation
+    },
 }
 
 
@@ -108,6 +115,10 @@ async def handle_intent(
     # F.9.2 — route_skill_run direct dispatch path (Pipeline Engine consumer).
     if intent == "route_skill_run" and isinstance(context.get("tool_call"), dict):
         return await _dispatch_route_skill_run(context["tool_call"], dispatcher)
+
+    # F.7 C2 — cobaia_warmup_next_action fast-path (deterministic, no LLM).
+    if intent == "cobaia_warmup_next_action":
+        return _handle_cobaia_warmup_intent(context)
 
     # Lazy import (avoid circular brain.intents <-> brain._react if either grows).
     from ._react import react_loop
@@ -207,5 +218,31 @@ async def _dispatch_route_skill_run(
         "cost_credits": cost,
         "status": "completed" if ok else "error",
         "error": None if ok else str(tool_result.get("error", "dispatch_failed"))[:300] if isinstance(tool_result, dict) else "dispatch_failed",
+        "note": None,
+    }
+
+
+def _handle_cobaia_warmup_intent(context: dict[str, Any]) -> dict[str, Any]:
+    """F.7 C2 — Cobaia warmup fast-path handler (no LLM, deterministic).
+
+    Returns handle_intent-compatible shape. action_data embedded in final_answer.
+    """
+    from .cobaia_intent import decide_cobaia_warmup_action
+    action_data = decide_cobaia_warmup_action(context)
+    ok = action_data.get("action") is not None
+    return {
+        "ok": ok,
+        "intent": "cobaia_warmup_next_action",
+        "task_type": None,
+        "destructive": False,
+        "tools_available": [],
+        "tools_used": [],
+        "final_answer": action_data,
+        "confidence": 1.0 if ok else 0.0,
+        "iterations": 0,
+        "accumulated": [],
+        "cost_credits": 0.0,
+        "status": action_data.get("status", "completed"),
+        "error": None if ok else action_data.get("status"),
         "note": None,
     }

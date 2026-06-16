@@ -71,6 +71,7 @@ class TaskCategory(str, Enum):
     SCORING = "scoring"
     REPORTING = "reporting"
     SYSTEM = "system"
+    COBAIA = "cobaia"  # F.7 C2 — P0 absolute override
 
 
 @dataclass
@@ -383,6 +384,12 @@ class HermesDaemon:
         is_holiday = today_str in BR_HOLIDAYS
         is_weekend = weekday >= 5
 
+        # PRIORITY 0 (F.7 C2 D8): Cobaia warmup absolute override — runs BEFORE P1-P7.
+        # Skipped gracefully if cobaia module unavailable or warmup inactive/paused.
+        cobaia_task = await self._get_cobaia_action()
+        if cobaia_task is not None:
+            return cobaia_task
+
         # PRIORITY 1: Pending replies (always highest priority during business hours)
         if 7 <= hour <= 20 and not is_holiday:
             pending_replies = await self._get_pending_replies()
@@ -476,6 +483,7 @@ class HermesDaemon:
                 "batch_audit": self._exec_batch_audit,
                 "recalculate_scores": self._exec_recalculate_scores,
                 "weekly_report": self._exec_weekly_report,
+                "cobaia_warmup_action": self._exec_cobaia_warmup,  # F.7 C2
             }
 
             handler = handlers.get(task.type)
@@ -664,6 +672,130 @@ class HermesDaemon:
             f"Decisions: {self.stats_week.decisions}"
         )
         return {"sent": True}
+
+    # --- F.7 C2 Cobaia Warmup Methods ---
+
+    async def _get_cobaia_action(self) -> Optional[Task]:
+        """P0 absolute override: return cobaia Task if warmup active + within hours.
+
+        Returns None (fallback to P1-P7) if:
+          - cobaia_warmup module unavailable
+          - no warmup state exists
+          - state is paused
+          - outside working hours (07h-22h Cuiaba, no weekends)
+          - today's caps already reached
+        """
+        try:
+            from linkedin.cobaia_warmup import CobaiaWarmupManager
+            from linkedin.config import CobaiaConfig
+            mgr = CobaiaWarmupManager(cfg=CobaiaConfig())
+            status = mgr.get_status()
+            if not status.get("exists"):
+                return None
+            if status.get("phase") == "paused":
+                return None
+            if not status.get("within_working_hours"):
+                return None
+            # Check if any caps remain today
+            caps = status.get("caps_today", {})
+            metrics = status.get("today_metrics", {})
+            connects_remain = max(0, caps.get("connects", 0) - metrics.get("connects_sent", 0))
+            engagements_remain = max(0, caps.get("engagements", 0) - metrics.get("engagements_count", 0))
+            views_remain = max(0, caps.get("views", 0) - metrics.get("views_count", 0))
+            if connects_remain == 0 and engagements_remain == 0 and views_remain == 0:
+                return None
+            return Task(
+                type="cobaia_warmup_action",
+                category=TaskCategory.COBAIA,
+                data=status,
+                priority=0,
+                description=f"Cobaia warmup day={status.get('current_day')} phase={status.get('phase')}",
+            )
+        except Exception as exc:
+            logger.debug("cobaia P0 check skipped: %s", exc)
+            return None
+
+    async def _exec_cobaia_warmup(self, data: dict) -> dict:
+        """Execute cobaia warmup action via Brain.decide (F.7 C2).
+
+        data: warmup status dict from _get_cobaia_action().
+        LinkedIn calls are STUBBED in C1/C2 — real wiring in C6.
+        """
+        from linkedin.cobaia_warmup import CobaiaWarmupManager
+        from linkedin.config import CobaiaConfig
+        from core.cobaia_metrics import update_cobaia_daily_metric
+
+        account_handle = data.get("account_handle", "caio-leao-cobaia")
+        phase = data.get("phase", "lurking")
+        current_day = data.get("current_day", 0)
+        caps = data.get("caps_today", {})
+        metrics = data.get("today_metrics", {})
+
+        # Brain.decide() for observability + action selection
+        try:
+            from brain.decide import Brain
+            brain = Brain()
+            brain_result = await brain.decide(
+                intent="cobaia_warmup_next_action",
+                context={
+                    "current_day": current_day,
+                    "phase": phase,
+                    "caps_today": caps,
+                    "today_metrics": metrics,
+                    "errors_24h": data.get("consecutive_errors", 0),
+                },
+                requester="brain-f7-cobaia",
+            )
+            action_data = brain_result.get("result", {}).get("final_answer") or {}
+            if not action_data:
+                # fallback: extract from direct result
+                action_data = brain_result.get("final_answer") or {}
+        except Exception as exc:
+            logger.warning("cobaia Brain.decide failed, using fallback: %s", exc)
+            from brain.cobaia_intent import decide_cobaia_warmup_action
+            action_data = decide_cobaia_warmup_action({
+                "current_day": current_day,
+                "phase": phase,
+                "caps_today": caps,
+                "today_metrics": metrics,
+            })
+
+        action = action_data.get("action")
+        skill_name = action_data.get("skill_name")
+
+        if not action:
+            await self.log_event("info", "cobaia", f"cobaia no action: {action_data.get('status')}")
+            return {"skipped": True, "reason": action_data.get("status")}
+
+        # STUB LinkedIn skill execution (MOCK-DRIVEN — real execution in C6)
+        mgr = CobaiaWarmupManager(cfg=CobaiaConfig())
+        stub_result = mgr.stub_execute_skill(skill_name or "linkedin-engagement", phase)
+
+        # Update daily metrics based on action type
+        metric_map = {
+            "engagement_like_post": "engagements_count",
+            "engagement_comment_post": "engagements_count",
+            "connection_request": "connects_sent",
+            "profile_view": "views_count",
+        }
+        metric_name = metric_map.get(action, "engagements_count")
+        try:
+            update_cobaia_daily_metric(account_handle, metric_name)
+        except Exception as exc:
+            logger.warning("cobaia metric update failed: %s", exc)
+
+        # Reset consecutive errors on success
+        try:
+            mgr.reset_errors(account_handle)
+        except Exception:
+            pass
+
+        await self.log_event(
+            "info", "cobaia",
+            f"cobaia {phase} day={current_day}: {action} via {skill_name} [STUB]",
+            metadata={"stub": True, "action": action, "phase": phase, "day": current_day},
+        )
+        return {"action": action, "skill": skill_name, "stub": True, "metric_updated": metric_name}
 
     # --- Helper Methods ---
 
