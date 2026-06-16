@@ -85,6 +85,17 @@ INTENT_REGISTRY: dict[str, dict[str, Any]] = {
         "default_tools": [],
         "agentmemory_save": False,  # high-frequency utility, no LLM observation
     },
+    "cobaia_autotune_synthesis": {
+        "description": "F.7 C5 cobaia autotune — KPI breach → skill synthesis (D10 reactive)",
+        "task_type": "code_gen",         # re-uses synth_skill task_type routing
+        "destructive": False,            # synthesis queues PR — owner merges (gate)
+        "default_tools": [
+            "mcp.hermes-llm.route",
+            "mcp.hermes-skills.propose_skill_yaml_stub",
+        ],
+        "agentmemory_save": True,        # D4: KPI breach context for future tuning
+        "requester": "brain-f7-cobaia-autotune",
+    },
 }
 
 

@@ -346,3 +346,134 @@ async def cobaia_sentry_env():
         "environment": COBAIA_SENTRY_ENV,
         "description": "Sentry environment tag for all cobaia-related captures",
     }
+
+
+# ── F.7 C5 — Autotune endpoints ───────────────────────────────────────────────
+
+class ManualAutotuneRequest(BaseModel):
+    kpi: str
+    reason: Optional[str] = None
+
+
+@router.get("/api/cobaia/autotune-history")
+async def cobaia_autotune_history(
+    days: int = Query(default=30, ge=1, le=365),
+    account_handle: str = Query(default="cobaia"),
+):
+    """Return list of autotune trigger rows for last N days."""
+    from core.state import get_db
+    try:
+        conn = get_db()
+        existing = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='cobaia_autotune_triggers'"
+        ).fetchone()
+        if not existing:
+            conn.close()
+            return {"account_handle": account_handle, "days": days, "rows": [], "total": 0}
+        rows = conn.execute(
+            """SELECT id, account_handle, trigger_at, kpi_breached, kpi_value, kpi_threshold,
+                      sustained_hours, synthesis_run_id, result_status, result_pr_url, created_at
+               FROM cobaia_autotune_triggers
+               WHERE account_handle = ?
+                 AND trigger_at > datetime('now', ?)
+               ORDER BY trigger_at DESC""",
+            (account_handle, f"-{days} days"),
+        ).fetchall()
+        conn.close()
+        result = [dict(r) for r in rows]
+        return {"account_handle": account_handle, "days": days, "rows": result, "total": len(result)}
+    except Exception as exc:
+        logger.error("cobaia autotune-history error: %s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/api/cobaia/autotune-status")
+async def cobaia_autotune_status(account_handle: str = Query(default="cobaia")):
+    """Return current cooldown state + last trigger per KPI + KPI 7d averages."""
+    from core.cobaia_metrics import KPI_THRESHOLDS, compute_kpi_7d_avg, get_last_autotune_trigger
+    from core.cobaia_autotune import COOLDOWN_HOURS
+
+    kpi_status: dict = {}
+    for kpi_name in KPI_THRESHOLDS:
+        last = get_last_autotune_trigger(account_handle, kpi_name, cooldown_hours=COOLDOWN_HOURS)
+        kpi_status[kpi_name] = {
+            "threshold": KPI_THRESHOLDS[kpi_name],
+            "cooldown_active": last is not None,
+            "last_trigger": last,
+        }
+
+    kpi_avgs = compute_kpi_7d_avg(account_handle)
+
+    return {
+        "account_handle": account_handle,
+        "cooldown_hours": COOLDOWN_HOURS,
+        "kpi_thresholds": KPI_THRESHOLDS,
+        "kpi_7d": kpi_avgs,
+        "cooldown_status": kpi_status,
+    }
+
+
+@router.post("/api/cobaia/autotune-trigger-manual")
+async def cobaia_autotune_trigger_manual(req: ManualAutotuneRequest):
+    """Owner-forced autotune synthesis trigger — bypasses 72h cooldown.
+
+    Audit trail: inserts cobaia_autotune_triggers with result_status='manual_override'
+    and synthesis_runs with trigger_source='cobaia_autotune_manual_{kpi}'.
+    """
+    from core.cobaia_metrics import KPI_THRESHOLDS, compute_kpi_7d_avg
+    from core.cobaia_autotune import (
+        COBAIA_REQUESTER, _db_path, _ensure_autotune_table, _get_db,
+        _insert_trigger_row, _queue_synthesis_run,
+    )
+    from datetime import datetime, timezone
+    import uuid
+
+    kpi = req.kpi
+    if kpi not in KPI_THRESHOLDS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"kpi must be one of {list(KPI_THRESHOLDS.keys())}",
+        )
+
+    now = datetime.now(timezone.utc).isoformat()
+    kpi_avgs = compute_kpi_7d_avg(req.kpi or "cobaia")
+    kpi_value = kpi_avgs["kpis"].get(kpi, 0.0)
+    kpi_threshold = KPI_THRESHOLDS[kpi]
+
+    db = _db_path()
+    run_id = _queue_synthesis_run(kpi, "cobaia", now)
+    trigger_id = str(uuid.uuid4())
+    conn = _get_db(db)
+    try:
+        _ensure_autotune_table(conn)
+        _insert_trigger_row(
+            conn, trigger_id, "cobaia",
+            kpi, kpi_value, kpi_threshold,
+            0, run_id, now,
+        )
+        # Mark as manual override
+        conn.execute(
+            "UPDATE cobaia_autotune_triggers SET result_status = ? WHERE id = ?",
+            ("manual_override", trigger_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    _sentry_breadcrumb("cobaia.autotune_manual_trigger", {
+        "kpi": kpi, "value": kpi_value, "reason": req.reason, "run_id": run_id,
+    })
+    logger.info(
+        "cobaia autotune MANUAL trigger: kpi=%s value=%.4f reason=%s run_id=%s",
+        kpi, kpi_value, req.reason, run_id,
+    )
+    return {
+        "status": "queued",
+        "trigger_id": trigger_id,
+        "synthesis_run_id": run_id,
+        "kpi": kpi,
+        "kpi_value": kpi_value,
+        "kpi_threshold": kpi_threshold,
+        "bypass_cooldown": True,
+        "reason": req.reason,
+    }

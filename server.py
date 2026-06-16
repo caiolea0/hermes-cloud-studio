@@ -191,11 +191,13 @@ async def lifespan(app: FastAPI):
         from apscheduler.schedulers.asyncio import AsyncIOScheduler
         from daemon.cobaia_warmup_scheduler import init_cobaia_scheduler
         from daemon.email_digest import init_email_digest_scheduler
+        from daemon.cobaia_autotune_loop import init_cobaia_autotune_scheduler
         _cobaia_scheduler = AsyncIOScheduler()
         _cobaia_scheduler.start()
         init_cobaia_scheduler(_cobaia_scheduler)
         init_email_digest_scheduler(_cobaia_scheduler)
-        logger.info("F.7 C1/C4 cobaia APScheduler started (warmup + email digest)")
+        init_cobaia_autotune_scheduler(_cobaia_scheduler)
+        logger.info("F.7 C1/C4/C5 cobaia APScheduler started (warmup + email digest + autotune)")
     except ImportError:
         logger.info("APScheduler not installed — cobaia daily scheduler disabled")
     except Exception as _e:
