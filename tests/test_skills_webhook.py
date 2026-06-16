@@ -317,3 +317,100 @@ def test_rate_limit_60_per_min_annotation():
         # Some slowapi versions use __dict__ on the wrapped func
         meta = getattr(webhook_pr_merged, "__dict__", {})
     assert meta is not None, "Rate limit metadata missing from webhook_pr_merged"
+
+
+# ---------------------------------------------------------------------------
+# W2 — update_pr_status not_created returns non-stale status
+# ---------------------------------------------------------------------------
+
+def test_update_pr_status_not_created_returns_nonstale(tmp_path):
+    """W2: not_created path re-reads DB after commit — returns actual current status."""
+    import os, sqlite3
+    from unittest.mock import patch
+    from pathlib import Path
+    from core.skill_proposals import SkillProposalsManager
+
+    db = tmp_path / "w2_test.db"
+    conn = sqlite3.connect(str(db))
+    conn.executescript("""
+        CREATE TABLE skill_proposals (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL,
+            description TEXT, source_pattern TEXT, yaml_blob TEXT NOT NULL,
+            lab_test_result TEXT,
+            lab_test_status TEXT NOT NULL DEFAULT 'pending',
+            pr_url TEXT, pr_branch TEXT,
+            pr_status TEXT NOT NULL DEFAULT 'not_created',
+            status TEXT NOT NULL DEFAULT 'draft',
+            owner_decision_at TIMESTAMP, owner_decision_reason TEXT,
+            cost_credits REAL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    conn.execute(
+        "INSERT INTO skill_proposals (id, name, yaml_blob, status) VALUES (?,?,?,?)",
+        ("w2-test-id", "test-skill", "name: test", "lab_passed"),
+    )
+    conn.commit()
+    conn.close()
+
+    with patch("core.skill_proposals.DB_PATH", Path(str(db))):
+        m = SkillProposalsManager()
+        result = m.update_pr_status(
+            "w2-test-id", pr_url=None, pr_branch=None, pr_status="not_created"
+        )
+
+    # Must return the actual DB status (lab_passed), NOT stale 'pr_open'
+    assert result["status"] == "lab_passed", (
+        f"W2: expected 'lab_passed' but got '{result['status']}' — stale-read antipattern"
+    )
+    assert result["pr_status"] == "not_created"
+
+
+# ---------------------------------------------------------------------------
+# W6 — scrub_sensitive strips token patterns
+# ---------------------------------------------------------------------------
+
+def test_scrub_sensitive_strips_github_tokens():
+    """W6: _scrub_sensitive removes ghp_ tokens and oauth2: URLs from error strings."""
+    from api.skills_webhook import _scrub_sensitive
+
+    raw = (
+        "SSH error: oauth2:ghp_ABCDEFGHIJ1234567890abcdefghij123@github.com: 403\n"
+        "Env GITHUB_WEBHOOK_SECRET=s3cr3tABC123\n"
+        "Also PAT github_pat_ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678"
+    )
+    scrubbed = _scrub_sensitive(raw)
+
+    assert "ghp_ABCDEFGHIJ" not in scrubbed
+    assert "s3cr3tABC123" not in scrubbed
+    assert "github_pat_ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678" not in scrubbed
+    assert "[REDACTED" in scrubbed
+    # Safe content preserved
+    assert "SSH error" in scrubbed
+    assert "403" in scrubbed
+
+
+def test_scrub_sensitive_passthrough_clean_string():
+    """W6: _scrub_sensitive leaves clean error strings untouched."""
+    from api.skills_webhook import _scrub_sensitive
+
+    clean = "SSH timeout after 120s connecting to 136.115.74.69"
+    assert _scrub_sensitive(clean) == clean
+
+
+# ---------------------------------------------------------------------------
+# W10 — IPv6 GitHub ranges recognized
+# ---------------------------------------------------------------------------
+
+def test_ipv6_github_ranges_recognized(monkeypatch):
+    """W10: known GitHub IPv6 webhook IPs are allowed through IP check."""
+    from api.skills_webhook import _ip_in_github_ranges
+
+    assert _ip_in_github_ranges("2606:50c0::1") is True, "2606:50c0::/32 not in ranges"
+    assert _ip_in_github_ranges("2a0a:a440::dead") is True, "2a0a:a440::/29 not in ranges"
+    # Outside ranges must still be blocked
+    assert _ip_in_github_ranges("2001:db8::1") is False, "non-GitHub IPv6 should be blocked"
+    # IPv4 still works
+    assert _ip_in_github_ranges("192.30.252.1") is True, "IPv4 range regressed"
+    assert _ip_in_github_ranges("10.0.0.1") is False, "private IPv4 should be blocked"

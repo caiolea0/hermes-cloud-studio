@@ -371,12 +371,17 @@ class SkillProposalsManager:
                 params,
             )
             conn.commit()
+            # W2: re-read after commit — eliminates stale-read antipattern when new_status is None
+            post_row = conn.execute(
+                "SELECT status FROM skill_proposals WHERE id = ?", (proposal_id,)
+            ).fetchone()
+            effective_status = post_row["status"] if post_row else (new_status or existing["status"])
         finally:
             conn.close()
         return {
             "id": proposal_id,
             "pr_status": pr_status,
-            "status": new_status or existing["status"],
+            "status": effective_status,
             "pr_url": pr_url,
         }
 

@@ -33,12 +33,31 @@ import ipaddress as _f44_ip
 import uuid as _f44_uuid
 
 _F44_GH_RANGES = [
+    # IPv4
     _f44_ip.ip_network("140.82.112.0/20"),
     _f44_ip.ip_network("192.30.252.0/22"),
     _f44_ip.ip_network("185.199.108.0/22"),
     _f44_ip.ip_network("143.55.64.0/20"),
+    # IPv6 (W10)
+    _f44_ip.ip_network("2a0a:a440::/29"),
+    _f44_ip.ip_network("2606:50c0::/32"),
 ]
 _f44_table_ensured = False
+
+import re as _f44_re
+
+_F44_SENSITIVE_PATTERNS = [
+    (_f44_re.compile(r"ghp_[a-zA-Z0-9]{10,}"), "[REDACTED_GHP]"),
+    (_f44_re.compile(r"github_pat_[a-zA-Z0-9_]{10,}", _f44_re.IGNORECASE), "[REDACTED_PAT]"),
+    (_f44_re.compile(r"oauth2:[^@\\s]+@"), "oauth2:[REDACTED]@"),
+    (_f44_re.compile(r"GITHUB_WEBHOOK_SECRET=\\S+", _f44_re.IGNORECASE), "GITHUB_WEBHOOK_SECRET=[REDACTED]"),
+]
+
+
+def _f44_scrub(text: str) -> str:
+    for pat, rep in _F44_SENSITIVE_PATTERNS:
+        text = pat.sub(rep, text)
+    return text
 
 
 def _f44_verify_sig(body: bytes, sig: str, secret: str) -> bool:
@@ -105,7 +124,7 @@ def _f44_run_sync(run_id: str):
     except _sub.TimeoutExpired:
         return "failed", [], "sync timed out after 120s"
     except Exception as exc:
-        return "failed", [], str(exc)
+        return "failed", [], _f44_scrub(str(exc))
 
     if result.returncode == 0:
         try:

@@ -60,12 +60,17 @@ except ImportError:
 
 router = APIRouter()
 
-# GitHub webhook delivery IP ranges (https://api.github.com/meta — webhooks)
+# GitHub webhook delivery IP ranges (https://api.github.com/meta — webhooks field).
+# W10: includes IPv6 ranges added by GitHub in 2024; _ip_in_github_ranges() handles both families.
 _GH_IP_RANGES: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = [
+    # IPv4
     ipaddress.ip_network("140.82.112.0/20"),
     ipaddress.ip_network("192.30.252.0/22"),
     ipaddress.ip_network("185.199.108.0/22"),
     ipaddress.ip_network("143.55.64.0/20"),
+    # IPv6 (W10)
+    ipaddress.ip_network("2a0a:a440::/29"),
+    ipaddress.ip_network("2606:50c0::/32"),
 ]
 
 # Global asyncio.Lock — one sync at a time per D8 atomic invariant.
@@ -199,8 +204,10 @@ async def webhook_pr_merged(request: Request) -> JSONResponse:
     pr_number: Optional[int] = pr.get("number")
     pr_url: str = pr.get("html_url", "")
 
-    # Fast-path: caller (or future PR files check) can set _skills_changed=False to skip sync.
-    # Default True — shell script does the actual file diff and filters non-skills/ changes.
+    # Fast-path: _skills_changed is an INTERNAL convention — NOT a GitHub-native field.
+    # Caller (e.g. future /api/skills/webhook/sync-now) can inject False to skip sync
+    # without relying on the shell-side git diff. Default True means "assume changed".
+    # W4: documented here; see PLAN.md F.4.4 D8 invariant for rationale.
     if payload.get("_skills_changed", True) is False:
         return JSONResponse({"status": "skipped", "reason": "no_skills_changed"})
 
@@ -258,7 +265,8 @@ async def webhook_pr_merged(request: Request) -> JSONResponse:
     except Exception:  # noqa: BLE001 — broadcast must never block response
         pass
 
-    # D6 — Sentry
+    # D6 — Sentry (W6: scrub secrets from error strings before capture)
+    safe_error = _scrub_sensitive(error_msg) if error_msg else None
     _sentry_breadcrumb(
         message=f"PR #{pr_number} skill sync {sync_status}",
         data={"run_id": run_id, "latency_ms": latency_ms},
@@ -266,7 +274,7 @@ async def webhook_pr_merged(request: Request) -> JSONResponse:
     if sync_status == "conflict_manual":
         _sentry_warn(
             f"Skill sync conflict PR #{pr_number} — manual stash pop required",
-            {"run_id": run_id, "error": error_msg},
+            {"run_id": run_id, "error": safe_error},
         )
 
     return JSONResponse({
@@ -281,6 +289,26 @@ async def webhook_pr_merged(request: Request) -> JSONResponse:
 # ---------------------------------------------------------------------------
 # Sentry helpers (graceful — sentry_sdk optional)
 # ---------------------------------------------------------------------------
+
+import re as _re
+
+_SENSITIVE_PATTERNS = [
+    # GitHub PATs (classic + fine-grained)
+    (_re.compile(r"ghp_[a-zA-Z0-9]{10,}"), "[REDACTED_GHP]"),
+    (_re.compile(r"github_pat_[a-zA-Z0-9_]{10,}", _re.IGNORECASE), "[REDACTED_PAT]"),
+    # oauth2:token@host in clone URLs
+    (_re.compile(r"oauth2:[^@\s]+@"), "oauth2:[REDACTED]@"),
+    # GITHUB_WEBHOOK_SECRET=value (in env dumps / error strings)
+    (_re.compile(r"GITHUB_WEBHOOK_SECRET=\S+", _re.IGNORECASE), "GITHUB_WEBHOOK_SECRET=[REDACTED]"),
+]
+
+
+def _scrub_sensitive(text: str) -> str:
+    """W6: scrub secret-like tokens from strings before Sentry capture."""
+    for pattern, replacement in _SENSITIVE_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
+
 
 def _sentry_warn(message: str, extras: dict | None = None) -> None:
     try:
