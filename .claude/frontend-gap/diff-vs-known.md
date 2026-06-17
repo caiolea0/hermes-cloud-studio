@@ -6,5 +6,3 @@
 ## New orphans (regressões / backend novo sem UI)
 
 - 🆕 `GET /`
-- 🆕 `GET /api/cobaia/hunter-usage`
-- 🆕 `POST /api/cobaia/verify-email`

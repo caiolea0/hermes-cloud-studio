@@ -1,7 +1,7 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-17 13:57 UTC
-- **phase_baseline**: post F.9
+- **last_updated**: 2026-06-17 15:05 UTC
+- **phase_baseline**: post F.7
 - **routes_total**: 209 (159 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 94 (46.1% of public)
 - **orphans**: 110
@@ -111,8 +111,8 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:701` | token |
 | `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:429` | token |
 | `POST` | `/api/cobaia/verify-email` | pc | `api/cobaia.py:753` | token |
-| `POST` | `/api/lab/runs/{run_id}/abort` | pc | `api/lab.py:358` | token |
-| `POST` | `/api/lab/start` | pc | `api/lab.py:307` | rate-limited |
+| `POST` | `/api/lab/runs/{run_id}/abort` | pc | `api/lab.py:384` | token |
+| `POST` | `/api/lab/start` | pc | `api/lab.py:333` | rate-limited |
 | `POST` | `/api/linkedin/campaigns/discover` | pc | `api/linkedin.py:411` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1216` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | pc | `api/linkedin.py:399` | token |
@@ -151,9 +151,9 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/skills/{skill_name}/unquarantine` | pc | `api/skills.py:406` | token |
 | `POST` | `/api/tasks/bulk` | pc | `api/tasks.py:93` | token |
 | `PUT` | `/api/user-prefs` | pc | `api/user_prefs.py:76` | rate-limited |
-| `GET` | `/api/lab/runs` | pc | `api/lab.py:398` | token |
-| `GET` | `/api/lab/runs/{run_id}` | pc | `api/lab.py:405` | token |
-| `GET` | `/api/lab/runs/{run_id}/artifacts/{filename}` | pc | `api/lab.py:431` | token |
+| `GET` | `/api/lab/runs` | pc | `api/lab.py:424` | token |
+| `GET` | `/api/lab/runs/{run_id}` | pc | `api/lab.py:431` | token |
+| `GET` | `/api/lab/runs/{run_id}/artifacts/{filename}` | pc | `api/lab.py:479` | token |
 | `GET` | `/api/stats` | pc | `api/stats.py:11` | token |
 | `GET` | `/api/stats` | vm | `vm_api/routes.py:330` | token |
 | `GET` | `/` | pc | `api/dashboard.py:14` | token |

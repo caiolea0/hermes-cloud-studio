@@ -3584,7 +3584,7 @@ Total: ~13-19h Sonnet 4.6 spread 2-3 dias.
 
 - [ ] **H1** F.3 Lab UX 3 BLOCKERs (Task #6, Sonnet 4.6 ~3-4h) — **PRIORITY 1** pré-req cobaia stealth validation. B7 fingerprint diff render + B8 screenshots ?token= query + B9 artifacts_path canonical.
 - [ ] **H2** F.4 lab sandbox REAL (Task #7, Sonnet 4.6 ~3-4h) — **PRIORITY 2** risk ban LinkedIn cobaia. PIVOT D1 forward: test_skill_dryrun aceitar yaml_blob + subprocess real isolated 60s timeout + _validate_yaml_inline DEPRECATE.
-- [ ] **H3** F.8 Observability fixes (Task #8, Sonnet 4.6 ~2-3h) — dashboard UX owner uses daily. B18 CSV fetch+Blob + B19 filtro Sentry consistente.
+- [x] **H3** F.8 Observability fixes (Task #8, Sonnet 4.6 ~2-3h) — dashboard UX owner uses daily. B18 CSV fetch+Blob + B19 filtro Sentry consistente.
 - [ ] **H4** F.2 Mission Control real pauses (Task #9, Sonnet 4.6 ~3-4h) — UX honesty. B20 gate scraper/audit/tunnel real + B21 /channels query DB real.
 - [ ] **H5** sentry_sdk refactor cross-cutting (Task #10, Sonnet 4.6 ~4-6h) — defense-in-depth. B4 wrapper core/sentry_via_gateway.py + replace 15+ sites + MCP-BANNED-PATTERNS scope strict.
 - [ ] **H6** F.9 Pipeline polish (Task #11, Sonnet 4.6 ~4-5h, pré-req H5) — B15 caller_chapter ALTER+propagate + B16 execute_ab_test endpoint+UI + B17 pytest suite 15+ tests.

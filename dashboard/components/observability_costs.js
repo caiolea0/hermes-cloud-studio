@@ -93,7 +93,25 @@
             var btn = e.target.closest('[data-action="export-csv"]');
             if (!btn) return;
             var qs = new URLSearchParams(Object.assign({}, state.filters, { format: "csv" }));
-            window.location.assign("/api/observability/costs?" + qs.toString());
+            fetch("/api/observability/costs?" + qs.toString(), { headers: _authHeaders() })
+                .then(function (resp) {
+                    if (!resp.ok) throw new Error("HTTP " + resp.status);
+                    return resp.blob();
+                })
+                .then(function (blob) {
+                    var ts = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 16);
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement("a");
+                    a.href = url;
+                    a.download = "hermes-costs-" + ts + ".csv";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                })
+                .catch(function (err) {
+                    _setBanner("Export failed: " + err.message);
+                });
         });
     }
 

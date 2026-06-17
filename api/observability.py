@@ -347,8 +347,8 @@ async def get_errors(
             result["sentry_available"] = False
         local_items = _query_local_errors(DB_PATH, cat, range, status)
         merged = _merge_errors(sentry_items, local_items)
-        # Status filter (Sentry items may not match requested status)
-        merged = [m for m in merged if m.get("status") == status or m.get("source") == "sentry"]
+        # Status filter applied consistently — Sentry items default to "open" (line 275)
+        merged = [m for m in merged if m.get("status") == status]
 
         total = len(merged)
         paginated = merged[offset:offset + limit]
