@@ -22,8 +22,8 @@ import pytest
 
 from linkedin.config import CobaiaConfig
 from linkedin.cobaia_warmup import CobaiaWarmupManager
-from brain.cobaia_intent import decide_cobaia_warmup_action
-from brain.intents import INTENT_REGISTRY, _handle_cobaia_warmup_intent
+from brain.cobaia_intent import decide_cobaia_warmup_action, COBAIA_INTENT_REGISTRY
+from brain.intents import _handle_cobaia_warmup_intent
 from core.cobaia_metrics import (
     update_cobaia_daily_metric,
     get_cobaia_today_metrics,
@@ -128,9 +128,9 @@ async def test_p1_cobaia_fallback_to_p2_p7_if_inactive(tmp_db, cfg, mgr):
 # ── Brain.decide cobaia intent tests ───────────────────────────────────────
 
 def test_cobaia_intent_in_registry():
-    """cobaia_warmup_next_action must be in INTENT_REGISTRY."""
-    assert "cobaia_warmup_next_action" in INTENT_REGISTRY
-    cfg = INTENT_REGISTRY["cobaia_warmup_next_action"]
+    """cobaia_warmup_next_action must be in COBAIA_INTENT_REGISTRY (F.6 D3 separation)."""
+    assert "cobaia_warmup_next_action" in COBAIA_INTENT_REGISTRY
+    cfg = COBAIA_INTENT_REGISTRY["cobaia_warmup_next_action"]
     assert cfg["task_type"] is None
     assert cfg["destructive"] is False
 
@@ -261,7 +261,7 @@ def test_auto_pause_triggers_at_3_consecutive_errors(tmp_db, mgr):
 
 def test_brain_decisions_persisted_with_requester_brain_f7_cobaia():
     """cobaia_warmup_next_action intent marked non-destructive, low-cost (no LLM)."""
-    cfg = INTENT_REGISTRY["cobaia_warmup_next_action"]
+    cfg = COBAIA_INTENT_REGISTRY["cobaia_warmup_next_action"]
     assert cfg["destructive"] is False
     assert cfg["task_type"] is None
     assert cfg["agentmemory_save"] is False

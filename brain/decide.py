@@ -88,6 +88,10 @@ class Brain:
         run_id = str(uuid.uuid4())
         start = time.monotonic()
 
+        # F.7 cobaia domain: fast-path, bypass F.6 FSM + INTENT_REGISTRY.
+        if intent.startswith("cobaia_"):
+            return await self._decide_cobaia(intent, ctx, run_id, start)
+
         # Defensive: unknown intent short-circuit (no FSM, no persistence).
         if intent not in INTENT_REGISTRY:
             return {
@@ -234,6 +238,55 @@ class Brain:
             "requires_confirm": False,
             "latency_ms": latency_ms,
             "total_cost_credits": total_cost,
+            "final_state": self.fsm.current_state,
+        }
+
+    # ----- F.7 cobaia domain fast-path (separate from F.6 FSM) -------------
+
+    async def _decide_cobaia(
+        self,
+        intent: str,
+        ctx: dict[str, Any],
+        run_id: str,
+        start: float,
+    ) -> dict[str, Any]:
+        """Route cobaia_* intents without F.6 FSM or INTENT_REGISTRY.
+
+        Returns same shape as Brain.decide() for caller compatibility.
+        Daemon reads result["result"]["final_answer"] for action_data.
+        """
+        from .cobaia_intent import COBAIA_INTENT_REGISTRY
+        from .intents import _handle_cobaia_warmup_intent
+
+        if intent not in COBAIA_INTENT_REGISTRY:
+            return {
+                "run_id": run_id,
+                "status": "error",
+                "result": {"error": f"unknown_cobaia_intent:{intent}"},
+                "requires_confirm": False,
+                "latency_ms": int((time.monotonic() - start) * 1000),
+                "total_cost_credits": 0.0,
+                "final_state": self.fsm.current_state,
+            }
+
+        if intent == "cobaia_warmup_next_action":
+            intent_result = _handle_cobaia_warmup_intent(ctx)
+        else:
+            intent_result = {
+                "ok": False,
+                "intent": intent,
+                "error": f"cobaia_intent_not_wired:{intent}",
+                "status": "error",
+            }
+
+        ok = bool(intent_result.get("ok"))
+        return {
+            "run_id": run_id,
+            "status": "completed" if ok else "error",
+            "result": intent_result,
+            "requires_confirm": False,
+            "latency_ms": int((time.monotonic() - start) * 1000),
+            "total_cost_credits": 0.0,
             "final_state": self.fsm.current_state,
         }
 

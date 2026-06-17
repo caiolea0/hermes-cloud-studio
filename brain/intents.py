@@ -78,25 +78,10 @@ INTENT_REGISTRY: dict[str, dict[str, Any]] = {
         "default_tools": [],
         "agentmemory_save": False,  # F.6.3 D4: utility no LLM, no observation worth
     },
-    "cobaia_warmup_next_action": {
-        "description": "F.7 C2 cobaia warmup — deterministic phase-based action selector (no LLM)",
-        "task_type": None,  # fast-path: NÃO chama LLM (same as route_skill_run)
-        "destructive": False,
-        "default_tools": [],
-        "agentmemory_save": False,  # high-frequency utility, no LLM observation
-    },
-    "cobaia_autotune_synthesis": {
-        "description": "F.7 C5 cobaia autotune — KPI breach → skill synthesis (D10 reactive)",
-        "task_type": "code_gen",         # re-uses synth_skill task_type routing
-        "destructive": False,            # synthesis queues PR — owner merges (gate)
-        "default_tools": [
-            "mcp.hermes-llm.route",
-            "mcp.hermes-skills.propose_skill_yaml_stub",
-        ],
-        "agentmemory_save": True,        # D4: KPI breach context for future tuning
-        "requester": "brain-f7-cobaia-autotune",
-    },
 }
+# F.7 cobaia domain intents live in brain/cobaia_intent.COBAIA_INTENT_REGISTRY (separate registry).
+# Brain.decide() routes intent.startswith("cobaia_") to _decide_cobaia() fast-path.
+# Preserves F.6 D3: INTENT_REGISTRY = exactly 6 canonical intents.
 
 
 async def handle_intent(
@@ -126,10 +111,6 @@ async def handle_intent(
     # F.9.2 — route_skill_run direct dispatch path (Pipeline Engine consumer).
     if intent == "route_skill_run" and isinstance(context.get("tool_call"), dict):
         return await _dispatch_route_skill_run(context["tool_call"], dispatcher)
-
-    # F.7 C2 — cobaia_warmup_next_action fast-path (deterministic, no LLM).
-    if intent == "cobaia_warmup_next_action":
-        return _handle_cobaia_warmup_intent(context)
 
     # Lazy import (avoid circular brain.intents <-> brain._react if either grows).
     from ._react import react_loop

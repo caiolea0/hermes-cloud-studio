@@ -1,16 +1,35 @@
-"""F.7 C2 — Brain intent handler: cobaia_warmup_next_action.
+"""F.7 cobaia domain — intent registry + handlers (separate from F.6 canonical registry).
 
-Deterministic fast-path (task_type=None) — NO LLM call.
-Returns action based on current phase + day from context.
-
-Persists brain_decisions row with requester='brain-f7-cobaia' for observability.
-
-Called via handle_intent() fast-path (same pattern as route_skill_run F.9.2).
+F.6 D3 contract: brain/intents.INTENT_REGISTRY = exactly 6 canonical intents.
+F.7 cobaia intents live HERE in COBAIA_INTENT_REGISTRY (domain-specific, not Brain core).
+Brain.decide() routes intent.startswith("cobaia_") to brain.decide._decide_cobaia().
 """
 from __future__ import annotations
 
 import random
 from typing import Any
+
+# Domain registry — cobaia_* intents only. NOT mixed into INTENT_REGISTRY (F.6 D3).
+COBAIA_INTENT_REGISTRY: dict[str, dict[str, Any]] = {
+    "cobaia_warmup_next_action": {
+        "description": "F.7 C2 cobaia warmup — deterministic phase-based action selector (no LLM)",
+        "task_type": None,
+        "destructive": False,
+        "default_tools": [],
+        "agentmemory_save": False,
+    },
+    "cobaia_autotune_synthesis": {
+        "description": "F.7 C5 cobaia autotune — KPI breach to skill synthesis (D10 reactive)",
+        "task_type": "code_gen",
+        "destructive": False,
+        "default_tools": [
+            "mcp.hermes-llm.route",
+            "mcp.hermes-skills.propose_skill_yaml_stub",
+        ],
+        "agentmemory_save": True,
+        "requester": "brain-f7-cobaia-autotune",
+    },
+}
 
 # Actions per phase
 _LURKING_ACTIONS = ["engagement_like_post", "engagement_comment_post"]
