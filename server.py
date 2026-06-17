@@ -268,6 +268,12 @@ async def websocket_endpoint(websocket: WebSocket):
         ws_manager.disconnect(websocket)
 
 
+import re as _re
+# H1 B8: aceita ?token= query param APENAS em paths de artifacts do lab
+# (browser nao pode enviar custom headers em <img src>)
+_LAB_ARTIFACT_RE = _re.compile(r"^/api/lab/runs/[a-zA-Z0-9_-]+/artifacts/[^/]+$")
+
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     path = request.url.path
@@ -278,6 +284,10 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
     if path.startswith("/api/"):
         token = request.headers.get("X-Hermes-Token", "")
+        # H1 B8: fallback ?token= query param escopo ESTRITO — APENAS lab artifact paths.
+        # Outros endpoints rejeitam query token (evita token leak em logs de URL).
+        if not token and _LAB_ARTIFACT_RE.match(path):
+            token = request.query_params.get("token", "")
         if not secrets.compare_digest(token, AUTH_TOKEN):
             return JSONResponse(status_code=401, content={"detail": "Token invalido"})
     return await call_next(request)

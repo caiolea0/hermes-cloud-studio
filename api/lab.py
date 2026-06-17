@@ -143,10 +143,22 @@ async def _stream_run(run_id: str, proc: asyncio.subprocess.Process, started_at:
     F.3.1: lab_runner ainda emite print() texto. Parse best-effort — linhas que
     NAO sao JSON viram step_progress text-only. F.3.2 vai padronizar emit JSON
     events nativos no lab_runner.
+    H1 B7+B9: persiste events em ARTIFACTS_BASE/{run_id}/events.jsonl para
+    lab_run_detail retornar detail.events[] consumido pelo fingerprint diff.
     """
     stderr_tail: list[str] = []
     last_score: Optional[int] = None
     fingerprint_hash: Optional[str] = None
+
+    # H1 B7+B9: cria diretorio de artifacts na inicializacao do run no PC
+    run_artifacts_dir = ARTIFACTS_BASE / run_id
+    run_artifacts_dir.mkdir(parents=True, exist_ok=True)
+    events_jsonl_path = run_artifacts_dir / "events.jsonl"
+    _events_file = None
+    try:
+        _events_file = events_jsonl_path.open("w", encoding="utf-8")
+    except Exception:
+        logger.exception("H1 B7: nao conseguiu abrir events.jsonl para run_id=%s", run_id)
 
     async def _read_stream(stream: Optional[asyncio.StreamReader], is_stderr: bool) -> None:
         nonlocal last_score, fingerprint_hash
@@ -187,6 +199,13 @@ async def _stream_run(run_id: str, proc: asyncio.subprocess.Process, started_at:
                     fp = event_payload.get("hash")
                     if isinstance(fp, str):
                         fingerprint_hash = fp
+                # H1 B7: persiste event em events.jsonl para fingerprint diff consumir
+                if _events_file is not None:
+                    try:
+                        _events_file.write(json.dumps(event_payload) + "\n")
+                        _events_file.flush()
+                    except Exception:
+                        pass  # noqa: silenciado intencional — persist best-effort
                 # F.3.5: WS broadcast 1:1 namespace mapping preservando event identity.
                 # Unknown event types -> fallback step_progress + warn (forward compat).
                 if evt_name in ALLOWED_EVENT_TYPES:
@@ -223,6 +242,13 @@ async def _stream_run(run_id: str, proc: asyncio.subprocess.Process, started_at:
         _read_stream(proc.stderr, is_stderr=True),
         return_exceptions=True,
     )
+    # H1 B7: fecha events.jsonl apos streams concluirem
+    if _events_file is not None:
+        try:
+            _events_file.close()
+        except Exception:
+            pass  # noqa: silenciado intencional
+
     rc = await proc.wait()
     completed_at = time.time()
     duration_ms = int((completed_at - started_at) * 1000)
@@ -404,11 +430,17 @@ async def lab_runs(limit: int = 50, offset: int = 0, status: Optional[str] = Non
 
 @router.get("/api/lab/runs/{run_id}")
 async def lab_run_detail(run_id: str):
-    """Detail + artifacts filelist (PC mirror). 404 se inexistente."""
+    """Detail + artifacts filelist (PC mirror) + events array (H1 B7).
+
+    H1 B7: inclui detail.events[] lido de events.jsonl em ARTIFACTS_BASE/{run_id}/.
+    Fingerprint diff frontend consume detail.events para extrair fingerprint_dump signals.
+    H1 B9: artifacts list populada pois _stream_run cria o diretorio e escreve events.jsonl.
+    """
     row = lab_run_get(run_id)
     if not row:
         raise HTTPException(404, "run_id desconhecido")
     artifacts: list[dict] = []
+    events: list[dict] = []
     safe_run = "".join(c for c in run_id if c.isalnum() or c in "-_")
     if safe_run == run_id:
         run_dir = (ARTIFACTS_BASE / safe_run).resolve()
@@ -416,15 +448,31 @@ async def lab_run_detail(run_id: str):
             run_dir.relative_to(ARTIFACTS_BASE)
             if run_dir.exists() and run_dir.is_dir():
                 for entry in sorted(run_dir.iterdir()):
-                    if entry.is_file():
-                        artifacts.append({
-                            "filename": entry.name,
-                            "size": entry.stat().st_size,
-                            "url": f"/api/lab/runs/{run_id}/artifacts/{entry.name}",
-                        })
+                    if not entry.is_file():
+                        continue
+                    if entry.name == "events.jsonl":
+                        # H1 B7: parse events.jsonl — cada linha e um JSON event dict
+                        try:
+                            for raw_line in entry.read_text(encoding="utf-8").splitlines():
+                                raw_line = raw_line.strip()
+                                if raw_line:
+                                    try:
+                                        events.append(json.loads(raw_line))
+                                    except Exception:
+                                        pass  # noqa: silenciado intencional — linha malformada skip
+                        except Exception:
+                            logger.exception("H1 B7: erro lendo events.jsonl run_id=%s", run_id)
+                        # events.jsonl e interno — nao incluir em artifacts list
+                        continue
+                    artifacts.append({
+                        "filename": entry.name,
+                        "size": entry.stat().st_size,
+                        "url": f"/api/lab/runs/{run_id}/artifacts/{entry.name}",
+                    })
         except ValueError:
             pass
     row["artifacts"] = artifacts
+    row["events"] = events
     return row
 
 

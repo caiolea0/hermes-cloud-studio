@@ -368,6 +368,14 @@ def init_db() -> None:
         conn.commit()
         logger.info("Migration: added photo_ref column to prospects")
 
+    # H1 B7: idempotent migration — events_jsonl_path column
+    try:
+        conn.execute("SELECT events_jsonl_path FROM lab_runs LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE lab_runs ADD COLUMN events_jsonl_path TEXT NULL")
+        conn.commit()
+        logger.info("Migration: added events_jsonl_path to lab_runs (H1 B7)")
+
     # MERGED-006 — Sync versioning + conflict detection
     try:
         conn.execute("SELECT version FROM prospects LIMIT 1")
