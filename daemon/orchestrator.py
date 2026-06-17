@@ -27,6 +27,7 @@ if str(_ROOT) not in sys.path:
 load_dotenv(_ROOT / ".env")
 
 from core.pipeline import PipelineRunner
+from core.state import is_subsystem_paused
 from linkedin.ollama_router import router as ollama_router, OllamaUnavailable
 
 logger = logging.getLogger("hermes.daemon")
@@ -427,28 +428,30 @@ class HermesDaemon:
                 )
 
         # PRIORITY 4: Discovery (off-peak: 0-6, or anytime if pipeline empty)
-        if 0 <= hour <= 6 or await self._pipeline_needs_fuel():
-            if self._should_scrape_today(weekday):
-                config = self._get_scraper_config(weekday)
-                return Task(
-                    type="discovery_scrape",
-                    category=TaskCategory.DISCOVERY,
-                    data=config,
-                    priority=4,
-                    description=f"Discovery: {config.get('category', 'mixed')} in {config.get('city', 'Cuiabá')}"
-                )
+        if not is_subsystem_paused("scraper"):
+            if 0 <= hour <= 6 or await self._pipeline_needs_fuel():
+                if self._should_scrape_today(weekday):
+                    config = self._get_scraper_config(weekday)
+                    return Task(
+                        type="discovery_scrape",
+                        category=TaskCategory.DISCOVERY,
+                        data=config,
+                        priority=4,
+                        description=f"Discovery: {config.get('category', 'mixed')} in {config.get('city', 'Cuiabá')}"
+                    )
 
         # PRIORITY 5: Batch audit (off-peak)
-        if 0 <= hour <= 7 or 20 <= hour <= 23:
-            unaudited = await self._get_unaudited_prospects(limit=20)
-            if unaudited:
-                return Task(
-                    type="batch_audit",
-                    category=TaskCategory.AUDIT,
-                    data=unaudited,
-                    priority=5,
-                    description=f"Audit {len(unaudited)} prospects' websites"
-                )
+        if not is_subsystem_paused("audit"):
+            if 0 <= hour <= 7 or 20 <= hour <= 23:
+                unaudited = await self._get_unaudited_prospects(limit=20)
+                if unaudited:
+                    return Task(
+                        type="batch_audit",
+                        category=TaskCategory.AUDIT,
+                        data=unaudited,
+                        priority=5,
+                        description=f"Audit {len(unaudited)} prospects' websites"
+                    )
 
         # PRIORITY 6: Score recalculation (nightly)
         if 22 <= hour <= 23 and not self._scored_today():

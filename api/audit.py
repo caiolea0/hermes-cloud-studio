@@ -5,7 +5,7 @@ import httpx
 from fastapi import APIRouter, HTTPException
 
 from core.models import AuditConfig
-from core.state import VM_API_URL, get_db
+from core.state import VM_API_URL, get_db, is_subsystem_paused
 
 router = APIRouter()
 
@@ -13,6 +13,8 @@ router = APIRouter()
 @router.post("/api/audit/start")
 async def start_audit(config: AuditConfig):
     """Start batch audit on VM."""
+    if is_subsystem_paused("audit"):
+        return {"status": "paused", "reason": "audit subsystem paused by owner"}
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(

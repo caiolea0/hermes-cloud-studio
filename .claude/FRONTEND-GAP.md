@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-17 15:07 UTC
+- **last_updated**: 2026-06-17 15:23 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 209 (159 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 94 (46.1% of public)
@@ -90,12 +90,12 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
 | Method | Path | Side | File | Auth |
 |---|---|---|---|---|
-| `POST` | `/api/daemon/broadcast` | pc | `api/daemon.py:185` | token |
+| `POST` | `/api/daemon/broadcast` | pc | `api/daemon.py:256` | token |
 | `POST` | `/api/daemon/pause` | pc | `api/daemon.py:73` | token |
 | `POST` | `/api/daemon/resume` | pc | `api/daemon.py:84` | token |
-| `POST` | `/api/daemon/subsystems/all/pause` | pc | `api/daemon.py:322` | rate-limited |
-| `POST` | `/api/daemon/subsystems/{name}/pause` | pc | `api/daemon.py:363` | rate-limited |
-| `POST` | `/api/daemon/subsystems/{name}/resume` | pc | `api/daemon.py:372` | rate-limited |
+| `POST` | `/api/daemon/subsystems/all/pause` | pc | `api/daemon.py:393` | rate-limited |
+| `POST` | `/api/daemon/subsystems/{name}/pause` | pc | `api/daemon.py:434` | rate-limited |
+| `POST` | `/api/daemon/subsystems/{name}/resume` | pc | `api/daemon.py:443` | rate-limited |
 | `GET` | `/api/linkedin/cobaia/timeline` | pc | `api/cobaia.py:223` | token |
 | `POST` | `/api/agent-zero/chat` | pc | `api/agent_zero.py:43` | token |
 | `POST` | `/api/brain/confirm/{run_id}` | pc | `api/brain.py:154` | token |
@@ -192,7 +192,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/pipeline-studio/runs/{run_id}` | pc | `api/pipeline_studio.py:522` | token |
 | `GET` | `/api/pipeline-studio/steps` | pc | `api/pipeline_studio.py:341` | token |
 | `GET` | `/api/pipeline-studio/templates` | pc | `api/pipeline_studio.py:390` | token |
-| `GET` | `/api/scraper/history` | pc | `api/scraper.py:121` | token |
+| `GET` | `/api/scraper/history` | pc | `api/scraper.py:123` | token |
 | `GET` | `/api/scraper/history` | vm | `vm_api/routes.py:530` | token |
 | `GET` | `/api/skills/health` | pc | `api/skills.py:335` | token |
 | `GET` | `/api/skills/proposals` | pc | `api/skills.py:94` | token |

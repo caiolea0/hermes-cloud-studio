@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 
 from core.ai import call_ai
 from core.models import ScraperConfig, ScraperPrompt
-from core.state import VM_API_URL, get_db
+from core.state import VM_API_URL, get_db, is_subsystem_paused
 
 router = APIRouter()
 
@@ -95,6 +95,8 @@ async def scraper_status():
 @router.post("/api/scraper/start")
 async def start_scraper(config: ScraperConfig):
     """Start the night scraper on the VM."""
+    if is_subsystem_paused("scraper"):
+        return {"status": "paused", "reason": "scraper subsystem paused by owner"}
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(f"{VM_API_URL}/api/scraper/start", json=config.model_dump())

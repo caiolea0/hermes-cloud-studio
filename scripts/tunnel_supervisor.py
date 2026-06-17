@@ -309,6 +309,16 @@ class Supervisor:
             "actions": [],
         }
 
+        # B20 gate — skip restart attempts while tunnel subsystem is paused by owner.
+        try:
+            from core.state import is_subsystem_paused as _is_paused
+            if _is_paused("tunnel"):
+                log.info("tunnel subsystem paused by owner — skip restart checks")
+                state["actions"].append("paused_skip")
+                return state
+        except Exception:  # noqa: best-effort, never block supervisor
+            pass
+
         # 1. socks5 local
         if not state["socks5_listening"]:
             log.warning("socks5 :55081 NAO listening — spawning")

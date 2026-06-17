@@ -142,15 +142,86 @@ async def get_daemon_decisions(limit: int = Query(default=20)):
 
 @router.get("/api/daemon/channels")
 async def get_daemon_channels():
-    """Get channel states for health cards."""
-    conn = get_db()
-    conn.execute("SELECT stats_today FROM daemon_state WHERE id = 1").fetchone()
-    conn.close()
+    """Get channel states for health cards — real DB data (B21)."""
+    li_state = get_runtime_state("li_health_last_state", None)
+    li_health = 1.0 if li_state in (None, "ok") else 0.4 if li_state == "cooldown" else 0.0
+
+    # LinkedIn campaigns daily stats from local DB
+    li_daily_used = 0
+    li_daily_limit = 70
+    li_warmup_day = 0
+    li_warmup_complete = False
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute("""
+                SELECT COUNT(*) as cnt FROM linkedin_campaigns
+                WHERE date(created_at) = date('now') AND status IN ('completed','running')
+            """).fetchone()
+            li_daily_used = row["cnt"] if row else 0
+        finally:
+            conn.close()
+    except Exception:
+        pass
+
+    # LinkedIn rate-limiter warmup state (best-effort)
+    try:
+        from config import settings
+        from linkedin import LinkedInConfig
+        from linkedin.limiter import RateLimiter as LiRateLimiter
+        _li_cfg = LinkedInConfig(
+            account_email=settings.linkedin_email or "default",
+            account_type=settings.linkedin_account_type,
+        )
+        _li_stats = LiRateLimiter(_li_cfg).get_stats()
+        li_daily_used = _li_stats.get("views_today", li_daily_used)
+        li_daily_limit = _li_stats.get("daily_view_limit", li_daily_limit)
+        li_warmup_day = _li_stats.get("warmup_day", 0)
+        li_warmup_complete = bool(_li_stats.get("warmup_complete", False))
+    except Exception:
+        pass
+
+    # Email daily stats from EmailLimiter
+    em_daily_used = 0
+    em_daily_limit = 40
+    em_warmup_day = 0
+    em_warmup_complete = False
+    try:
+        from config import settings as _settings
+        from channels.email.config import EmailConfig
+        from channels.email.limiter import EmailLimiter
+        _em_cfg = EmailConfig.from_settings()
+        _em_lim = EmailLimiter(_em_cfg)
+        em_stats = _em_lim.stats()
+        em_daily_used = em_stats.get("daily_sent", 0)
+        em_daily_limit = em_stats.get("daily_cap", 40)
+        em_warmup_day = em_stats.get("warmup_day", 0)
+        em_warmup_complete = em_warmup_day >= em_stats.get("warmup_days_total", 14)
+    except Exception:
+        pass
+
+    em_health = max(0.0, 1.0 - (em_daily_used / max(1, em_daily_limit)))
+
     return {
-        "linkedin": {"daily_used": 0, "daily_limit": 70, "health": 1.0, "warmup_day": 14, "warmup_complete": True, "is_active": True},
-        "email": {"daily_used": 0, "daily_limit": 75, "health": 1.0, "warmup_day": 0, "warmup_complete": False, "is_active": True},
-        "whatsapp": {"daily_used": 0, "daily_limit": 25, "health": 1.0, "warmup_day": 0, "warmup_complete": False, "is_active": False},
-        "instagram": {"daily_used": 0, "daily_limit": 50, "health": 1.0, "warmup_day": 0, "warmup_complete": False, "is_active": False},
+        "linkedin": {
+            "daily_used": li_daily_used,
+            "daily_limit": li_daily_limit,
+            "health": li_health,
+            "warmup_day": li_warmup_day,
+            "warmup_complete": li_warmup_complete,
+            "is_active": li_state in (None, "ok"),
+            "state": li_state or "ok",
+        },
+        "email": {
+            "daily_used": em_daily_used,
+            "daily_limit": em_daily_limit,
+            "health": round(em_health, 3),
+            "warmup_day": em_warmup_day,
+            "warmup_complete": em_warmup_complete,
+            "is_active": True,
+        },
+        "whatsapp": {"daily_used": 0, "daily_limit": 25, "health": None, "status": "not_configured", "is_active": False},
+        "instagram": {"daily_used": 0, "daily_limit": 50, "health": None, "status": "not_configured", "is_active": False},
     }
 
 
