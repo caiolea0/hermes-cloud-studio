@@ -58,16 +58,20 @@ class AccessMatrix:
 
 
 def load_matrix(path: Optional[Path] = None) -> AccessMatrix:
-    """Load access matrix from JSON. Missing/invalid → AccessMatrix(default_policy=allow) (fail-open)."""
+    """Load access matrix from JSON. Missing/invalid → AccessMatrix(default_policy=deny) (fail-CLOSED).
+
+    R6 hardening 2026-06-17: PREVIOUSLY fail-open (default=allow) which INVERTED security
+    posture on partial deploy/permissions error. NOW fail-CLOSED + CRITICAL log.
+    """
     path = path or _DEFAULT_MATRIX_PATH
     if not path.exists():
-        logger.warning("access_matrix.json not found at %s — fail-open (default_policy=allow)", path)
-        return AccessMatrix(default_policy="allow")
+        logger.critical("access_matrix.json NOT FOUND at %s — FAIL-CLOSED (deny-all)", path)
+        return AccessMatrix(default_policy="deny")
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:  # noqa: BLE001
-        logger.error("access_matrix.json parse failed: %s — fail-open", exc)
-        return AccessMatrix(default_policy="allow")
+        logger.critical("access_matrix.json parse FAILED: %s — FAIL-CLOSED (deny-all)", exc)
+        return AccessMatrix(default_policy="deny")
     default_policy = data.get("default_policy", "deny")
     rules = data.get("rules", {})
     if not isinstance(rules, dict):

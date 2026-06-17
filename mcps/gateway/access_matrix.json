@@ -4,6 +4,7 @@
   "default_policy": "deny",
   "rules": {
     "brain-core": {"allow": ["*"]},
+    "brain": {"allow": ["sentry"]},
     "brain-f4": {"allow": ["sentry", "hermes-skills"]},
     "brain-f4-webhook": {"allow": ["sentry", "hermes-skills"]},
     "brain-f4-cron": {"allow": ["sentry", "hermes-skills"]},
