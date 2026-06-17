@@ -4,13 +4,14 @@ Reads .claude/frontend-gap/{routes,frontend-consumption,ws-events}.json.
 Writes .claude/FRONTEND-GAP.md + .claude/frontend-gap/diff-vs-known.md.
 
 Sanity asserts (hard fail = abort, preserve old FRONTEND-GAP.md):
-  - 11 known phantoms appear in §3 orphans or §4 top-10
+  - known phantoms not consumed AND not in backend routes → AssertionError (route deleted)
   - routes total >= 130
-  - consumed endpoints >= 50
+  - consumed endpoints >= 30
   - total elapsed <90s
 """
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import shutil
@@ -30,18 +31,16 @@ BAK_MD = ROOT / ".claude" / "frontend-gap" / "FRONTEND-GAP.previous.md"
 
 PARAM_BRACE_RE = re.compile(r"""\{[^}]+\}""")
 
-# 11 canonical phantoms from PHASE-F-STUDY-SYNTHESIS.md §2
+# Known orphan phantoms — backend routes with no frontend UI.
+# daemon/* removed: consumed by F.2 Mission Control (CHAPTER CLOSED).
+# Update this set when a route gets a UI (remove) or a new orphan is identified (add).
 KNOWN_PHANTOMS = {
-    "/api/prospects/{id}/resolve-conflict",
+    "/api/prospects/{prospect_id}/resolve-conflict",
     "/api/tasks/bulk",
     "/api/stats",
-    "/api/daemon/state",
-    "/api/daemon/log",
-    "/api/daemon/decisions",
-    "/api/daemon/channels",
-    "/api/daemon/timeline",
     "/api/linkedin/visited",
-    "/api/linkedin/comment",  # edit/delete subpath
+    "/api/linkedin/comment/edit",
+    "/api/linkedin/comment/delete",
     "/api/agent-zero/status",
 }
 
@@ -171,7 +170,27 @@ def ux_blurb(path: str) -> str:
     return path
 
 
+def _detect_phase_baseline() -> str:
+    """Grep PLAN.md for the last 'F.x CHAPTER CLOSED' marker."""
+    plan = ROOT / ".claude" / "PLAN.md"
+    try:
+        text = plan.read_text(encoding="utf-8")
+    except Exception:
+        return "F.1"
+    matches = re.findall(r"(F\.\d+)\s+CHAPTER CLOSED", text)
+    if matches:
+        return f"post {matches[-1]}"
+    return "F.1"
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Rank frontend gaps vs backend routes.")
+    parser.add_argument(
+        "--phase-baseline", default=None,
+        help="Override phase baseline label. If omitted, auto-detect from PLAN.md last CHAPTER CLOSED.",
+    )
+    args = parser.parse_args()
+
     t0 = time.time()
     if not ROUTES_JSON.exists() or not CONS_JSON.exists() or not WS_JSON.exists():
         print(f"[rank_gaps] FAIL — missing inputs. Run parse_routes.py + grep_frontend.py first.", file=sys.stderr)
@@ -217,12 +236,28 @@ def main() -> int:
     orphans.sort(key=rank_key)
     top10 = orphans[:10]
 
-    # Sanity hard: phantoms must appear somewhere in orphans OR top10
+    # Sanity hard: known phantoms must be somewhere (orphan OR consumed).
+    # If missing from BOTH → backend route deleted unexpectedly → raise.
     orphan_paths = {normalize_for_match(o["path"]) for o in orphans}
     phantoms_normalized = {normalize_for_match(p) for p in KNOWN_PHANTOMS}
     missing_phantoms = phantoms_normalized - orphan_paths
     if missing_phantoms:
-        print(f"[rank_gaps] WARN: known phantoms missing from orphan list (may be consumed already, real progress?): {sorted(missing_phantoms)}", file=sys.stderr)
+        # Distinguish: consumed (frontend built UI) vs truly gone (route deleted)
+        consumed_norm_set = {normalize_for_match(k) for k in consumed.keys()}
+        progress_consumed = missing_phantoms & consumed_norm_set
+        truly_missing = missing_phantoms - consumed_norm_set
+        if progress_consumed:
+            print(
+                f"[rank_gaps] PROGRESS: {len(progress_consumed)} known phantoms now consumed by frontend: {sorted(progress_consumed)}",
+                file=sys.stderr,
+            )
+        if truly_missing:
+            raise AssertionError(
+                f"[rank_gaps] SANITY FAIL — {len(truly_missing)} known phantom(s) vanished from both orphans AND consumed:\n"
+                f"  missing: {sorted(truly_missing)}\n"
+                f"  Possible causes: backend route deleted, path changed, or parser regression.\n"
+                f"  Fix: verify route still exists; if removed intentionally, update KNOWN_PHANTOMS."
+            )
 
     # Backup existing FRONTEND-GAP.md before overwrite
     if OUT_MD.exists():
@@ -253,7 +288,7 @@ def main() -> int:
 
     # Render FRONTEND-GAP.md
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    phase_baseline = "F.1"  # update on re-runs as F.x closes
+    phase_baseline = args.phase_baseline or _detect_phase_baseline()
     pc_total = routes_blob["pc_count"]
     vm_total = routes_blob["vm_count"]
     total = routes_blob["total"]
@@ -406,13 +441,17 @@ def main() -> int:
     print(f"[rank_gaps] orphans={orphan_total} consumed={consumed_total} top10={len(top10)} in {dt:.2f}s")
     print(f"[rank_gaps] consumption: {consumption_pct:.1f}% of {total - internal_total} public endpoints")
     print(f"[rank_gaps] output: {OUT_MD}")
-    if missing_phantoms:
-        print(f"[rank_gaps] note: {len(missing_phantoms)} known phantoms missing from orphans (may be consumed already)")
 
-    # Hard sanity
-    assert total >= 130, f"routes regression: {total}"
-    assert consumed_total >= 30, f"consumption regression: {consumed_total}"
-    assert dt < 90, f"timeout: {dt:.1f}s"
+    # Hard sanity — restore from backup if regression detected
+    try:
+        assert total >= 130, f"routes regression: only {total} routes (expected >=130)"
+        assert consumed_total >= 30, f"consumption regression: only {consumed_total} consumed (expected >=30)"
+        assert dt < 90, f"timeout: {dt:.1f}s exceeds 90s limit"
+    except AssertionError:
+        if BAK_MD.exists():
+            shutil.copy2(BAK_MD, OUT_MD)
+            print(f"[rank_gaps] RESTORED previous FRONTEND-GAP.md from {BAK_MD}", file=sys.stderr)
+        raise
     return 0
 
 

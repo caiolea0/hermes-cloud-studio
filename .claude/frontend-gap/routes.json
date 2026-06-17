@@ -1,8 +1,8 @@
 {
-  "generated_at": 1780960412.3466525,
-  "total": 138,
-  "pc_count": 91,
-  "vm_count": 47,
+  "generated_at": 1781668974.125227,
+  "total": 207,
+  "pc_count": 157,
+  "vm_count": 50,
   "ws_count": 1,
   "internal_count": 5,
   "routes": [
@@ -98,6 +98,66 @@
     },
     {
       "method": "POST",
+      "path": "/api/brain/confirm/{run_id}",
+      "file": "api/brain.py",
+      "line": 154,
+      "function": "confirm_run",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/brain/decide",
+      "file": "api/brain.py",
+      "line": 107,
+      "function": "brain_decide",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain/intents",
+      "file": "api/brain.py",
+      "line": 221,
+      "function": "list_intents",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/brain/replay/{run_id}",
+      "file": "api/brain.py",
+      "line": 143,
+      "function": "post_replay",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain/runs",
+      "file": "api/brain.py",
+      "line": 120,
+      "function": "list_brain_runs",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain/runs/{run_id}",
+      "file": "api/brain.py",
+      "line": 132,
+      "function": "get_run",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
       "path": "/api/claude/execute",
       "file": "api/claude.py",
       "line": 12,
@@ -107,10 +167,100 @@
       "rate_limited": false
     },
     {
+      "method": "GET",
+      "path": "/api/cobaia/autotune-history",
+      "file": "api/cobaia.py",
+      "line": 367,
+      "function": "cobaia_autotune_history",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/cobaia/autotune-status",
+      "file": "api/cobaia.py",
+      "line": 399,
+      "function": "cobaia_autotune_status",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/cobaia/autotune-trigger-manual",
+      "file": "api/cobaia.py",
+      "line": 425,
+      "function": "cobaia_autotune_trigger_manual",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/cobaia/bug-export",
+      "file": "api/cobaia.py",
+      "line": 266,
+      "function": "cobaia_bug_export",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/cobaia/f7-report",
+      "file": "api/cobaia.py",
+      "line": 633,
+      "function": "cobaia_f7_report",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/cobaia/health-score",
+      "file": "api/cobaia.py",
+      "line": 294,
+      "function": "cobaia_health_score",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/cobaia/preflight",
+      "file": "api/cobaia.py",
+      "line": 494,
+      "function": "cobaia_preflight",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/cobaia/sentry-env",
+      "file": "api/cobaia.py",
+      "line": 351,
+      "function": "cobaia_sentry_env",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/config",
+      "file": "api/config.py",
+      "line": 27,
+      "function": "get_runtime_config",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
       "method": "POST",
       "path": "/api/daemon/broadcast",
       "file": "api/daemon.py",
-      "line": 145,
+      "line": 185,
       "function": "daemon_broadcast",
       "side": "pc",
       "internal_only": false,
@@ -120,7 +270,7 @@
       "method": "GET",
       "path": "/api/daemon/channels",
       "file": "api/daemon.py",
-      "line": 103,
+      "line": 143,
       "function": "get_daemon_channels",
       "side": "pc",
       "internal_only": false,
@@ -130,7 +280,7 @@
       "method": "GET",
       "path": "/api/daemon/decisions",
       "file": "api/daemon.py",
-      "line": 83,
+      "line": 123,
       "function": "get_daemon_decisions",
       "side": "pc",
       "internal_only": false,
@@ -140,7 +290,7 @@
       "method": "GET",
       "path": "/api/daemon/log",
       "file": "api/daemon.py",
-      "line": 55,
+      "line": 95,
       "function": "get_daemon_log",
       "side": "pc",
       "internal_only": false,
@@ -150,7 +300,7 @@
       "method": "POST",
       "path": "/api/daemon/pause",
       "file": "api/daemon.py",
-      "line": 33,
+      "line": 73,
       "function": "pause_daemon",
       "side": "pc",
       "internal_only": false,
@@ -160,7 +310,7 @@
       "method": "POST",
       "path": "/api/daemon/resume",
       "file": "api/daemon.py",
-      "line": 44,
+      "line": 84,
       "function": "resume_daemon",
       "side": "pc",
       "internal_only": false,
@@ -170,7 +320,7 @@
       "method": "GET",
       "path": "/api/daemon/state",
       "file": "api/daemon.py",
-      "line": 14,
+      "line": 54,
       "function": "get_daemon_state",
       "side": "pc",
       "internal_only": false,
@@ -178,9 +328,49 @@
     },
     {
       "method": "GET",
+      "path": "/api/daemon/subsystems",
+      "file": "api/daemon.py",
+      "line": 198,
+      "function": "get_daemon_subsystems",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/daemon/subsystems/all/pause",
+      "file": "api/daemon.py",
+      "line": 322,
+      "function": "pause_all_subsystems",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/daemon/subsystems/{name}/pause",
+      "file": "api/daemon.py",
+      "line": 363,
+      "function": "pause_subsystem",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/daemon/subsystems/{name}/resume",
+      "file": "api/daemon.py",
+      "line": 372,
+      "function": "resume_subsystem",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": true
+    },
+    {
+      "method": "GET",
       "path": "/api/daemon/timeline",
       "file": "api/daemon.py",
-      "line": 117,
+      "line": 157,
       "function": "get_daemon_timeline",
       "side": "pc",
       "internal_only": false,
@@ -297,6 +487,56 @@
       "rate_limited": false
     },
     {
+      "method": "GET",
+      "path": "/api/lab/runs",
+      "file": "api/lab.py",
+      "line": 398,
+      "function": "lab_runs",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/lab/runs/{run_id}",
+      "file": "api/lab.py",
+      "line": 405,
+      "function": "lab_run_detail",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/lab/runs/{run_id}/abort",
+      "file": "api/lab.py",
+      "line": 358,
+      "function": "lab_abort",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/lab/runs/{run_id}/artifacts/{filename}",
+      "file": "api/lab.py",
+      "line": 431,
+      "function": "lab_artifact",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/lab/start",
+      "file": "api/lab.py",
+      "line": 307,
+      "function": "lab_start",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": true
+    },
+    {
       "method": "POST",
       "path": "/api/linkedin/auth",
       "file": "api/linkedin.py",
@@ -392,6 +632,76 @@
       "file": "api/linkedin.py",
       "line": 188,
       "function": "stop_linkedin_campaign",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/cobaia/emergency-stop",
+      "file": "api/cobaia.py",
+      "line": 134,
+      "function": "cobaia_emergency_stop",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/cobaia/metrics",
+      "file": "api/cobaia.py",
+      "line": 149,
+      "function": "cobaia_metrics",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/cobaia/pause",
+      "file": "api/cobaia.py",
+      "line": 96,
+      "function": "cobaia_pause",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/cobaia/resume",
+      "file": "api/cobaia.py",
+      "line": 109,
+      "function": "cobaia_resume",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/cobaia/start-warmup",
+      "file": "api/cobaia.py",
+      "line": 80,
+      "function": "cobaia_start_warmup",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/cobaia/status",
+      "file": "api/cobaia.py",
+      "line": 124,
+      "function": "cobaia_status",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/cobaia/timeline",
+      "file": "api/cobaia.py",
+      "line": 219,
+      "function": "cobaia_timeline",
       "side": "pc",
       "internal_only": false,
       "rate_limited": false
@@ -527,6 +837,106 @@
       "rate_limited": false
     },
     {
+      "method": "GET",
+      "path": "/api/mcp/coverage/latest",
+      "file": "api/mcp_coverage.py",
+      "line": 78,
+      "function": "mcp_coverage_latest",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/mcp/gateway/health",
+      "file": "api/mcp_coverage.py",
+      "line": 100,
+      "function": "mcp_gateway_health",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/observability/_debug/explain_cost_plan",
+      "file": "api/observability.py",
+      "line": 646,
+      "function": "debug_explain_cost_plan",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/observability/costs",
+      "file": "api/observability.py",
+      "line": 55,
+      "function": "get_costs",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/observability/credits",
+      "file": "api/observability.py",
+      "line": 162,
+      "function": "get_credits",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/observability/decisions",
+      "file": "api/observability.py",
+      "line": 474,
+      "function": "get_decisions",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/observability/errors",
+      "file": "api/observability.py",
+      "line": 313,
+      "function": "get_errors",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/observability/errors/{error_id}/resolve",
+      "file": "api/observability.py",
+      "line": 380,
+      "function": "resolve_error",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/observability/mcp-coverage-history",
+      "file": "api/observability.py",
+      "line": 599,
+      "function": "get_mcp_coverage_history",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/observability/perf",
+      "file": "api/observability.py",
+      "line": 98,
+      "function": "get_perf",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
       "method": "POST",
       "path": "/api/outreach/generate/{prospect_id}",
       "file": "api/outreach.py",
@@ -562,6 +972,126 @@
       "file": "api/pipelines.py",
       "line": 474,
       "function": "get_execution",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipeline-studio/drafts",
+      "file": "api/pipeline_studio.py",
+      "line": 117,
+      "function": "list_drafts",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/pipeline-studio/drafts",
+      "file": "api/pipeline_studio.py",
+      "line": 165,
+      "function": "create_draft",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/pipeline-studio/drafts/{draft_id}",
+      "file": "api/pipeline_studio.py",
+      "line": 262,
+      "function": "archive_draft",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipeline-studio/drafts/{draft_id}",
+      "file": "api/pipeline_studio.py",
+      "line": 192,
+      "function": "get_draft",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/pipeline-studio/drafts/{draft_id}",
+      "file": "api/pipeline_studio.py",
+      "line": 212,
+      "function": "update_draft",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/pipeline-studio/drafts/{draft_id}/clone",
+      "file": "api/pipeline_studio.py",
+      "line": 594,
+      "function": "clone_draft",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/pipeline-studio/drafts/{draft_id}/execute",
+      "file": "api/pipeline_studio.py",
+      "line": 452,
+      "function": "execute_draft",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipeline-studio/runs",
+      "file": "api/pipeline_studio.py",
+      "line": 647,
+      "function": "list_runs_aggregate",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipeline-studio/runs/{run_id}",
+      "file": "api/pipeline_studio.py",
+      "line": 522,
+      "function": "get_run_status",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/pipeline-studio/runs/{run_id}/abort",
+      "file": "api/pipeline_studio.py",
+      "line": 741,
+      "function": "abort_run",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipeline-studio/steps",
+      "file": "api/pipeline_studio.py",
+      "line": 341,
+      "function": "list_step_library",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/pipeline-studio/templates",
+      "file": "api/pipeline_studio.py",
+      "line": 390,
+      "function": "list_templates",
       "side": "pc",
       "internal_only": false,
       "rate_limited": false
@@ -818,6 +1348,116 @@
     },
     {
       "method": "GET",
+      "path": "/api/skills/health",
+      "file": "api/skills.py",
+      "line": 335,
+      "function": "skills_health",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/skills/proposals",
+      "file": "api/skills.py",
+      "line": 94,
+      "function": "list_proposals",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/skills/proposals",
+      "file": "api/skills.py",
+      "line": 115,
+      "function": "create_proposal",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/skills/proposals/generate",
+      "file": "api/skills.py",
+      "line": 312,
+      "function": "trigger_synthesis",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/skills/proposals/{proposal_id}",
+      "file": "api/skills.py",
+      "line": 134,
+      "function": "get_proposal",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/skills/proposals/{proposal_id}/accept",
+      "file": "api/skills.py",
+      "line": 178,
+      "function": "accept_proposal",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/skills/proposals/{proposal_id}/reject",
+      "file": "api/skills.py",
+      "line": 238,
+      "function": "reject_proposal",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/skills/proposals/{proposal_id}/yaml-preview",
+      "file": "api/skills.py",
+      "line": 147,
+      "function": "get_yaml_preview",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/skills/synthesis-runs/{run_id}",
+      "file": "api/skills.py",
+      "line": 292,
+      "function": "get_synthesis_run_status",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/skills/webhook/pr-merged",
+      "file": "api/skills_webhook.py",
+      "line": 186,
+      "function": "webhook_pr_merged",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/skills/{skill_name}/unquarantine",
+      "file": "api/skills.py",
+      "line": 406,
+      "function": "unquarantine_endpoint",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
       "path": "/api/stats",
       "file": "api/stats.py",
       "line": 11,
@@ -898,6 +1538,26 @@
     },
     {
       "method": "GET",
+      "path": "/api/user-prefs",
+      "file": "api/user_prefs.py",
+      "line": 70,
+      "function": "get_user_prefs",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/user-prefs",
+      "file": "api/user_prefs.py",
+      "line": 76,
+      "function": "put_user_prefs",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": true
+    },
+    {
+      "method": "GET",
       "path": "/api/workqueue",
       "file": "api/audit.py",
       "line": 54,
@@ -910,7 +1570,7 @@
       "method": "WS",
       "path": "/ws",
       "file": "server.py",
-      "line": 154,
+      "line": 244,
       "function": "websocket_endpoint",
       "side": "pc",
       "internal_only": false,
@@ -920,7 +1580,7 @@
       "method": "GET",
       "path": "/api/_ping",
       "file": "hermes_api_v2.py",
-      "line": 88,
+      "line": 157,
       "function": "vm_ping",
       "side": "vm",
       "internal_only": false,
@@ -1232,6 +1892,36 @@
       "file": "vm_api/routes.py",
       "line": 1509,
       "function": "vm_linkedin_visited",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/mcp/coverage/jobs/{job_id}",
+      "file": "vm_api/mcp_jobs.py",
+      "line": 26,
+      "function": "mcp_coverage_job_status",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/mcp/coverage/latest",
+      "file": "vm_api/mcp_coverage.py",
+      "line": 26,
+      "function": "mcp_coverage_latest",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/mcp/coverage/publish",
+      "file": "vm_api/mcp_coverage.py",
+      "line": 80,
+      "function": "mcp_coverage_publish",
       "side": "vm",
       "internal_only": false,
       "rate_limited": false

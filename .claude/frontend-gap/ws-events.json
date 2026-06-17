@@ -1,5 +1,5 @@
 {
-  "generated_at": 1780960412.5458124,
+  "generated_at": 1781668974.3542821,
   "handlers_in_app_js": [
     "activity",
     "alert",
@@ -14,44 +14,45 @@
     "pipeline_progress",
     "reply_received",
     "scraper_update",
+    "string",
     "sync"
   ],
   "broadcasts_in_backend": {
     "activity": [
       {
         "file": "daemon/orchestrator.py",
-        "line": 250,
+        "line": 252,
         "snippet": "await self._broadcast({"
       }
     ],
     "channel_update": [
       {
         "file": "daemon/orchestrator.py",
-        "line": 564,
+        "line": 592,
         "snippet": "await self._broadcast({"
       }
     ],
     "daemon_state": [
       {
         "file": "api/daemon.py",
-        "line": 40,
+        "line": 80,
         "snippet": "await ws_manager.broadcast({\"type\": \"daemon_state\", \"state\": \"paused\", \"detail\": f\"Paused for {minutes}m\"})"
       },
       {
         "file": "api/daemon.py",
-        "line": 51,
+        "line": 91,
         "snippet": "await ws_manager.broadcast({\"type\": \"daemon_state\", \"state\": \"idle\", \"detail\": \"Resumed\"})"
       },
       {
         "file": "daemon/orchestrator.py",
-        "line": 228,
+        "line": 229,
         "snippet": "await self._broadcast({"
       }
     ],
     "decision": [
       {
         "file": "daemon/orchestrator.py",
-        "line": 279,
+        "line": 292,
         "snippet": "await self._broadcast({"
       }
     ],
@@ -99,17 +100,17 @@
       },
       {
         "file": "loops/linkedin_scheduler.py",
-        "line": 63,
+        "line": 98,
         "snippet": "await ws_manager.broadcast({"
       },
       {
         "file": "loops/linkedin_scheduler.py",
-        "line": 85,
+        "line": 120,
         "snippet": "await ws_manager.broadcast({"
       },
       {
         "file": "loops/linkedin_sync.py",
-        "line": 75,
+        "line": 81,
         "snippet": "await ws_manager.broadcast({"
       }
     ],
@@ -123,7 +124,7 @@
     "sync": [
       {
         "file": "loops/sync.py",
-        "line": 229,
+        "line": 230,
         "snippet": "await ws_manager.broadcast({\"type\": \"sync\", \"data\": result})"
       }
     ]
@@ -148,6 +149,7 @@
     "linkedin_campaign_done",
     "pipeline_progress",
     "reply_received",
-    "scraper_update"
+    "scraper_update",
+    "string"
   ]
 }

@@ -187,7 +187,7 @@ def main() -> int:
     # Sanity hard
     assert len(all_routes) >= 130, f"PARSER REGRESSION: only {len(all_routes)} routes (expected >=130)"
 
-    # Sanity: 11 fantasmas conhecidos devem existir no inventario
+    # Sanity: known canonical endpoints must exist in inventory — else route was deleted (regression).
     KNOWN = [
         ("GET", "/api/daemon/state"),
         ("GET", "/api/daemon/log"),
@@ -197,11 +197,20 @@ def main() -> int:
         ("GET", "/api/stats"),
         ("GET", "/api/linkedin/visited"),
         ("POST", "/api/tasks/bulk"),
+        ("POST", "/api/prospects/{prospect_id}/resolve-conflict"),
+        ("GET", "/api/agent-zero/status"),
+        ("POST", "/api/linkedin/comment/edit"),
+        ("POST", "/api/linkedin/comment/delete"),
     ]
     paths_set = {(r["method"], r["path"]) for r in all_routes}
     missing = [k for k in KNOWN if k not in paths_set]
     if missing:
-        print(f"[parse_routes] WARN missing canonical endpoints: {missing}", file=sys.stderr)
+        raise AssertionError(
+            f"[parse_routes] SANITY FAIL — {len(missing)} canonical endpoint(s) missing from inventory:\n"
+            f"  missing: {missing}\n"
+            f"  Possible causes: route deleted, path changed, or parser regression.\n"
+            f"  Fix: verify route in server.py/api/*.py; update KNOWN if intentional."
+        )
 
     return 0
 
