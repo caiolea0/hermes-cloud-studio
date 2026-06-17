@@ -18,12 +18,15 @@ Run: python mcps/hermes-skills/server.py
 """
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import sqlite3
 import sys
 import time
+import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -39,7 +42,7 @@ except ImportError as exc:  # pragma: no cover
     )
 
 MCP_NAME = "hermes-skills"
-MCP_VERSION = "0.1.0-f5.2"
+MCP_VERSION = "0.2.0-h2"
 
 # VM canonical (~/.hermes/skills/) primary; PC repo skills/ fallback
 _VM_SKILLS = Path(os.path.expanduser("~/.hermes/skills"))
@@ -73,6 +76,68 @@ def _validate_skill_name(name: str) -> str | None:
     if len(name) > 64:
         return "name too long (max 64 chars)"
     return None
+
+
+_RUNNER_PATH = Path(__file__).parent / "_skill_runner.py"
+
+
+async def _execute_subprocess_isolated(
+    yaml_path: str,
+    input_data: dict,
+    timeout: int,
+) -> dict:
+    """Run _skill_runner.py in isolated subprocess.
+
+    Returns lab_test_result dict {status, stdout, stderr, latency_ms, exit_code, mock}.
+    mock=False marks real subprocess execution.
+    """
+    env = os.environ.copy()
+    # Add repo root so runner can import yaml from site-packages.
+    env["PYTHONPATH"] = str(_REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
+
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable,
+        str(_RUNNER_PATH),
+        yaml_path,
+        json.dumps(input_data),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=env,
+    )
+    try:
+        stdout_raw, stderr_raw = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        return {
+            "status": "timeout",
+            "stdout": "",
+            "stderr": f"subprocess killed after {timeout}s",
+            "latency_ms": timeout * 1000,
+            "exit_code": -1,
+            "mock": False,
+        }
+
+    stdout_text = stdout_raw.decode("utf-8", errors="replace")[:2000]
+    stderr_text = stderr_raw.decode("utf-8", errors="replace")[:2000]
+
+    # Parse structured JSON from stdout.
+    try:
+        result = json.loads(stdout_text.strip())
+        if isinstance(result, dict) and "status" in result:
+            return result
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Fallback: plain text output
+    return {
+        "status": "passed" if proc.returncode == 0 else "failed",
+        "stdout": stdout_text,
+        "stderr": stderr_text,
+        "latency_ms": 0,
+        "exit_code": proc.returncode if proc.returncode is not None else -1,
+        "mock": False,
+    }
 
 
 mcp = FastMCP(MCP_NAME)
@@ -249,25 +314,87 @@ async def propose_skill_yaml_stub(
 
 @mcp.tool()
 async def test_skill_dryrun(
-    skill_name: str,
-    input_data: dict,
-    mock_llm: bool = True,
+    skill_name: Optional[str] = None,
+    yaml_blob: Optional[str] = None,
+    input_data: Optional[dict] = None,
+    mock_llm: bool = False,
+    timeout_seconds: int = 60,
 ) -> dict:
-    """Dry-run skill em sandbox — F.5.2 scaffold retorna plan, F.future executa.
+    """Dry-run skill em sandbox — H2 expand: aceita yaml_blob OU skill_name.
 
     Args:
-        skill_name: nome skill já registrada (file exists).
-        input_data: dict params validados contra input_schema.
-        mock_llm: True = retorna stub response (default). False ainda reservado
-                  F.future quando lab sandbox plug.
+        skill_name: nome skill já registrada (disk lookup). Mutex com yaml_blob.
+        yaml_blob: YAML texto direto (H2) → subprocess isolated 60s + banned scan.
+        input_data: dict params (opcional).
+        mock_llm: legacy compat; ignorado quando yaml_blob fornecido.
+        timeout_seconds: timeout subprocess isolado (default 60, max 120).
 
     Returns:
-        dict {ok, skill_name, input_validated, llm_response, mode}
+        yaml_blob path: {ok, status, stdout, stderr, latency_ms, exit_code, mock}
+        skill_name path: {ok, skill_name, mode, input_validated, llm_response}
     """
+    # --- Route: yaml_blob → subprocess isolated execution ---
+    if yaml_blob is not None:
+        try:
+            parsed = yaml.safe_load(yaml_blob)
+        except yaml.YAMLError as exc:
+            return {
+                "ok": False,
+                "status": "failed",
+                "stdout": "",
+                "stderr": f"YAML parse error: {exc}",
+                "latency_ms": 0,
+                "exit_code": 1,
+                "mock": False,
+            }
+        if not isinstance(parsed, dict):
+            return {
+                "ok": False,
+                "status": "failed",
+                "stdout": "",
+                "stderr": "YAML root must be a mapping (dict)",
+                "latency_ms": 0,
+                "exit_code": 1,
+                "mock": False,
+            }
+
+        timeout_capped = max(5, min(int(timeout_seconds), 120))
+        tmp_dir = Path(os.environ.get("TEMP", os.environ.get("TMPDIR", "/tmp")))
+        tmp_path = tmp_dir / f"hermes_skill_dryrun_{uuid.uuid4().hex}.yaml"
+        try:
+            tmp_path.write_text(yaml_blob, encoding="utf-8")
+        except Exception as exc:
+            return {
+                "ok": False,
+                "status": "failed",
+                "stdout": "",
+                "stderr": f"tmp write error: {exc}",
+                "latency_ms": 0,
+                "exit_code": 1,
+                "mock": False,
+            }
+
+        try:
+            result = await _execute_subprocess_isolated(
+                str(tmp_path), input_data or {}, timeout_capped,
+            )
+        finally:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+        result["ok"] = result.get("status") == "passed"
+        return result
+
+    # --- Route: skill_name → existing disk-based mock behavior ---
+    if skill_name is None:
+        return {"ok": False, "error": "skill_name OR yaml_blob required"}
+
     err = _validate_skill_name(skill_name)
     if err:
         return {"ok": False, "error": err}
-    skill = await get_skill(skill_name)  # reusa validação + read
+    skill = await get_skill(skill_name)
     if not skill.get("ok"):
         return skill
     schema = skill["yaml_data"].get("input_schema") or {}
@@ -282,7 +409,7 @@ async def test_skill_dryrun(
     if not mock_llm:
         return {
             "ok": False,
-            "error": "mock_llm=False ainda não implementado (F.future lab sandbox plug)",
+            "error": "mock_llm=False não implementado (yaml_blob para subprocess real)",
         }
     return {
         "ok": True,
@@ -295,7 +422,7 @@ async def test_skill_dryrun(
             "provider": skill["yaml_data"].get("provider"),
             "system_prompt_chars": len(skill["yaml_data"].get("system_prompt") or ""),
         },
-        "next_step": "F.future: lab sandbox real exec via OpenRouter + capture trace",
+        "next_step": "Use yaml_blob param para subprocess real isolated",
     }
 
 

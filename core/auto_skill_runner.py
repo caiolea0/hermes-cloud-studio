@@ -277,9 +277,50 @@ class AutoSkillRunner:
         }
 
     async def _run_validation(self, proposal: dict[str, Any]) -> None:
-        """Inline validation wrapped in coroutine for asyncio.wait_for compat."""
+        """H2 FORWARD — try subprocess real via gateway, fallback to inline.
+
+        Gateway path: invoke_tool(server='hermes-skills', tool='test_skill_dryrun',
+        args={'yaml_blob': ..., 'timeout_seconds': 60}) → subprocess isolated.
+        Fallback: _validate_yaml_inline (PIVOT D1 original, mock=True).
+        """
         yaml_blob = proposal.get("yaml_blob") or ""
-        lab_result = self._validate_yaml_inline(yaml_blob)
+        lab_result: dict[str, Any] | None = None
+
+        # H2: Try gateway dispatch test_skill_dryrun with yaml_blob.
+        try:
+            gw_response = await self.dispatcher.invoke_tool(
+                server="hermes-skills",
+                tool="test_skill_dryrun",
+                args={
+                    "yaml_blob": yaml_blob,
+                    "input_data": {},
+                    "timeout_seconds": 60,
+                },
+                requester=F4_REQUESTER,
+            )
+            candidate = (
+                gw_response.get("response", {})
+                if isinstance(gw_response, dict)
+                else {}
+            )
+            if isinstance(candidate, dict) and "status" in candidate:
+                lab_result = candidate
+            else:
+                log.debug(
+                    "H2 gateway response missing status field: %s",
+                    gw_response.get("error") if isinstance(gw_response, dict) else gw_response,
+                )
+        except Exception as exc:
+            log.warning(
+                "H2 _run_validation gateway exception, fallback inline: proposal_id=%s err=%s",
+                proposal.get("id"),
+                exc,
+            )
+
+        # Fallback: inline validation (PIVOT D1 original logic preserved).
+        if lab_result is None:
+            lab_result = self._validate_yaml_inline(yaml_blob)
+
         self.manager.update_lab_result(
             proposal["id"], lab_result, lab_test_status=lab_result["status"],
         )
