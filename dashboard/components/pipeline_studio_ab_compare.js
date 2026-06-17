@@ -252,12 +252,14 @@
                 },
                 body: JSON.stringify({ draft_a_id: aId, draft_b_id: bId, variables: {} })
             });
-            var data = await resp.json();
             if (!resp.ok) {
-                var detail = (data && data.detail) ? String(data.detail).slice(0, 200) : "Erro " + resp.status;
-                _showRunResult("error", detail);
+                var errText = await resp.text().catch(function () { return ""; });
+                var detail = "Erro " + resp.status;
+                try { detail = JSON.parse(errText).detail || detail; } catch (_) {}
+                _showRunResult("error", String(detail).slice(0, 200));
                 return;
             }
+            var data = await resp.json();
             _showRunResult("ok", data);
             /* Trigger chart refresh after short delay (runs should start appearing) */
             setTimeout(_loadAndRender, 2000);
@@ -339,7 +341,7 @@
                 /* --- Run A/B panel (H6 B16) --- */
                 '<section class="ab-run-panel" aria-label="Executar A/B paralelo">',
                 '  <h3 class="ab-run-panel-title">Executar A/B Paralelo</h3>',
-                '  <div class="ab-run-selects" role="group">',
+                '  <div class="ab-run-selects" role="group" aria-label="Selecionar variantes para execução paralela">',
                 '    <label class="ab-filter-label">Variante A',
                 '      <select class="ab-filter-select" id="ab-run-select-a" aria-label="Selecionar variante A">',
                 '        <option value="">— selecione draft A —</option>',

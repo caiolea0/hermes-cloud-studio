@@ -166,7 +166,7 @@ def test_runs_ab_test_caller_chapter_f9_logged():
     d.invoke_tool = _spy_invoke
 
     import brain.intents as intents_mod
-    asyncio.get_event_loop().run_until_complete(
+    asyncio.run(
         intents_mod._dispatch_route_skill_run({"server": "srv", "tool": "t", "args": {}}, d)
     )
 

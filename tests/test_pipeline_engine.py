@@ -135,7 +135,7 @@ def _get_run_rows(db: Path, run_id: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 # ---------------------------------------------------------------------------
