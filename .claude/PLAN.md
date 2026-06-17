@@ -3614,3 +3614,85 @@ Total wall-clock: ~15-20h spread 4 sessões.
 - Tasks: #6 H1, #7 H2, #8 H3, #9 H4, #10 H5, #11 H6, #12 H7
 - PLAN.md: este HARDENING-F.FUTURE block (atualizar checkmarks por fase complete)
 - Workflow audit report full: `C:\Users\cleao\AppData\Local\Temp\claude\C--Users-cleao\8dec41ad-aecb-4827-8803-f851aec9beff\tasks\wms9sqd9x.output`
+
+---
+
+## 🛡️ POST-AUDIT-REMEDIATION PLAN 2026-06-17 (Workflow wi5okll8z)
+
+**Trigger**: Audit pós-HARDENING (Workflow wi5okll8z 10 agents 938k tokens 10min) revelou 8 NEW regressions introduced by hardening itself (4 BLOCKER + 4 WARN) + 3 BLOCKERs ainda em VM runtime. Cobaia activation UNSAFE até 5 hard gates fixed.
+
+**Status fixes realizados Phase 1 (~30min, commit c2f8a19)**:
+
+- [x] **R1** access_matrix denies Brain.decide() prod — `brain` rule added allow [sentry] + smoke prod validated
+- [x] **R2** VM deploy — FALSE POSITIVE audit. Gateway v0.6.0-h7 JÁ SHIPPED. hermes_api.py port 8420 arquitetura separada (não afetada hardening PC-side).
+- [x] **R3** quarantine.timer install VM — FALSE POSITIVE audit. Timer ACTIVE desde 18:31:13 UTC (last fired 23:00 UTC, next 00:00 UTC). Audit buscou pattern errado.
+- [x] **R6** access_matrix fail-open — fail-CLOSED implementado + CRITICAL log + smoke prod validated (missing matrix → deny-all brain-core).
+
+### 📋 Phase 1 R5 — Per-role bearers infra + 2 callers críticos (NOW, ~2-3h Sonnet 4.6)
+
+- [ ] **R5-PHASE1** (Task #6) — Gateway suporta per-role bearers + fallback shared bearer (logs `R5_FALLBACK` audit). Migrate brain/dispatch.py + core/sentry_via_gateway.py callers para per-role.
+
+### 📋 Phase 2 R5 — Migrate restantes 5-7 callers (NEXT, ~2h Sonnet 4.6)
+
+- [ ] **R5-PHASE2** (Task #7) — Migrate api/cobaia.py + core/auto_skill_runner.py + core/email_verifier.py + core/cobaia_autotune.py + daemon/cobaia_warmup_scheduler.py + mcps/hermes-linkedin/server.py para per-role bearers.
+
+### 📋 Phase 3 R5 — Kill switch shared bearer (FUTURE, ~30min)
+
+- [ ] **R5-PHASE3** (Task #8) — Remove fallback shared bearer suporte completo. Trigger: 7 dias consecutivos zero R5_FALLBACK logs.
+
+### 📋 WARN remediation (R4+R7+R8+R9+R10+R11+R12+R13)
+
+- [ ] **R4** (Task #9) — F.2 LinkedIn channel keys real (api/daemon.py:177-178 wrong keys)
+- [ ] **R7** (Task #10) — Hunter.io via MCP gateway refactor (audit pattern repeat)
+- [ ] **R8** (Task #11) — F.8 status filter post-merge (B19 regression)
+- [ ] **R9** (Task #12) — Cobaia WS broadcast asyncio loop fix
+- [ ] **R10** (Task #13) — H2 flaky test Windows STATUS_DLL_INIT_FAILED
+- [ ] **R11+R12+R13** (Task #14) — Dead code cleanup (events_jsonl_path + cobaia_autotune_synthesis + PLAN false closeout)
+
+### 📋 F.1 Termômetro root cause
+
+- [ ] **F.1-FIX** (Task #15) — grep_frontend.py expand scope dashboard/components/*.js (B5 ROOT CAUSE — P4 polished cosmetics, not real fix)
+
+### 📋 Phase 4+5 (FUTURE, defer)
+
+- [ ] **Phase 4** (Task #16) — Per-MCP JWT B11 root cause Opus 4.7 ~1-2 dias (trigger: Phase 1+2 stable 2 weeks)
+- [ ] **Phase 5** (Task #17) — Skill owner_verified gate D7 F.5.6 (trigger: ANTES cobaia warmup activate)
+
+### 🎯 Ordem execução otimizada
+
+```
+SESSÃO 1 (NOW): R5-PHASE1 (~2-3h Sonnet 4.6) — per-role bearers infra + 2 callers
+SESSÃO 2: R4 + R7 + R8 paralelo (~3h max) — WARN production fixes
+SESSÃO 3: R5-PHASE2 (~2h) — migrate restantes callers
+SESSÃO 4: R9 + R10 + R11+R12+R13 paralelo (~2h max) — WS + flaky + dead cleanup
+SESSÃO 5: F.1-FIX (~2h) — grep_frontend expand scope
+SESSÃO 6 (gates trigger): R5-PHASE3 (~30min) — kill switch shared bearer
+SESSÃO 7 (defer): Phase 5 owner_verified gate ANTES cobaia
+SESSÃO 8 (F.future): Phase 4 Per-MCP JWT Opus
+```
+
+Total wall-clock: ~12-15h spread 5-6 sessões + 2 defer F.future.
+
+### 📊 Audit comparison
+
+| Métrica | Original wms9sqd9x | Pós-HARDENING wi5okll8z | Pós-Phase1 R1+R6 |
+|---|---|---|---|
+| BLOCKERs resolved | 0 | 10/21 (47.6%) | 12/21 (57%) |
+| New regressions | 0 | 8 (4 BLOCKER) | 4 (R5+R7+R8+R9 WARN) |
+| Cobaia activation | UNSAFE | UNSAFE (5 gates) | UNSAFE (R5+R7+R9 + Phase 5 owner_verified) |
+
+### 📝 Persistence cross-session
+
+- **Memory**: mem_mqigmfot (audit findings) + mem_mqi8s9lm (Sessão 2 H2+H4) + mem_mqi6sabu (HARDENING plan)
+- **Tasks**: #1-#5 completed Phase 1 R1+R2+R3+R6; #6-#17 pending Phase 1 R5 + Phase 2+3 + WARN fixes + Phase 4+5 defer
+- **PLAN.md**: este POST-AUDIT-REMEDIATION block (atualizar [x] por fase complete)
+- **Workflow audit reports**: wms9sqd9x.output (original) + wi5okll8z.output (post-hardening)
+
+### 🚦 Cobaia activation hard gates
+
+Cobaia warmup pode iniciar APENAS quando:
+1. ✅ R1 fixed (Brain via gateway works) — DONE
+2. ⏳ R5-PHASE1 OR R5-PHASE2 done (per-role bearers reduce spoofability)
+3. ⏳ R7 fixed (Hunter via gateway OR Plan B exception documented)
+4. ⏳ R9 fixed (cobaia WS broadcast functional pra observability dashboard)
+5. ⏳ Phase 5 owner_verified gate (per-skill mcp_allowlist + owner manual review skill prompts)
