@@ -3425,3 +3425,82 @@ Pre-req F.9.4:
 +- [ ] TaskCreate 9 chapters
 +- [ ] memory_save re-auditoria FASE F final
  - [ ] Atualizar MEMORY.md global
+---
+
+## 🛡️ HARDENING PLAN POST-AUDIT 2026-06-17
+
+**Trigger**: Workflow audit `wms9sqd9x` 9 agents + synthesizer (10min, 1.33M tokens) detectou 21 BLOCKERs reais + 76% completeness ponderado + ZERO chapters production-ready end-to-end.
+
+**Owner decisão 2026-06-17**: GO hardening 2-3 sessões fix P1-P5 ANTES qualquer F.10+ OR cobaia live activation.
+
+**Padrão sistêmico identificado**: "CHAPTER CLOSED ≠ Production Ready" — declarações otimistas vs realidade operacional em 4 chapters CLOSED (F.4/F.5/F.6/F.8/F.9).
+
+### 📋 Sub-tasks P1-P5
+
+- [ ] **P1** Rotacionar 4+ credenciais .env PC (Task #1, ~1-2h, security crítico) — OPENROUTER_API_KEY + GITHUB_PAT + GITHUB_WEBHOOK_SECRET + HERMES_GATEWAY_OAUTH_SECRET. SKIP HERMES_NIM_API_KEY (owner formal decision não rotacionar). SKIP TELEGRAM (já novo bot dedicado F.7 C4).
+- [ ] **P2** Wire VM hermes_api_v2.py (Task #2, ~3-4h) — brain+observability+pipeline migrations+routers. Pré-req: P1 done.
+- [ ] **P3** F.6/F.7 intent leak smoke baseline (Task #3, ~2-3h) — F.7 vazou 2 intents quebrando F.6 D3 contrato 6 intents. brain/_smoke.py FAIL intent #7. Paralelo P4 OK.
+- [ ] **P4** F.1 skill re-rerun + parametrizar + git hook (Task #4, ~1-2h) — FRONTEND-GAP.md stale 8 dias + termômetro UX morto. Paralelo P3 OK.
+- [ ] **P5** F.7 cobaia pre-launch closeout Hunter.io + .env.example + PLAN block (Task #5, ~6-8h) — pré-req P2.
+
+### 🎯 Ordem execução otimizada
+
+```
+Sessão 1: P1 (~2h) — security PRIMEIRO (bloqueia tudo)
+Sessão 2: P3 + P4 paralelo (~3h max wall-clock — independentes)
+Sessão 3: P2 (~4h) — VM wire (base pra P5)
+Sessão 4: P5 (~8h, mais complex — depende P2)
+```
+
+Total: ~13-19h Sonnet 4.6 spread 2-3 dias.
+
+### 🔑 BLOCKERs catalog (21 total — audit Workflow wms9sqd9x)
+
+| # | Chapter | BLOCKER | Status |
+|---|---|---|---|
+| B1 | F.5 | 4 creds REAIS .env PC | P1 |
+| B2 | F.6 | smoke regression intent #7 FAIL | P3 |
+| B3 | F.6+F.8+F.9 | VM hermes_api_v2.py NÃO wired | P2 |
+| B4 | F.4+F.6+F.7+F.8 | sentry_sdk direto 15+ files viola MCP | F.future |
+| B5 | F.1 | FRONTEND-GAP.md stale 8 dias | P4 |
+| B6 | F.4 | GITHUB_WEBHOOK_SECRET P1 PENDING | P1 |
+| B7 | F.3 | Fingerprint Diff 100% broken | F.future |
+| B8 | F.3 | Lab screenshots 401 sempre | F.future |
+| B9 | F.3 | artifacts_path schema mismatch | F.future |
+| B10 | F.4 | Lab sandbox YAML schema-only (PIVOT D1) | F.future |
+| B11 | F.5 | OAuth shared bearer (não JWT) | F.future |
+| B12 | F.5 | hermes-linkedin.start_campaign stub echo | F.future |
+| B13 | F.7 | Tasks PLAN.md [ ] sem CHAPTER CLOSED block | P5 |
+| B14 | F.7 | Hunter.io email verifier ZERO código | P5 |
+| B15 | F.9 | caller_chapter='F.9' NUNCA implementado | F.future |
+| B16 | F.9 | execute_ab_test() dead code | F.future |
+| B17 | F.9 | ZERO testes pytest dedicados | F.future |
+| B18 | F.8 | CSV export 401 | F.future |
+| B19 | F.8 | filtro Sentry leak | F.future |
+| B20 | F.2 | 3/6 subsistemas pause NO-OP | F.future |
+| B21 | F.2 | /api/daemon/channels stub hardcoded | F.future |
+
+**B10 risk crítico**: skill maliciosa válida YAML passa lab → cria PR → merge → ban LinkedIn cobaia F.7.
+
+### 📊 Coverage Matrix (per chapter)
+
+| Chapter | PLAN Status | Real % | Production-Ready? |
+|---|---|---|---|
+| F.1 | CONCLUIDO | 60% | ❌ termômetro morto |
+| F.2 | CHAPTER CLOSED | 65% | ⚠️ PARCIAL (3/6 pause NO-OP) |
+| F.3 | CHAPTER CLOSED | 60% | ❌ Lab UX 3 BLOCKERs |
+| F.4 | CHAPTER CLOSED | 75% | ⚠️ PARCIAL (lab YAML-only) |
+| F.5 | CHAPTER CLOSED | 70% | ❌ OAuth fake + stubs |
+| F.6 | CHAPTER COMPLETE | 82% | ❌ smoke regression |
+| F.7 | tasks [ ] | 60% | ❌ NÃO ativada |
+| F.8 | CHAPTER CLOSED | 70% | ❌ VM gap + 6 MCP HARD REQ zero |
+| F.9 | CHAPTER CLOSED | 73% | ❌ A/B dead + caller_chapter zero |
+
+**Overall**: 76% completeness ponderado.
+
+### 📝 Persistence cross-session
+
+- Memory: `mem_mqhg23ni` (audit completo) + `mem_mqhg6x3k` (hardening plan)
+- Tasks: #1 P1, #2 P2, #3 P3, #4 P4, #5 P5
+- PLAN.md: este HARDENING block (atualizar checkmarks por fase complete)
+- Workflow report full: `C:\Users\cleao\AppData\Local\Temp\claude\C--Users-cleao\8dec41ad-aecb-4827-8803-f851aec9beff\tasks\wms9sqd9x.output`
