@@ -80,7 +80,7 @@ if ($envContent -match "(?m)^HERMES_GATEWAY_OAUTH_SECRET=") {
     if (-not $envContent.EndsWith("`n")) {
         $envContent += "`n"
     }
-    $envContent += "`n# P1 Hardening — MCP gateway OAuth bearer`n$secretLine`n"
+    $envContent += "`n# P1 Hardening - MCP gateway OAuth bearer`n$secretLine`n"
     Write-Host "  PC .env HERMES_GATEWAY_OAUTH_SECRET: ADICIONADA" -ForegroundColor Green
 }
 
@@ -111,7 +111,7 @@ if grep -q '^HERMES_GATEWAY_OAUTH_SECRET=' `$ENV_FILE 2>/dev/null; then
   echo "  VM HERMES_GATEWAY_OAUTH_SECRET: ATUALIZADA"
 else
   echo "" >> `$ENV_FILE
-  echo "# P1 Hardening — MCP gateway OAuth bearer" >> `$ENV_FILE
+  echo "# P1 Hardening - MCP gateway OAuth bearer" >> `$ENV_FILE
   echo "HERMES_GATEWAY_OAUTH_SECRET=$newSecret" >> `$ENV_FILE
   echo "  VM HERMES_GATEWAY_OAUTH_SECRET: ADICIONADA"
 fi
@@ -232,25 +232,31 @@ SECRET="$newSecret"
 BASE_URL="http://localhost:55401"
 
 # Health endpoint (sem auth)
-HEALTH=\$(curl -sf "\$BASE_URL/health" 2>&1 || echo "FAIL")
-if echo "\$HEALTH" | grep -q '"status"'; then
+HEALTH=`$(curl -sf "`$BASE_URL/health" 2>&1)
+if [ -z "`$HEALTH" ]; then
+  HEALTH="FAIL"
+fi
+if echo "`$HEALTH" | grep -q 'status'; then
   echo "  Smoke /health: OK"
 else
-  echo "  Smoke /health FAIL: \$HEALTH"
+  echo "  Smoke /health FAIL: `$HEALTH"
   exit 1
 fi
 
 # Tools endpoint com Bearer auth
-HTTP_CODE=\$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer \$SECRET" "\$BASE_URL/tools" 2>&1)
-if [ "\$HTTP_CODE" = "200" ]; then
+HTTP_CODE=`$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer `$SECRET" "`$BASE_URL/tools" 2>&1)
+if [ "`$HTTP_CODE" = "200" ]; then
   echo "  Smoke /tools Bearer: OK (HTTP 200)"
-elif [ "\$HTTP_CODE" = "404" ]; then
-  echo "  Smoke /tools: 404 (rota nao existe — /health OK suficiente)"
-elif [ "\$HTTP_CODE" = "401" ] || [ "\$HTTP_CODE" = "403" ]; then
-  echo "  Smoke /tools FAIL: HTTP \$HTTP_CODE — secret novo nao aceito pelo gateway"
+elif [ "`$HTTP_CODE" = "404" ]; then
+  echo "  Smoke /tools: 404 (rota nao existe - /health OK suficiente)"
+elif [ "`$HTTP_CODE" = "401" ]; then
+  echo "  Smoke /tools FAIL: HTTP 401 - secret novo nao aceito pelo gateway"
+  exit 1
+elif [ "`$HTTP_CODE" = "403" ]; then
+  echo "  Smoke /tools FAIL: HTTP 403 - secret novo nao aceito pelo gateway"
   exit 1
 else
-  echo "  Smoke /tools: HTTP \$HTTP_CODE (gateway pode estar inicializando)"
+  echo "  Smoke /tools: HTTP `$HTTP_CODE (gateway pode estar inicializando)"
 fi
 
 echo "  Smoke CONCLUSAO: gateway respondendo com novo secret"

@@ -78,7 +78,7 @@ if ($envContent -match "(?m)^OPENROUTER_API_KEY=") {
     if (-not $envContent.EndsWith("`n")) {
         $envContent += "`n"
     }
-    $envContent += "`n# P1 Hardening — OpenRouter LLM provider`n$keyLine`n"
+    $envContent += "`n# P1 Hardening - OpenRouter LLM provider`n$keyLine`n"
     Write-Host "  PC .env OPENROUTER_API_KEY: ADICIONADA" -ForegroundColor Green
 }
 
@@ -109,7 +109,7 @@ if grep -q '^OPENROUTER_API_KEY=' `$ENV_FILE 2>/dev/null; then
   echo "  VM OPENROUTER_API_KEY: ATUALIZADA"
 else
   echo "" >> `$ENV_FILE
-  echo "# P1 Hardening — OpenRouter LLM provider" >> `$ENV_FILE
+  echo "# P1 Hardening - OpenRouter LLM provider" >> `$ENV_FILE
   echo "OPENROUTER_API_KEY=$plainKey" >> `$ENV_FILE
   echo "  VM OPENROUTER_API_KEY: ADICIONADA"
 fi
