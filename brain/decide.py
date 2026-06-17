@@ -545,11 +545,8 @@ class Brain:
             log.warning("agentmemory save timeout run_id=%s intent=%s", run_id, intent)
         except Exception as exc:  # noqa: BLE001
             log.warning("agentmemory save failed run_id=%s intent=%s err=%s", run_id, intent, exc)
-            try:
-                import sentry_sdk  # type: ignore[import-not-found]
-                sentry_sdk.capture_exception(exc)
-            except Exception:  # noqa: BLE001
-                pass
+            from core.sentry_via_gateway import capture_exception as _sentry_capture
+            _sentry_capture(exc, requester="brain-core")
 
     @staticmethod
     def _build_agentmemory_content(

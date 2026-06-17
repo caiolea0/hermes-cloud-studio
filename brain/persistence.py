@@ -356,15 +356,9 @@ class BrainPersistence:
 
     @staticmethod
     def _report_sentry(exc: Exception, extra: dict[str, Any]) -> None:
-        """Send to Sentry if SDK available. Fire-and-forget (NEVER raise)."""
-        try:
-            import sentry_sdk  # type: ignore[import-not-found]
-        except Exception:  # noqa: BLE001
-            return
-        try:
-            sentry_sdk.capture_exception(exc)
-        except Exception:  # noqa: BLE001
-            pass
+        """Send to Sentry via gateway wrapper. Fire-and-forget (NEVER raise)."""
+        from core.sentry_via_gateway import capture_exception as _sentry_capture
+        _sentry_capture(exc, requester="brain-core", extra=extra)
 
 
 # ----- singleton accessor --------------------------------------------------

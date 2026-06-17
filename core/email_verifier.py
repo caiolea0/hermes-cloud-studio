@@ -81,13 +81,8 @@ class EmailVerifier:
             self._client = None
 
     def _breadcrumb(self, message: str, data: dict) -> None:
-        try:
-            import sentry_sdk
-            sentry_sdk.add_breadcrumb(
-                category="hunter", message=message, data=data, level="info"
-            )
-        except Exception:
-            pass
+        from core.sentry_via_gateway import add_breadcrumb
+        add_breadcrumb(category="hunter", message=message, data=data, level="info")
 
     async def _throttle(self) -> None:
         """Enforce 15 req/min sliding window (Hunter free tier)."""

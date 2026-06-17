@@ -108,16 +108,8 @@ def _ws_notify(payload: dict) -> None:
 
 
 def _sentry_breadcrumb(message: str, data: dict) -> None:
-    try:
-        import sentry_sdk  # type: ignore[import-not-found]
-        sentry_sdk.add_breadcrumb(
-            category="skill_quarantine",
-            message=message,
-            level="warning",
-            data=data,
-        )
-    except Exception:
-        pass
+    from core.sentry_via_gateway import add_breadcrumb
+    add_breadcrumb(category="skill_quarantine", message=message, level="warning", data=data)
 
 
 def run(dry_run: bool = False) -> dict[str, Any]:

@@ -334,24 +334,10 @@ def _scrub_sensitive(text: str) -> str:
 
 
 def _sentry_warn(message: str, extras: dict | None = None) -> None:
-    try:
-        import sentry_sdk  # type: ignore[import-not-found]
-        with sentry_sdk.push_scope() as scope:
-            for k, v in (extras or {}).items():
-                scope.set_extra(k, v)
-            sentry_sdk.capture_message(message, level="warning")
-    except Exception:  # noqa: BLE001
-        pass
+    from core.sentry_via_gateway import capture_message_with_extras
+    capture_message_with_extras(message, extras or {}, level="warning", requester="brain-f4-webhook")
 
 
 def _sentry_breadcrumb(message: str, data: dict | None = None) -> None:
-    try:
-        import sentry_sdk  # type: ignore[import-not-found]
-        sentry_sdk.add_breadcrumb(
-            category="skill_sync",
-            message=message,
-            level="info",
-            data=data or {},
-        )
-    except Exception:  # noqa: BLE001
-        pass
+    from core.sentry_via_gateway import add_breadcrumb
+    add_breadcrumb(category="skill_sync", message=message, level="info", data=data or {})

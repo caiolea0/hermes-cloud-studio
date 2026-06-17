@@ -153,13 +153,8 @@ def _ws_emit(event_type: str, data: dict) -> None:
 
 
 def _sentry_breadcrumb(msg: str, data: dict) -> None:
-    try:
-        import sentry_sdk  # type: ignore[import-not-found]
-        sentry_sdk.add_breadcrumb(
-            category="cobaia_autotune", message=msg, data=data, level="info"
-        )
-    except Exception:
-        pass
+    from core.sentry_via_gateway import add_breadcrumb
+    add_breadcrumb(category="cobaia_autotune", message=msg, data=data, level="info")
 
 
 def _telegram_alert(kpi_name: str, kpi_value: float, threshold: float) -> None:

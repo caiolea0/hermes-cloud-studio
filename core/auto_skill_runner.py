@@ -335,11 +335,8 @@ class AutoSkillRunner:
             })
         except Exception as exc:  # noqa: BLE001 — broadcast must never block dispatch
             log.debug("ws emit %s failed: %s", event_type, exc)
-            try:
-                import sentry_sdk  # type: ignore[import-not-found]
-                sentry_sdk.capture_exception(exc)
-            except Exception:
-                pass
+            from core.sentry_via_gateway import capture_exception as _sentry_capture
+            _sentry_capture(exc, requester="brain-f4")
 
     # ------------------------------------------------------------------
     # C2 — GitHub MCP PR helpers (D2 template + D3 branch + diff)
@@ -640,11 +637,8 @@ class AutoSkillRunner:
             )
         except Exception as persist_exc:  # noqa: BLE001 — never block failure surface
             log.warning("pr_create_failed persist exception: %s", persist_exc)
-        try:
-            import sentry_sdk  # type: ignore[import-not-found]
-            sentry_sdk.capture_exception(exc)
-        except Exception:
-            pass
+        from core.sentry_via_gateway import capture_exception as _sentry_capture
+        _sentry_capture(exc, requester="brain-f4")
         await self._ws_emit("brain.skill_pr_create_failed", {
             "proposal_id": proposal_id,
             "branch": branch_name,

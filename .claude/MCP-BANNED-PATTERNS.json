@@ -1,15 +1,16 @@
 {
   "_meta": {
-    "version": "1.0",
+    "version": "1.1",
     "created": "2026-06-11",
-    "purpose": "F.5.4 seed — per-chapter scoped banned imports/calls. validate_implementation.py phase F enforce S1 hard requirement MCP-ENFORCEMENT-STRATEGY section 5.3.",
+    "updated": "2026-06-17",
+    "purpose": "F.5.4 seed — per-chapter scoped banned imports/calls. validate_implementation.py phase F enforce S1 hard requirement MCP-ENFORCEMENT-STRATEGY section 5.3. H5 hardening: sentry_sdk direct import banned ALL chapters (use core.sentry_via_gateway).",
     "schema": {
       "pattern": "regex (re.search) per arquivo linha-por-linha",
       "reason": "explicacao curta + onde owner deve refatorar (mcp.* via gateway)",
       "severity": "BLOCKER (exit 1 CI) | WARN (stderr report exit 0) | INFO (stdout note)",
       "scope": "OBRIGATORIO (D5) — comma-separated dirs/files relative repo root (ex: brain/, api/agent_zero.py)"
     },
-    "cross_ref": ".claude/MCP-ENFORCEMENT-STRATEGY.md section 5.3 + PLAN.md F.5.4 D1"
+    "cross_ref": ".claude/MCP-ENFORCEMENT-STRATEGY.md section 5.3 + PLAN.md F.5.4 D1 + H5 HARDENING-F.FUTURE B4"
   },
   "F.7": [
     {
@@ -56,9 +57,9 @@
     },
     {
       "pattern": "import sentry_sdk",
-      "reason": "F.7 Task 7 deve usar mcp.sentry.capture_exception via gateway (NAO sentry-sdk Python direto)",
+      "reason": "H5 — usar core.sentry_via_gateway (capture_exception/capture_message/add_breadcrumb). Wrapper roteia via gateway loopback com fallback sentry_sdk + buffer. sentry_sdk direto quebra defense-in-depth MCP gateway.",
       "severity": "BLOCKER",
-      "scope": "brain/, api/agent_zero.py, skills/"
+      "scope": "brain/, api/, core/, daemon/, scripts/"
     }
   ],
   "F.6": [
@@ -85,6 +86,20 @@
       "reason": "F.6 deve usar mcp.github.* via gateway (NAO subprocess gh CLI)",
       "severity": "WARN",
       "scope": "brain/"
+    },
+    {
+      "pattern": "import sentry_sdk",
+      "reason": "H5 — usar core.sentry_via_gateway. Brain F.6 deve consumir SO via gateway loopback.",
+      "severity": "BLOCKER",
+      "scope": "brain/, api/, core/"
+    }
+  ],
+  "F.5": [
+    {
+      "pattern": "import sentry_sdk",
+      "reason": "H5 — usar core.sentry_via_gateway. MCP gateway tier F.5 nao usa sentry_sdk direto.",
+      "severity": "BLOCKER",
+      "scope": "mcps/"
     }
   ],
   "F.4": [
@@ -108,9 +123,25 @@
     },
     {
       "pattern": "import sentry_sdk",
-      "reason": "F.4 auto-disable via mcp.sentry.list_issues via gateway (NAO sentry-sdk direto core/auto_skill_*.py)",
+      "reason": "H5 — usar core.sentry_via_gateway (capture_exception/add_breadcrumb). core/auto_skill_runner.py migrado em H5.",
       "severity": "BLOCKER",
-      "scope": "skills/, api/agent_zero.py"
+      "scope": "core/, api/, scripts/"
+    }
+  ],
+  "F.8": [
+    {
+      "pattern": "import sentry_sdk",
+      "reason": "H5 — usar core.sentry_via_gateway. core/observability.py + scripts/check_nim_credits.py migrados em H5.",
+      "severity": "BLOCKER",
+      "scope": "core/, scripts/"
+    }
+  ],
+  "F.9": [
+    {
+      "pattern": "import sentry_sdk",
+      "reason": "H5 — usar core.sentry_via_gateway. core/pipeline_engine.py migrado em H5.",
+      "severity": "BLOCKER",
+      "scope": "core/"
     }
   ]
 }

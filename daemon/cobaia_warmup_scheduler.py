@@ -162,15 +162,13 @@ def _ws_emit(event_type: str, data: dict):
 
 
 def _sentry_alert(data: dict):
-    try:
-        import sentry_sdk
-        sentry_sdk.capture_message(
-            f"cobaia auto-paused: {data.get('reason')}",
-            level="warning",
-            extras=data,
-        )
-    except Exception:
-        pass
+    from core.sentry_via_gateway import capture_message_with_extras
+    capture_message_with_extras(
+        f"cobaia auto-paused: {data.get('reason')}",
+        extras=data,
+        level="warning",
+        requester="brain-f7-cobaia",
+    )
 
 
 def init_cobaia_scheduler(scheduler) -> bool:

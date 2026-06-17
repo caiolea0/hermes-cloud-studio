@@ -26,13 +26,7 @@ from typing import Any, Optional
 
 logger = logging.getLogger("hermes.observability")
 
-# Optional Sentry capture (graceful absent in dev)
-try:
-    import sentry_sdk  # type: ignore
-    _SENTRY_OK = True
-except ImportError:
-    sentry_sdk = None  # type: ignore
-    _SENTRY_OK = False
+from core.sentry_via_gateway import capture_exception as _sentry_capture, _SENTRY_AVAILABLE as _SENTRY_OK
 
 
 # ---------------------------------------------------------------------------
@@ -124,8 +118,7 @@ class PerfMetricsCollector:
                 title="perf_metrics hourly flush failed",
                 message=str(exc)[:1000],
             )
-            if _SENTRY_OK and sentry_sdk is not None:
-                sentry_sdk.capture_exception(exc)
+            _sentry_capture(exc, requester="brain-f8")
             return 0
 
 
@@ -179,8 +172,7 @@ async def perf_flush_loop(db_path: Path, interval_seconds: int = 3600):
             raise
         except Exception as exc:
             logger.error("perf_flush_loop iteration error: %s", exc)
-            if _SENTRY_OK and sentry_sdk is not None:
-                sentry_sdk.capture_exception(exc)
+            _sentry_capture(exc, requester="brain-f8")
 
 
 # ---------------------------------------------------------------------------

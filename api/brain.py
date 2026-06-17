@@ -76,11 +76,8 @@ async def _emit_ws_event(event_type: str, payload: dict[str, Any]) -> None:
         from core.state import ws_manager
         await ws_manager.broadcast({"type": event_type, **payload})
     except Exception:  # noqa: BLE001 — WS non-critical
-        try:
-            import sentry_sdk  # type: ignore[import-not-found]
-            sentry_sdk.capture_exception()
-        except Exception:  # noqa: BLE001
-            pass
+        from core.sentry_via_gateway import capture_exception as _sentry_capture
+        _sentry_capture(requester="brain-core")
 
 
 def _build_awaiting_payload(decide_result: dict[str, Any]) -> dict[str, Any]:

@@ -254,19 +254,16 @@ async def reject_proposal(proposal_id: str, req: DecisionRequest):
         raise HTTPException(400, str(exc))
 
     # D5 — Sentry breadcrumb (NOT exception, fire-and-forget).
-    try:
-        import sentry_sdk  # type: ignore[import-not-found]
-        sentry_sdk.add_breadcrumb(
-            category="skill_proposal_rejected",
-            message=f"proposal {proposal_id} rejected by owner",
-            level="info",
-            data={
-                "proposal_id": proposal_id,
-                "reason_len": len(req.reason or ""),
-            },
-        )
-    except Exception:  # noqa: BLE001 — telemetry must never block dispatch
-        pass
+    from core.sentry_via_gateway import add_breadcrumb
+    add_breadcrumb(
+        category="skill_proposal_rejected",
+        message=f"proposal {proposal_id} rejected by owner",
+        level="info",
+        data={
+            "proposal_id": proposal_id,
+            "reason_len": len(req.reason or ""),
+        },
+    )
 
     # D5 — WS emit (fire-and-forget).
     try:

@@ -52,12 +52,7 @@ NIM_API_URL = "https://integrate.api.nvidia.com/v1/account/credits"
 WARNING_THRESHOLD = 1000.0
 CRITICAL_THRESHOLD = 200.0
 
-try:
-    import sentry_sdk  # type: ignore
-    _SENTRY_OK = True
-except ImportError:
-    sentry_sdk = None  # type: ignore
-    _SENTRY_OK = False
+from core.sentry_via_gateway import capture_exception as _sentry_capture, _SENTRY_AVAILABLE as _SENTRY_OK
 
 
 def _extract_balance(payload: dict) -> float:
@@ -115,8 +110,7 @@ async def poll_nim_credits() -> dict:
                 title="NIM credit polling network error",
                 message=str(exc)[:1000],
             )
-            if _SENTRY_OK and sentry_sdk is not None:
-                sentry_sdk.capture_exception(exc)
+            _sentry_capture(exc, requester="brain-f8")
             return {"ok": False, "error": f"network: {exc}",
                     "balance_credits": None}
 
@@ -156,8 +150,7 @@ async def poll_nim_credits() -> dict:
             title="NIM credit history insert failed",
             message=str(exc)[:500],
         )
-        if _SENTRY_OK and sentry_sdk is not None:
-            sentry_sdk.capture_exception(exc)
+        _sentry_capture(exc, requester="brain-f8")
         return {"ok": False, "error": f"db_insert: {exc}",
                 "balance_credits": balance}
 

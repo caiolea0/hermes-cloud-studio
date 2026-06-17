@@ -460,11 +460,8 @@ class PipelineEngine:
                     run_id, step_idx, "error",
                     None, f"{type(exc).__name__}: {exc}"[:_OUTPUT_TRUNCATE], latency_ms, 0.0,
                 )
-                try:
-                    import sentry_sdk  # type: ignore[import-not-found]
-                    sentry_sdk.capture_exception(exc)
-                except Exception:  # noqa: BLE001
-                    pass
+                from core.sentry_via_gateway import capture_exception as _sentry_capture
+                _sentry_capture(exc, requester="brain-f9")
                 self._broadcast_pipeline_event("pipeline.step_error", {
                     "run_id": run_id, "step_idx": step_idx, "step_name": step_name,
                     "status": "error", "error": f"{type(exc).__name__}"[:100],

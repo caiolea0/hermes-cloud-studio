@@ -59,11 +59,8 @@ def _send_email(subject: str, body_text: str) -> bool:
 
 
 def _sentry_breadcrumb(msg: str, data: dict) -> None:
-    try:
-        import sentry_sdk  # type: ignore[import-not-found]
-        sentry_sdk.add_breadcrumb(category="cobaia", message=msg, data=data, level="warning")
-    except Exception:
-        pass
+    from core.sentry_via_gateway import add_breadcrumb
+    add_breadcrumb(category="cobaia", message=msg, data=data, level="warning")
 
 
 def _render_digest() -> tuple[str, str]:

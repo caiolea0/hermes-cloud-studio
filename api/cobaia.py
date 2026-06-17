@@ -74,11 +74,8 @@ def _ws_emit(event_type: str, data: dict):
 
 
 def _sentry_breadcrumb(message: str, data: dict):
-    try:
-        import sentry_sdk
-        sentry_sdk.add_breadcrumb(category="cobaia", message=message, data=data, level="info")
-    except Exception:
-        pass
+    from core.sentry_via_gateway import add_breadcrumb
+    add_breadcrumb(category="cobaia", message=message, data=data, level="info")
 
 
 @router.post("/api/linkedin/cobaia/start-warmup")
@@ -619,11 +616,11 @@ async def cobaia_preflight():
     all_pass = all_pass and checks["db_tables"]["pass"]
 
     # C8: Sentry SDK importable
-    try:
-        import sentry_sdk  # noqa: F401
-        checks["sentry_sdk"] = {"pass": True, "detail": "sentry_sdk importable"}
-    except ImportError:
-        checks["sentry_sdk"] = {"pass": False, "detail": "sentry_sdk not installed (optional)"}
+    from core.sentry_via_gateway import _SENTRY_AVAILABLE as _sdk_available
+    checks["sentry_sdk"] = {
+        "pass": _sdk_available,
+        "detail": "sentry_sdk importable" if _sdk_available else "sentry_sdk not installed (optional)",
+    }
     # Sentry is optional — doesn't affect all_pass
 
     return {

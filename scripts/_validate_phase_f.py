@@ -28,17 +28,32 @@ PATTERNS_PATH = ROOT / ".claude" / "MCP-BANNED-PATTERNS.json"
 CACHE_PATH = ROOT / ".claude" / "_validate_required_cache.json"
 
 # D5 — master scope allowlist (owner pode expandir via --scope-add)
+# H5 HARDENING: expanded to cover api/, core/, daemon/, scripts/ — all sentry_sdk
+# migration targets. Patterns scoped per-chapter in MCP-BANNED-PATTERNS.json.
 SCOPE_PATHS = [
     "mcps/",
     "brain/",
     "skills/",
-    "api/agent_zero.py",
+    "api/",
+    "core/",
+    "daemon/",
+    "scripts/",
     "hermes_api_v2.py",
     "vm_api/",
 ]
 
 SEVERITY_RANK = {"INFO": 0, "WARN": 1, "BLOCKER": 2}
 _SCOPED_EXTS = (".py", ".yaml", ".yml", ".json")
+
+# H5: files excluded from ALL banned-pattern scans.
+# sentry_via_gateway.py IS the implementation wrapper — it MUST contain sentry_sdk import.
+# tests/ contains mock code that legitimately references banned patterns.
+_GLOBAL_EXCLUDE_SUBSTRINGS = [
+    "core/sentry_via_gateway.py",
+    "core\\sentry_via_gateway.py",
+    "tests/",
+    "tests\\",
+]
 
 
 def get_required_per_phase() -> dict[str, list[dict]]:
@@ -135,7 +150,11 @@ def _walk_scope_paths(scope_strings: list[str]) -> list[Path]:
         elif target.is_dir():
             for ext in _SCOPED_EXTS:
                 files.update(target.rglob(f"*{ext}"))
-    return sorted(f for f in files if "__pycache__" not in str(f) and ".git" not in str(f).split("\\"))
+    def _excluded(p: Path) -> bool:
+        s = str(p).replace("\\", "/")
+        return any(ex.replace("\\", "/") in s for ex in _GLOBAL_EXCLUDE_SUBSTRINGS)
+
+    return sorted(f for f in files if "__pycache__" not in str(f) and ".git" not in str(f).split("\\") and not _excluded(f))
 
 
 def audit_banned_patterns(extra_globs: list[str] | None = None) -> list[dict]:

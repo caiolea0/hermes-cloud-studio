@@ -3586,7 +3586,7 @@ Total: ~13-19h Sonnet 4.6 spread 2-3 dias.
 - [x] **H2** F.4 lab sandbox REAL (Task #7, Sonnet 4.6 ~3-4h) — **PRIORITY 2** risk ban LinkedIn cobaia. PIVOT D1 forward: test_skill_dryrun aceitar yaml_blob + subprocess real isolated 60s timeout + _validate_yaml_inline DEPRECATE. DONE 2026-06-17 commit feat(H2) — _skill_runner.py NEW + server.py MATURE + auto_skill_runner.py gateway-first + 10 tests, 186 pytest PASS, BLACKLIST R2 INTACTO 39 SS.
 - [x] **H3** F.8 Observability fixes (Task #8, Sonnet 4.6 ~2-3h) — dashboard UX owner uses daily. B18 CSV fetch+Blob + B19 filtro Sentry consistente.
 - [x] **H4** F.2 Mission Control real pauses (Task #9, Sonnet 4.6 ~3-4h) — UX honesty. B20 gate scraper/audit/tunnel real + B21 /channels query DB real. DONE 2026-06-17 commit feat(H4).
-- [ ] **H5** sentry_sdk refactor cross-cutting (Task #10, Sonnet 4.6 ~4-6h) — defense-in-depth. B4 wrapper core/sentry_via_gateway.py + replace 15+ sites + MCP-BANNED-PATTERNS scope strict.
+- [x] **H5** sentry_sdk refactor cross-cutting (Task #10, Sonnet 4.6 ~4-6h) — defense-in-depth. B4 wrapper core/sentry_via_gateway.py + replace 15+ sites + MCP-BANNED-PATTERNS scope strict. DONE 2026-06-17 — 16 files migrated, 194 pytest PASS (186+8 H5), BLACKLIST R2 INTACTO 40 SS, zero sentry_sdk direct imports, validator scope expanded all chapters.
 - [ ] **H6** F.9 Pipeline polish (Task #11, Sonnet 4.6 ~4-5h, pré-req H5) — B15 caller_chapter ALTER+propagate + B16 execute_ab_test endpoint+UI + B17 pytest suite 15+ tests.
 - [ ] **H7** F.5 MCP enhancements (Task #12, **Opus 4.7** ~5-6h, pré-req H2+H5) — B11 OAuth JWT per-MCP aud claim + B12 start_campaign real Patchright dispatch (BLACKLIST R2 read-only consume).
 
