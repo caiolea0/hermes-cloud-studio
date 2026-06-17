@@ -40,8 +40,9 @@ from vm_core.mcp_tiering import classify_coverage
 
 from ._pool import MCPClientPool
 from .access_matrix import AccessMatrix, load_matrix
+from .requester import build_bearer_to_requester_map, derive_requester
 
-GATEWAY_VERSION = "0.6.0-h7"
+GATEWAY_VERSION = "0.7.0-r5"
 
 # F.5.5 D5 — in-memory async audit job registry.
 # Aceitavel audit mensal (proximo cron retry se VM restart pre-finish).
@@ -176,6 +177,11 @@ def build_app(config_path: Path | None = None) -> FastAPI:
         access_matrix.default_policy, len(access_matrix.rules),
     )
 
+    # R5 PHASE 1 — per-role bearer map (built once at startup, captured by middleware closures)
+    per_role_map = build_bearer_to_requester_map()
+    shared_bearer = os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
+    logger.info("R5 per_role_map: %d per-role bearers configured", len(per_role_map))
+
     @app.on_event("shutdown")
     async def _shutdown_close_pool():
         # F.5.3 evita zombie subprocess VM quando uvicorn termina
@@ -207,8 +213,11 @@ def build_app(config_path: Path | None = None) -> FastAPI:
                 content={"error": "missing_bearer", "path": request.url.path},
             )
         token = auth.removeprefix("Bearer ").strip()
-        expected = os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
-        if not expected or not secrets.compare_digest(token, expected):
+        # R5: accept per-role bearer OR shared bearer
+        token_ok = (token in per_role_map) or (
+            shared_bearer and secrets.compare_digest(token, shared_bearer)
+        )
+        if not token_ok:
             return JSONResponse(
                 status_code=401,
                 content={"error": "invalid_bearer"},
@@ -226,10 +235,13 @@ def build_app(config_path: Path | None = None) -> FastAPI:
         if oauth_enabled:
             if oauth_bypass_loopback and _is_loopback(request) and not strict_mode:
                 return await call_next(request)
-            # Strict mode OR non-loopback: requires Bearer token (F.5.2 implements real verify)
-            secret = os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
+            # Strict mode OR non-loopback: requires Bearer token (R5: per-role OR shared)
             authz = request.headers.get("Authorization", "")
-            if not secret or authz != f"Bearer {secret}":
+            bearer_token = authz[len("Bearer "):].strip() if authz.startswith("Bearer ") else ""
+            token_ok = (bearer_token in per_role_map) or (
+                shared_bearer and bearer_token == shared_bearer
+            )
+            if not token_ok:
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "OAuth required (F.5.2 will issue per-MCP JWT)"},
@@ -331,7 +343,18 @@ def build_app(config_path: Path | None = None) -> FastAPI:
         except Exception:
             body = {}
         args = body.get("args", {}) if isinstance(body, dict) else {}
-        requester = (body.get("requester") if isinstance(body, dict) else None) or "api"
+
+        # R5 PHASE 1 — server-trusted requester via bearer (not client-claimed body.requester)
+        authz_header = request.headers.get("Authorization", "")
+        requester, trust_mode = derive_requester(authz_header, body, per_role_map, shared_bearer)
+        if requester is None:
+            raise HTTPException(status_code=401, detail={"error": "unauthorized_no_valid_bearer"})
+        if trust_mode == "fallback_spoofable":
+            logger.warning(
+                "R5_FALLBACK requester_claimed=%s target=%s/%s -- shared bearer (SPOOFABLE, migrate to per-role bearer)",
+                requester, server_name, tool_name,
+            )
+
         caller_chapter = (body.get("caller_chapter") if isinstance(body, dict) else None) or None
 
         # H7 B11 — access matrix enforcement (defense-in-depth under bearer)

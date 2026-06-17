@@ -28,10 +28,14 @@ Callers passam `requester=` string p/ audit trail (F.4 D7 pattern):
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from typing import Any, Optional
 
 logger = logging.getLogger("hermes.sentry_gateway")
+
+# R5 PHASE 1 — per-role bearer for breadcrumb/sentry caller (falls back to shared bearer)
+_BREADCRUMB_BEARER: str = os.getenv("HERMES_GATEWAY_BEARER_BREADCRUMB") or os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
 
 # Optional sentry_sdk — graceful absent in dev/PC; installed on VM
 try:
@@ -53,8 +57,9 @@ def _gateway_dispatch_async(tool: str, args: dict, requester: str) -> None:
 
         async def _do() -> None:
             try:
-                d = GatewayDispatcher()
-                await d.invoke_tool("sentry", tool, args, requester=requester)
+                # R5: use breadcrumb-specific bearer (server-trusted; requester not in body)
+                d = GatewayDispatcher(bearer=_BREADCRUMB_BEARER)
+                await d.invoke_tool("sentry", tool, args)
             except Exception:  # noqa: BLE001 — best-effort only
                 pass
 

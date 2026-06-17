@@ -3630,7 +3630,7 @@ Total wall-clock: ~15-20h spread 4 sessões.
 
 ### 📋 Phase 1 R5 — Per-role bearers infra + 2 callers críticos (NOW, ~2-3h Sonnet 4.6)
 
-- [ ] **R5-PHASE1** (Task #6) — Gateway suporta per-role bearers + fallback shared bearer (logs `R5_FALLBACK` audit). Migrate brain/dispatch.py + core/sentry_via_gateway.py callers para per-role.
+- [x] **R5-PHASE1** (Task #6) — Gateway suporta per-role bearers + fallback shared bearer (logs `R5_FALLBACK` audit). Migrate brain/dispatch.py + core/sentry_via_gateway.py callers para per-role. **DONE 2026-06-17** — requester.py NEW + derive_requester + build_bearer_to_requester_map + GATEWAY_VERSION 0.7.0-r5 + 10 tests + setup_gateway_role_bearers.ps1 + .env.example 11 vars. 235 pytest PASS. BLACKLIST R2 INTACTO 42 SS.
 
 ### 📋 Phase 2 R5 — Migrate restantes 5-7 callers (NEXT, ~2h Sonnet 4.6)
 

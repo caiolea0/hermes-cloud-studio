@@ -31,6 +31,9 @@ __all__ = ["GatewayDispatcher", "SENSITIVE_KEYS", "sanitize"]
 
 log = logging.getLogger("brain.dispatch")
 
+# R5 PHASE 1 — per-role bearer for brain-core (falls back to shared bearer for dev/transition)
+_BRAIN_BEARER: str = os.getenv("HERMES_GATEWAY_BEARER_BRAIN_CORE") or os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
+
 # Defense-in-depth sanitize (gateway-side ALSO sanitize — duplo gate).
 # Inclui LinkedIn cookies, LLM API keys, OAuth bearers, passwords.
 SENSITIVE_KEYS: frozenset[str] = frozenset({
@@ -84,7 +87,8 @@ class GatewayDispatcher:
     ) -> None:
         self.base_url = (base_url or os.getenv("HERMES_GATEWAY_URL", self.DEFAULT_URL)).rstrip("/")
         self.timeout = timeout
-        self.bearer = bearer if bearer is not None else os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
+        # R5: prefer per-role bearer (server-trusted), fallback shared bearer for transition
+        self.bearer = bearer if bearer is not None else _BRAIN_BEARER
         # NOTA: STRICT_MODE=0 gateway aceita sem Bearer (loopback bypass).
         # STRICT_MODE=1 prod exige Bearer válido — F.future quando JWT issuance ativo.
 
@@ -146,7 +150,9 @@ class GatewayDispatcher:
             On error:   {ok: False, error, status_code?}
         """
         url = f"{self.base_url}/dispatch/{server}/{tool}"
-        payload: dict[str, Any] = {"args": args, "requester": requester}
+        # R5: requester NOT in body — gateway derives from per-role bearer (server-trusted).
+        # For shared-bearer fallback, gateway logs R5_FALLBACK with requester='api'.
+        payload: dict[str, Any] = {"args": args}
         if caller_chapter is not None:
             payload["caller_chapter"] = caller_chapter
 
