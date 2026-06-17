@@ -50,6 +50,10 @@ class PauseRequest(BaseModel):
     reason: Optional[str] = None
 
 
+class VerifyEmailRequest(BaseModel):
+    email: str
+
+
 def _manager():
     from linkedin.cobaia_warmup import CobaiaWarmupManager
     from linkedin.config import CobaiaConfig
@@ -739,3 +743,46 @@ async def cobaia_f7_report(days: int = Query(default=14, ge=1, le=90)):
         report["open_alerts"] = {"error": str(exc)[:100]}
 
     return report
+
+
+# ============================================================
+# F.7 P5 — Hunter.io email verifier endpoints (Task 6 + MCP HARD REQ)
+# Validates email deliverability ANTES warmup send (bounce >2% queima domain)
+# ============================================================
+
+@router.post("/api/cobaia/verify-email")
+async def cobaia_verify_email(req: VerifyEmailRequest):
+    """Verify email deliverability via Hunter.io v2.
+
+    Returns {status, score, smtp_check, mx_records, disposable, webmail, cached}.
+    status: valid | invalid | accept_all | unknown | quota_exhausted | format_invalid | no_api_key
+    """
+    from core.email_verifier import EmailVerifier
+    verifier = EmailVerifier()
+    try:
+        result = await verifier.verify_email(req.email)
+    finally:
+        await verifier.aclose()
+    _sentry_breadcrumb("cobaia.verify_email", {
+        "email": req.email,
+        "status": result.get("status"),
+        "cached": result.get("cached"),
+    })
+    if result.get("status") in {"valid", "accept_all"}:
+        logger.info("hunter verify OK: %s status=%s score=%s",
+                    req.email, result.get("status"), result.get("score"))
+    elif result.get("status") == "invalid":
+        logger.warning("hunter verify BLOCKED: %s (invalid — skip warmup)", req.email)
+    return result
+
+
+@router.get("/api/cobaia/hunter-usage")
+async def cobaia_hunter_usage():
+    """Track Hunter.io account quota (free tier 25 verifies/mo)."""
+    from core.email_verifier import EmailVerifier
+    verifier = EmailVerifier()
+    try:
+        usage = await verifier.check_account_usage()
+    finally:
+        await verifier.aclose()
+    return usage

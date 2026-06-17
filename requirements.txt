@@ -29,3 +29,8 @@ pytest-xdist>=3.6
 # Rationale (D3): StrictUndefined raises on missing var → fail-fast, prevents silent corruption
 # em owner pipelines F.7 cobaia. SandboxedEnvironment blocks arbitrary attr access.
 jinja2>=3.1
+# F.7 C1/C4/C5 — APScheduler (cobaia warmup daily + email digest + autotune)
+# Rationale: AsyncIOScheduler integrates with FastAPI lifespan, sub-second precision,
+# cron triggers BRT timezone. tzdata required (Windows).
+apscheduler>=3.11.0,<4.0
+tzdata>=2024.1

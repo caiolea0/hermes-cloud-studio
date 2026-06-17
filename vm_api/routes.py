@@ -1365,6 +1365,25 @@ def _apply_linkedin_migration():
 _apply_linkedin_migration()
 
 
+def _apply_hunter_email_cache_migration():
+    """F.7 P5 hardening — Hunter.io email verifier cache (idempotent)."""
+    sql_path = Path(__file__).resolve().parent.parent / "migrations" / "2026_06_hunter_email_cache.sql"
+    if not sql_path.exists():
+        sql_path = Path.home() / ".hermes" / "scripts" / "migrations" / "2026_06_hunter_email_cache.sql"
+    if not sql_path.exists():
+        return
+    try:
+        conn = get_db()
+        conn.executescript(sql_path.read_text(encoding="utf-8"))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[migration] F.7 P5 hunter migration error: {e}")
+
+
+_apply_hunter_email_cache_migration()
+
+
 @router.get("/api/linkedin/rate-limits")
 async def vm_linkedin_rate_limits():
     """Return real rate limiter stats from LinkedInLimiter."""

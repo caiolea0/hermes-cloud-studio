@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-17 04:02 UTC
+- **last_updated**: 2026-06-17 13:57 UTC
 - **phase_baseline**: post F.9
-- **routes_total**: 207 (157 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 94 (46.5% of public)
-- **orphans**: 108
+- **routes_total**: 209 (159 PC + 50 VM, 5 internal-only excluded)
+- **consumed**: 94 (46.1% of public)
+- **orphans**: 110
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **207** rotas FastAPI (157 PC, 50 VM)
+- Total: **209** rotas FastAPI (159 PC, 50 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -21,7 +21,7 @@
 |---|---|
 | `vm_api/routes.py` | 46 |
 | `api/linkedin.py` | 21 |
-| `api/cobaia.py` | 15 |
+| `api/cobaia.py` | 17 |
 | `api/daemon.py` | 12 |
 | `api/pipeline_studio.py` | 12 |
 | `api/skills.py` | 10 |
@@ -84,7 +84,7 @@
 | `/api/daemon/channels` | 1 | app.js:3529 |
 | `/api/daemon/decisions` | 1 | app.js:3607 |
 
-## §3 Órfãos — 108 endpoints sem UI
+## §3 Órfãos — 110 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -96,7 +96,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/daemon/subsystems/all/pause` | pc | `api/daemon.py:322` | rate-limited |
 | `POST` | `/api/daemon/subsystems/{name}/pause` | pc | `api/daemon.py:363` | rate-limited |
 | `POST` | `/api/daemon/subsystems/{name}/resume` | pc | `api/daemon.py:372` | rate-limited |
-| `GET` | `/api/linkedin/cobaia/timeline` | pc | `api/cobaia.py:219` | token |
+| `GET` | `/api/linkedin/cobaia/timeline` | pc | `api/cobaia.py:223` | token |
 | `POST` | `/api/agent-zero/chat` | pc | `api/agent_zero.py:43` | token |
 | `POST` | `/api/brain/confirm/{run_id}` | pc | `api/brain.py:154` | token |
 | `POST` | `/api/brain/decide` | pc | `api/brain.py:107` | token |
@@ -107,26 +107,27 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/brain/runs` | pc | `api/brain.py:120` | token |
 | `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:132` | token |
 | `GET` | `/api/linkedin/visited` | pc | `api/linkedin.py:443` | token |
-| `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1509` | token |
+| `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1528` | token |
 | `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:701` | token |
-| `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:425` | token |
+| `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:429` | token |
+| `POST` | `/api/cobaia/verify-email` | pc | `api/cobaia.py:753` | token |
 | `POST` | `/api/lab/runs/{run_id}/abort` | pc | `api/lab.py:358` | token |
 | `POST` | `/api/lab/start` | pc | `api/lab.py:307` | rate-limited |
 | `POST` | `/api/linkedin/campaigns/discover` | pc | `api/linkedin.py:411` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1216` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | pc | `api/linkedin.py:399` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | vm | `vm_api/routes.py:1107` | token |
-| `POST` | `/api/linkedin/cobaia/emergency-stop` | pc | `api/cobaia.py:134` | token |
-| `POST` | `/api/linkedin/cobaia/pause` | pc | `api/cobaia.py:96` | token |
-| `POST` | `/api/linkedin/cobaia/resume` | pc | `api/cobaia.py:109` | token |
-| `POST` | `/api/linkedin/cobaia/start-warmup` | pc | `api/cobaia.py:80` | token |
+| `POST` | `/api/linkedin/cobaia/emergency-stop` | pc | `api/cobaia.py:138` | token |
+| `POST` | `/api/linkedin/cobaia/pause` | pc | `api/cobaia.py:100` | token |
+| `POST` | `/api/linkedin/cobaia/resume` | pc | `api/cobaia.py:113` | token |
+| `POST` | `/api/linkedin/cobaia/start-warmup` | pc | `api/cobaia.py:84` | token |
 | `POST` | `/api/linkedin/connection/refresh` | pc | `api/linkedin.py:481` | token |
-| `POST` | `/api/linkedin/connection/refresh` | vm | `vm_api/routes.py:1689` | token |
+| `POST` | `/api/linkedin/connection/refresh` | vm | `vm_api/routes.py:1708` | token |
 | `POST` | `/api/linkedin/detect-account-type` | pc | `api/linkedin.py:461` | token |
-| `POST` | `/api/linkedin/detect-account-type` | vm | `vm_api/routes.py:1470` | token |
+| `POST` | `/api/linkedin/detect-account-type` | vm | `vm_api/routes.py:1489` | token |
 | `POST` | `/api/linkedin/health/clear` | pc | `_health_ep.py:15` | token |
 | `POST` | `/api/linkedin/health/clear` | pc | `api/linkedin.py:476` | token |
-| `POST` | `/api/linkedin/health/clear` | vm | `vm_api/routes.py:1497` | token |
+| `POST` | `/api/linkedin/health/clear` | vm | `vm_api/routes.py:1516` | token |
 | `POST` | `/api/mcp/coverage/publish` | vm | `vm_api/mcp_coverage.py:80` | token |
 | `POST` | `/api/observability/errors/{error_id}/resolve` | pc | `api/observability.py:380` | token |
 | `POST` | `/api/outreach/batch` | vm | `vm_api/routes.py:777` | token |
@@ -157,21 +158,22 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/stats` | vm | `vm_api/routes.py:330` | token |
 | `GET` | `/` | pc | `api/dashboard.py:14` | token |
 | `GET` | `/api/_ping` | vm | `hermes_api_v2.py:157` | token |
-| `GET` | `/api/cobaia/autotune-history` | pc | `api/cobaia.py:367` | token |
-| `GET` | `/api/cobaia/autotune-status` | pc | `api/cobaia.py:399` | token |
-| `GET` | `/api/cobaia/bug-export` | pc | `api/cobaia.py:266` | token |
-| `GET` | `/api/cobaia/f7-report` | pc | `api/cobaia.py:633` | token |
-| `GET` | `/api/cobaia/health-score` | pc | `api/cobaia.py:294` | token |
-| `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:494` | token |
-| `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:351` | token |
+| `GET` | `/api/cobaia/autotune-history` | pc | `api/cobaia.py:371` | token |
+| `GET` | `/api/cobaia/autotune-status` | pc | `api/cobaia.py:403` | token |
+| `GET` | `/api/cobaia/bug-export` | pc | `api/cobaia.py:270` | token |
+| `GET` | `/api/cobaia/f7-report` | pc | `api/cobaia.py:637` | token |
+| `GET` | `/api/cobaia/health-score` | pc | `api/cobaia.py:298` | token |
+| `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:779` | token |
+| `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:498` | token |
+| `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:355` | token |
 | `GET` | `/api/config` | pc | `api/config.py:27` | token |
-| `GET` | `/api/linkedin/cobaia/metrics` | pc | `api/cobaia.py:149` | token |
-| `GET` | `/api/linkedin/cobaia/status` | pc | `api/cobaia.py:124` | token |
+| `GET` | `/api/linkedin/cobaia/metrics` | pc | `api/cobaia.py:153` | token |
+| `GET` | `/api/linkedin/cobaia/status` | pc | `api/cobaia.py:128` | token |
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:455` | token |
-| `GET` | `/api/linkedin/companies/lookup` | vm | `vm_api/routes.py:1567` | token |
+| `GET` | `/api/linkedin/companies/lookup` | vm | `vm_api/routes.py:1586` | token |
 | `GET` | `/api/linkedin/rate-limits` | pc | `api/linkedin.py:29` | token |
-| `GET` | `/api/linkedin/rate-limits` | vm | `vm_api/routes.py:1368` | token |
-| `GET` | `/api/linkedin/session-check` | vm | `vm_api/routes.py:1381` | token |
+| `GET` | `/api/linkedin/rate-limits` | vm | `vm_api/routes.py:1387` | token |
+| `GET` | `/api/linkedin/session-check` | vm | `vm_api/routes.py:1400` | token |
 | `GET` | `/api/mcp/coverage/jobs/{job_id}` | vm | `vm_api/mcp_jobs.py:26` | token |
 | `GET` | `/api/mcp/coverage/latest` | pc | `api/mcp_coverage.py:78` | token |
 | `GET` | `/api/mcp/coverage/latest` | vm | `vm_api/mcp_coverage.py:26` | token |
