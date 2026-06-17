@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "_doc": "H7 B11 hardening — per-requester allowlist sob shared bearer. Defense-in-depth: caller compromised só escala pra MCPs explícitos. Edit + restart gateway pra aplicar.",
+  "default_policy": "deny",
+  "rules": {
+    "brain-core": {"allow": ["*"]},
+    "brain-f4": {"allow": ["sentry", "hermes-skills"]},
+    "brain-f4-webhook": {"allow": ["sentry", "hermes-skills"]},
+    "brain-f4-cron": {"allow": ["sentry", "hermes-skills"]},
+    "brain-f5": {"allow": ["sentry", "hermes-linkedin", "hermes-prospects", "hermes-skills"]},
+    "brain-f5-mcp-linkedin": {"allow": ["sentry", "hermes-linkedin"]},
+    "brain-f6": {"allow": ["sentry", "hermes-linkedin", "hermes-prospects", "hermes-skills"]},
+    "brain-f7-cobaia": {"allow": ["sentry", "hermes-linkedin", "hermes-prospects"]},
+    "brain-f7-cobaia-autotune": {"allow": ["sentry", "hermes-skills"]},
+    "brain-f8": {"allow": ["sentry"]},
+    "brain-f9": {"allow": ["sentry", "hermes-linkedin", "hermes-prospects", "hermes-skills"]},
+    "api": {"allow": ["*"]}
+  }
+}

@@ -386,6 +386,26 @@ def init_db() -> None:
         conn.commit()
         logger.info("Migration: added version/last_synced_version/conflict_at to prospects (MERGED-006)")
 
+    # H6 B15 — caller_chapter traceability column (idempotent; mcp_calls may not exist yet)
+    try:
+        conn.execute("SELECT caller_chapter FROM mcp_calls LIMIT 1")
+    except sqlite3.OperationalError as _exc:
+        _msg = str(_exc)
+        if "no such table" in _msg:
+            pass  # mcp_calls absent — gateway F.5.3 migration not yet applied, skip
+        else:
+            # "no such column: caller_chapter" → add it
+            try:
+                conn.execute("ALTER TABLE mcp_calls ADD COLUMN caller_chapter TEXT NULL")
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_mcp_calls_caller_chapter"
+                    " ON mcp_calls(caller_chapter)"
+                )
+                conn.commit()
+                logger.info("Migration: added caller_chapter to mcp_calls (H6 B15)")
+            except sqlite3.OperationalError:
+                pass  # concurrent startup already added it — safe to ignore
+
     conn.close()
 
 

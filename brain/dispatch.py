@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 
@@ -129,6 +129,7 @@ class GatewayDispatcher:
         tool: str,
         args: dict[str, Any],
         requester: str = "brain",
+        caller_chapter: Optional[str] = None,
     ) -> dict[str, Any]:
         """Generic gateway dispatch: POST /dispatch/{server}/{tool}.
 
@@ -136,12 +137,18 @@ class GatewayDispatcher:
         (persisted in mcp_calls.requester for cost aggregation). Default
         "brain"; callers like AutoSkillRunner pass "brain-f4".
 
+        H6 B15 — `caller_chapter` kwarg (optional) persisted in
+        mcp_calls.caller_chapter for phase-level cost/coverage tracking.
+        Complements requester: requester=WHO, caller_chapter=WHICH F.X phase.
+
         Returns:
             On success: {ok: True, call_id, server, tool, response, duration_ms}
             On error:   {ok: False, error, status_code?}
         """
         url = f"{self.base_url}/dispatch/{server}/{tool}"
-        payload = {"args": args, "requester": requester}
+        payload: dict[str, Any] = {"args": args, "requester": requester}
+        if caller_chapter is not None:
+            payload["caller_chapter"] = caller_chapter
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:

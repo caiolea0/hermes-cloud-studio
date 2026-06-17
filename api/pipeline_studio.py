@@ -75,6 +75,13 @@ class PipelineAbortRequest(BaseModel):
     reason: Optional[str] = Field(None, max_length=500)
 
 
+class ABTestRequest(BaseModel):
+    """H6 B16 — A/B parallel test (D6 asyncio.gather pattern)."""
+    draft_a_id: str = Field(..., min_length=1)
+    draft_b_id: str = Field(..., min_length=1)
+    variables: Optional[dict[str, Any]] = Field(default_factory=dict)
+
+
 # ---------------------------------------------------------------------------
 # DB helpers
 # ---------------------------------------------------------------------------
@@ -772,4 +779,51 @@ async def abort_run(run_id: str, req: PipelineAbortRequest):
         "abort_requested": True,
         "soft": True,
         "reason": req.reason or "owner_requested",
+    }
+
+
+@router.post("/runs/ab-test", status_code=200)
+async def run_ab_test(req: ABTestRequest):
+    """H6 B16 — D6 A/B parallel execution via asyncio.gather.
+
+    Both variants execute concurrently (return_exceptions=True guards sibling
+    task cancellation on error — mem_mq7i9caw_cfc90416f23e).
+
+    Returns run_id for each variant so UI can poll /runs/{run_id} side-by-side.
+    """
+    if not _ensure_table_exists():
+        raise HTTPException(503, "pipeline_drafts table missing — apply migration")
+    if not _ensure_runs_table_exists():
+        raise HTTPException(503, "pipeline_runs_granular table missing — apply migration")
+
+    conn = _connect()
+    try:
+        row_a = conn.execute(
+            "SELECT id FROM pipeline_drafts WHERE id = ?", (req.draft_a_id,)
+        ).fetchone()
+        row_b = conn.execute(
+            "SELECT id FROM pipeline_drafts WHERE id = ?", (req.draft_b_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row_a:
+        raise HTTPException(404, f"draft_a_id not found: {req.draft_a_id}")
+    if not row_b:
+        raise HTTPException(404, f"draft_b_id not found: {req.draft_b_id}")
+
+    from core.pipeline_engine import execute_ab_test
+    result = await execute_ab_test(
+        draft_a_id=req.draft_a_id,
+        draft_b_id=req.draft_b_id,
+        variables=req.variables or {},
+    )
+
+    return {
+        "status": "completed",
+        "run_id_a": result["run_a_id"],
+        "run_id_b": result["run_b_id"],
+        "errors": result.get("errors", []),
+        "poll_url_a": f"/api/pipeline-studio/runs/{result['run_a_id']}",
+        "poll_url_b": f"/api/pipeline-studio/runs/{result['run_b_id']}",
     }

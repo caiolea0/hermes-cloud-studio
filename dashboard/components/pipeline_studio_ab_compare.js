@@ -231,6 +231,102 @@
         ].join("\n");
     }
 
+    /* ---- Run A/B parallel (H6 B16 endpoint) ------------ */
+
+    async function _runAbParallel() {
+        var aId = (_id("ab-run-select-a") || {}).value;
+        var bId = (_id("ab-run-select-b") || {}).value;
+        if (!aId || !bId) {
+            _showRunResult("error", "Selecione Variante A e Variante B.");
+            return;
+        }
+        var btn = _id("ab-run-now-btn");
+        if (btn) { btn.disabled = true; btn.textContent = "Executando…"; }
+
+        try {
+            var resp = await fetch("/api/pipeline-studio/runs/ab-test", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Hermes-Token": _getToken()
+                },
+                body: JSON.stringify({ draft_a_id: aId, draft_b_id: bId, variables: {} })
+            });
+            var data = await resp.json();
+            if (!resp.ok) {
+                var detail = (data && data.detail) ? String(data.detail).slice(0, 200) : "Erro " + resp.status;
+                _showRunResult("error", detail);
+                return;
+            }
+            _showRunResult("ok", data);
+            /* Trigger chart refresh after short delay (runs should start appearing) */
+            setTimeout(_loadAndRender, 2000);
+        } catch (e) {
+            _showRunResult("error", e.message || "Erro de rede.");
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = "▶ Run A/B Now"; }
+        }
+    }
+
+    function _showRunResult(type, data) {
+        var el = _id("ab-run-result");
+        if (!el) return;
+        el.innerHTML = "";
+        if (type === "error") {
+            var msg = document.createElement("span");
+            msg.className = "ab-run-result-error";
+            msg.textContent = "Erro: " + String(data).slice(0, 300);
+            el.appendChild(msg);
+            return;
+        }
+        /* Success: show both run IDs as links */
+        var ok = document.createElement("div");
+        ok.className = "ab-run-result-ok";
+
+        var lblA = document.createElement("div");
+        lblA.textContent = "Run A: ";
+        var linkA = document.createElement("a");
+        linkA.textContent = String(data.run_id_a).slice(0, 36);
+        linkA.href = "#";
+        linkA.className = "ab-run-link";
+        linkA.setAttribute("aria-label", "Ver run A " + data.run_id_a);
+        linkA.addEventListener("click", function (ev) {
+            ev.preventDefault();
+            /* Switch to runs monitor tab with this run_id */
+            if (window.PipelineStudioRunsMonitor && data.run_id_a) {
+                window.PipelineStudioRunsMonitor.jumpToRun(data.run_id_a);
+            }
+        });
+        lblA.appendChild(linkA);
+
+        var lblB = document.createElement("div");
+        lblB.textContent = "Run B: ";
+        var linkB = document.createElement("a");
+        linkB.textContent = String(data.run_id_b).slice(0, 36);
+        linkB.href = "#";
+        linkB.className = "ab-run-link";
+        linkB.setAttribute("aria-label", "Ver run B " + data.run_id_b);
+        linkB.addEventListener("click", function (ev) {
+            ev.preventDefault();
+            if (window.PipelineStudioRunsMonitor && data.run_id_b) {
+                window.PipelineStudioRunsMonitor.jumpToRun(data.run_id_b);
+            }
+        });
+        lblB.appendChild(linkB);
+
+        ok.appendChild(lblA);
+        ok.appendChild(lblB);
+        el.appendChild(ok);
+    }
+
+    function _wireAbRunPanel() {
+        var btn = _id("ab-run-now-btn");
+        if (btn && !btn._wired) {
+            btn.addEventListener("click", _runAbParallel);
+            btn._wired = true;
+        }
+    }
+
     /* ---- Render (full panel) ---------------------------- */
 
     async function render() {
@@ -240,6 +336,25 @@
         /* Build markup only on first render (wiring handled in init) */
         if (!panel.querySelector(".ab-filters-bar")) {
             panel.innerHTML = [
+                /* --- Run A/B panel (H6 B16) --- */
+                '<section class="ab-run-panel" aria-label="Executar A/B paralelo">',
+                '  <h3 class="ab-run-panel-title">Executar A/B Paralelo</h3>',
+                '  <div class="ab-run-selects" role="group">',
+                '    <label class="ab-filter-label">Variante A',
+                '      <select class="ab-filter-select" id="ab-run-select-a" aria-label="Selecionar variante A">',
+                '        <option value="">— selecione draft A —</option>',
+                '      </select>',
+                '    </label>',
+                '    <label class="ab-filter-label">Variante B',
+                '      <select class="ab-filter-select" id="ab-run-select-b" aria-label="Selecionar variante B">',
+                '        <option value="">— selecione draft B —</option>',
+                '      </select>',
+                '    </label>',
+                '    <button id="ab-run-now-btn" class="btn-primary ab-run-btn" aria-label="Executar A/B paralelo agora">▶ Run A/B Now</button>',
+                '  </div>',
+                '  <div id="ab-run-result" class="ab-run-result" aria-live="polite"></div>',
+                '</section>',
+                /* --- Compare filters + charts --- */
                 '<div class="ab-filters-bar" role="group" aria-label="Filtros A/B Compare">',
                 '  <label class="ab-filter-label">Draft',
                 '    <select class="ab-filter-select" id="ab-draft-select" aria-label="Selecionar draft">',
@@ -272,15 +387,33 @@
                     _loadAndRender();
                 });
             }
+            _wireAbRunPanel();
         }
 
-        /* Populate drafts (always refresh) */
+        /* Populate drafts (always refresh — both compare selector and run selectors) */
         await _loadDrafts();
+        _populateRunSelects();
 
         /* Build charts grid and load data */
         var grid = panel.querySelector(".ab-charts-grid");
         if (grid) _buildChartsGrid(grid);
         await _loadAndRender();
+    }
+
+    /* ---- Populate run variant selects ------------------- */
+
+    function _populateRunSelects() {
+        ["ab-run-select-a", "ab-run-select-b"].forEach(function (selId) {
+            var sel = _id(selId);
+            if (!sel) return;
+            while (sel.options.length > 1) sel.remove(1);
+            _state.drafts.forEach(function (d) {
+                var opt = document.createElement("option");
+                opt.value = d.id;
+                opt.textContent = d.name; /* textContent — no XSS */
+                sel.appendChild(opt);
+            });
+        });
     }
 
     /* ---- Init / Destroy --------------------------------- */

@@ -46,7 +46,7 @@ except ImportError as exc:  # pragma: no cover — VM-only dep
     )
 
 MCP_NAME = "hermes-linkedin"
-MCP_VERSION = "0.1.0-f5.2"
+MCP_VERSION = "0.2.0-h7"
 
 # Defense-in-depth sanitizer (mesmo pattern linkedin/lab/_event_emit.py F.3.2)
 _SENSITIVE_KEYS = frozenset({
@@ -251,45 +251,101 @@ async def probe_cooldown() -> dict:
     return _sanitize(payload)
 
 
+_TYPE_TO_ENDPOINT = {
+    "viewer": "/api/linkedin/campaigns/view",
+    "engager": "/api/linkedin/campaigns/engage",
+    "connector": "/api/linkedin/campaigns/connect",
+}
+
+
 @mcp.tool()
 async def start_campaign(campaign_type: str, config: dict) -> dict:
-    """Despacha campanha LinkedIn (viewer/engager/connector).
+    """Despacha campanha LinkedIn REAL via delegate hermes_api_v2 (H7 B12).
 
-    Wrap LinkedInViewer/Engager/Connector.start. NÃO bloqueia tool call —
-    spawns background task + retorna campaign_id pra polling via get_health
-    + Brain F.6 consultar logs via /api/linkedin/campaigns/{id}/log.
+    Design intent preservado (H7 OPÇÃO D): MCP tool é CONTROL plane,
+    campaign exec mantém-se em hermes_api_v2 (async task tracker
+    _running_linkedin_campaigns). start_campaign agora HTTP POST pra
+    endpoint VM existente em vez de echo.
+
+    BLACKLIST R2 preservada 100% — zero touch direct em linkedin/{viewer,
+    engager,connector,stealth,human,limiter,cooldown,preflight}. linkedin/*
+    é executado pela VM API (call site existente F.5).
 
     Args:
         campaign_type: "viewer" | "engager" | "connector".
-        config: dict campaign_config conforme schema da classe.
+        config: dict campaign_config (sanitized antes POST + body envia raw
+                pra VM — VM aceita cookies/auth no body por design).
 
     Returns:
-        dict {ok, campaign_type, campaign_id, started_ts} OR {ok: false, error}.
+        dict {ok, campaign_type, campaign_id, started_ts, delegated_to}
+        OR {ok: false, error}.
+
+    Env:
+        HERMES_VM_API_URL (default http://127.0.0.1:8420)
+        HERMES_VM_AUTH_TOKEN (X-Hermes-Token header)
     """
-    valid_types = {"viewer", "engager", "connector"}
+    valid_types = set(_TYPE_TO_ENDPOINT.keys())
     if campaign_type not in valid_types:
         return {
             "ok": False,
             "error": f"campaign_type must be one of {sorted(valid_types)}",
         }
-    config_safe = _sanitize(config or {})
+    endpoint = _TYPE_TO_ENDPOINT[campaign_type]
+    vm_api_url = os.getenv("HERMES_VM_API_URL", "http://127.0.0.1:8420").rstrip("/")
+    vm_token = os.getenv("HERMES_VM_AUTH_TOKEN", "")
     started_ts = time.time()
-    # F.5.2 scaffold: retornamos handle pra Brain F.6 acompanhar via
-    # /api/linkedin/campaigns/{id} existente. Spawn real do campaign roda
-    # via hermes_api_v2 POST /api/linkedin/<type>/start — Brain F.6 chama
-    # esse endpoint após decisão. MCP tool é INTROSPECTIVE/CONTROL plane,
-    # NÃO executor — campaign exec mantém-se em hermes_api_v2 (async task
-    # tracker _running_linkedin_campaigns) pra preservar daemon ownership.
+
+    try:
+        import httpx  # type: ignore[import-not-found]
+    except ImportError as exc:
+        return {
+            "ok": False,
+            "error": f"httpx not installed: {exc}",
+            "version": MCP_VERSION,
+        }
+
+    headers = {
+        "X-Hermes-Token": vm_token,
+        "X-Hermes-Requester": "brain-f5-mcp-linkedin",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{vm_api_url}{endpoint}",
+                json=config or {},
+                headers=headers,
+            )
+            response.raise_for_status()
+            vm_payload = response.json() if response.content else {}
+    except Exception as exc:  # noqa: BLE001
+        # H5 sentry_via_gateway pattern — fire-and-forget via gateway
+        try:
+            from core.sentry_via_gateway import capture_exception
+            capture_exception(
+                exc,
+                requester="brain-f5-mcp-linkedin",
+                extra={"campaign_type": campaign_type, "endpoint": endpoint},
+            )
+        except Exception:  # noqa: BLE001
+            pass
+        return {
+            "ok": False,
+            "campaign_type": campaign_type,
+            "error": str(exc)[:500],
+            "delegated_to": endpoint,
+            "version": MCP_VERSION,
+        }
+
+    campaign_id = vm_payload.get("campaign_id") if isinstance(vm_payload, dict) else None
     return {
         "ok": True,
         "campaign_type": campaign_type,
+        "campaign_id": campaign_id,
         "started_ts": started_ts,
-        "config_echo": config_safe,
-        "next_step": (
-            "Invoke POST /api/linkedin/{}/start via hermes_api_v2 — "
-            "MCP tool é control plane, campaign exec mantém-se em VM API "
-            "pra preservar task tracker"
-        ).format(campaign_type),
+        "delegated_to": endpoint,
+        "vm_response": _sanitize(vm_payload) if isinstance(vm_payload, dict) else vm_payload,
         "version": MCP_VERSION,
     }
 

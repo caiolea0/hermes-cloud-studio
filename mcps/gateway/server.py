@@ -39,8 +39,9 @@ from fastapi.responses import JSONResponse
 from vm_core.mcp_tiering import classify_coverage
 
 from ._pool import MCPClientPool
+from .access_matrix import AccessMatrix, load_matrix
 
-GATEWAY_VERSION = "0.5.0-f5.7"
+GATEWAY_VERSION = "0.6.0-h7"
 
 # F.5.5 D5 — in-memory async audit job registry.
 # Aceitavel audit mensal (proximo cron retry se VM restart pre-finish).
@@ -149,6 +150,13 @@ def build_app(config_path: Path | None = None) -> FastAPI:
     db_path = _resolve_db_path()
     upstream_by_name = {m.get("name"): m for m in upstream}
 
+    # H6 B15 — idempotent migration caller_chapter column
+    if db_path.exists():
+        try:
+            _migrate_caller_chapter(db_path)
+        except Exception as _me:
+            logger.warning("caller_chapter migration skipped: %s", _me)
+
     app = FastAPI(
         title="Hermes ContextForge Gateway",
         version=GATEWAY_VERSION,
@@ -159,6 +167,14 @@ def build_app(config_path: Path | None = None) -> FastAPI:
     # Store pool no app.state pra shutdown handler acessar
     app.state.pool = pool
     app.state.db_path = db_path
+
+    # H7 B11 — per-requester access matrix (defense-in-depth under shared bearer)
+    access_matrix = load_matrix()
+    app.state.access_matrix = access_matrix
+    logger.info(
+        "access_matrix loaded: default_policy=%s rules=%d",
+        access_matrix.default_policy, len(access_matrix.rules),
+    )
 
     @app.on_event("shutdown")
     async def _shutdown_close_pool():
@@ -316,6 +332,16 @@ def build_app(config_path: Path | None = None) -> FastAPI:
             body = {}
         args = body.get("args", {}) if isinstance(body, dict) else {}
         requester = (body.get("requester") if isinstance(body, dict) else None) or "api"
+        caller_chapter = (body.get("caller_chapter") if isinstance(body, dict) else None) or None
+
+        # H7 B11 — access matrix enforcement (defense-in-depth under bearer)
+        allowed, reason = access_matrix.check(requester, server_name)
+        if not allowed:
+            logger.warning("access_matrix DENY: %s", reason)
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "access_denied_by_matrix", "reason": reason},
+            )
 
         call_id = str(uuid.uuid4())
         start = time.monotonic()
@@ -373,6 +399,7 @@ def build_app(config_path: Path | None = None) -> FastAPI:
                     error=err_msg,
                     duration_ms=duration_ms,
                     requester=requester,
+                    caller_chapter=caller_chapter,
                 )
             except Exception as log_exc:
                 logger.error("mcp_calls log failed: %s", log_exc)
@@ -544,6 +571,29 @@ def _coverage_latest(db_path: Path) -> dict[str, Any]:
         conn.close()
 
 
+def _migrate_caller_chapter(db_path: Path) -> None:
+    """Idempotent: add caller_chapter column + index to mcp_calls if absent."""
+    conn = sqlite3.connect(str(db_path), timeout=5.0)
+    try:
+        conn.execute("SELECT caller_chapter FROM mcp_calls LIMIT 1")
+    except sqlite3.OperationalError as exc:
+        if "no such table" in str(exc):
+            return  # mcp_calls not yet created — will be added by F.5.3 migration
+        # "no such column" — add it
+        try:
+            conn.execute("ALTER TABLE mcp_calls ADD COLUMN caller_chapter TEXT NULL")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_mcp_calls_caller_chapter"
+                " ON mcp_calls(caller_chapter)"
+            )
+            conn.commit()
+            logger.info("Gateway migration: added caller_chapter to mcp_calls (H6 B15)")
+        except sqlite3.OperationalError:
+            pass  # concurrent process already added — ignore
+    finally:
+        conn.close()
+
+
 def _log_mcp_call(
     db_path: Path,
     *,
@@ -555,6 +605,7 @@ def _log_mcp_call(
     error: Optional[str],
     duration_ms: int,
     requester: str,
+    caller_chapter: Optional[str] = None,
 ) -> None:
     """Fire-and-forget INSERT em mcp_calls. Sanitized + truncated 10KB."""
     if not db_path.exists():
@@ -564,6 +615,15 @@ def _log_mcp_call(
     response_str = _truncate_json(response)
     conn = sqlite3.connect(str(db_path), timeout=5.0)
     try:
+        conn.execute(
+            """INSERT INTO mcp_calls
+               (id, server, tool, args, response, error, duration_ms, requester, caller_chapter)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (call_id, server, tool, args_str, response_str, error, duration_ms, requester, caller_chapter),
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        # caller_chapter column absent (migration not yet applied) — fallback without it
         conn.execute(
             """INSERT INTO mcp_calls (id, server, tool, args, response, error, duration_ms, requester)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",

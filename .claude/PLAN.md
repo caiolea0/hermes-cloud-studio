@@ -3587,8 +3587,8 @@ Total: ~13-19h Sonnet 4.6 spread 2-3 dias.
 - [x] **H3** F.8 Observability fixes (Task #8, Sonnet 4.6 ~2-3h) — dashboard UX owner uses daily. B18 CSV fetch+Blob + B19 filtro Sentry consistente.
 - [x] **H4** F.2 Mission Control real pauses (Task #9, Sonnet 4.6 ~3-4h) — UX honesty. B20 gate scraper/audit/tunnel real + B21 /channels query DB real. DONE 2026-06-17 commit feat(H4).
 - [x] **H5** sentry_sdk refactor cross-cutting (Task #10, Sonnet 4.6 ~4-6h) — defense-in-depth. B4 wrapper core/sentry_via_gateway.py + replace 15+ sites + MCP-BANNED-PATTERNS scope strict. DONE 2026-06-17 — 16 files migrated, 194 pytest PASS (186+8 H5), BLACKLIST R2 INTACTO 40 SS, zero sentry_sdk direct imports, validator scope expanded all chapters.
-- [ ] **H6** F.9 Pipeline polish (Task #11, Sonnet 4.6 ~4-5h, pré-req H5) — B15 caller_chapter ALTER+propagate + B16 execute_ab_test endpoint+UI + B17 pytest suite 15+ tests.
-- [ ] **H7** F.5 MCP enhancements (Task #12, **Opus 4.7** ~5-6h, pré-req H2+H5) — B11 OAuth JWT per-MCP aud claim + B12 start_campaign real Patchright dispatch (BLACKLIST R2 read-only consume).
+- [x] **H6** F.9 Pipeline polish (Task #11, Sonnet 4.6 ~4-5h, pré-req H5) — B15 caller_chapter ALTER+propagate + B16 execute_ab_test endpoint+UI + B17 pytest suite. DONE 2026-06-17 (ships with H7 combined commit) — gateway _migrate_caller_chapter idempotent + core/state.py idempotent + brain/intents.py F.9 chapter tag + dispatch.py caller_chapter kwarg + dashboard A/B parallel panel.
+- [x] **H7** F.5 MCP enhancements (Task #12, **Opus 4.7** ~3h owner picked B+D pragmatic — was budgeted 5-6h JWT) — B11 access_matrix.json runtime per-requester allowlist (OPÇÃO B picked vs JWT) + B12 start_campaign delegate HTTP hermes_api_v2 /api/linkedin/{type}/start (OPÇÃO D preserves design intent + task tracker). DONE 2026-06-17 — 11 access_matrix tests + 7 start_campaign delegate tests, 212 pytest PASS (194 H5 + 18 H7), BLACKLIST R2 INTACTO 41 SS (zero touch linkedin/* read-only delegate via VM).
 
 ### 🎯 Ordem execução otimizada
 

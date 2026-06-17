@@ -177,7 +177,9 @@ async def _dispatch_route_skill_run(
             "note": None,
         }
 
-    tool_result = await dispatcher.invoke_tool(server=server, tool=tool, args=args)
+    tool_result = await dispatcher.invoke_tool(
+        server=server, tool=tool, args=args, caller_chapter="F.9"
+    )
 
     # Extract cost_credits from gateway response inner (F.5.3 _log_mcp_call pattern).
     cost = 0.0

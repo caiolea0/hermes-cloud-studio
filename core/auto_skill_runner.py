@@ -297,6 +297,7 @@ class AutoSkillRunner:
                     "timeout_seconds": 60,
                 },
                 requester=F4_REQUESTER,
+                caller_chapter="F.4",
             )
             candidate = (
                 gw_response.get("response", {})
@@ -500,6 +501,7 @@ class AutoSkillRunner:
                 tool="create_pull_request",
                 args=args,
                 requester=F4_REQUESTER,
+                caller_chapter="F.4",
             )
         except Exception as exc:  # noqa: BLE001 — defensive boundary; re-raised below.
             await self._handle_pr_failure(proposal_id, branch_name, exc)

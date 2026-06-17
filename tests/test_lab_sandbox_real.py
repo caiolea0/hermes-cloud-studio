@@ -88,8 +88,11 @@ class _MockDispatcher:
         self.raise_exc = raise_exc
         self.calls: list[dict] = []
 
-    async def invoke_tool(self, server, tool, args, requester="brain"):
-        self.calls.append({"server": server, "tool": tool, "args": args, "requester": requester})
+    async def invoke_tool(self, server, tool, args, requester="brain", caller_chapter=None):
+        self.calls.append({
+            "server": server, "tool": tool, "args": args, "requester": requester,
+            "caller_chapter": caller_chapter,
+        })
         if self.raise_exc is not None:
             raise self.raise_exc
         return self.response or {"ok": True, "response": {}}

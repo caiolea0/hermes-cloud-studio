@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-17 16:07 UTC
+- **last_updated**: 2026-06-17 18:59 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 209 (159 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 94 (46.1% of public)
-- **orphans**: 110
+- **routes_total**: 210 (160 PC + 50 VM, 5 internal-only excluded)
+- **consumed**: 94 (45.9% of public)
+- **orphans**: 111
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **209** rotas FastAPI (159 PC, 50 VM)
+- Total: **210** rotas FastAPI (160 PC, 50 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -22,8 +22,8 @@
 | `vm_api/routes.py` | 46 |
 | `api/linkedin.py` | 21 |
 | `api/cobaia.py` | 17 |
+| `api/pipeline_studio.py` | 13 |
 | `api/daemon.py` | 12 |
-| `api/pipeline_studio.py` | 12 |
 | `api/skills.py` | 10 |
 | `api/pipelines.py` | 9 |
 | `api/prospects.py` | 9 |
@@ -84,7 +84,7 @@
 | `/api/daemon/channels` | 1 | app.js:3529 |
 | `/api/daemon/decisions` | 1 | app.js:3607 |
 
-## §3 Órfãos — 110 endpoints sem UI
+## §3 Órfãos — 111 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -131,12 +131,13 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/mcp/coverage/publish` | vm | `vm_api/mcp_coverage.py:80` | token |
 | `POST` | `/api/observability/errors/{error_id}/resolve` | pc | `api/observability.py:380` | token |
 | `POST` | `/api/outreach/batch` | vm | `vm_api/routes.py:777` | token |
-| `POST` | `/api/pipeline-studio/drafts` | pc | `api/pipeline_studio.py:165` | token |
-| `DELETE` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:262` | token |
-| `PUT` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:212` | token |
-| `POST` | `/api/pipeline-studio/drafts/{draft_id}/clone` | pc | `api/pipeline_studio.py:594` | token |
-| `POST` | `/api/pipeline-studio/drafts/{draft_id}/execute` | pc | `api/pipeline_studio.py:452` | token |
-| `POST` | `/api/pipeline-studio/runs/{run_id}/abort` | pc | `api/pipeline_studio.py:741` | token |
+| `POST` | `/api/pipeline-studio/drafts` | pc | `api/pipeline_studio.py:172` | token |
+| `DELETE` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:269` | token |
+| `PUT` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:219` | token |
+| `POST` | `/api/pipeline-studio/drafts/{draft_id}/clone` | pc | `api/pipeline_studio.py:601` | token |
+| `POST` | `/api/pipeline-studio/drafts/{draft_id}/execute` | pc | `api/pipeline_studio.py:459` | token |
+| `POST` | `/api/pipeline-studio/runs/ab-test` | pc | `api/pipeline_studio.py:785` | token |
+| `POST` | `/api/pipeline-studio/runs/{run_id}/abort` | pc | `api/pipeline_studio.py:748` | token |
 | `POST` | `/api/pipeline/execute` | vm | `vm_api/routes.py:824` | token |
 | `POST` | `/api/prospects/{prospect_id}/outreach` | vm | `vm_api/routes.py:738` | token |
 | `POST` | `/api/server/restart-all` | pc | `api/server_ctrl.py:80` | rate-limited |
@@ -186,12 +187,12 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/observability/mcp-coverage-history` | pc | `api/observability.py:599` | token |
 | `GET` | `/api/observability/perf` | pc | `api/observability.py:98` | token |
 | `GET` | `/api/photos/{photo_ref:path}` | pc | `api/photos.py:15` | token |
-| `GET` | `/api/pipeline-studio/drafts` | pc | `api/pipeline_studio.py:117` | token |
-| `GET` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:192` | token |
-| `GET` | `/api/pipeline-studio/runs` | pc | `api/pipeline_studio.py:647` | token |
-| `GET` | `/api/pipeline-studio/runs/{run_id}` | pc | `api/pipeline_studio.py:522` | token |
-| `GET` | `/api/pipeline-studio/steps` | pc | `api/pipeline_studio.py:341` | token |
-| `GET` | `/api/pipeline-studio/templates` | pc | `api/pipeline_studio.py:390` | token |
+| `GET` | `/api/pipeline-studio/drafts` | pc | `api/pipeline_studio.py:124` | token |
+| `GET` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:199` | token |
+| `GET` | `/api/pipeline-studio/runs` | pc | `api/pipeline_studio.py:654` | token |
+| `GET` | `/api/pipeline-studio/runs/{run_id}` | pc | `api/pipeline_studio.py:529` | token |
+| `GET` | `/api/pipeline-studio/steps` | pc | `api/pipeline_studio.py:348` | token |
+| `GET` | `/api/pipeline-studio/templates` | pc | `api/pipeline_studio.py:397` | token |
 | `GET` | `/api/scraper/history` | pc | `api/scraper.py:123` | token |
 | `GET` | `/api/scraper/history` | vm | `vm_api/routes.py:530` | token |
 | `GET` | `/api/skills/health` | pc | `api/skills.py:332` | token |
