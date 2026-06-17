@@ -3554,3 +3554,63 @@ Total: ~13-19h Sonnet 4.6 spread 2-3 dias.
 - Tasks: #1 P1, #2 P2, #3 P3, #4 P4, #5 P5
 - PLAN.md: este HARDENING block (atualizar checkmarks por fase complete)
 - Workflow report full: `C:\Users\cleao\AppData\Local\Temp\claude\C--Users-cleao\8dec41ad-aecb-4827-8803-f851aec9beff\tasks\wms9sqd9x.output`
+
+---
+
+## 🛡️ HARDENING-F.FUTURE PLAN POST-P5 2026-06-17
+
+**Trigger**: HARDENING P1-P5 ✅ complete (commit e3daad9). 14 BLOCKERs F.future restantes do audit Workflow `wms9sqd9x` agrupados em 7 fases lógicas. Owner aprovou criar plano completo persistente.
+
+**Resumo BLOCKERs restantes (14/21)**:
+
+| # | Chapter | Tipo | Fase | Severity |
+|---|---|---|---|---|
+| B4 | Cross-cutting | sentry_sdk direto 15+ files | H5 | Defense-in-depth |
+| B7 | F.3 | Fingerprint diff broken | H1 | UX Lab |
+| B8 | F.3 | Screenshots 401 | H1 | UX Lab |
+| B9 | F.3 | Artifacts_path mismatch | H1 | UX Lab |
+| B10 | F.4 | Lab YAML schema-only | H2 | **Risk ban LinkedIn cobaia** |
+| B11 | F.5 | OAuth shared bearer | H7 | Security |
+| B12 | F.5 | start_campaign stub echo | H7 | Feature stub |
+| B15 | F.9 | caller_chapter zero | H6 | Rastreabilidade |
+| B16 | F.9 | execute_ab_test dead | H6 | Feature dead |
+| B17 | F.9 | ZERO pytest | H6 | Test coverage |
+| B18 | F.8 | CSV export 401 | H3 | UX dashboard |
+| B19 | F.8 | Filtro Sentry leak | H3 | UX dashboard |
+| B20 | F.2 | 3/6 pauses NO-OP | H4 | UX honesty |
+| B21 | F.2 | Channels stub | H4 | UX honesty |
+
+### 📋 7 fases H1-H7 (ordem prioridade)
+
+- [ ] **H1** F.3 Lab UX 3 BLOCKERs (Task #6, Sonnet 4.6 ~3-4h) — **PRIORITY 1** pré-req cobaia stealth validation. B7 fingerprint diff render + B8 screenshots ?token= query + B9 artifacts_path canonical.
+- [ ] **H2** F.4 lab sandbox REAL (Task #7, Sonnet 4.6 ~3-4h) — **PRIORITY 2** risk ban LinkedIn cobaia. PIVOT D1 forward: test_skill_dryrun aceitar yaml_blob + subprocess real isolated 60s timeout + _validate_yaml_inline DEPRECATE.
+- [ ] **H3** F.8 Observability fixes (Task #8, Sonnet 4.6 ~2-3h) — dashboard UX owner uses daily. B18 CSV fetch+Blob + B19 filtro Sentry consistente.
+- [ ] **H4** F.2 Mission Control real pauses (Task #9, Sonnet 4.6 ~3-4h) — UX honesty. B20 gate scraper/audit/tunnel real + B21 /channels query DB real.
+- [ ] **H5** sentry_sdk refactor cross-cutting (Task #10, Sonnet 4.6 ~4-6h) — defense-in-depth. B4 wrapper core/sentry_via_gateway.py + replace 15+ sites + MCP-BANNED-PATTERNS scope strict.
+- [ ] **H6** F.9 Pipeline polish (Task #11, Sonnet 4.6 ~4-5h, pré-req H5) — B15 caller_chapter ALTER+propagate + B16 execute_ab_test endpoint+UI + B17 pytest suite 15+ tests.
+- [ ] **H7** F.5 MCP enhancements (Task #12, **Opus 4.7** ~5-6h, pré-req H2+H5) — B11 OAuth JWT per-MCP aud claim + B12 start_campaign real Patchright dispatch (BLACKLIST R2 read-only consume).
+
+### 🎯 Ordem execução otimizada
+
+```
+Sessão 1: H1 + H3 paralelo (~3-4h max)       — Lab UX + Observability fixes
+Sessão 2: H2 + H4 paralelo (~3-4h max)       — Lab sandbox + Mission Control honesty
+Sessão 3: H5 (~4-6h)                          — sentry refactor (pré-req H6)
+Sessão 4: H6 + H7 paralelo (~5-6h max)       — Pipeline polish + MCP enhancements
+```
+
+Total wall-clock: ~15-20h spread 4 sessões.
+
+### ⚖️ Decisão owner
+
+- **HARDENING P1-P5 ✅ COMPLETE** — cobaia activation gated apenas por owner manual (~10 dias profile seed)
+- **H1+H2 pré-req STRICT** ANTES cobaia merge first PR real (Lab functional + lab sandbox real evita risk ban)
+- **H3-H7 paralelo cobaia warmup OK** (não bloqueia activation, melhora qualidade Hermes)
+- **Cobaia activation pode iniciar antes H1-H7 complete** se H1+H2 done primeiro
+
+### 📝 Persistence cross-session
+
+- Memory: `mem_mqi6sabu` (plano H1-H7) + `mem_mqi6nsqq` (HARDENING P1-P5 complete) + `mem_mqhg23ni` (audit completo)
+- Tasks: #6 H1, #7 H2, #8 H3, #9 H4, #10 H5, #11 H6, #12 H7
+- PLAN.md: este HARDENING-F.FUTURE block (atualizar checkmarks por fase complete)
+- Workflow audit report full: `C:\Users\cleao\AppData\Local\Temp\claude\C--Users-cleao\8dec41ad-aecb-4827-8803-f851aec9beff\tasks\wms9sqd9x.output`
