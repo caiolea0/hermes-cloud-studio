@@ -3437,7 +3437,7 @@ Pre-req F.9.4:
 
 ### 📋 Sub-tasks P1-P5
 
-- [ ] **P1** Rotacionar 4+ credenciais .env PC (Task #1, ~1-2h, security crítico) — OPENROUTER_API_KEY + GITHUB_PAT + GITHUB_WEBHOOK_SECRET + HERMES_GATEWAY_OAUTH_SECRET. SKIP HERMES_NIM_API_KEY (owner formal decision não rotacionar). SKIP TELEGRAM (já novo bot dedicado F.7 C4).
+- [x] **P1** Rotacionar 4+ credenciais .env PC (Task #1, ~1-2h, security crítico) — OPENROUTER_API_KEY + GITHUB_PAT + GITHUB_WEBHOOK_SECRET + HERMES_GATEWAY_OAUTH_SECRET. SKIP HERMES_NIM_API_KEY (owner formal decision não rotacionar). SKIP TELEGRAM (já novo bot dedicado F.7 C4).
 - [ ] **P2** Wire VM hermes_api_v2.py (Task #2, ~3-4h) — brain+observability+pipeline migrations+routers. Pré-req: P1 done.
 - [ ] **P3** F.6/F.7 intent leak smoke baseline (Task #3, ~2-3h) — F.7 vazou 2 intents quebrando F.6 D3 contrato 6 intents. brain/_smoke.py FAIL intent #7. Paralelo P4 OK.
 - [ ] **P4** F.1 skill re-rerun + parametrizar + git hook (Task #4, ~1-2h) — FRONTEND-GAP.md stale 8 dias + termômetro UX morto. Paralelo P3 OK.
