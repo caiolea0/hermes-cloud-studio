@@ -22,50 +22,67 @@
 
 ## 2. Decisões pendentes owner (perguntar no início F.7 C1)
 
-Estas decisões **bloqueiam** sub-tasks específicas. Coletar individualmente antes de implementar.
+> **STATUS 2026-06-17 (P5 hardening)**: D1-D7 CRISTALIZADOS via 6 sub-sessions F.7 C1-C6 + P5 closeout. Histórico decisões abaixo preservado para referência. Ver `.claude/PLAN.md` F.7 CHAPTER CLOSED block para resumo executável.
 
-### D1 — Conta cobaia LinkedIn
-- [ ] Nome + email da conta cobaia (NÃO a conta pessoal de Caio)
-- [ ] Tipo de conta: free / premium / sales_nav
-- [ ] LI_AT cookie válido disponível para a conta cobaia
-- [ ] Profile completeness (foto, headline, 500 conexões mínimo warmup seguro)
+### D1 — Conta cobaia LinkedIn  ✅ CRISTALIZADO
+- [x] Nome: "Caio Leão" (nome real owner — não disposable)
+- [x] Tipo: free tier
+- [x] LI_AT: DEFERRED até owner finalizar profile All-Star + 50 conexões seed (~10 dias manual)
+- [x] Profile completeness: TODO owner manual (badge All-Star + 50 conexões mínimo + 2-4 posts orgânicos antes Hermes ativar)
+- **Action**: `.claude/F7-OWNER-ACTIONS.md` Pre-launch checklist owner manual
 
-### D2 — Schedule warmup ramp-up
-- [ ] Warmup_days padrão (config.py default = 14 dias)
-- [ ] DM count por fase:
-  - Dias 0–6 (lurking): 0 connects, ~4% views passivas
-  - Dias 7–13 (ramp): escala linear até ~20%
-  - Dia 14+: normal (config.py `free` tier limits)
-- [ ] Working hours cobaia (default 08h–20h America/Cuiaba OK?)
-- [ ] Weekend activity: allow OR disable?
+### D2 — Schedule warmup ramp-up  ✅ CRISTALIZADO (mem_mqgt0sf7)
+- [x] D2.1: Warmup_days = 14 dias default
+- [x] D2.2: Working hours = 07h–22h America/Cuiaba (randomização within window)
+- [x] D2.3: Weekends DISABLE
+- [x] DM count fases: lurking d0-6 zero connects + ramp d7-13 linear + normal d14+
+- **Action**: `linkedin/config.py` CobaiaConfig defaults aplicado
 
-### D3 — KPIs e thresholds de sucesso
-- [ ] Reply rate mínimo aceitável (ex: >8% → "warm channel"?)
-- [ ] Connect accept rate (ex: >20% → healthy?)
-- [ ] Profile view conversion (ex: >3% view→connect?)
-- [ ] Qual skill cobaia ativa primeiro: `linkedin-profile-researcher` OR `linkedin-connection-sender`?
+### D3 — KPIs e thresholds de sucesso  ✅ CRISTALIZADO
+- [x] D3.1: Reply rate threshold >8%
+- [x] D3.2: Connect accept rate threshold >20%
+- [x] D3.3: Profile view→connect >3%
+- [x] D3.4: First skill = `linkedin-engagement` (soft touch lurking phase)
+- **Action**: `core/cobaia_metrics.py` get_cobaia_today_metrics() + dashboard KPI
 
-### D4 — Emergency stop UX
-- [ ] 1-click pause ALL (dashboard botão "Pausar Tudo")?
-- [ ] Per-subsystem pause (campaing, skill, daemon)?
-- [ ] Auto-pause trigger: N erros consecutivos LinkedIn → pause automático?
-- [ ] Telegram alert quando auto-pause ativado?
+### D4 — Emergency stop UX  ✅ CRISTALIZADO + implementado F.7 C3
+- [x] 1-click PAUSE ALL via `/api/linkedin/cobaia/emergency-stop`
+- [x] Auto-pause: N=3 erros consecutivos → pause automático (config.py)
+- [x] Telegram alert via `core/alert_aggregator.py` tríplice (Sentry+email+Telegram)
+- **Action**: `api/cobaia.py` + dashboard cobaia tab UI
 
-### D5 — Alert escalation
-- [ ] Sentry environment: "cobaia-live" OR "production"?
-- [ ] Telegram bot alertas: threshold (ex: 5 erros hora → alert)?
-- [ ] Email digest diário (resumi de runs + health)?
-- [ ] Caio como único recipient OR outro email também?
+### D5 — Alert escalation  ✅ CRISTALIZADO + implementado F.7 C4
+- [x] Sentry environment = `cobaia-live` (env tag separado de production)
+- [x] Telegram throttle: 5 alerts/hour máximo (alert_aggregator dedup)
+- [x] Email digest diário 09h BRT (daemon/email_digest.py)
+- [x] Recipient único: EMAIL_TO=cleao.mkt@gmail.com
+- **Action**: setup_telegram_bot.ps1 + setup_hunter_key.ps1 (P5)
 
-### D6 — Review cadence primeira semana
-- [ ] Owner review manual diária (9h BRT)?
-- [ ] Quais métricas verificar no dashboard (script checklist diário)?
-- [ ] Semana 1: hands-on OR autonomous com alertas?
+### D6 — Review cadence primeira semana  ✅ CRISTALIZADO + PIVOT D6 implementado F.7 C4
+- [x] Owner review manual: REPLACED PIVOT D6 → Bug Export endpoint autonomous
+- [x] `/api/cobaia/bug-export?hours=24&format=json|markdown` → owner consume Telegram digest
+- [x] Métricas dashboard: cobaia page 4-section (header + timeline + KPI + activity)
+- [x] Semana 1: AUTONOMOUS com alertas (owner não precisa abrir dashboard cada dia)
+- **Action**: `api/cobaia.py` bug-export + dashboard 4 sections
 
-### D7 — Rollback bad skill em produção
-- [ ] Quarantine cron F.4.4 é suficiente (auto após 10 runs, <50% success)?
-- [ ] Override manual: owner deactivate skill via `/api/hermes/skills` PATCH?
-- [ ] Hard deadline rollback: se skill causar problema antes de 10 runs?
+### D7 — Rollback bad skill em produção  ✅ CRISTALIZADO
+- [x] Quarantine cron F.4.4 cobre (auto após 10 runs <50% success → quarantined)
+- [x] Override manual via `/api/hermes/skills` PATCH active=false
+- [x] Hard deadline: alert_aggregator detecta 3 erros consecutivos → pause + Telegram + Sentry
+- **Action**: systemd hermes-skill-quarantine.timer active VM (F.4.4 C2)
+
+### D8 — Daemon prioridade cobaia  ✅ CRISTALIZADO (F.7 C2 commit cc29c76)
+- [x] TaskCategory.COBAIA P0 ABSOLUTE OVERRIDE (cobaia roda primeiro antes P1-P7)
+- [x] `daemon/orchestrator.py` _get_cobaia_action()
+
+### D9 — Live Ops dashboard layout  ✅ CRISTALIZADO (F.7 C3 commit 9d5f490)
+- [x] Single-page 4 sections vertical (header + timeline + KPI + activity)
+- [x] 5 IIFE components React-free (BLACKLIST R2 compliant)
+
+### D10 — Auto-tune trigger semantics  ✅ CRISTALIZADO (F.7 C5 commit 3d5924f)
+- [x] REACTIVE automatic (KPI breach → trigger auto, sem owner confirm)
+- [x] Cooldown 72h por skill (anti-thrash)
+- [x] PR review é gate humano (skill_proposals_studio F.4.3)
 
 ---
 

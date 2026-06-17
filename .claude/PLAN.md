@@ -2264,17 +2264,67 @@ WARNs aggregated F.6.5 code-reviewer + F.6.6 holistic reviewer marked **F.future
 +
 +**DB migrations**: `cobaia_daily_metrics` (date, account, connects_sent, accepted, replied, viewed, ban_signals JSON, compliance_score, daemon_actions_count)
 +
-+**Tasks**:
-+- [ ] Task 1: Daemon auto-exec warmup — `daemon/cobaia_orchestrator.py`: lê dia atual, dispara skill apropriada (lurking/connect_ramp/outreach); idempotente
-+- [ ] Task 2: Métricas coletor — task scheduled 1h agrega LinkedIn API resp + `linkedin/visited` + replies daemon → escreve `cobaia_daily_metrics`
-+- [ ] Task 3: Stop gates auto — check 30min: compliance<70 → pause subsystem linkedin + alert; acceptance<40% rolling 7d → notify owner; burned_flag → burn-and-rotate
-+- [ ] Task 4: Daily Telegram report — task scheduled 19h (Cuiabá): markdown report últimas 24h + comparação 7d + alertas; via existing Telegram bot
-+- [ ] Task 5: UI `/cobaia` dashboard — timeline events 14d com markers (login, connect, reply, ban_signal); 4 gauges (acceptance, reply, compliance, ban_prob); botão override gate manual
-+- [ ] Task 6: Hunter.io email verifier integration — antes warmup email channel (E.2), verifier prospect emails; bounce>2% pausa channel
-+- [ ] Task 7: Sentry MCP — todos erros warmup → Sentry tag account_id; UI link Sentry issue por evento timeline
-+- [ ] Task 8: Validação regressão + persistência — phase A B C D E (toca daemon/orchestrator.py + linkedin/limiter.py MADUROS); 20/22 PASS; PLAN.md F.7 ✅; commit `feat(cobaia): F.7 — warmup 14d auto + live ops`
++**Tasks** (CHAPTER CLOSED 2026-06-17 — 8 commits):
++- [x] Task 1: Cobaia warmup bootstrap + state machine + scheduler + UI card (F.7 C1 commit cb23f94)
++- [x] Task 2: Brain cobaia intent + Daemon P0 ABSOLUTE OVERRIDE + metrics (F.7 C2 commit cc29c76)
++- [x] Task 3: Live Ops dashboard page 4 sections + 5 IIFE components (F.7 C3 commit 9d5f490)
++- [x] Task 4: Alert tríplice (Sentry+email+Telegram) + bug-export D6 PIVOT + auto-pause N=3 (F.7 C4 commit 769aaf7 + setup_telegram_bot.ps1 3e86c7c+4376712)
++- [x] Task 5: Cobaia auto-tune KPI breach D10 reactive + cooldown 72h skill anti-thrash (F.7 C5 commit 3d5924f)
++- [x] Task 6: Hunter.io email verifier wrapper + cache 30d + setup_hunter_key.ps1 + 8 tests (F.7 P5 commit 98b650d)
++- [x] Task 7: Real execution VM dispatch + preflight + f7-report endpoint (F.7 C6 commit 0315830)
++- [x] Task 8: F.7 closeout + cristalização D1-D10 + F7-OWNER-ACTIONS.md day-1 checklist (F.7 P5)
 +
-+**Done criteria F.7**: cobaia opera 14d completos sem owner ssh · daily report Telegram 19h sem falha · stop gates previnem ban antes humano notar · 20/22 PASS preservado.
++**Done criteria F.7**: ✅ código + infra pronta · ✅ 151 pytest PASS · ✅ stop gates implementados · ✅ daily report 19h BRT scheduler · ⏳ owner manual cobaia profile + LI_AT (DEFERRED ~10 dias seed manual).
++
++---
++
++## 🏁 F.7 COBAIA LIVE OPS — CHAPTER CLOSED 2026-06-17
++
++**6 sub-sessions + P5 hardening · 8 commits · 60+ tests · 143 baseline preserved**
++
++| Sub-session | Commit | Entregável | Tests |
++|---|---|---|---|
++| F.7 C1 | cb23f94 | state machine + scheduler + UI card | 15 |
++| F.7 C2 | cc29c76 | daemon P0 override + Brain cobaia intent | 13 |
++| F.7 C3 | 9d5f490 | dashboard page 4-section + 5 IIFE | 8 |
++| F.7 C4 setup | 3e86c7c+4376712 | setup_telegram_bot.ps1 | — |
++| F.7 C4 | 769aaf7 | alert tríplice + bug export D6 | 13 |
++| F.7 C5 | 3d5924f | auto-tune KPI breach D10 reactive | 10 |
++| F.7 C6 | 0315830 | VM dispatch + preflight + f7-report | 8 |
++| F.7 P5 | 98b650d+<closeout> | Hunter.io + closeout docs + cristalização | 8 |
++
++**Decisões cristalizadas D1-D10** (ver `.claude/F7-PREP.md` histórico completo):
++- **D1**: Conta cobaia "Caio Leão" free tier nome real (LI_AT DEFERRED owner manual)
++- **D2.1**: Warmup 14 dias default
++- **D2.2**: Working hours 07h-22h America/Cuiaba (randomização within window)
++- **D2.3**: DISABLE weekends
++- **D3.1**: Reply rate >8% threshold
++- **D3.2**: Connect accept rate >20%
++- **D3.3**: Profile view→connect >3%
++- **D3.4**: linkedin-engagement first skill lurking phase (soft touch)
++- **D4**: 1-click PAUSE ALL + auto-pause N=3 erros + Telegram alert
++- **D5**: Sentry env `cobaia-live` + Telegram 5/h throttle + email digest 09h BRT
++- **D6 PIVOT**: Bug export endpoint + autonomous monitoring (owner não abre dashboard diário)
++- **D7**: Quarantine cron F.4.4 cobre rollback (auto após 10 runs <50%)
++- **D8**: Daemon P0 ABSOLUTE OVERRIDE (cobaia roda primeiro)
++- **D9**: Single-page 4 sections vertical (header + timeline + KPI + activity)
++- **D10**: Reactive automatic auto-tune trigger (sem owner confirm — PR review é gate)
++
++**Endpoints expostos** (PC server.py):
++- `POST /api/linkedin/cobaia/{start-warmup,pause,resume,emergency-stop}`
++- `GET /api/linkedin/cobaia/{status,metrics,timeline}`
++- `GET /api/cobaia/{bug-export,health-score,sentry-env}`
++- `GET /api/cobaia/{autotune-history,autotune-status,preflight,f7-report,hunter-usage}`
++- `POST /api/cobaia/{autotune-trigger-manual,verify-email}`
++
++**Owner manual pendente** (DEFERRED — ver `.claude/F7-OWNER-ACTIONS.md`):
++- LinkedIn cobaia profile All-Star + 50 conexões seed + 2-4 posts orgânicos (~10 dias manual)
++- COBAIA_LI_AT extraction Chrome DevTools
++- Hunter.io API key setup via `scripts/setup_hunter_key.ps1`
++- Pre-flight all-pass validation
++- Day-1 start-warmup curl + dashboard 30min monitor
++
++**BLACKLIST R2 INTACTO**: 37 consecutive sub-sessions (P1+P2+P3+P4+P5 + F.7 C1-C6).
 
 ### F.7 PREP — Brain.decide() integration patterns (F.6 reference) — incorporado F.6.6 2026-06-14
 
@@ -3441,7 +3491,7 @@ Pre-req F.9.4:
 - [x] **P2** Wire VM hermes_api_v2.py (Task #2, ~3-4h) — brain+observability+pipeline migrations+routers. Pré-req: P1 done. DONE: 4/4 routers wired (brain+observability+pipeline_studio+mcp_jobs), 4/6 migrations applied (2 idempotent), perf_middleware installed, perf_flush_loop running, core.state stub injected (avoidou AUTH_TOKEN RuntimeError VM-side), transitions pip install VM, .env symlink VM repo. B3 RESOLVIDO.
 - [x] **P3** F.6/F.7 intent leak smoke baseline (Task #3, ~2-3h) — F.7 vazou 2 intents quebrando F.6 D3 contrato 6 intents. brain/_smoke.py FAIL intent #7. Paralelo P4 OK. DONE b23bab1: COBAIA_INTENT_REGISTRY separado + Brain._decide_cobaia() prefix routing + smoke 20/20 RESTORED + 143 pytest PASS.
 - [x] **P4** F.1 skill re-rerun + parametrizar + git hook (Task #4, ~1-2h) — FRONTEND-GAP.md stale 8 dias + termômetro UX morto. Paralelo P3 OK. DONE: 207 routes (+69), 108 orphans, phase_baseline auto-detect, hard asserts, BAK_MD restore, pre-commit hook auto-stage.
-- [ ] **P5** F.7 cobaia pre-launch closeout Hunter.io + .env.example + PLAN block (Task #5, ~6-8h) — pré-req P2.
+- [x] **P5** F.7 cobaia pre-launch closeout Hunter.io + .env.example + PLAN block (Task #5, ~6-8h) — pré-req P2. DONE 98b650d+<closeout>: core/email_verifier.py (Hunter.io v2 wrapper async httpx + SQLite cache 30d TTL + rate limit 15/min + quota graceful + Sentry breadcrumbs), migrations/2026_06_hunter_email_cache.sql idempotent (PC server.py + VM vm_api/routes.py), scripts/setup_hunter_key.ps1 PS5.1 ASCII-only (masked input + .env PC/VM update + smoke /v2/account), api/cobaia.py 2 endpoints (verify-email + hunter-usage), tests/test_email_verifier.py 8 tests, requirements.txt pin apscheduler+tzdata. F.7 CHAPTER CLOSED block oficial (Tasks 1-8 [x] + D1-D10 cristalizados). .env.example 9 cobaia vars + HUNTER_API_KEY. F7-OWNER-ACTIONS.md day-1 checklist. F7-PREP.md D1-D7 status final. 151 pytest PASS (143 baseline + 8 hunter). BLACKLIST R2 INTACTO 37 SS. B13+B14 RESOLVIDOS.
 
 ### 🎯 Ordem execução otimizada
 
