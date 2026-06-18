@@ -99,7 +99,10 @@
       "fix_hint": "Implement Telegram polling or WS-flag interrupt. Document current limitation in UI until fixed.",
       "effort_hours": 6,
       "cobaia_blocking": true,
-      "phase": "UX-RM-F1"
+      "phase": "UX-RM-F1",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolved_by": "UX-RM-F1-B — _check_human_stop via telegram_stop_signals table"
     },
     {
       "id": "H3b",
@@ -111,7 +114,10 @@
       "fix_hint": "Implement intelligence/scoring.py or return 501 Not Implemented.",
       "effort_hours": 8,
       "cobaia_blocking": false,
-      "phase": "UX-RM-F1"
+      "phase": "UX-RM-F1",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolved_by": "UX-RM-F1-B — 501 stub, not_implemented structured response"
     },
     {
       "id": "H3c",
@@ -123,7 +129,10 @@
       "fix_hint": "Implement via reportlab/weasyprint and attach.",
       "effort_hours": 6,
       "cobaia_blocking": false,
-      "phase": "UX-RM-F1"
+      "phase": "UX-RM-F1",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolved_by": "UX-RM-F1-B — markdown via Telegram implemented, PDF F.future"
     },
     {
       "id": "H3d",
@@ -135,7 +144,10 @@
       "fix_hint": "Implement sequence_enrollments inbox table schema and query.",
       "effort_hours": 8,
       "cobaia_blocking": true,
-      "phase": "UX-RM-F1"
+      "phase": "UX-RM-F1",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolved_by": "UX-RM-F1-B — inbox_replies table + _get_pending_replies real query"
     },
     {
       "id": "H3e",
@@ -147,7 +159,10 @@
       "fix_hint": "Wire SMTP + LinkedIn MCP + WhatsApp MCP via gateway. Add retry logic.",
       "effort_hours": 12,
       "cobaia_blocking": true,
-      "phase": "UX-RM-F1"
+      "phase": "UX-RM-F1",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolved_by": "UX-RM-F1-B — GatewayDispatcher dispatch for linkedin, 501 for email/WA, HERMES_CHANNEL_SEND_ENABLED flag"
     },
     {
       "id": "H4",
@@ -327,7 +342,10 @@
       "fix_hint": "Create sequence_enrollments table + due query + execution pipeline.",
       "effort_hours": 6,
       "cobaia_blocking": false,
-      "phase": "UX-RM-F6"
+      "phase": "UX-RM-F6",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolved_by": "UX-RM-F1-B — sequence_enrollments table + _get_due_sequence_steps real query"
     },
     {
       "id": "M6",
@@ -339,7 +357,10 @@
       "fix_hint": "Implement enrichment waterfall via MCP gateway. Add fallback logic.",
       "effort_hours": 8,
       "cobaia_blocking": false,
-      "phase": "UX-RM-F6"
+      "phase": "UX-RM-F6",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolved_by": "UX-RM-F1-B — 501 stub with code+reason fields"
     },
     {
       "id": "M7",
@@ -351,7 +372,10 @@
       "fix_hint": "Use Brain.decide() for generation + channel adapter. Safety gates for destructive replies.",
       "effort_hours": 6,
       "cobaia_blocking": false,
-      "phase": "UX-RM-F6"
+      "phase": "UX-RM-F6",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolved_by": "UX-RM-F1-B — ollama_router generate_auto_response, low_confidence_skip guard"
     },
     {
       "id": "M8",
@@ -363,7 +387,10 @@
       "fix_hint": "Create sequence_enrollments records with calculated next_action_at.",
       "effort_hours": 4,
       "cobaia_blocking": false,
-      "phase": "UX-RM-F6"
+      "phase": "UX-RM-F6",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolved_by": "UX-RM-F1-B — INSERT into sequence_enrollments with datetime offset"
     },
     {
       "id": "M9",

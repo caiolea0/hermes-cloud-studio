@@ -91,7 +91,7 @@ See `issues.json` for full machine-readable list. Summary counts:
 |---|-----------|-------|--------|
 | H1 | `dashboard/app.js:5432` | Comment edit "Salvar (placeholder)" — modal open but operation fails | 4h |
 | H2 | `brain/_smoke.py:55` + `_react.py:32` + `safety.py:11` | MockDispatcher reachable via env + hardcoded MAX_REACT=5 + CONFIDENCE=0.5 | 6h |
-| H3 | `daemon/orchestrator.py:548,660,666,906,911,948,955,986,1001` | 9 TODOs — Telegram STOP, scoring, PDF report, sequence inbox, channel sending, enrichment, auto-reply, follow-up | 32h |
+| H3 | `daemon/orchestrator.py:548,660,666,906,911,948,955,986,1001` | 9 TODOs — Telegram STOP, scoring, PDF report, sequence inbox, channel sending, enrichment, auto-reply, follow-up | 32h | ✅ RESOLVED UX-RM-F1-B — 4 real + 5 stub-501 |
 | H4 | `dashboard/styles.css:34` | `--text-3` (#55556a) on `--s2` (#18181c) = 2.8:1, fails WCAG AA 4.5:1 | 2h |
 | H5 | `dashboard/index.html:275` | 19+ interactive divs without role/tabindex/aria-label, no keyboard nav | 8h |
 

@@ -190,9 +190,38 @@ class HermesDaemon:
                 result TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS inbox_replies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                prospect_id INTEGER NOT NULL,
+                channel TEXT NOT NULL DEFAULT 'unknown',
+                body TEXT NOT NULL DEFAULT '',
+                received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                handled INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS sequence_enrollments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                prospect_id INTEGER NOT NULL,
+                sequence_id TEXT NOT NULL DEFAULT 'default',
+                current_step INTEGER NOT NULL DEFAULT 0,
+                next_action_at TIMESTAMP NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (prospect_id, sequence_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS telegram_stop_signals (
+                prospect_id INTEGER NOT NULL,
+                channel TEXT NOT NULL DEFAULT 'all',
+                received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (prospect_id, channel)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_daemon_log_ts ON daemon_log(timestamp DESC);
             CREATE INDEX IF NOT EXISTS idx_daemon_log_cat ON daemon_log(category);
             CREATE INDEX IF NOT EXISTS idx_daemon_decisions_ts ON daemon_decisions(timestamp DESC);
+            CREATE INDEX IF NOT EXISTS idx_inbox_replies_handled ON inbox_replies(handled, received_at);
+            CREATE INDEX IF NOT EXISTS idx_seq_enrollments_due ON sequence_enrollments(completed, next_action_at);
 
             INSERT OR IGNORE INTO daemon_state (id, state, started_at, last_heartbeat)
             VALUES (1, 'idle', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
@@ -545,7 +574,8 @@ class HermesDaemon:
                 f"Auto-responding in 5min unless you reply STOP"
             )
             await asyncio.sleep(300)  # 5 min human window
-            # TODO: Check if human said STOP via Telegram
+            if await self._check_human_stop(prospect_id, channel):
+                return
             await self._send_auto_response(prospect_id, intent, channel)
         elif intent == "questions":
             await self._send_auto_response(prospect_id, intent, channel)
@@ -657,13 +687,12 @@ class HermesDaemon:
 
     async def _exec_recalculate_scores(self, _) -> dict:
         """Trigger ML score recalculation for all prospects."""
-        # TODO: Call intelligence/scoring.py when implemented
-        await self.log_event("info", "scoring", "Score recalculation triggered")
-        return {"status": "triggered"}
+        # intelligence/scoring.py not implemented (F.future)
+        await self.log_event("info", "scoring", "Score recalculation deferred — intelligence/scoring not implemented")
+        return {"status": "not_implemented", "code": 501}
 
     async def _exec_weekly_report(self, _) -> dict:
-        """Generate and send weekly performance report."""
-        # TODO: Generate PDF report, send via Telegram
+        """Generate and send weekly performance report (Markdown via Telegram; PDF F.future)."""
         await self._notify_telegram(
             f"📊 Weekly Report\n"
             f"Discovered: {self.stats_week.discovered}\n"
@@ -917,15 +946,50 @@ class HermesDaemon:
 
     # --- Data Fetchers ---
 
+    async def _check_human_stop(self, prospect_id: int, channel: str) -> bool:
+        """Return True if human sent STOP signal via Telegram for this prospect/channel."""
+        conn = sqlite3.connect(str(DB_PATH))
+        row = conn.execute(
+            "SELECT 1 FROM telegram_stop_signals "
+            "WHERE prospect_id = ? AND channel IN (?, 'all') LIMIT 1",
+            (prospect_id, channel),
+        ).fetchone()
+        conn.close()
+        if row:
+            logger.info(
+                "[stop_signal] human STOP for prospect=%s channel=%s — auto_response skipped",
+                prospect_id, channel,
+            )
+            return True
+        return False
+
     async def _get_pending_replies(self) -> list:
-        """Get unhandled replies from all channels."""
-        # TODO: Query inbox table (to be created in sequence engine)
-        return []
+        """Get unhandled replies from all channels (inbox_replies table)."""
+        conn = sqlite3.connect(str(DB_PATH))
+        rows = conn.execute(
+            "SELECT id, prospect_id, channel, body, received_at "
+            "FROM inbox_replies WHERE handled = 0 ORDER BY received_at ASC LIMIT 50"
+        ).fetchall()
+        conn.close()
+        return [
+            {"id": r[0], "prospect_id": r[1], "channel": r[2], "body": r[3], "received_at": r[4]}
+            for r in rows
+        ]
 
     async def _get_due_sequence_steps(self) -> list:
-        """Get sequence steps that are due for execution."""
-        # TODO: Query sequence_enrollments WHERE next_action_at <= NOW()
-        return []
+        """Get sequence steps due for execution (next_action_at <= now, not completed)."""
+        conn = sqlite3.connect(str(DB_PATH))
+        rows = conn.execute(
+            "SELECT id, prospect_id, sequence_id, current_step "
+            "FROM sequence_enrollments "
+            "WHERE next_action_at <= datetime('now') AND completed = 0 "
+            "LIMIT 50"
+        ).fetchall()
+        conn.close()
+        return [
+            {"id": r[0], "prospect_id": r[1], "sequence_id": r[2], "current_step": r[3]}
+            for r in rows
+        ]
 
     async def _get_unenriched_prospects(self, limit: int = 5) -> list:
         """Get prospects missing key fields (email, linkedin, etc)."""
@@ -960,16 +1024,51 @@ class HermesDaemon:
 
     async def _send_via_channel(self, channel: str, prospect_id: int,
                                 template: str, context: dict) -> bool:
-        """Send a message via the specified channel."""
-        # TODO: Implement per-channel sending (email SMTP, LinkedIn API, WhatsApp API)
-        logger.info(f"[{channel}] Would send to prospect {prospect_id}: {template[:50]}...")
-        await asyncio.sleep(3)  # Simulate send time
-        return True
+        """Send a message via the specified channel.
+
+        Dry-run when HERMES_CHANNEL_SEND_ENABLED != '1' (default safe).
+        LinkedIn: GatewayDispatcher → hermes-linkedin MCP send_message.
+        Email/WhatsApp: 501 stub (F.future SMTP / Z-API integration).
+        """
+        send_enabled = os.environ.get("HERMES_CHANNEL_SEND_ENABLED", "0") == "1"
+        if not send_enabled:
+            logger.info("[%s] DRY-RUN prospect=%s: %s", channel, prospect_id, template[:50])
+            return True
+
+        if channel == "linkedin":
+            try:
+                from brain.dispatch import GatewayDispatcher
+                _bearer = (
+                    os.getenv("HERMES_GATEWAY_BEARER_BRAIN_CORE")
+                    or os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
+                )
+                dispatcher = GatewayDispatcher(bearer=_bearer)
+                result = await dispatcher.invoke_tool(
+                    "hermes-linkedin", "send_message",
+                    {"prospect_id": prospect_id, "template": template},
+                    requester="daemon",
+                    caller_chapter="UX-RM-F1-B",
+                )
+                return bool(result.get("ok", False))
+            except Exception as exc:
+                logger.warning("[linkedin] send_via_channel failed: %s", exc)
+                return False
+
+        if channel == "email":
+            logger.info("[email] send_via_channel 501 — SMTP integration F.future")
+            return False
+
+        if channel == "whatsapp":
+            logger.info("[whatsapp] send_via_channel 501 — Z-API integration F.future")
+            return False
+
+        logger.warning("[%s] unknown channel, skipping send", channel)
+        return False
 
     async def _enrich_single(self, prospect: dict) -> dict:
         """Enrich a single prospect via waterfall providers."""
-        # TODO: Call intelligence/enrichment.py waterfall
-        return {"fields_filled": 0}
+        # intelligence/enrichment.py not implemented (F.future)
+        return {"fields_filled": 0, "code": 501, "reason": "intelligence/enrichment not implemented"}
 
     # --- Intelligence ---
 
@@ -998,9 +1097,35 @@ class HermesDaemon:
         return "unclear"
 
     async def _send_auto_response(self, prospect_id: int, intent: str, channel: str):
-        """Send automated response based on classified intent."""
-        # TODO: Generate response via AI, send via channel
-        pass
+        """Send automated response based on classified intent via LLM + channel."""
+        prompt = (
+            f"Gere uma resposta curta e natural para um prospect B2B no Brasil.\n"
+            f"Intent detectado: {intent}\n"
+            f"Prospect ID: {prospect_id}. Canal: {channel}.\n"
+            f"Resposta max 200 chars, tom consultivo, nunca vendedor.\n"
+            f"Retorne APENAS o texto da resposta, nada mais."
+        )
+        try:
+            response_text = await ollama_router.route(
+                "generate_auto_response", prompt,
+                options={"temperature": 0.7, "num_predict": 100},
+            )
+            response_text = response_text.strip()
+            if len(response_text) >= 20:
+                logger.info(
+                    "[auto_response] prospect=%s intent=%s → sending via %s",
+                    prospect_id, intent, channel,
+                )
+                await self._send_via_channel(channel, prospect_id, response_text, {"intent": intent})
+            else:
+                logger.info(
+                    "[auto_response] low_confidence_skip prospect=%s (response too short: %d chars)",
+                    prospect_id, len(response_text),
+                )
+        except OllamaUnavailable as exc:
+            logger.warning("[auto_response] ollama unavailable: %s — skipping", exc)
+        except Exception as exc:
+            logger.exception("[auto_response] failed for prospect=%s: %s", prospect_id, exc)
 
     async def _opt_out_prospect(self, prospect_id: int):
         """Mark prospect as opted-out, remove from all sequences."""
@@ -1012,10 +1137,23 @@ class HermesDaemon:
         conn.commit()
         conn.close()
 
-    async def _schedule_followup(self, prospect_id: int, days: int = 30):
-        """Schedule a follow-up touchpoint in N days."""
-        # TODO: Create sequence enrollment with delay
-        pass
+    async def _schedule_followup(
+        self, prospect_id: int, days: int = 30, sequence_id: str = "default"
+    ):
+        """Schedule a follow-up touchpoint in N days via sequence_enrollments table."""
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.execute(
+            "INSERT OR IGNORE INTO sequence_enrollments "
+            "(prospect_id, sequence_id, current_step, next_action_at) "
+            "VALUES (?, ?, 0, datetime('now', ? || ' days'))",
+            (prospect_id, sequence_id, f"+{days}"),
+        )
+        conn.commit()
+        conn.close()
+        logger.info(
+            "[followup] scheduled prospect=%s in %d days (sequence=%s)",
+            prospect_id, days, sequence_id,
+        )
 
     # --- Communication ---
 
