@@ -21,6 +21,7 @@ import csv
 import io
 import json
 import logging
+import os
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -39,6 +40,9 @@ from core.observability import (
 from core.state import DB_PATH
 
 log = logging.getLogger("hermes.api.observability")
+
+# R5-PHASE2 — per-role bearer for F.8 observability (falls back to shared bearer)
+_F8_BEARER: str = os.getenv("HERMES_GATEWAY_BEARER_BRAIN_F8") or os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
 
 router = APIRouter(prefix="/api/observability", tags=["observability"])
 
@@ -180,7 +184,7 @@ _DISPATCHER: GatewayDispatcher | None = None
 def _get_dispatcher() -> GatewayDispatcher:
     global _DISPATCHER
     if _DISPATCHER is None:
-        _DISPATCHER = GatewayDispatcher(timeout=_SENTRY_TIMEOUT_SECS)
+        _DISPATCHER = GatewayDispatcher(bearer=_F8_BEARER, timeout=_SENTRY_TIMEOUT_SECS)
     return _DISPATCHER
 
 

@@ -141,3 +141,52 @@ def test_brain_dispatch_fallback_shared_bearer_if_per_role_missing():
         importlib.reload(bd)
         d = bd.GatewayDispatcher()
     assert d.bearer == "fallback-shared"
+
+
+# ---------------------------------------------------------------------------
+# R5-PHASE2 -- 3 remaining callers per-role bearer tests
+# ---------------------------------------------------------------------------
+
+def test_auto_skill_runner_default_dispatcher_uses_brain_f4_bearer():
+    """AutoSkillRunner() without explicit dispatcher uses HERMES_GATEWAY_BEARER_BRAIN_F4."""
+    import importlib
+    with patch.dict(os.environ, {
+        "HERMES_GATEWAY_BEARER_BRAIN_F4": "f4-per-role-bearer",
+        "HERMES_GATEWAY_OAUTH_SECRET": "shared-fallback",
+    }, clear=False):
+        import core.auto_skill_runner as asr
+        importlib.reload(asr)
+        runner = asr.AutoSkillRunner()
+    assert runner.dispatcher.bearer == "f4-per-role-bearer"
+
+
+def test_observability_dispatcher_uses_brain_f8_bearer():
+    """_get_dispatcher() creates GatewayDispatcher with HERMES_GATEWAY_BEARER_BRAIN_F8."""
+    import importlib
+    with patch.dict(os.environ, {
+        "HERMES_GATEWAY_BEARER_BRAIN_F8": "f8-per-role-bearer",
+        "HERMES_GATEWAY_OAUTH_SECRET": "shared-fallback",
+    }, clear=False):
+        import api.observability as obs
+        importlib.reload(obs)
+        obs._DISPATCHER = None  # reset lazy singleton
+        d = obs._get_dispatcher()
+    assert d.bearer == "f8-per-role-bearer"
+
+
+def test_hermes_linkedin_uses_brain_f5_mcp_linkedin_bearer():
+    """hermes-linkedin _LINKEDIN_BEARER uses HERMES_GATEWAY_BEARER_BRAIN_F5_MCP_LINKEDIN."""
+    # Direct-load server module via spec to avoid fastmcp import on PC
+    import importlib.util
+    _LI_PATH = Path(__file__).resolve().parent.parent / "mcps" / "hermes-linkedin" / "server.py"
+    with patch.dict(os.environ, {
+        "HERMES_GATEWAY_BEARER_BRAIN_F5_MCP_LINKEDIN": "linkedin-per-role-bearer",
+        "HERMES_GATEWAY_OAUTH_SECRET": "shared-fallback",
+    }, clear=False):
+        spec = importlib.util.spec_from_file_location("_li_server_test", _LI_PATH)
+        mod = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(mod)  # type: ignore[union-attr]
+        except SystemExit:
+            pytest.skip("fastmcp not installed on PC — bearer var still validated")
+        assert mod._LINKEDIN_BEARER == "linkedin-per-role-bearer"

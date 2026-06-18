@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 10:26 UTC
+- **last_updated**: 2026-06-18 10:46 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 210 (160 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 94 (45.9% of public)
@@ -129,7 +129,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/linkedin/health/clear` | pc | `api/linkedin.py:476` | token |
 | `POST` | `/api/linkedin/health/clear` | vm | `vm_api/routes.py:1516` | token |
 | `POST` | `/api/mcp/coverage/publish` | vm | `vm_api/mcp_coverage.py:80` | token |
-| `POST` | `/api/observability/errors/{error_id}/resolve` | pc | `api/observability.py:398` | token |
+| `POST` | `/api/observability/errors/{error_id}/resolve` | pc | `api/observability.py:402` | token |
 | `POST` | `/api/outreach/batch` | vm | `vm_api/routes.py:777` | token |
 | `POST` | `/api/pipeline-studio/drafts` | pc | `api/pipeline_studio.py:172` | token |
 | `DELETE` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:269` | token |
@@ -179,13 +179,13 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/mcp/coverage/latest` | pc | `api/mcp_coverage.py:78` | token |
 | `GET` | `/api/mcp/coverage/latest` | vm | `vm_api/mcp_coverage.py:26` | token |
 | `GET` | `/api/mcp/gateway/health` | pc | `api/mcp_coverage.py:100` | token |
-| `GET` | `/api/observability/_debug/explain_cost_plan` | pc | `api/observability.py:664` | token |
-| `GET` | `/api/observability/costs` | pc | `api/observability.py:55` | token |
-| `GET` | `/api/observability/credits` | pc | `api/observability.py:162` | token |
-| `GET` | `/api/observability/decisions` | pc | `api/observability.py:492` | token |
-| `GET` | `/api/observability/errors` | pc | `api/observability.py:329` | token |
-| `GET` | `/api/observability/mcp-coverage-history` | pc | `api/observability.py:617` | token |
-| `GET` | `/api/observability/perf` | pc | `api/observability.py:98` | token |
+| `GET` | `/api/observability/_debug/explain_cost_plan` | pc | `api/observability.py:668` | token |
+| `GET` | `/api/observability/costs` | pc | `api/observability.py:59` | token |
+| `GET` | `/api/observability/credits` | pc | `api/observability.py:166` | token |
+| `GET` | `/api/observability/decisions` | pc | `api/observability.py:496` | token |
+| `GET` | `/api/observability/errors` | pc | `api/observability.py:333` | token |
+| `GET` | `/api/observability/mcp-coverage-history` | pc | `api/observability.py:621` | token |
+| `GET` | `/api/observability/perf` | pc | `api/observability.py:102` | token |
 | `GET` | `/api/photos/{photo_ref:path}` | pc | `api/photos.py:15` | token |
 | `GET` | `/api/pipeline-studio/drafts` | pc | `api/pipeline_studio.py:124` | token |
 | `GET` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:199` | token |

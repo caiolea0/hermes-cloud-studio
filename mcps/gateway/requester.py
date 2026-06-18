@@ -18,6 +18,7 @@ _ENV_TO_REQUESTER: dict[str, str] = {
     "HERMES_GATEWAY_BEARER_BRAIN_CORE": "brain-core",
     "HERMES_GATEWAY_BEARER_BRAIN_F4": "brain-f4",
     "HERMES_GATEWAY_BEARER_BRAIN_F5": "brain-f5",
+    "HERMES_GATEWAY_BEARER_BRAIN_F5_MCP_LINKEDIN": "brain-f5-mcp-linkedin",
     "HERMES_GATEWAY_BEARER_BRAIN_F6": "brain-f6",
     "HERMES_GATEWAY_BEARER_BRAIN_F7_COBAIA": "brain-f7-cobaia",
     "HERMES_GATEWAY_BEARER_BRAIN_F7_COBAIA_AUTOTUNE": "brain-f7-cobaia-autotune",

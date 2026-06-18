@@ -55,6 +55,8 @@ from core.skill_proposals import (
 
 log = logging.getLogger("hermes.auto_skill_runner")
 
+# R5-PHASE2 — per-role bearer for F.4 AutoSkillRunner (falls back to shared bearer)
+_F4_BEARER: str = os.getenv("HERMES_GATEWAY_BEARER_BRAIN_F4") or os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
 
 # D1 PIVOT — minimum YAML keys required to be considered a valid skill proposal.
 _REQUIRED_YAML_KEYS: tuple[str, ...] = ("name", "version")
@@ -131,7 +133,7 @@ class AutoSkillRunner:
         dispatcher: Optional[GatewayDispatcher] = None,
         manager: Optional[SkillProposalsManager] = None,
     ) -> None:
-        self.dispatcher = dispatcher or GatewayDispatcher()
+        self.dispatcher = dispatcher or GatewayDispatcher(bearer=_F4_BEARER)
         self.manager = manager or proposals_manager
 
     # ------------------------------------------------------------------

@@ -46,7 +46,13 @@ except ImportError as exc:  # pragma: no cover — VM-only dep
     )
 
 MCP_NAME = "hermes-linkedin"
-MCP_VERSION = "0.2.0-h7"
+MCP_VERSION = "0.2.0-r5"
+
+# R5-PHASE2 — per-role bearer for hermes-linkedin start_campaign (falls back to shared bearer)
+_LINKEDIN_BEARER: str = (
+    os.getenv("HERMES_GATEWAY_BEARER_BRAIN_F5_MCP_LINKEDIN")
+    or os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
+)
 
 # Defense-in-depth sanitizer (mesmo pattern linkedin/lab/_event_emit.py F.3.2)
 _SENSITIVE_KEYS = frozenset({
@@ -308,6 +314,7 @@ async def start_campaign(campaign_type: str, config: dict) -> dict:
         "X-Hermes-Token": vm_token,
         "X-Hermes-Requester": "brain-f5-mcp-linkedin",
         "Content-Type": "application/json",
+        **({"Authorization": f"Bearer {_LINKEDIN_BEARER}"} if _LINKEDIN_BEARER else {}),
     }
 
     try:
