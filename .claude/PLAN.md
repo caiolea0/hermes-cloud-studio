@@ -3634,7 +3634,7 @@ Total wall-clock: ~15-20h spread 4 sessões.
 
 ### 📋 Phase 2 R5 — Migrate restantes 5-7 callers (NEXT, ~2h Sonnet 4.6)
 
-- [ ] **R5-PHASE2** (Task #7) — Migrate api/cobaia.py + core/auto_skill_runner.py + core/email_verifier.py + core/cobaia_autotune.py + daemon/cobaia_warmup_scheduler.py + mcps/hermes-linkedin/server.py para per-role bearers.
+- [x] **R5-PHASE2** (Task #7) — Migrate core/auto_skill_runner.py (BRAIN_F4) + api/observability.py (BRAIN_F8) + mcps/hermes-linkedin/server.py (BRAIN_F5_MCP_LINKEDIN) para per-role bearers. **DONE 2026-06-18** — commit b86e909 + requester.py F5_MCP_LINKEDIN entry + 3 tests + VM deploy + .env fix. 246 pytest PASS. BLACKLIST R2 INTACTO 45 SS. G5 smoke: all 3 bearers trusted (403=access_matrix, not auth). R5_FALLBACK=0 post per-role calls. R5-PHASE3 trigger: 7d zero R5_FALLBACK logs.
 
 ### 📋 Phase 3 R5 — Kill switch shared bearer (FUTURE, ~30min)
 
