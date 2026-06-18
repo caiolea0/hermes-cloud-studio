@@ -256,7 +256,10 @@ class Brain:
         Daemon reads result["result"]["final_answer"] for action_data.
         """
         from .cobaia_intent import COBAIA_INTENT_REGISTRY
-        from .intents import _handle_cobaia_warmup_intent
+        from .intents import (
+            _handle_cobaia_warmup_intent,
+            _handle_cobaia_autotune_synthesis_intent,
+        )
 
         if intent not in COBAIA_INTENT_REGISTRY:
             return {
@@ -271,6 +274,8 @@ class Brain:
 
         if intent == "cobaia_warmup_next_action":
             intent_result = _handle_cobaia_warmup_intent(ctx)
+        elif intent == "cobaia_autotune_synthesis":
+            intent_result = _handle_cobaia_autotune_synthesis_intent(ctx)
         else:
             intent_result = {
                 "ok": False,

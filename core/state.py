@@ -369,6 +369,8 @@ def init_db() -> None:
         logger.info("Migration: added photo_ref column to prospects")
 
     # H1 B7: idempotent migration — events_jsonl_path column
+    # R11: DEPRECATED — column never read/written after migration.
+    # Path computed at runtime: ARTIFACTS_BASE / run_id / "events.jsonl".
     try:
         conn.execute("SELECT events_jsonl_path FROM lab_runs LIMIT 1")
     except sqlite3.OperationalError:

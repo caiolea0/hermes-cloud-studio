@@ -240,3 +240,37 @@ def _handle_cobaia_warmup_intent(context: dict[str, Any]) -> dict[str, Any]:
         "error": None if ok else action_data.get("status"),
         "note": None,
     }
+
+
+def _handle_cobaia_autotune_synthesis_intent(context: dict[str, Any]) -> dict[str, Any]:
+    """F.7 C5 — Cobaia autotune synthesis fast-path (R12: wires COBAIA_INTENT_REGISTRY entry).
+
+    Delegates to core.cobaia_autotune.detect_and_trigger().
+    Returns handle_intent-compatible shape.
+    """
+    from core.cobaia_autotune import detect_and_trigger
+    account_handle = context.get("account_handle", "cobaia")
+    sustained_hours = int(context.get("sustained_hours", 24))
+    result = detect_and_trigger(
+        account_handle=account_handle,
+        sustained_hours=sustained_hours,
+    )
+    ok = result.get("triggered", 0) > 0 or result.get("skipped", 0) > 0 or result.get("triggered", 0) == 0
+    # ok=True even when triggered=0 (no breach) — that is a valid non-error result
+    triggered = result.get("triggered", 0)
+    return {
+        "ok": True,
+        "intent": "cobaia_autotune_synthesis",
+        "task_type": "code_gen",
+        "destructive": False,
+        "tools_available": [],
+        "tools_used": [],
+        "final_answer": result,
+        "confidence": 1.0 if triggered > 0 else 0.8,
+        "iterations": 0,
+        "accumulated": [],
+        "cost_credits": 0.0,
+        "status": "completed",
+        "error": None,
+        "note": f"triggered={triggered} skipped={result.get('skipped', 0)}",
+    }

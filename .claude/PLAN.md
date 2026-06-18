@@ -800,7 +800,7 @@ Audit C2 surfaceou BLOCKER: `gateway VM /tools` retorna 0 workflow tools. Invest
 - ⚠️ **P1 PENDING (security)**: rotate old exposed secret `GITHUB_WEBHOOK_SECRET` via `scripts\setup_github_webhook_secret.ps1` + update GitHub webhook URL to `https://hermes-api.caioleao.com/api/skills/webhook/pr-merged`
 - BLACKLIST R2 INTACTO 24 consecutive sub-sessions
 
-**F.4.4 C2 ✅ 2026-06-16** commit f78cb19 — 7 files 1034 insertions — 69 pytest PASS (1 skipped fcntl Windows) — VM timer active next 04:00 UTC:
+**F.4.4 C2 ✅ 2026-06-16** commit f78cb19 — 7 files 1034 insertions — 69 pytest PASS (1 skipped fcntl Windows) — ✅ Verified 2026-06-18: `systemctl list-timers hermes-skill-quarantine.timer` NEXT Thu 2026-06-18 00:00:58 UTC (timer ACTIVE, oneshot pattern):
 - `scripts/quarantine_skills.py` quarantine cron MIN_SAMPLE=10 THRESHOLD=0.5 last 10 runs
 - `scripts/install_quarantine_timer.sh` hermes-skill-quarantine.{service,timer} hourly + Persistent=true
 - `scripts/_f44c2_vm_unquarantine_patch.py` in-place patch VM hermes_api.py + unquarantine endpoint
