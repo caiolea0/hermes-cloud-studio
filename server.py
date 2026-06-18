@@ -368,6 +368,8 @@ app.include_router(config_router)  # F.4.3 — /api/config whitelisted feature f
 app.include_router(cobaia_router)  # F.7 C1 — /api/linkedin/cobaia/* warmup endpoints
 from api.onboarding import router as onboarding_router
 app.include_router(onboarding_router)  # UX-RM-F3-A — /api/onboarding/* + /api/channels/*
+from api.icp import router as icp_router
+app.include_router(icp_router)  # UX-RM-F3-B — /api/icp/profile + /api/icp/presets
 
 
 if __name__ == "__main__":

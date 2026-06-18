@@ -1,7 +1,7 @@
 {
-  "generated_at": 1781818261.4711661,
-  "total": 219,
-  "pc_count": 169,
+  "generated_at": 1781820255.7191732,
+  "total": 222,
+  "pc_count": 172,
   "vm_count": 50,
   "ws_count": 1,
   "internal_count": 5,
@@ -502,6 +502,36 @@
       "file": "api/hermes.py",
       "line": 111,
       "function": "trigger_sync",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/icp/presets",
+      "file": "api/icp.py",
+      "line": 92,
+      "function": "get_icp_presets",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/icp/profile",
+      "file": "api/icp.py",
+      "line": 78,
+      "function": "get_icp_profile",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/icp/profile",
+      "file": "api/icp.py",
+      "line": 85,
+      "function": "save_icp_profile",
       "side": "pc",
       "internal_only": false,
       "rate_limited": false

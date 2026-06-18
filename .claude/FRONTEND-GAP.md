@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 21:31 UTC
+- **last_updated**: 2026-06-18 22:04 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 219 (169 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 132 (61.7% of public)
-- **orphans**: 82
+- **routes_total**: 222 (172 PC + 50 VM, 5 internal-only excluded)
+- **consumed**: 132 (60.8% of public)
+- **orphans**: 85
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **219** rotas FastAPI (169 PC, 50 VM)
+- Total: **222** rotas FastAPI (172 PC, 50 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -36,6 +36,7 @@
 | `api/tasks.py` | 5 |
 | `api/audit.py` | 4 |
 | `api/server_ctrl.py` | 4 |
+| `api/icp.py` | 3 |
 | `api/internal.py` | 3 |
 | `api/dashboard.py` | 2 |
 | `api/activities.py` | 2 |
@@ -86,7 +87,7 @@
 | `/api/linkedin/cobaia/timeline` | 2 | cobaia_studio.js |
 | `/api/observability/costs` | 2 | observability_costs.js |
 
-## §3 Órfãos — 82 endpoints sem UI
+## §3 Órfãos — 85 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -109,6 +110,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/channels/configure` | pc | `api/onboarding.py:131` | token |
 | `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:426` | token |
 | `POST` | `/api/cobaia/verify-email` | pc | `api/cobaia.py:750` | token |
+| `POST` | `/api/icp/profile` | pc | `api/icp.py:85` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | pc | `api/linkedin.py:411` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1216` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | pc | `api/linkedin.py:399` | token |
@@ -155,6 +157,8 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:776` | token |
 | `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:495` | token |
 | `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:352` | token |
+| `GET` | `/api/icp/presets` | pc | `api/icp.py:92` | token |
+| `GET` | `/api/icp/profile` | pc | `api/icp.py:78` | token |
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:457` | token |
 | `GET` | `/api/linkedin/companies/lookup` | vm | `vm_api/routes.py:1586` | token |
 | `GET` | `/api/linkedin/rate-limits` | pc | `api/linkedin.py:29` | token |

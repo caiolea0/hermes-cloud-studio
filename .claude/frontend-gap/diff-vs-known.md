@@ -6,5 +6,6 @@
 ## New orphans (regressões / backend novo sem UI)
 
 - 🆕 `GET /`
-- 🆕 `GET /api/channels/{channel}/test`
-- 🆕 `POST /api/channels/configure`
+- 🆕 `GET /api/icp/presets`
+- 🆕 `GET /api/icp/profile`
+- 🆕 `POST /api/icp/profile`

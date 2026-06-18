@@ -322,6 +322,10 @@
     outline: none;
     border-color: var(--accent, #7c3aed);
 }
+.wiz-field input:focus-visible {
+    outline: 2px solid var(--accent, #7c3aed);
+    outline-offset: -1px;
+}
 .wiz-field input[type=password] { letter-spacing: 0.1em; }
 .wiz-field-hint {
     font-size: 11px;
@@ -411,4 +415,275 @@
 .btn-ghost:focus-visible {
     outline: 2px solid var(--accent, #7c3aed);
     outline-offset: 2px;
+}
+
+/* ── Secondary button ────────────────────────────────────────────────────── */
+.btn-secondary {
+    background: var(--s3, #27272f);
+    border: 1px solid var(--border, #2a2a33);
+    border-radius: 8px;
+    color: var(--text-2, #a8a8b8);
+    padding: 9px 18px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 150ms, color 150ms;
+}
+.btn-secondary:hover {
+    border-color: var(--accent, #7c3aed);
+    color: var(--text, #e4e4ef);
+}
+.btn-secondary:focus-visible {
+    outline: 2px solid var(--accent, #7c3aed);
+    outline-offset: 2px;
+}
+
+/* ── ICP form ─────────────────────────────────────────────────────────────── */
+.wiz-icp-form {
+    margin: 16px 0;
+}
+.wiz-icp-summary {
+    font-size: 13px;
+    color: var(--accent-l, #a78bfa);
+    cursor: pointer;
+    user-select: none;
+    padding: 4px 0;
+    margin-bottom: 12px;
+}
+.wiz-icp-summary:focus-visible {
+    outline: 2px solid var(--accent, #7c3aed);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+.wiz-fieldset {
+    border: 1px solid var(--border, #2a2a33);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+.wiz-fieldset legend {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-3, #8a8a9a);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0 4px;
+}
+.wiz-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+@media (max-width: 420px) {
+    .wiz-row { grid-template-columns: 1fr; }
+}
+.wiz-req {
+    color: var(--red, #ef4444);
+    font-size: 12px;
+}
+
+/* ── Preset grid ──────────────────────────────────────────────────────────── */
+.wiz-presets {
+    margin-bottom: 16px;
+}
+.wiz-presets-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-3, #8a8a9a);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+.wiz-presets-empty {
+    font-size: 12px;
+    color: var(--text-3, #8a8a9a);
+    margin-bottom: 12px;
+}
+.wiz-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+@media (max-width: 480px) {
+    .wiz-preset-grid { grid-template-columns: 1fr; }
+}
+.wiz-preset-card {
+    background: var(--s2, #18181c);
+    border: 1px solid var(--border, #2a2a33);
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 150ms, background 150ms;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.wiz-preset-card:hover {
+    border-color: var(--accent, #7c3aed);
+    background: var(--s3, #27272f);
+}
+.wiz-preset-card:focus-visible {
+    outline: 2px solid var(--accent, #7c3aed);
+    outline-offset: 2px;
+}
+.wiz-preset-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text, #e4e4ef);
+    line-height: 1.3;
+}
+.wiz-preset-hint {
+    font-size: 11px;
+    color: var(--text-3, #8a8a9a);
+    line-height: 1.4;
+}
+
+/* ── Seniority checkboxes ─────────────────────────────────────────────────── */
+.wiz-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+.wiz-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    background: var(--s2, #18181c);
+    border: 1px solid var(--border, #2a2a33);
+    border-radius: 20px;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: var(--text-2, #a8a8b8);
+    transition: border-color 150ms, background 150ms, color 150ms;
+    user-select: none;
+}
+.wiz-chip input[type=checkbox] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.wiz-chip:has(input:checked) {
+    border-color: var(--accent, #7c3aed);
+    background: rgba(124, 58, 237, 0.12);
+    color: var(--text, #e4e4ef);
+}
+.wiz-chip:focus-within {
+    outline: 2px solid var(--accent, #7c3aed);
+    outline-offset: 2px;
+}
+
+/* ── Preflight list ───────────────────────────────────────────────────────── */
+.wiz-preflight {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.pf-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border, #2a2a33);
+    background: var(--s2, #18181c);
+}
+.pf-item.pf-ok    { border-color: rgba(16, 185, 129, 0.3);  }
+.pf-item.pf-fail  { border-color: rgba(239, 68, 68, 0.3);   }
+.pf-item.pf-warn  { border-color: rgba(245, 158, 11, 0.3);  }
+.pf-item.pf-loading { border-color: var(--border, #2a2a33); }
+.pf-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    fill: currentColor;
+}
+.pf-icon.pf-ok   { color: var(--green, #10b981);  }
+.pf-icon.pf-fail { color: var(--red, #ef4444);    }
+.pf-icon.pf-warn { color: var(--amber, #f59e0b);  }
+.pf-detail { flex: 1; }
+.pf-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text, #e4e4ef);
+    margin: 0 0 2px;
+}
+.pf-msg {
+    font-size: 12px;
+    color: var(--text-2, #a8a8b8);
+    margin: 0;
+    line-height: 1.5;
+}
+.pf-warn-note {
+    display: block;
+    font-size: 11px;
+    color: var(--amber, #f59e0b);
+    margin-top: 2px;
+}
+/* Loading spinner */
+.pf-spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border, #2a2a33);
+    border-top-color: var(--accent, #7c3aed);
+    border-radius: 50%;
+    animation: pf-spin 0.8s linear infinite;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+    .pf-spinner { animation: none; border-top-color: var(--border, #2a2a33); }
+}
+@keyframes pf-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Launch CTA ───────────────────────────────────────────────────────────── */
+.wiz-launch-ready,
+.wiz-launch-blocked {
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 8px;
+}
+.wiz-launch-ready {
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.wiz-launch-blocked {
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.wiz-launch-ok {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--green, #10b981);
+    margin: 0 0 4px;
+}
+.wiz-launch-warn {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--red, #ef4444);
+    margin: 0 0 4px;
+}
+.wiz-launch-sub {
+    font-size: 12px;
+    color: var(--text-2, #a8a8b8);
+    margin: 0 0 12px;
+    line-height: 1.5;
+}
+.wiz-launch-link {
+    color: var(--accent-l, #a78bfa);
+    text-decoration: none;
+}
+.wiz-launch-link:hover { text-decoration: underline; }
+.btn-launch {
+    font-size: 15px;
+    padding: 10px 24px;
 }
