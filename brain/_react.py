@@ -322,3 +322,124 @@ async def react_loop(
         "cost_credits": round(llm_calls_cost + _aggregate_tool_costs(accumulated), 4),
         "status": "max_iterations_reached",
     }
+
+
+async def react_loop_streaming(
+    intent: str,
+    context: dict[str, Any],
+    intent_config: dict[str, Any],
+    dispatcher: GatewayDispatcher | None = None,
+):
+    """Async generator — yields SSE event dicts during ReAct execution.
+
+    UX-RM-F5-A: powers /api/brain/stream-decide SSE endpoint.
+    Mirrors react_loop() logic, emitting events at each observable step.
+
+    Yields dicts with type: thought | tool_call | tool_result | final | error.
+    """
+    dispatcher = dispatcher or GatewayDispatcher()
+    task_type = intent_config.get("task_type")
+
+    if task_type is None:
+        yield {"type": "final", "answer": None, "confidence": 1.0, "iterations": 0, "status": "utility_no_llm"}
+        return
+
+    accumulated: list[dict[str, Any]] = []
+    llm_calls_cost = 0.0
+    iteration = 0
+
+    while iteration < MAX_REACT_ITERATIONS:
+        iteration += 1
+
+        prompt = _build_react_prompt(intent, intent_config, context, accumulated)
+        llm_dispatch = await dispatcher.route(task_type=str(task_type), prompt=prompt)
+        llm_calls_cost += _extract_llm_call_cost(llm_dispatch)
+
+        if not llm_dispatch.get("ok"):
+            err = str(llm_dispatch.get("error", "unknown"))[:200]
+            log.warning("react_stream iter %d intent=%s LLM fail: %s", iteration, intent, err)
+            yield {"type": "error", "message": f"LLM dispatch falhou: {err}"}
+            return
+
+        inner_route = llm_dispatch.get("response", {})
+        if isinstance(inner_route, dict) and not inner_route.get("ok"):
+            err = str(inner_route.get("error", "all_tiers_failed"))[:200]
+            log.warning("react_stream iter %d intent=%s all tiers failed: %s", iteration, intent, err)
+            yield {"type": "error", "message": f"Todos os modelos falharam: {err}"}
+            return
+
+        llm_text = _extract_llm_text(llm_dispatch)
+        parsed = _parse_llm_json(llm_text)
+
+        rationale = str(parsed.get("rationale", ""))[:1000]
+        planned_tool = parsed.get("planned_tool")
+        final_answer = parsed.get("final_answer")
+        llm_self_conf = float(parsed.get("confidence", 0.5) or 0.5)
+
+        if rationale:
+            yield {"type": "thought", "chunk": rationale, "iteration": iteration}
+
+        if final_answer is not None or not planned_tool:
+            conf = _compute_confidence(accumulated, llm_self_conf)
+            cost = round(llm_calls_cost + _aggregate_tool_costs(accumulated), 4)
+            yield {
+                "type": "final",
+                "answer": str(final_answer)[:4000] if final_answer is not None else rationale,
+                "confidence": conf,
+                "iterations": iteration,
+                "cost_credits": cost,
+                "status": "completed",
+            }
+            return
+
+        if not isinstance(planned_tool, dict):
+            log.warning("react_stream iter %d intent=%s invalid planned_tool type", iteration, intent)
+            yield {"type": "error", "message": "Tipo de ferramenta inválido na resposta do modelo"}
+            return
+
+        server = str(planned_tool.get("server", ""))
+        tool = str(planned_tool.get("tool", ""))
+        args = planned_tool.get("args", {}) or {}
+
+        if not server or not tool:
+            conf = _compute_confidence(accumulated, llm_self_conf)
+            cost = round(llm_calls_cost + _aggregate_tool_costs(accumulated), 4)
+            yield {
+                "type": "final",
+                "answer": rationale or "ferramenta planejada sem server/tool",
+                "confidence": conf,
+                "iterations": iteration,
+                "cost_credits": cost,
+                "status": "completed",
+            }
+            return
+
+        yield {"type": "tool_call", "tool": f"{server}.{tool}", "args": args if isinstance(args, dict) else {}, "iteration": iteration}
+
+        tool_result = await dispatcher.invoke_tool(
+            server=server, tool=tool, args=args if isinstance(args, dict) else {}
+        )
+        tool_ok = bool(isinstance(tool_result, dict) and tool_result.get("ok"))
+        yield {
+            "type": "tool_result",
+            "result": tool_result if isinstance(tool_result, dict) else {"raw": str(tool_result)[:500]},
+            "ok": tool_ok,
+        }
+
+        accumulated.append({
+            "iteration": iteration,
+            "thought": rationale,
+            "tool_call": {"server": server, "tool": tool, "args": args},
+            "tool_result": tool_result,
+        })
+
+    base_conf = _compute_confidence(accumulated, 0.5)
+    cost = round(llm_calls_cost + _aggregate_tool_costs(accumulated), 4)
+    yield {
+        "type": "final",
+        "answer": None,
+        "confidence": max(0.0, round(base_conf - CONFIDENCE_MAX_ITER_PENALTY, 3)),
+        "iterations": iteration,
+        "cost_credits": cost,
+        "status": "max_iterations_reached",
+    }

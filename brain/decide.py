@@ -553,6 +553,35 @@ class Brain:
             from core.sentry_via_gateway import capture_exception as _sentry_capture
             _sentry_capture(exc, requester="brain-core")
 
+    async def stream_decide(
+        self,
+        prompt: str,
+        context: dict[str, Any] | None = None,
+        intent_hint: str | None = None,
+    ):
+        """Async generator yielding SSE event dicts for Cmd+K AI streaming (UX-RM-F5-A).
+
+        Uses intent_hint if in INTENT_REGISTRY, else defaults to 'answer_owner' (general chat).
+        Yields: thought | tool_call | tool_result | final | error dicts.
+        Caller wires to StreamingResponse via /api/brain/stream-decide.
+        """
+        from ._react import react_loop_streaming
+
+        ctx = dict(context or {})
+        ctx.setdefault("user_prompt", prompt)
+
+        intent = intent_hint if (intent_hint and intent_hint in INTENT_REGISTRY) else "answer_owner"
+
+        yield {"type": "thought", "chunk": f"Analisando solicitação ({intent})..."}
+
+        intent_config = INTENT_REGISTRY[intent]
+
+        async for event in react_loop_streaming(intent, ctx, intent_config, self.dispatcher):
+            if event.get("type") == "final":
+                yield {**event, "intent": intent}
+            else:
+                yield event
+
     @staticmethod
     def _build_agentmemory_content(
         intent: str, context: dict[str, Any], result: dict[str, Any], status: str,

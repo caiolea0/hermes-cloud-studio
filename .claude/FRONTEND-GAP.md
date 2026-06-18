@@ -1,9 +1,9 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 17:26 UTC
+- **last_updated**: 2026-06-18 19:51 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 213 (163 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 128 (61.5% of public)
+- **routes_total**: 214 (164 PC + 50 VM, 5 internal-only excluded)
+- **consumed**: 129 (61.7% of public)
 - **orphans**: 80
 - **top_10_priority**: see §4
 
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **213** rotas FastAPI (163 PC, 50 VM)
+- Total: **214** rotas FastAPI (164 PC, 50 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -28,8 +28,8 @@
 | `api/pipelines.py` | 9 |
 | `api/prospects.py` | 9 |
 | `api/observability.py` | 8 |
+| `api/brain.py` | 7 |
 | `api/hermes.py` | 7 |
-| `api/brain.py` | 6 |
 | `api/lab.py` | 5 |
 | `api/scraper.py` | 5 |
 | `api/tasks.py` | 5 |
@@ -57,8 +57,8 @@
 
 ## §2 Mapa consumo (app.js + 40 components)
 
-- Endpoints únicos consumidos: **128**
-- Total fetch/api calls: 135
+- Endpoints únicos consumidos: **129**
+- Total fetch/api calls: 136
 - Fontes escaneadas: 41 arquivos (app.js + components/*.js + HTML inline)
 - Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, skill-proposals, skills, tasks
 
@@ -95,13 +95,13 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/daemon/pause` | pc | `api/daemon.py:73` | token |
 | `POST` | `/api/daemon/resume` | pc | `api/daemon.py:84` | token |
 | `POST` | `/api/agent-zero/chat` | pc | `api/agent_zero.py:43` | token |
-| `POST` | `/api/brain/confirm/{run_id}` | pc | `api/brain.py:151` | token |
-| `POST` | `/api/brain/decide` | pc | `api/brain.py:104` | token |
-| `POST` | `/api/brain/replay/{run_id}` | pc | `api/brain.py:140` | token |
+| `POST` | `/api/brain/confirm/{run_id}` | pc | `api/brain.py:229` | token |
+| `POST` | `/api/brain/decide` | pc | `api/brain.py:182` | token |
+| `POST` | `/api/brain/replay/{run_id}` | pc | `api/brain.py:218` | token |
 | `POST` | `/api/prospects/{prospect_id}/resolve-conflict` | pc | `api/prospects.py:156` | token |
 | `GET` | `/api/agent-zero/status` | pc | `api/agent_zero.py:15` | token |
-| `GET` | `/api/brain/intents` | pc | `api/brain.py:218` | token |
-| `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:129` | token |
+| `GET` | `/api/brain/intents` | pc | `api/brain.py:296` | token |
+| `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:207` | token |
 | `GET` | `/api/linkedin/visited` | pc | `api/linkedin.py:445` | token |
 | `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1528` | token |
 | `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:701` | token |

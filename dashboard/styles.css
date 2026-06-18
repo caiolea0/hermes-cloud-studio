@@ -4763,6 +4763,249 @@ select option { background: var(--s2); color: var(--text); }
 }
 
 /* ============================================================
+   UX-RM-F5-A — Command Palette AI Mode (Brain SSE Streaming)
+   ============================================================ */
+
+/* Dialog visual shift when AI mode active */
+.cmd-palette-ai-mode {
+    border-color: var(--accent, #7c3aed);
+    box-shadow: 0 0 0 1px var(--accent, #7c3aed), 0 24px 64px rgba(124,58,237,0.25);
+}
+
+/* AI bar — badge + hint + stop btn */
+.cmd-ai-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-bottom: 1px solid rgba(124,58,237,0.25);
+    background: rgba(124,58,237,0.06);
+}
+.cmd-ai-bar[hidden] { display: none; }
+
+.cmd-ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--accent, #7c3aed);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.cmd-ai-hint {
+    font-size: 11px;
+    color: var(--text-3, #8a8a9a);
+    flex: 1;
+}
+
+.cmd-ai-stop-btn {
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--red, #ef4444);
+    background: transparent;
+    color: var(--red, #ef4444);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+.cmd-ai-stop-btn:hover {
+    background: var(--red, #ef4444);
+    color: #fff;
+}
+.cmd-ai-stop-btn[hidden] { display: none; }
+
+/* AI response area */
+.cmd-ai-response {
+    max-height: 340px;
+    overflow-y: auto;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scroll-behavior: smooth;
+}
+.cmd-ai-response[hidden] { display: none; }
+
+/* Thinking indicator — animated dots */
+.ai-thinking-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(124,58,237,0.08);
+    color: var(--text-3, #8a8a9a);
+    font-size: 12px;
+}
+
+.ai-thinking-dots {
+    display: inline-flex;
+    gap: 3px;
+}
+.ai-thinking-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent, #7c3aed);
+    animation: ai-dot-bounce 1.2s ease-in-out infinite;
+}
+.ai-thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.ai-thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes ai-dot-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Thought blocks — typewriter style */
+.ai-thought-block {
+    font-size: 12px;
+    color: var(--text-2, #a1a1b5);
+    line-height: 1.5;
+    padding: 6px 10px;
+    border-left: 2px solid rgba(124,58,237,0.3);
+    border-radius: 0 6px 6px 0;
+    background: rgba(255,255,255,0.02);
+    word-break: break-word;
+}
+.ai-thought-current::after {
+    content: '▌';
+    animation: ai-cursor-blink 0.8s step-end infinite;
+    color: var(--accent, #7c3aed);
+    margin-left: 2px;
+    font-size: 11px;
+}
+
+@keyframes ai-cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* Tool call pills */
+.ai-tool-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    font-size: 11px;
+    color: var(--text-2, #a1a1b5);
+    font-family: var(--font-mono, monospace);
+    max-width: 100%;
+    word-break: break-all;
+}
+.ai-tool-icon { font-size: 13px; flex-shrink: 0; }
+.ai-tool-name { color: var(--text-1, #e2e2f0); font-weight: 500; }
+.ai-tool-status { color: var(--text-3, #8a8a9a); flex-shrink: 0; }
+
+.ai-tool-pill.ai-tool-ok { border-color: rgba(16,185,129,0.35); }
+.ai-tool-pill.ai-tool-ok .ai-tool-status { color: var(--green, #10b981); }
+.ai-tool-pill.ai-tool-err { border-color: rgba(239,68,68,0.35); }
+.ai-tool-pill.ai-tool-err .ai-tool-status { color: var(--red, #ef4444); }
+
+/* Final answer */
+.ai-final-answer {
+    border-radius: 10px;
+    border: 1px solid rgba(124,58,237,0.3);
+    background: rgba(124,58,237,0.06);
+    padding: 10px 12px;
+    outline: none;
+}
+.ai-final-answer:focus-visible {
+    outline: 2px solid var(--accent, #7c3aed);
+    outline-offset: 2px;
+}
+
+.ai-final-text {
+    font-size: 13px;
+    color: var(--text-1, #e2e2f0);
+    line-height: 1.6;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.ai-final-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.ai-conf-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+/* Contrast ≥ 4.5:1 for all badges on dark bg */
+.ai-conf-high { background: rgba(16,185,129,0.2); color: #34d399; }
+.ai-conf-med  { background: rgba(234,179,8,0.2);  color: #fbbf24; }
+.ai-conf-low  { background: rgba(239,68,68,0.2);  color: #f87171; }
+
+.ai-iter-info {
+    font-size: 10px;
+    color: var(--text-3, #8a8a9a);
+}
+
+.ai-warn-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    background: rgba(234,179,8,0.2);
+    color: #fbbf24;
+}
+
+.ai-copy-hint {
+    font-size: 10px;
+    color: var(--text-3, #8a8a9a);
+    text-align: right;
+    margin-top: 4px;
+}
+
+/* Error banner */
+.ai-error-banner {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: #f87171;
+    font-size: 12px;
+}
+
+/* Hint text shown before query */
+.ai-hint-text {
+    font-size: 12px;
+    color: var(--text-3, #8a8a9a);
+    padding: 10px 4px;
+    text-align: center;
+}
+.ai-hint-text kbd {
+    display: inline-flex;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.15);
+    font-size: 11px;
+    color: var(--text-2, #a1a1b5);
+    background: rgba(255,255,255,0.06);
+}
+
+/* ============================================================
    UX-RM-F2-B — Shortcuts Help Overlay
    ============================================================ */
 .shortcuts-overlay {

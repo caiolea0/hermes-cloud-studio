@@ -1,4 +1,5 @@
 /* UX-RM-F2-B — Command Palette (Cmd+K / Ctrl+K)
+ * UX-RM-F5-A — AI Mode (/ prefix or ?ask prefix → Brain SSE streaming)
  * API global: window.HermesCommandPalette.{register, open, close}
  * WCAG 2.1 AA: role=dialog, aria-modal, focus trap, live region, keyboard nav.
  * Vanilla JS — no external deps.
@@ -18,6 +19,15 @@
             this._inputEl = null;
             this._resultsEl = null;
             this._statusEl = null;
+            // AI mode state (UX-RM-F5-A)
+            this._aiMode = false;
+            this._aiBarEl = null;
+            this._aiResponseEl = null;
+            this._aiStopBtnEl = null;
+            this._aiStreaming = false;
+            this._aiAbortCtrl = null;
+            this._aiFinalAnswer = null;
+            this._lastToolPillEl = null;
             this._buildDOM();
             this._bindGlobalShortcut();
         }
@@ -36,12 +46,16 @@
             this._inputEl.setAttribute('aria-expanded', 'true');
             this._overlay.removeAttribute('hidden');
             this._overlay.setAttribute('aria-hidden', 'false');
+            this._aiMode = false;
+            this._updateAIModeUI(false);
             requestAnimationFrame(() => this._inputEl.focus());
             this._renderResults();
         }
 
         close() {
+            this._stopAIStream();
             this._open = false;
+            this._aiMode = false;
             this._inputEl.setAttribute('aria-expanded', 'false');
             this._overlay.setAttribute('hidden', '');
             this._overlay.setAttribute('aria-hidden', 'true');
@@ -96,20 +110,40 @@
             input.spellcheck = false;
 
             input.addEventListener('input', () => {
-                this._filterText = input.value;
-                this._selectedIndex = 0;
-                this._renderResults();
+                this._handleInputChange(input.value);
             });
 
             input.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowDown') { e.preventDefault(); this._moveSelection(+1); }
-                else if (e.key === 'ArrowUp') { e.preventDefault(); this._moveSelection(-1); }
-                else if (e.key === 'Enter') { e.preventDefault(); this._executeSelected(); }
-                else if (e.key === 'Tab' && !e.shiftKey) {
+                if (e.key === 'ArrowDown') { e.preventDefault(); if (!this._aiMode) this._moveSelection(+1); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); if (!this._aiMode) this._moveSelection(-1); }
+                else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (this._aiMode) {
+                        if (this._aiFinalAnswer !== null && this._aiFinalAnswer !== undefined && this._aiFinalAnswer.trim()) {
+                            // Copy final answer to clipboard (W6: guard empty answer)
+                            navigator.clipboard.writeText(this._aiFinalAnswer).catch(() => {});
+                            if (window.hermesToast) window.hermesToast.success('Resposta copiada');
+                            this.close();
+                        } else if (!this._aiStreaming) {
+                            this._submitAIQuery();
+                        }
+                    } else {
+                        this._executeSelected();
+                    }
+                } else if (e.key === 'Tab' && !e.shiftKey) {
+                    if (this._aiMode) {
+                        // W4: Tab cycles to Stop btn when streaming (keyboard accessible)
+                        if (this._aiStreaming && this._aiStopBtnEl) {
+                            e.preventDefault();
+                            this._aiStopBtnEl.focus();
+                        }
+                        return;
+                    }
                     e.preventDefault();
                     const items = this._resultsEl.querySelectorAll('.cmd-palette-item');
                     if (items.length) items[0].focus();
                 } else if (e.key === 'Tab' && e.shiftKey) {
+                    if (this._aiMode) return;
                     e.preventDefault();
                     const items = this._resultsEl.querySelectorAll('.cmd-palette-item');
                     if (items.length) items[items.length - 1].focus();
@@ -122,6 +156,42 @@
             status.setAttribute('aria-live', 'polite');
             status.setAttribute('aria-atomic', 'true');
 
+            // AI bar — shown when AI mode active (UX-RM-F5-A)
+            const aiBar = document.createElement('div');
+            aiBar.className = 'cmd-ai-bar';
+            aiBar.setAttribute('hidden', '');
+            aiBar.setAttribute('aria-hidden', 'true');
+
+            const aiBadge = document.createElement('span');
+            aiBadge.className = 'cmd-ai-badge';
+            aiBadge.textContent = 'Brain AI';
+            aiBadge.setAttribute('aria-label', 'Modo Brain AI ativo');
+
+            const aiHint = document.createElement('span');
+            aiHint.className = 'cmd-ai-hint';
+            aiHint.textContent = 'Enter para enviar · Esc para cancelar';
+
+            const aiStopBtn = document.createElement('button');
+            aiStopBtn.className = 'cmd-ai-stop-btn';
+            aiStopBtn.setAttribute('hidden', '');
+            aiStopBtn.setAttribute('type', 'button');
+            aiStopBtn.setAttribute('aria-label', 'Parar stream do Brain');
+            aiStopBtn.textContent = '■ Parar';
+            aiStopBtn.addEventListener('click', () => this._stopAIStream());
+
+            aiBar.appendChild(aiBadge);
+            aiBar.appendChild(aiHint);
+            aiBar.appendChild(aiStopBtn);
+
+            // AI response area — role=log, aria-live for screen readers (UX-RM-F5-A)
+            const aiResponse = document.createElement('div');
+            aiResponse.id = 'cmd-ai-response';
+            aiResponse.className = 'cmd-ai-response';
+            aiResponse.setAttribute('role', 'log');
+            aiResponse.setAttribute('aria-live', 'polite');
+            aiResponse.setAttribute('aria-label', 'Resposta do Brain');
+            aiResponse.setAttribute('hidden', '');
+
             const results = document.createElement('div');
             results.id = 'cmd-palette-results';
             results.className = 'cmd-palette-results';
@@ -131,6 +201,8 @@
             inputWrap.appendChild(searchIcon);
             inputWrap.appendChild(input);
             dialog.appendChild(inputWrap);
+            dialog.appendChild(aiBar);
+            dialog.appendChild(aiResponse);
             dialog.appendChild(status);
             dialog.appendChild(results);
             overlay.appendChild(dialog);
@@ -141,6 +213,9 @@
             this._inputEl = input;
             this._resultsEl = results;
             this._statusEl = status;
+            this._aiBarEl = aiBar;
+            this._aiResponseEl = aiResponse;
+            this._aiStopBtnEl = aiStopBtn;
         }
 
         _bindGlobalShortcut() {
@@ -160,6 +235,264 @@
                 }
             }, true);
         }
+
+        // ── AI mode (UX-RM-F5-A) ─────────────────────────────────────────────
+
+        _handleInputChange(value) {
+            const wasAiMode = this._aiMode;
+            // "/ text" or "?ask text" → AI mode
+            this._aiMode = value.startsWith('/') || value.startsWith('?ask ');
+
+            if (this._aiMode !== wasAiMode) {
+                this._updateAIModeUI(this._aiMode);
+            }
+
+            if (this._aiMode) {
+                if (!this._aiStreaming) {
+                    this._renderAIHint();
+                }
+            } else {
+                this._filterText = value;
+                this._selectedIndex = 0;
+                this._renderResults();
+            }
+        }
+
+        _updateAIModeUI(aiMode) {
+            if (aiMode) {
+                this._resultsEl.setAttribute('hidden', '');
+                this._aiBarEl.removeAttribute('hidden');
+                this._aiBarEl.setAttribute('aria-hidden', 'false');
+                this._aiResponseEl.removeAttribute('hidden');
+                this._inputEl.placeholder = 'Sua pergunta para o Brain... (Enter para enviar)';
+                this._dialog.classList.add('cmd-palette-ai-mode');
+            } else {
+                this._resultsEl.removeAttribute('hidden');
+                this._aiBarEl.setAttribute('hidden', '');
+                this._aiBarEl.setAttribute('aria-hidden', 'true');
+                if (!this._aiStreaming) {
+                    this._aiResponseEl.setAttribute('hidden', '');
+                    this._aiResponseEl.innerHTML = '';
+                }
+                this._inputEl.placeholder = 'Buscar comandos, navegar paginas...';
+                this._dialog.classList.remove('cmd-palette-ai-mode');
+                this._aiFinalAnswer = null;
+            }
+        }
+
+        _renderAIHint() {
+            const promptText = this._extractPrompt(this._inputEl.value);
+            if (!promptText) {
+                this._aiResponseEl.innerHTML =
+                    '<div class="ai-hint-text" aria-label="Dica: escreva sua pergunta após a barra">Digite sua pergunta após <kbd>/</kbd> e pressione <kbd>Enter</kbd></div>';
+            }
+        }
+
+        _extractPrompt(rawValue) {
+            if (rawValue.startsWith('?ask ')) return rawValue.slice(5).trim();
+            if (rawValue.startsWith('/')) return rawValue.slice(1).trim();
+            return '';
+        }
+
+        async _submitAIQuery() {
+            if (this._aiStreaming) return;
+            const promptText = this._extractPrompt(this._inputEl.value);
+            if (!promptText) return;
+
+            this._aiStreaming = true;
+            this._aiFinalAnswer = null;
+            this._lastToolPillEl = null;
+            this._aiAbortCtrl = new AbortController();
+            this._showStopBtn(true);
+            this._aiResponseEl.innerHTML = '';
+            this._aiResponseEl.removeAttribute('hidden');
+            this._statusEl.textContent = 'Brain processando...';
+
+            const thinkingEl = this._appendThinkingBlock();
+
+            try {
+                const token = (typeof localStorage !== 'undefined' && localStorage.getItem('hermes_token')) || '';
+                const page = (typeof window !== 'undefined' && window.currentPage) || 'unknown';
+
+                const resp = await fetch('/api/brain/stream-decide', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Hermes-Token': token,
+                    },
+                    body: JSON.stringify({
+                        prompt: promptText,
+                        context: { page },
+                    }),
+                    signal: this._aiAbortCtrl.signal,
+                });
+
+                if (!resp.ok) {
+                    if (thinkingEl.parentNode) thinkingEl.remove();
+                    const errText = resp.status === 429
+                        ? 'Limite de queries atingido. Aguarde 60 segundos.'
+                        : `Erro HTTP ${resp.status}`;
+                    this._appendErrorBlock(errText);
+                    return;
+                }
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop() || '';
+                    for (const part of parts) {
+                        if (part.startsWith('data: ')) {
+                            try {
+                                const event = JSON.parse(part.slice(6));
+                                this._appendAIEvent(event, thinkingEl);
+                            } catch (_) { /* ignore malformed chunk */ }
+                        }
+                    }
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    if (thinkingEl.parentNode) thinkingEl.remove();
+                    this._appendErrorBlock(err.message || 'Erro de rede desconhecido');
+                }
+            } finally {
+                this._aiStreaming = false;
+                this._showStopBtn(false);
+                if (thinkingEl.parentNode) thinkingEl.remove();
+                // W5: stream closed without final event → show feedback
+                if (!this._aiFinalAnswer && !this._aiResponseEl.querySelector('.ai-error-banner')) {
+                    this._appendErrorBlock('Stream encerrado sem resposta');
+                }
+                this._statusEl.textContent = 'Resposta do Brain recebida';
+            }
+        }
+
+        _stopAIStream() {
+            if (this._aiAbortCtrl) {
+                this._aiAbortCtrl.abort();
+                this._aiAbortCtrl = null;
+            }
+            this._aiStreaming = false;
+            this._showStopBtn(false);
+        }
+
+        _showStopBtn(visible) {
+            if (visible) {
+                this._aiStopBtnEl.removeAttribute('hidden');
+            } else {
+                this._aiStopBtnEl.setAttribute('hidden', '');
+            }
+        }
+
+        _appendThinkingBlock() {
+            const el = document.createElement('div');
+            el.className = 'ai-thinking-indicator';
+            el.setAttribute('aria-label', 'Brain processando');
+            el.setAttribute('aria-busy', 'true');
+            el.innerHTML =
+                '<span class="ai-thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span>' +
+                '<span>Brain pensando...</span>';
+            this._aiResponseEl.appendChild(el);
+            return el;
+        }
+
+        _appendErrorBlock(msg) {
+            const el = document.createElement('div');
+            el.className = 'ai-error-banner';
+            el.setAttribute('role', 'alert');
+            el.textContent = `Erro: ${msg}`;
+            this._aiResponseEl.appendChild(el);
+        }
+
+        _appendAIEvent(event, thinkingEl) {
+            const type = event.type;
+
+            if (type === 'thought') {
+                if (thinkingEl && thinkingEl.parentNode) thinkingEl.remove();
+
+                let thoughtEl = this._aiResponseEl.querySelector('.ai-thought-current');
+                if (!thoughtEl) {
+                    thoughtEl = document.createElement('div');
+                    thoughtEl.className = 'ai-thought-block ai-thought-current';
+                    thoughtEl.setAttribute('aria-label', 'Brain pensando');
+                    this._aiResponseEl.appendChild(thoughtEl);
+                }
+                // Append chunk (safe: textContent)
+                thoughtEl.textContent += (thoughtEl.textContent ? ' ' : '') + (event.chunk || '');
+
+            } else if (type === 'tool_call') {
+                const thoughtEl = this._aiResponseEl.querySelector('.ai-thought-current');
+                if (thoughtEl) thoughtEl.classList.remove('ai-thought-current');
+
+                const pill = document.createElement('div');
+                pill.className = 'ai-tool-pill';
+                pill.setAttribute('aria-label', `Ferramenta: ${event.tool || ''}`);
+                const toolName = this._esc(event.tool || '');
+                pill.innerHTML =
+                    '<span class="ai-tool-icon" aria-hidden="true">&#128295;</span>' +
+                    `<span class="ai-tool-name">${toolName}</span>` +
+                    '<span class="ai-tool-status" aria-live="polite">chamando...</span>';
+                this._aiResponseEl.appendChild(pill);
+                this._lastToolPillEl = pill;
+
+            } else if (type === 'tool_result') {
+                if (this._lastToolPillEl) {
+                    const statusEl = this._lastToolPillEl.querySelector('.ai-tool-status');
+                    if (statusEl) {
+                        statusEl.textContent = event.ok ? '✓ ok' : '✗ erro';
+                        this._lastToolPillEl.classList.add(event.ok ? 'ai-tool-ok' : 'ai-tool-err');
+                    }
+                }
+                this._lastToolPillEl = null;
+
+            } else if (type === 'final') {
+                if (thinkingEl && thinkingEl.parentNode) thinkingEl.remove();
+
+                const thoughtEl = this._aiResponseEl.querySelector('.ai-thought-current');
+                if (thoughtEl) thoughtEl.classList.remove('ai-thought-current');
+
+                const finalEl = document.createElement('div');
+                finalEl.className = 'ai-final-answer';
+
+                const conf = typeof event.confidence === 'number' ? Math.round(event.confidence * 100) : 0;
+                const badgeClass = conf >= 70 ? 'ai-conf-high' : conf >= 40 ? 'ai-conf-med' : 'ai-conf-low';
+                const answerText = event.answer ? this._esc(String(event.answer)) : '(sem resposta)';
+                // BLOCKER-FIX: coerce to integer — prevents XSS if backend sends non-numeric value
+                const iters = Number.isFinite(event.iterations) ? Math.round(event.iterations) : 0;
+                const isMaxIter = event.status === 'max_iterations_reached';
+
+                finalEl.innerHTML =
+                    `<div class="ai-final-text">${answerText}</div>` +
+                    '<div class="ai-final-meta">' +
+                    `<span class="ai-conf-badge ${badgeClass}" aria-label="Confiança ${conf}%">${conf}%</span>` +
+                    `<span class="ai-iter-info" aria-hidden="true">${iters} iter</span>` +
+                    (isMaxIter ? '<span class="ai-warn-badge" aria-label="Máximo de iterações atingido">max iter</span>' : '') +
+                    '</div>';
+                finalEl.setAttribute('tabindex', '-1');
+
+                const copyHint = document.createElement('div');
+                copyHint.className = 'ai-copy-hint';
+                copyHint.setAttribute('aria-label', 'Pressione Enter para copiar a resposta');
+                copyHint.textContent = 'Enter para copiar resposta';
+
+                this._aiResponseEl.appendChild(finalEl);
+                this._aiResponseEl.appendChild(copyHint);
+
+                this._aiFinalAnswer = String(event.answer || '');
+                finalEl.focus();
+
+            } else if (type === 'error') {
+                if (thinkingEl && thinkingEl.parentNode) thinkingEl.remove();
+                this._appendErrorBlock(event.message || 'Erro desconhecido');
+            }
+        }
+
+        // ── Command mode (original methods) ──────────────────────────────────
 
         _filterCommands() {
             const q = this._filterText.toLowerCase().trim();

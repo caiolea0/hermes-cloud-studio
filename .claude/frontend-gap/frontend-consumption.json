@@ -1,5 +1,5 @@
 {
-  "generated_at": 1781803583.5755358,
+  "generated_at": 1781812288.4925816,
   "sources": [
     "dashboard/app.js",
     "dashboard/components/_utils.js",
@@ -44,8 +44,8 @@
     "dashboard/index.html"
   ],
   "sources_count": 41,
-  "total_endpoints": 89,
-  "total_calls": 135,
+  "total_endpoints": 90,
+  "total_calls": 136,
   "consumed": {
     "/api/_bootstrap": [
       {
@@ -107,6 +107,13 @@
         "file": "dashboard/components/brain_confirm_card.js",
         "line": 91,
         "snippet": "fetch(\"/api/brain/runs/\" + encodeURIComponent(run.run_id), {"
+      }
+    ],
+    "/api/brain/stream-decide": [
+      {
+        "file": "dashboard/components/command_palette.js",
+        "line": 317,
+        "snippet": "const resp = await fetch('/api/brain/stream-decide', {"
       }
     ],
     "/api/claude/execute": [

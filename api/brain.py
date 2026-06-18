@@ -18,12 +18,31 @@ Endpoints (F.6.4):
 """
 from __future__ import annotations
 
+import json
+import os
+import time
+from collections import deque
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Query
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
+
+# UX-RM-F5-A — per-process sliding window rate limit for SSE stream endpoint.
+_BRAIN_STREAM_RPM: int = int(os.environ.get("BRAIN_STREAM_MAX_RPM", "10"))
+_BRAIN_STREAM_TIMESTAMPS: deque[float] = deque()
+
+
+def _check_stream_rate_limit() -> bool:
+    """Sliding window 60s — returns True if request is within limit, False if exceeded."""
+    now = time.monotonic()
+    while _BRAIN_STREAM_TIMESTAMPS and now - _BRAIN_STREAM_TIMESTAMPS[0] > 60.0:
+        _BRAIN_STREAM_TIMESTAMPS.popleft()
+    if len(_BRAIN_STREAM_TIMESTAMPS) >= _BRAIN_STREAM_RPM:
+        return False
+    _BRAIN_STREAM_TIMESTAMPS.append(now)
+    return True
 
 from brain.decide import Brain
 from brain.dispatch import sanitize
@@ -31,6 +50,14 @@ from brain.intents import INTENT_REGISTRY
 from brain.replay import list_runs, replay_run
 
 router = APIRouter(prefix="/api/brain", tags=["brain"])
+
+
+class BrainStreamRequest(BaseModel):
+    """Input schema for POST /api/brain/stream-decide (UX-RM-F5-A)."""
+
+    prompt: str = Field(..., min_length=1, max_length=2000, description="Natural language query for Brain AI mode")
+    context: dict[str, Any] = Field(default_factory=dict, description="Ambient context (current page, etc.)")
+    intent_hint: str | None = Field(default=None, description="Optional INTENT_REGISTRY key; defaults to answer_owner")
 
 
 class BrainDecideRequest(BaseModel):
@@ -99,6 +126,57 @@ def _build_awaiting_payload(decide_result: dict[str, Any]) -> dict[str, Any]:
             "iterations": int(res.get("iterations", 0) or 0),
         },
     }
+
+
+@router.post("/stream-decide")
+async def stream_decide(body: BrainStreamRequest, bg: BackgroundTasks) -> StreamingResponse:
+    """UX-RM-F5-A — SSE stream of Brain.decide() ReAct trace for Cmd+K AI mode.
+
+    Rate limited: BRAIN_STREAM_MAX_RPM requests/min (default 10).
+    Event types: thought | tool_call | tool_result | final | error.
+    SSE format: data: <json>\n\n (spec-compliant, AbortController friendly).
+    Auth: X-Hermes-Token via existing auth_middleware (all /api/* routes).
+    """
+    if not _check_stream_rate_limit():
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit excedido: máx {_BRAIN_STREAM_RPM} queries/min. Tente em 60s.",
+            headers={"Retry-After": "60"},
+        )
+
+    brain = Brain()
+
+    async def event_stream():
+        last_event: dict[str, Any] = {}
+        try:
+            async for event in brain.stream_decide(
+                prompt=body.prompt,
+                context=body.context,
+                intent_hint=body.intent_hint,
+            ):
+                last_event = event
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as exc:  # noqa: BLE001
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)[:200]})}\n\n"
+
+        # WS telemetry after stream ends (audit trail brain.ai_query_used)
+        try:
+            from core.state import ws_manager
+            intent_resolved = last_event.get("intent", body.intent_hint or "answer_owner")
+            await ws_manager.broadcast({
+                "type": "brain.ai_query_used",
+                "prompt_length": len(body.prompt),
+                "intent": intent_resolved,
+                "status": last_event.get("status", "unknown") if last_event.get("type") == "final" else "incomplete",
+            })
+        except Exception:  # noqa: BLE001 — telemetry non-critical
+            pass
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/decide", response_model=BrainDecideResponse)
