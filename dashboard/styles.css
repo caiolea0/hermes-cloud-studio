@@ -20,6 +20,8 @@
     --red-l-pressed: #f87171;      /* F.4.3 C2 — hover/active state for --red-l */
     --amber: #f59e0b;
     --amber-dim: rgba(245,158,11,0.12);
+    --orange: #f97316;              /* Phase 5 — owner_verify pending alert */
+    --orange-dim: rgba(249,115,22,0.08);
     --blue: #3b82f6;
     --blue-dim: rgba(59,130,246,0.12);
     --pink: #ec4899;

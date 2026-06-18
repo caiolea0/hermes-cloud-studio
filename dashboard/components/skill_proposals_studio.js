@@ -19,14 +19,15 @@
     var FILTER_PREF_KEY = "f43_filter_status";
 
     var STATUS_FILTERS = [
-        { key: "all",          label: "Todos" },
-        { key: "draft",        label: "Draft" },
-        { key: "lab_running",  label: "Lab Running" },
-        { key: "lab_passed",   label: "Lab Passed" },
-        { key: "lab_failed",   label: "Lab Failed" },
-        { key: "pr_open",      label: "PR Open" },
-        { key: "pr_merged",    label: "PR Merged" },
-        { key: "archived",     label: "Rejected" },
+        { key: "all",           label: "Todos" },
+        { key: "draft",         label: "Draft" },
+        { key: "lab_running",   label: "Lab Running" },
+        { key: "lab_passed",    label: "Lab Passed" },
+        { key: "pending_verify", label: "Aguarda Verificação" },
+        { key: "lab_failed",    label: "Lab Failed" },
+        { key: "pr_open",       label: "PR Open" },
+        { key: "pr_merged",     label: "PR Merged" },
+        { key: "archived",      label: "Rejected" },
     ];
 
     /* F.4.3 C2 W4 — WS dedup + throttle config */
@@ -247,11 +248,23 @@
             var status = p.status || "draft";
             var selected = (p.id === _state.selectedId) ? "true" : "false";
             var tabidx = (idx === rovingIdx) ? "0" : "-1";
+            /* Phase 5 — enriched badge for owner_verified gate states */
+            var badgeKey = status;
+            var badgeLabel = status;
+            if (status === "lab_passed") {
+                if (p.owner_verified == 1) {
+                    badgeKey = "lab_passed_verified";
+                    badgeLabel = "Verificado ✓";
+                } else if (p.awaiting_verify_since) {
+                    badgeKey = "pending_verify";
+                    badgeLabel = "Aguarda Verificação";
+                }
+            }
             return (
                 '<div class="sp-card" role="option" tabindex="' + tabidx + '" data-id="' + _escape(p.id) + '" aria-selected="' + selected + '">' +
                     '<h4 class="sp-card-title">' + _escape(p.name || "(sem nome)") + '</h4>' +
                     '<div class="sp-card-meta">' +
-                        '<span class="sp-status-badge sp-status-' + _escape(status) + '">' + _escape(status) + '</span>' +
+                        '<span class="sp-status-badge sp-status-' + _escape(badgeKey) + '">' + _escape(badgeLabel) + '</span>' +
                         '<span>' + _escape(p.source_pattern || "") + '</span>' +
                     '</div>' +
                 '</div>'
@@ -497,14 +510,50 @@
         }
 
         var status = detail.status || "draft";
+        var ownerVerified = detail.owner_verified == 1;
+        var awaitingVerify = (status === "lab_passed" && !ownerVerified);
         var canDecide = (status === "draft" || status === "lab_passed");
         var canRunWorkflow = (status === "lab_passed" || status === "draft");
+        var canVerify = (status === "lab_passed");
+
+        /* Phase 5 — enriched badge label */
+        var badgeKey = status;
+        var badgeLabel = status;
+        if (status === "lab_passed" && ownerVerified) {
+            badgeKey = "lab_passed_verified";
+            badgeLabel = "Verificado ✓";
+        } else if (awaitingVerify && detail.awaiting_verify_since) {
+            badgeKey = "pending_verify";
+            badgeLabel = "Aguarda Verificação";
+        }
+
+        /* Phase 5 — verify gate notice */
+        var verifyNotice = "";
+        if (awaitingVerify) {
+            verifyNotice = (
+                '<div class="sp-verify-notice" role="alert" aria-live="polite">' +
+                    '<strong>Ação necessária:</strong> Esta skill passou no lab mas ainda não foi verificada. ' +
+                    'F.4 não criará o PR até o owner verificar. ' +
+                    'Use o botão <strong>Verificar Skill</strong> abaixo.' +
+                '</div>'
+            );
+        } else if (ownerVerified) {
+            var allowedMcps = "";
+            try { allowedMcps = JSON.parse(detail.allowed_mcps || "[]").join(", "); } catch (e) {}
+            verifyNotice = (
+                '<div class="sp-verify-ok" role="status">' +
+                    'Verificado por ' + _escape(detail.verified_by || "caio") +
+                    (allowedMcps ? ' · MCPs: ' + _escape(allowedMcps) : "") +
+                '</div>'
+            );
+        }
 
         bodyEl.innerHTML = (
+            verifyNotice +
             '<div>' +
                 '<h4 class="sp-section-title">Status</h4>' +
                 '<div class="sp-meta-list">' +
-                    '<div class="sp-meta-row"><span class="sp-meta-key">Estado</span><span class="sp-status-badge sp-status-' + _escape(status) + '">' + _escape(status) + '</span></div>' +
+                    '<div class="sp-meta-row"><span class="sp-meta-key">Estado</span><span class="sp-status-badge sp-status-' + _escape(badgeKey) + '">' + _escape(badgeLabel) + '</span></div>' +
                     '<div class="sp-meta-row"><span class="sp-meta-key">Source</span><span class="sp-meta-val">' + _escape(detail.source_pattern || "—") + '</span></div>' +
                     '<div class="sp-meta-row"><span class="sp-meta-key">Lab</span><span class="sp-meta-val">' + _escape(detail.lab_test_status || "pending") + '</span></div>' +
                     '<div class="sp-meta-row"><span class="sp-meta-key">PR</span><span class="sp-meta-val">' + _escape(detail.pr_status || "not_created") + '</span></div>' +
@@ -524,6 +573,9 @@
                 '</div>'
             ) : "") +
             '<div class="sp-actions">' +
+                (canVerify ? '<button class="sp-btn ' + (awaitingVerify ? "sp-btn-warning" : "") + '" id="sp-btn-verify" type="button" ' +
+                    'aria-label="' + (ownerVerified ? "Atualizar verificação desta skill" : "Verificar skill e permitir PR") + '">' +
+                    (ownerVerified ? "🔒 Atualizar Verificação" : "🔒 Verificar Skill") + '</button>' : "") +
                 '<button class="sp-btn sp-btn-primary" id="sp-btn-accept" type="button" ' + (canDecide ? "" : "disabled") + ' aria-label="Aceitar proposal e disparar lab + PR">✓ Accept</button>' +
                 '<button class="sp-btn sp-btn-danger" id="sp-btn-reject" type="button" ' + (canDecide ? "" : "disabled") + ' aria-label="Rejeitar proposal com motivo">✗ Reject</button>' +
                 '<button class="sp-btn" id="sp-btn-runworkflow" type="button" ' + (canRunWorkflow ? "" : "disabled") + ' aria-label="Disparar workflow de sintetização agora">⚡ Run Workflow Now</button>' +
@@ -621,6 +673,14 @@
     }
 
     function _wireActionButtons() {
+        var verifyBtn = _$("#sp-btn-verify");
+        if (verifyBtn) {
+            verifyBtn.addEventListener("click", function () {
+                if (window.SkillProposalsModal && _state.selectedDetail) {
+                    window.SkillProposalsModal.openVerify(_state.selectedDetail);
+                }
+            });
+        }
         var acceptBtn = _$("#sp-btn-accept");
         if (acceptBtn) {
             acceptBtn.addEventListener("click", function () {
@@ -650,9 +710,15 @@
     /* ---- API calls -------------------------------------- */
 
     function refreshList() {
-        var url = "/api/skills/proposals?limit=200";
-        if (_state.filterStatus && _state.filterStatus !== "all") {
-            url += "&status=" + encodeURIComponent(_state.filterStatus);
+        var url;
+        /* Phase 5 — pending_verify is a special endpoint (lab_passed + owner_verified=0) */
+        if (_state.filterStatus === "pending_verify") {
+            url = "/api/skills/proposals-pending-verify";
+        } else {
+            url = "/api/skills/proposals?limit=200";
+            if (_state.filterStatus && _state.filterStatus !== "all") {
+                url += "&status=" + encodeURIComponent(_state.filterStatus);
+            }
         }
         _state.loading = true;
         return _apiFetch(url)
@@ -714,6 +780,10 @@
             || t === "brain.skill_pr_dispatched"
             || t === "brain.skill_synthesis_queued"
             || t === "brain.skill_synthesis_completed"
+            /* Phase 5 gate events */
+            || t === "brain.skill_awaiting_verify"
+            || t === "brain.skill_verified"
+            || t === "brain.skill_unverified"
         );
         if (!relevant) return;
 

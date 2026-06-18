@@ -525,12 +525,209 @@
         }, 5000);
     }
 
+    /* ---- Verify drawer (Phase 5) ------------------------ */
+
+    var _VALID_MCPS = [
+        { id: "sentry",            label: "Sentry (observabilidade)" },
+        { id: "hermes-linkedin",   label: "LinkedIn (campanhas)" },
+        { id: "hermes-prospects",  label: "Prospects (CRUD)" },
+        { id: "hermes-skills",     label: "Skills (ler/escrever YAML)" },
+        { id: "github",            label: "GitHub (criar PRs)" },
+        { id: "hermes-hunter",     label: "Hunter.io (e-mail verify)" },
+    ];
+
+    function openVerify(proposal) {
+        if (!proposal) return;
+
+        var currentAllowed = [];
+        try {
+            var raw = proposal.allowed_mcps;
+            if (raw) currentAllowed = JSON.parse(raw);
+        } catch (e) { currentAllowed = []; }
+
+        var chipsHtml = _VALID_MCPS.map(function (mcp) {
+            var checked = currentAllowed.indexOf(mcp.id) !== -1;
+            return (
+                '<label class="sp-verify-mcp-chip">' +
+                    '<input type="checkbox" class="sp-verify-mcp-cb" value="' + _escape(mcp.id) + '" ' +
+                        (checked ? "checked" : "") + '> ' +
+                    _escape(mcp.label) +
+                '</label>'
+            );
+        }).join("");
+
+        var alreadyVerified = proposal.owner_verified == 1;
+        var verifyBtnLabel = alreadyVerified ? "Atualizar verificação" : "Verificar + Permitir PR";
+
+        var html = (
+            '<div class="sp-modal-backdrop" aria-hidden="true"></div>' +
+            '<div class="sp-modal-panel" role="document">' +
+                '<header class="sp-modal-header">' +
+                    '<h3 class="sp-modal-title" id="sp-verify-title">Verificar skill: ' + _escape(proposal.name || "") + '</h3>' +
+                '</header>' +
+                '<div class="sp-modal-body">' +
+                    '<p style="font-size:12px;color:var(--text-2,#8b8b98);margin:0 0 12px;">' +
+                        'Após verificar, F.4 auto-skill loop pode criar o PR no GitHub. ' +
+                        'Selecione apenas MCPs que esta skill realmente precisa chamar.' +
+                    '</p>' +
+                    '<p class="sp-section-title">MCPs permitidos</p>' +
+                    '<fieldset class="sp-verify-mcps" aria-label="MCPs permitidos para esta skill">' +
+                        '<legend class="sp-modal-label">Selecione os MCPs que a skill pode usar</legend>' +
+                        '<div class="sp-verify-mcp-grid">' + chipsHtml + '</div>' +
+                    '</fieldset>' +
+                    '<label class="sp-modal-label" for="sp-verify-notes">Notas de verificação (opcional, máx 500 chars)</label>' +
+                    '<textarea class="sp-modal-textarea" id="sp-verify-notes" maxlength="500" ' +
+                        'placeholder="Ex: skill testada manualmente, lógica ok, sem acesso desnecessário" ' +
+                        'data-autofocus aria-describedby="sp-verify-counter">' +
+                        _escape(proposal.verification_notes || "") +
+                    '</textarea>' +
+                    '<div class="sp-modal-counter" id="sp-verify-counter" aria-live="polite">0 / 500</div>' +
+                    '<p class="sp-modal-status" id="sp-verify-status" aria-live="polite" hidden></p>' +
+                '</div>' +
+                '<footer class="sp-modal-footer">' +
+                    '<button class="sp-btn" type="button" data-action="cancel">Cancelar</button>' +
+                    (alreadyVerified ? '<button class="sp-btn sp-btn-danger" type="button" id="sp-verify-unverify" aria-label="Revogar verificação desta skill">Revogar</button>' : "") +
+                    '<button class="sp-btn sp-btn-primary" type="button" id="sp-verify-confirm" aria-label="' + _escape(verifyBtnLabel) + '">' + _escape(verifyBtnLabel) + '</button>' +
+                '</footer>' +
+            '</div>'
+        );
+
+        var wrapper = _showModal(html, { labelledBy: "sp-verify-title" });
+        var textarea = wrapper.querySelector("#sp-verify-notes");
+        var counter = wrapper.querySelector("#sp-verify-counter");
+        if (textarea && counter) {
+            function _updateVerifyCounter() {
+                var len = (textarea.value || "").length;
+                counter.textContent = len + " / 500";
+                if (len > 450) counter.classList.add("is-warn");
+                else counter.classList.remove("is-warn");
+            }
+            textarea.addEventListener("input", _updateVerifyCounter);
+            _updateVerifyCounter();
+        }
+
+        wrapper.querySelector("[data-action='cancel']").addEventListener("click", function () { _closeModal(); });
+
+        var confirmBtn = wrapper.querySelector("#sp-verify-confirm");
+        if (confirmBtn) {
+            confirmBtn.addEventListener("click", function () {
+                _confirmVerify(proposal.id, wrapper);
+            });
+        }
+
+        var unverifyBtn = wrapper.querySelector("#sp-verify-unverify");
+        if (unverifyBtn) {
+            unverifyBtn.addEventListener("click", function () {
+                _confirmUnverify(proposal.id, wrapper);
+            });
+        }
+    }
+
+    function _confirmVerify(proposalId, wrapper) {
+        var confirmBtn = wrapper.querySelector("#sp-verify-confirm");
+        var statusEl = wrapper.querySelector("#sp-verify-status");
+        var checkboxes = Array.prototype.slice.call(
+            wrapper.querySelectorAll(".sp-verify-mcp-cb:checked")
+        );
+        var allowed = checkboxes.map(function (cb) { return cb.value; });
+
+        if (allowed.length === 0) {
+            if (statusEl) {
+                statusEl.removeAttribute("hidden");
+                statusEl.textContent = "✗ Selecione ao menos 1 MCP permitido.";
+                statusEl.dataset.state = "failed";
+            }
+            return;
+        }
+
+        var notes = (wrapper.querySelector("#sp-verify-notes") || {}).value || "";
+        if (confirmBtn) confirmBtn.disabled = true;
+        if (statusEl) {
+            statusEl.removeAttribute("hidden");
+            statusEl.textContent = "Verificando skill…";
+            statusEl.dataset.state = "running";
+        }
+
+        _apiFetch("/api/skills/proposals/" + encodeURIComponent(proposalId) + "/verify", {
+            method: "POST",
+            body: JSON.stringify({ allowed_mcps: allowed, notes: notes }),
+        })
+            .then(function (r) {
+                return r.json().then(function (d) { return { ok: r.ok, status: r.status, data: d }; });
+            })
+            .then(function (res) {
+                if (!res.ok) {
+                    var msg = (res.data && res.data.detail) ? res.data.detail : ("http_" + res.status);
+                    throw new Error(msg);
+                }
+                if (statusEl) {
+                    statusEl.textContent = "✓ Verificado — F.4 vai auto-criar PR em breve.";
+                    statusEl.dataset.state = "completed";
+                }
+                _toast("Skill verificada! F.4 pode criar PR agora.", "success");
+                setTimeout(function () { _closeModal(); }, 1500);
+                if (window.SkillProposalsStudio) {
+                    window.SkillProposalsStudio.refreshList();
+                    window.SkillProposalsStudio.selectProposal(proposalId);
+                }
+            })
+            .catch(function (err) {
+                if (statusEl) {
+                    statusEl.textContent = "✗ Falha: " + err.message;
+                    statusEl.dataset.state = "failed";
+                }
+                _toast("Verify falhou: " + err.message, "error");
+                if (confirmBtn) confirmBtn.disabled = false;
+            });
+    }
+
+    function _confirmUnverify(proposalId, wrapper) {
+        var unverifyBtn = wrapper.querySelector("#sp-verify-unverify");
+        var statusEl = wrapper.querySelector("#sp-verify-status");
+        if (unverifyBtn) unverifyBtn.disabled = true;
+
+        if (statusEl) {
+            statusEl.removeAttribute("hidden");
+            statusEl.textContent = "Revogando verificação…";
+            statusEl.dataset.state = "running";
+        }
+
+        _apiFetch("/api/skills/proposals/" + encodeURIComponent(proposalId) + "/unverify", {
+            method: "POST",
+        })
+            .then(function (r) {
+                return r.json().then(function (d) { return { ok: r.ok, status: r.status, data: d }; });
+            })
+            .then(function (res) {
+                if (!res.ok) throw new Error("http_" + res.status);
+                if (statusEl) {
+                    statusEl.textContent = "Verificação revogada — PR creation bloqueado.";
+                    statusEl.dataset.state = "completed";
+                }
+                _toast("Verificação revogada.", "warning");
+                setTimeout(function () { _closeModal(); }, 1200);
+                if (window.SkillProposalsStudio) {
+                    window.SkillProposalsStudio.refreshList();
+                    window.SkillProposalsStudio.selectProposal(proposalId);
+                }
+            })
+            .catch(function (err) {
+                if (statusEl) {
+                    statusEl.textContent = "✗ Falha ao revogar: " + err.message;
+                    statusEl.dataset.state = "failed";
+                }
+                _toast("Unverify falhou: " + err.message, "error");
+                if (unverifyBtn) unverifyBtn.disabled = false;
+            });
+    }
+
     /* ---- Public API ------------------------------------- */
 
     window.SkillProposalsModal = {
         openAccept: openAccept,
         openReject: openReject,
         openPath1: openPath1,
+        openVerify: openVerify,
         close: function () { _closeModal(); },
     };
 
