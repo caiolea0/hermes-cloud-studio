@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 14:25 UTC
+- **last_updated**: 2026-06-18 15:30 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 213 (163 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 128 (61.5% of public)

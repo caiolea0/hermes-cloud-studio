@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import random
 from datetime import datetime, timezone
 
 import httpx
@@ -325,86 +324,23 @@ async def _execute_linkedin_viewer(exec_id: int, targets: dict, prompt: str, add
         except Exception:
             add_log("VM inacessivel — modo simulacao", level="warn", phase="offline", step=4, total=5)
 
-    # --- Fallback: simulation ---
+    # --- No real data available: return empty (never generate fake profiles) ---
     if not result_data or "profiles" not in result_data:
-        add_log("Gerando resultados de demonstracao...", phase="processing")
-        first_names = ["Ana", "Bruno", "Carlos", "Diana", "Eduardo", "Fernanda", "Gabriel", "Helena",
-                       "Igor", "Julia", "Lucas", "Mariana", "Nicolas", "Olivia", "Pedro", "Rafaela",
-                       "Samuel", "Tatiana", "Victor", "Amanda", "Diego", "Camila", "Thiago", "Larissa",
-                       "Felipe", "Bianca", "Ricardo", "Patricia", "Matheus", "Vanessa"]
-        last_names = ["Silva", "Santos", "Oliveira", "Souza", "Rodrigues", "Ferreira", "Almeida",
-                      "Nascimento", "Lima", "Araujo", "Pereira", "Barbosa", "Ribeiro", "Carvalho",
-                      "Gomes", "Martins", "Rocha", "Costa", "Freitas", "Moreira"]
-        titles_by_role = {
-            "tech recruiter": ["Tech Recruiter", "IT Recruiter Senior", "Talent Acquisition Tech",
-                               "Recrutador de TI", "Head of Tech Recruiting", "Tech Sourcer"],
-            "project manager": ["Project Manager", "Gerente de Projetos", "PM Senior", "Scrum Master",
-                                "Delivery Manager", "Program Manager", "Tech Lead PM"],
-            "SMB owner": ["CEO", "Fundador", "Diretor", "Socio-Diretor", "Owner",
-                          "Managing Director", "Co-Founder & CTO"],
-        }
-        companies = ["Nubank", "iFood", "Stone", "TOTVS", "Movile", "Loggi", "QuintoAndar",
-                     "Loft", "Creditas", "Gympass", "Wildlife", "PagSeguro", "Locaweb", "VTEX",
-                     "RD Station", "Hotmart", "CI&T", "Accenture Brasil", "ThoughtWorks",
-                     "Stefanini", "Wipro", "TCS Brasil", "Capgemini", "BairesDev",
-                     "Mercado Livre", "Itau", "Bradesco", "XP Inc", "BTG Pactual", "Ambev Tech"]
-        cities = ["Sao Paulo", "Rio de Janeiro", "Curitiba", "Belo Horizonte", "Porto Alegre",
-                  "Florianopolis", "Brasilia", "Campinas", "Recife", "Salvador"]
-
-        num_profiles = min(random.randint(80, 200), max_profiles)
-        profiles = []
-        by_role = {}
-        for i in range(num_profiles):
-            role = random.choice(roles)
-            by_role[role] = by_role.get(role, 0) + 1
-            fname = random.choice(first_names)
-            lname = random.choice(last_names)
-            name = f"{fname} {lname}"
-            slug = f"{fname.lower()}-{lname.lower()}-{random.randint(1000,9999)}"
-            title = random.choice(titles_by_role.get(role, ["Professional"]))
-            company = random.choice(companies)
-            city = random.choice(cities)
-            profiles.append({
-                "name": f"[SIM] {name}",
-                "title": title,
-                "company": company,
-                "city": city,
-                "role_match": role,
-                "url": f"https://linkedin.com/in/{slug}",
-                "visited": True,
-                "visited_at": datetime.now(timezone.utc).isoformat(),
-                "simulated": True,
-            })
-
-            if (i + 1) % 25 == 0:
-                add_log(f"Visitados {i + 1}/{num_profiles} perfis...", phase="visiting",
-                        step=4, total=5)
-                conn = get_db()
-                try:
-                    conn.execute(
-                        "UPDATE pipeline_executions SET processed_items = ?, progress = ? WHERE id = ?",
-                        (i + 1, int(((i + 1) / num_profiles) * 100), exec_id)
-                    )
-                    conn.commit()
-                finally:
-                    conn.close()
-                await asyncio.sleep(0.1)
-
+        add_log(
+            "LinkedIn Viewer indisponivel — Patchright requer VM ou conectividade VM. "
+            "Retornando lista vazia (zero perfis simulados).",
+            level="warn", phase="offline", step=5, total=5,
+        )
         result_data = {
             "type": "linkedin_viewer",
-            "simulated": True,
-            "profiles_visited": num_profiles,
-            "profiles_found": num_profiles + random.randint(50, 200),
-            "by_role": by_role,
+            "simulated": False,
+            "profiles_visited": 0,
+            "profiles_found": 0,
+            "by_role": {},
             "by_city": {},
-            "profiles": profiles,
+            "profiles": [],
+            "source": "unavailable",
         }
-        for p in profiles:
-            c = p["city"]
-            result_data["by_city"][c] = result_data["by_city"].get(c, 0) + 1
-
-        add_log(f"Concluido: {num_profiles} perfis visitados", phase="monitoring", step=5, total=5,
-                detail={"profiles_visited": num_profiles, "by_role": by_role})
 
     conn = get_db()
     try:

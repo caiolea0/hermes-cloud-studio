@@ -352,14 +352,4 @@ class CobaiaWarmupManager:
         finally:
             conn.close()
 
-    # --- STUB execution (MOCK-DRIVEN until C6) ---
 
-    def stub_execute_skill(self, skill_name: str, phase: str) -> Dict[str, Any]:
-        """Stub LinkedIn skill execution. Returns mock success data."""
-        return {
-            "stub": True,
-            "skill": skill_name,
-            "phase": phase,
-            "result": "mock_success",
-            "actions_taken": 0,
-        }

@@ -770,9 +770,15 @@ class HermesDaemon:
             await self.log_event("info", "cobaia", f"cobaia no action: {action_data.get('status')}")
             return {"skipped": True, "reason": action_data.get("status")}
 
-        # STUB LinkedIn skill execution (MOCK-DRIVEN — real execution in C6)
-        mgr = CobaiaWarmupManager(cfg=CobaiaConfig())
-        stub_result = mgr.stub_execute_skill(skill_name or "linkedin-engagement", phase)
+        # Real VM dispatch via F.7 C6 path (UX-RM-F1-A: stub removed)
+        from daemon.cobaia_warmup_scheduler import _dispatch_cobaia_session_to_vm
+        dispatch_result = _dispatch_cobaia_session_to_vm(phase, caps, account_handle)
+
+        # Runtime guard: refuse if stub path somehow reached in production
+        if dispatch_result.get("stub") or dispatch_result.get("result") == "mock_success":
+            raise RuntimeError(
+                f"F1-A: stub path reached in production cobaia warmup — refusing. result={dispatch_result!r}"
+            )
 
         # Update daily metrics based on action type
         metric_map = {
@@ -787,18 +793,28 @@ class HermesDaemon:
         except Exception as exc:
             logger.warning("cobaia metric update failed: %s", exc)
 
-        # Reset consecutive errors on success
-        try:
-            mgr.reset_errors(account_handle)
-        except Exception:
-            pass
+        # Reset consecutive errors only when VM dispatch succeeded
+        mgr = CobaiaWarmupManager(cfg=CobaiaConfig())
+        if not dispatch_result.get("error"):
+            try:
+                mgr.reset_errors(account_handle)
+            except Exception:
+                pass
+
+        if dispatch_result.get("error"):
+            await self.log_event(
+                "warning", "cobaia",
+                f"cobaia {phase} day={current_day}: {action} via {skill_name} — VM dispatch error",
+                metadata={"action": action, "phase": phase, "day": current_day, "error": dispatch_result["error"]},
+            )
+            return {"action": action, "skill": skill_name, "error": dispatch_result["error"], "metric_updated": metric_name}
 
         await self.log_event(
             "info", "cobaia",
-            f"cobaia {phase} day={current_day}: {action} via {skill_name} [STUB]",
-            metadata={"stub": True, "action": action, "phase": phase, "day": current_day},
+            f"cobaia {phase} day={current_day}: {action} via {skill_name} — real dispatch",
+            metadata={"action": action, "phase": phase, "day": current_day, "session_id": dispatch_result.get("session_id")},
         )
-        return {"action": action, "skill": skill_name, "stub": True, "metric_updated": metric_name}
+        return {"action": action, "skill": skill_name, "dispatched": True, "metric_updated": metric_name, "session_id": dispatch_result.get("session_id")}
 
     # --- Helper Methods ---
 
