@@ -282,6 +282,20 @@ See `issues.json` for full machine-readable list. Summary counts:
 - **Cobaia-blocking**: NO
 - **Deps**: F4
 
+#### UX-RM-F7-A: Bundle Splitting + Skeleton Patterns + WS Reconnect Badge ✅ DONE 2026-06-18
+- dashboard/loader.js NEW: window.loadComponent(name, subdir) + BUNDLE_VERSION cache-busting + in-flight dedup
+- dashboard/components/skeleton_patterns.js NEW: 4 presets table/card_grid/kpi_strip/timeline with aria-busy + tokens
+- dashboard/components/ws_status_indicator.js NEW: topbar badge reconnecting(N)... + role=status + aria-live=polite + amber pulse
+- Lazy-loaded (removed from eager index.html): command_palette, brain_sidebar, brain_confirm_card+drawer, shortcuts_help_overlay, onboarding_wizard+5steps, skill_proposals_studio+modal, lab_gauge+fingerprint_diff+cockpit
+- Exponential backoff in connectWS: 1s/2s/4s/8s/16s/30s cap + _wsRetryAttempt counter
+- B1 fix: skeleton in prospects uses <tr><td colspan=9> for valid tbody HTML
+- Lazy wiring: Ctrl+K, ? key, brain.* WS event, _checkOnboarding, navigate(skill-proposals), navigate(lab)
+- Skeleton applied: loadProspects (table 20x6), loadProposals (card_grid 10)
+- frontend-ux-reviewer: NEEDS-FIXES → fixed (B1 tbody, W2 amber class, W3 brain_sidebar gap)
+- 11 tests (373 PASS total), BLACKLIST R2 INTACTO 57 SS
+- Component bundle: 543KB → 283KB eager (47.9% reduction > 40% gate G3)
+- commit f9f01ed
+
 ### UX-RM-F8: Cobaia Operator Mode
 - **Goal**: 1-screen cockpit for Caio during live ops — pause/resume per subsystem, deliverability health, Brain queue, today's actions.
 - **Effort**: 24h
