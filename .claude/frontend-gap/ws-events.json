@@ -1,6 +1,6 @@
 {
-  "generated_at": 1781789602.05962,
-  "handlers_in_app_js": [
+  "generated_at": 1781792709.7302566,
+  "handlers_in_frontend": [
     "activity",
     "alert",
     "audit_done",

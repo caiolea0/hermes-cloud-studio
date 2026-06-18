@@ -39,9 +39,8 @@ KNOWN_PHANTOMS = {
     "/api/tasks/bulk",
     "/api/stats",
     "/api/linkedin/visited",
-    "/api/linkedin/comment/edit",
-    "/api/linkedin/comment/delete",
     "/api/agent-zero/status",
+    # /api/linkedin/comment/edit + /delete removed: consumed by app.js (F.1 scope expansion detected)
 }
 
 
@@ -307,7 +306,7 @@ def main() -> int:
     md.append(f"- **orphans**: {orphan_total}")
     md.append(f"- **top_10_priority**: see §4")
     md.append("")
-    md.append("> Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js`.")
+    md.append("> Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.")
     md.append("> Re-rodável: `python .claude/skills/hermes-frontend-gap/scripts/rank_gaps.py`.")
     md.append("> Re-execução ao fechar QUALQUER chapter F.2-F.9 é termômetro UX (GUARDRAILS §F.1).")
     md.append("")
@@ -329,17 +328,20 @@ def main() -> int:
     md.append("")
 
     # §2 Mapa consumo dashboard
-    md.append("## §2 Mapa consumo `dashboard/app.js`")
+    sources_count = cons_blob.get("sources_count", 1)
+    md.append(f"## §2 Mapa consumo (app.js + {sources_count - 1} components)")
     md.append("")
     md.append(f"- Endpoints únicos consumidos: **{consumed_total}**")
     md.append(f"- Total fetch/api calls: {cons_blob['total_calls']}")
+    md.append(f"- Fontes escaneadas: {sources_count} arquivos (app.js + components/*.js + HTML inline)")
     md.append(f"- Hash routes (páginas SPA): {', '.join(cons_blob['hash_routes'])}")
     md.append("")
-    md.append("| Endpoint | Chamadas | Locais (file:line) |")
+    md.append("| Endpoint | Chamadas | Fontes |")
     md.append("|---|---|---|")
     top_consumed = sorted(consumed.items(), key=lambda kv: -len(kv[1]))[:20]
     for ep, calls in top_consumed:
-        locs = ", ".join(f"{c['file'].split('/')[-1]}:{c['line']}" for c in calls[:3])
+        unique_sources = sorted({c["file"].split("/")[-1] for c in calls})
+        locs = ", ".join(unique_sources[:3])
         md.append(f"| `{ep}` | {len(calls)} | {locs} |")
     md.append("")
 
@@ -420,7 +422,8 @@ def main() -> int:
     md.append("")
     md.append("### WS events backend vs handlers `dashboard/app.js`")
     md.append("")
-    md.append(f"- Handlers em `app.js`: {len(ws_blob['handlers_in_app_js'])} ({', '.join(ws_blob['handlers_in_app_js'])})")
+    handlers_key = "handlers_in_frontend" if "handlers_in_frontend" in ws_blob else "handlers_in_app_js"
+    md.append(f"- Handlers no frontend: {len(ws_blob[handlers_key])} ({', '.join(ws_blob[handlers_key])})")
     md.append(f"- Broadcasts no backend: {len(ws_blob['broadcasts_in_backend'])} ({', '.join(sorted(ws_blob['broadcasts_in_backend']))})")
     md.append(f"- ✅ Matched (emitido + handler): {', '.join(ws_blob['matched'])}")
     if ws_blob["orphan_broadcasts"]:

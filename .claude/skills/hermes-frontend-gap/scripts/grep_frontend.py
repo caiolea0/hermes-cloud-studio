@@ -1,6 +1,6 @@
-"""F.1 — grep_frontend.py — extract endpoint consumption from dashboard/app.js.
+"""F.1 — grep_frontend.py — extract endpoint consumption from dashboard/app.js + components/*.js + HTML inline scripts.
 
-Captures fetch() / api() helper / WS construction / event.type handlers.
+Captures fetch() / api() helper / local helper (_apiPost, apiGet, _apiCall) / WS construction / event.type handlers.
 Cross-references against backend broadcast events (channels/*.py + loops/*.py + api/*.py).
 
 Outputs:
@@ -17,10 +17,21 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
-APP_JS = ROOT / "dashboard" / "app.js"
-INDEX_HTML = ROOT / "dashboard" / "index.html"
+DASHBOARD = ROOT / "dashboard"
+COMPONENTS_DIR = DASHBOARD / "components"
+APP_JS = DASHBOARD / "app.js"
+INDEX_HTML = DASHBOARD / "index.html"
 OUT_CONS = ROOT / ".claude" / "frontend-gap" / "frontend-consumption.json"
 OUT_WS = ROOT / ".claude" / "frontend-gap" / "ws-events.json"
+
+
+def get_js_sources() -> list[Path]:
+    """Return app.js + all components/*.js files."""
+    sources = [APP_JS]
+    if COMPONENTS_DIR.is_dir():
+        sources.extend(sorted(COMPONENTS_DIR.glob("*.js")))
+    return [s for s in sources if s.exists()]
+
 
 # Regex patterns for endpoint references in JS
 # Group 1 = endpoint path (always starts with /api/ or /ws)
@@ -34,7 +45,17 @@ ENDPOINT_PATTERNS = [
     re.compile(r"""\bfetch\(\s*`\$\{[^}]+\}(/(?:api|ws)/[^`]+)`"""),
     # new WebSocket(...?token=)
     re.compile(r"""new\s+WebSocket\([^)]*?(/ws)\??"""),
+    # Generic helper: any func call where /api/ string is 1st arg, OR 2nd arg after METHOD string
+    # Catches: _apiPost('/api/...'), apiGet('/api/...'), _apiCall("GET", `/api/${expr}/path`), etc.
+    # Note: [^'"`\n] (no ) exclusion) to allow template exprs like ${encodeURIComponent(x)}/path
+    re.compile(r"""\b\w+\(\s*(?:['"][A-Z]+['"]\s*,\s*)?['"`](/api/[^'"`\n]+)['"`]"""),
 ]
+
+# Inline <script> block detection (no src= attribute)
+SCRIPT_BLOCK_RE = re.compile(
+    r"<script(?![^>]*\bsrc\b)[^>]*>(.*?)</script>",
+    re.DOTALL | re.IGNORECASE,
+)
 
 # Path param normalization: ${id} → {id}, /:id → /{id}
 PARAM_RE = re.compile(r"""\$\{[^}]+\}""")
@@ -47,7 +68,6 @@ def normalize_endpoint(raw: str) -> str:
     s = QUERY_RE.sub("", raw)
     s = PARAM_RE.sub("{param}", s)
     s = COLON_PARAM_RE.sub(r"/{\1}", s)
-    # Trim trailing slash unless root
     if len(s) > 1 and s.endswith("/"):
         s = s.rstrip("/")
     return s
@@ -60,6 +80,7 @@ def extract_js_consumption(path: Path) -> dict[str, list[dict]]:
         print(f"[grep_frontend] ERR cannot read {path}: {e}", file=sys.stderr)
         return {}
     consumed: dict[str, list[dict]] = defaultdict(list)
+    seen: set[tuple[str, int]] = set()  # dedup (ep, lineno) per file
     for lineno, line in enumerate(lines, start=1):
         for pat in ENDPOINT_PATTERNS:
             for m in pat.finditer(line):
@@ -67,14 +88,65 @@ def extract_js_consumption(path: Path) -> dict[str, list[dict]]:
                 if not raw.startswith("/"):
                     continue
                 ep = normalize_endpoint(raw)
-                # Skip stylesheet/svg refs accidentally caught
-                if ep.startswith(("/api/", "/ws", "/_bootstrap")):
+                if not ep.startswith(("/api/", "/ws", "/_bootstrap")):
+                    continue
+                key = (ep, lineno)
+                if key in seen:
+                    continue
+                seen.add(key)
+                consumed[ep].append({
+                    "file": str(path.relative_to(ROOT)).replace("\\", "/"),
+                    "line": lineno,
+                    "snippet": line.strip()[:120],
+                })
+    return dict(consumed)
+
+
+def extract_html_inline_scripts(html_path: Path) -> dict[str, list[dict]]:
+    """Extract endpoint refs from <script>...</script> blocks in HTML files."""
+    try:
+        text = html_path.read_text(encoding="utf-8")
+    except Exception as e:
+        print(f"[grep_frontend] ERR cannot read {html_path}: {e}", file=sys.stderr)
+        return {}
+    try:
+        file_label = str(html_path.relative_to(ROOT)).replace("\\", "/")
+    except ValueError:
+        file_label = html_path.name
+    consumed: dict[str, list[dict]] = defaultdict(list)
+    seen: set[tuple[str, int]] = set()
+    for m in SCRIPT_BLOCK_RE.finditer(text):
+        script_content = m.group(1)
+        script_start_line = text.count("\n", 0, m.start(1)) + 1
+        for i, line in enumerate(script_content.splitlines()):
+            lineno = script_start_line + i
+            for pat in ENDPOINT_PATTERNS:
+                for pm in pat.finditer(line):
+                    raw = pm.group(1)
+                    if not raw.startswith("/"):
+                        continue
+                    ep = normalize_endpoint(raw)
+                    if not ep.startswith(("/api/", "/ws", "/_bootstrap")):
+                        continue
+                    key = (ep, lineno)
+                    if key in seen:
+                        continue
+                    seen.add(key)
                     consumed[ep].append({
-                        "file": str(path.relative_to(ROOT)).replace("\\", "/"),
+                        "file": file_label,
                         "line": lineno,
                         "snippet": line.strip()[:120],
                     })
     return dict(consumed)
+
+
+def merge_consumption(source_dicts: list[dict[str, list[dict]]]) -> dict[str, list[dict]]:
+    """Merge endpoint consumption dicts from multiple sources."""
+    merged: dict[str, list[dict]] = defaultdict(list)
+    for source in source_dicts:
+        for endpoint, calls in source.items():
+            merged[endpoint].extend(calls)
+    return dict(merged)
 
 
 # WS event extraction
@@ -82,12 +154,16 @@ WS_HANDLER_RE = re.compile(r"""event\.type\s*===?\s*['"]([a-zA-Z0-9_]+)['"]""")
 BROADCAST_RE = re.compile(r"""ws_manager\.broadcast\(\s*\{\s*['"]type['"]\s*:\s*['"]([a-zA-Z0-9_]+)['"]""")
 
 
-def extract_ws_handlers(path: Path) -> set[str]:
-    try:
-        text = path.read_text(encoding="utf-8")
-    except Exception:
-        return set()
-    return set(WS_HANDLER_RE.findall(text))
+def extract_ws_handlers(paths: list[Path]) -> set[str]:
+    """Extract WS event.type handler strings from all given JS files."""
+    handlers: set[str] = set()
+    for path in paths:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        handlers.update(WS_HANDLER_RE.findall(text))
+    return handlers
 
 
 BROADCAST_MULTILINE_RE = re.compile(
@@ -102,17 +178,14 @@ def extract_ws_broadcasts(root: Path) -> dict[str, list[dict]]:
     for py in root.rglob("*.py"):
         rel = py.relative_to(root)
         parts = set(rel.parts)
-        # Skip noise dirs
         if parts & {".git", "node_modules", "__pycache__", "linkedin_data", "channels_data", "logs"}:
             continue
-        # Limit to dirs that emit WS
         if not (parts & {"api", "loops", "channels", "core", "daemon", "vm_api", "vm_core"} or rel.name in ("server.py", "hermes_api_v2.py")):
             continue
         try:
             text = py.read_text(encoding="utf-8")
         except Exception:
             continue
-        # Single-line patterns (precise line numbers)
         for lineno, line in enumerate(text.splitlines(), start=1):
             for m in BROADCAST_RE.finditer(line):
                 ev = m.group(1)
@@ -121,7 +194,6 @@ def extract_ws_broadcasts(root: Path) -> dict[str, list[dict]]:
                     "line": lineno,
                     "snippet": line.strip()[:120],
                 })
-        # Multiline dict patterns (file-level scan; approximate line via offset)
         for m in BROADCAST_MULTILINE_RE.finditer(text):
             ev = m.group(1)
             lineno = text.count("\n", 0, m.start()) + 1
@@ -147,9 +219,15 @@ def extract_hash_routes(path: Path) -> list[str]:
 
 def main() -> int:
     t0 = time.time()
-    consumed = extract_js_consumption(APP_JS)
 
-    # Inline sanity: 8 known patterns MUST appear
+    js_sources = get_js_sources()
+
+    source_dicts = [extract_js_consumption(src) for src in js_sources]
+    if INDEX_HTML.exists():
+        source_dicts.append(extract_html_inline_scripts(INDEX_HTML))
+
+    consumed = merge_consumption(source_dicts)
+
     known_must = [
         "/api/prospects",
         "/api/dashboard",
@@ -165,20 +243,24 @@ def main() -> int:
         print(f"[grep_frontend] SANITY FAIL — missing known consumed endpoints: {missing}", file=sys.stderr)
         sys.exit(2)
 
-    handlers = extract_ws_handlers(APP_JS)
+    handlers = extract_ws_handlers(js_sources)
     broadcasts = extract_ws_broadcasts(ROOT)
     hash_routes = extract_hash_routes(INDEX_HTML)
 
-    # Diff WS: emitted but never handled (orphan broadcast) vs handler with no emitter (dead handler)
     emitted = set(broadcasts.keys())
     orphan_broadcasts = sorted(emitted - handlers)
     dead_handlers = sorted(handlers - emitted)
     matched = sorted(emitted & handlers)
 
+    source_files = [str(s.relative_to(ROOT)).replace("\\", "/") for s in js_sources]
+    if INDEX_HTML.exists():
+        source_files.append(str(INDEX_HTML.relative_to(ROOT)).replace("\\", "/"))
+
     OUT_CONS.parent.mkdir(parents=True, exist_ok=True)
     OUT_CONS.write_text(json.dumps({
         "generated_at": time.time(),
-        "source": "dashboard/app.js",
+        "sources": source_files,
+        "sources_count": len(source_files),
         "total_endpoints": len(consumed),
         "total_calls": sum(len(v) for v in consumed.values()),
         "consumed": {k: v for k, v in sorted(consumed.items())},
@@ -187,7 +269,7 @@ def main() -> int:
 
     OUT_WS.write_text(json.dumps({
         "generated_at": time.time(),
-        "handlers_in_app_js": sorted(handlers),
+        "handlers_in_frontend": sorted(handlers),
         "broadcasts_in_backend": {k: v for k, v in sorted(broadcasts.items())},
         "matched": matched,
         "orphan_broadcasts": orphan_broadcasts,
@@ -195,6 +277,7 @@ def main() -> int:
     }, indent=2, ensure_ascii=False), encoding="utf-8")
 
     dt = time.time() - t0
+    print(f"[grep_frontend] sources: {len(js_sources)} JS files + HTML inline ({len(source_files)} total)")
     print(f"[grep_frontend] {len(consumed)} endpoints, {sum(len(v) for v in consumed.values())} calls in {dt:.2f}s")
     print(f"[grep_frontend] WS handlers: {len(handlers)} | broadcasts: {len(emitted)} | matched: {len(matched)}")
     if orphan_broadcasts:

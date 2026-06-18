@@ -1,8 +1,46 @@
 {
-  "generated_at": 1781789602.0590217,
-  "source": "dashboard/app.js",
-  "total_endpoints": 58,
-  "total_calls": 87,
+  "generated_at": 1781792709.7296886,
+  "sources": [
+    "dashboard/app.js",
+    "dashboard/components/_utils.js",
+    "dashboard/components/brain_confirm_card.js",
+    "dashboard/components/brain_confirm_drawer.js",
+    "dashboard/components/cobaia_activity_feed.js",
+    "dashboard/components/cobaia_emergency_stop.js",
+    "dashboard/components/cobaia_kpi_cards.js",
+    "dashboard/components/cobaia_status_card.js",
+    "dashboard/components/cobaia_studio.js",
+    "dashboard/components/cobaia_timeline.js",
+    "dashboard/components/lab_cockpit.js",
+    "dashboard/components/lab_fingerprint_diff.js",
+    "dashboard/components/lab_gauge.js",
+    "dashboard/components/live_log_tail.js",
+    "dashboard/components/mcp_gateway.js",
+    "dashboard/components/observability_costs.js",
+    "dashboard/components/observability_decisions.js",
+    "dashboard/components/observability_errors.js",
+    "dashboard/components/observability_mcp_coverage.js",
+    "dashboard/components/observability_perf.js",
+    "dashboard/components/observability_resolve_modal.js",
+    "dashboard/components/observability_shell.js",
+    "dashboard/components/panic_button.js",
+    "dashboard/components/pipeline_studio_ab_compare.js",
+    "dashboard/components/pipeline_studio_builder.js",
+    "dashboard/components/pipeline_studio_runs_monitor.js",
+    "dashboard/components/pipeline_studio_shell.js",
+    "dashboard/components/pipeline_studio_step_picker_modal.js",
+    "dashboard/components/pipeline_studio_templates.js",
+    "dashboard/components/pref_panel.js",
+    "dashboard/components/skeleton.js",
+    "dashboard/components/skill_proposals_modal.js",
+    "dashboard/components/skill_proposals_studio.js",
+    "dashboard/components/subsystem_tile.js",
+    "dashboard/components/toast.js",
+    "dashboard/index.html"
+  ],
+  "sources_count": 36,
+  "total_endpoints": 89,
+  "total_calls": 133,
   "consumed": {
     "/api/_bootstrap": [
       {
@@ -59,11 +97,25 @@
         "snippet": "const data = await api('/api/audit/status');"
       }
     ],
+    "/api/brain/runs": [
+      {
+        "file": "dashboard/components/brain_confirm_card.js",
+        "line": 91,
+        "snippet": "fetch(\"/api/brain/runs/\" + encodeURIComponent(run.run_id), {"
+      }
+    ],
     "/api/claude/execute": [
       {
         "file": "dashboard/app.js",
         "line": 2919,
         "snippet": "const result = await api('/api/claude/execute', { method: 'POST', body: JSON.stringify({ command: cmd, context: 'termina"
+      }
+    ],
+    "/api/config": [
+      {
+        "file": "dashboard/components/skill_proposals_modal.js",
+        "line": 154,
+        "snippet": "return _apiFetch(\"/api/config\")"
       }
     ],
     "/api/daemon/channels": [
@@ -99,6 +151,27 @@
         "file": "dashboard/app.js",
         "line": 3016,
         "snippet": "const data = await api('/api/daemon/subsystems');"
+      }
+    ],
+    "/api/daemon/subsystems/all/pause": [
+      {
+        "file": "dashboard/components/panic_button.js",
+        "line": 254,
+        "snippet": "const resp = await _apiPost(`/api/daemon/subsystems/all/pause?minutes=${minutes}`);"
+      }
+    ],
+    "/api/daemon/subsystems/{param}/pause": [
+      {
+        "file": "dashboard/components/subsystem_tile.js",
+        "line": 186,
+        "snippet": "await _apiCall(\"POST\", `/api/daemon/subsystems/${encodeURIComponent(name)}/pause?minutes=5`);"
+      }
+    ],
+    "/api/daemon/subsystems/{param}/resume": [
+      {
+        "file": "dashboard/components/subsystem_tile.js",
+        "line": 202,
+        "snippet": "await _apiCall(\"POST\", `/api/daemon/subsystems/${encodeURIComponent(name)}/resume`);"
       }
     ],
     "/api/daemon/timeline": [
@@ -192,6 +265,39 @@
         "snippet": "await api('/api/hermes/sync', { method: 'POST' });"
       }
     ],
+    "/api/lab/runs": [
+      {
+        "file": "dashboard/components/lab_cockpit.js",
+        "line": 460,
+        "snippet": "const data = await _apiCall(\"GET\", \"/api/lab/runs?limit=200\");"
+      }
+    ],
+    "/api/lab/runs/{param}": [
+      {
+        "file": "dashboard/components/lab_cockpit.js",
+        "line": 484,
+        "snippet": "const detail = await _apiCall(\"GET\", `/api/lab/runs/${encodeURIComponent(r.run_id)}`);"
+      },
+      {
+        "file": "dashboard/components/lab_cockpit.js",
+        "line": 671,
+        "snippet": "const detail = await _apiCall(\"GET\", `/api/lab/runs/${encodeURIComponent(runId)}`);"
+      }
+    ],
+    "/api/lab/runs/{param}/abort": [
+      {
+        "file": "dashboard/components/lab_cockpit.js",
+        "line": 649,
+        "snippet": "await _apiCall(\"POST\", `/api/lab/runs/${encodeURIComponent(runId)}/abort`);"
+      }
+    ],
+    "/api/lab/start": [
+      {
+        "file": "dashboard/components/lab_cockpit.js",
+        "line": 515,
+        "snippet": "const resp = await _apiCall(\"POST\", \"/api/lab/start\", { flow });"
+      }
+    ],
     "/api/linkedin/auth": [
       {
         "file": "dashboard/app.js",
@@ -260,6 +366,75 @@
         "snippet": "await api(`/api/linkedin/campaigns/${_liActiveCampaignId}/stop`, { method: 'POST' });"
       }
     ],
+    "/api/linkedin/cobaia/emergency-stop": [
+      {
+        "file": "dashboard/components/cobaia_emergency_stop.js",
+        "line": 70,
+        "snippet": "const state = await _apiPost('/api/linkedin/cobaia/emergency-stop', { reason: 'manual_emergency' });"
+      }
+    ],
+    "/api/linkedin/cobaia/metrics": [
+      {
+        "file": "dashboard/components/cobaia_studio.js",
+        "line": 97,
+        "snippet": "_apiFetch('/api/linkedin/cobaia/metrics?days=7')"
+      },
+      {
+        "file": "dashboard/components/cobaia_studio.js",
+        "line": 107,
+        "snippet": "const metricsP = _apiFetch('/api/linkedin/cobaia/metrics?days=7').catch(() => null);"
+      }
+    ],
+    "/api/linkedin/cobaia/pause": [
+      {
+        "file": "dashboard/components/cobaia_status_card.js",
+        "line": 157,
+        "snippet": "_state = await apiPost('/api/linkedin/cobaia/pause', { reason: 'manual_pause' });"
+      }
+    ],
+    "/api/linkedin/cobaia/resume": [
+      {
+        "file": "dashboard/components/cobaia_emergency_stop.js",
+        "line": 92,
+        "snippet": "const state = await _apiPost('/api/linkedin/cobaia/resume', {});"
+      },
+      {
+        "file": "dashboard/components/cobaia_status_card.js",
+        "line": 166,
+        "snippet": "_state = await apiPost('/api/linkedin/cobaia/resume', {});"
+      }
+    ],
+    "/api/linkedin/cobaia/start-warmup": [
+      {
+        "file": "dashboard/components/cobaia_status_card.js",
+        "line": 147,
+        "snippet": "_state = await apiPost('/api/linkedin/cobaia/start-warmup', {});"
+      }
+    ],
+    "/api/linkedin/cobaia/status": [
+      {
+        "file": "dashboard/components/cobaia_status_card.js",
+        "line": 138,
+        "snippet": "_state = await apiGet('/api/linkedin/cobaia/status');"
+      },
+      {
+        "file": "dashboard/components/cobaia_studio.js",
+        "line": 106,
+        "snippet": "const statusP = _apiFetch('/api/linkedin/cobaia/status').catch(() => null);"
+      }
+    ],
+    "/api/linkedin/cobaia/timeline": [
+      {
+        "file": "dashboard/components/cobaia_studio.js",
+        "line": 89,
+        "snippet": "_apiFetch('/api/linkedin/cobaia/timeline')"
+      },
+      {
+        "file": "dashboard/components/cobaia_studio.js",
+        "line": 108,
+        "snippet": "const timelineP = _apiFetch('/api/linkedin/cobaia/timeline').catch(() => null);"
+      }
+    ],
     "/api/linkedin/comment/delete": [
       {
         "file": "dashboard/app.js",
@@ -295,6 +470,58 @@
         "snippet": "api('/api/linkedin/status'),"
       }
     ],
+    "/api/mcp/coverage/latest": [
+      {
+        "file": "dashboard/components/mcp_gateway.js",
+        "line": 220,
+        "snippet": "const r = await fetch(\"/api/mcp/coverage/latest\", { headers: _authHeaders() });"
+      }
+    ],
+    "/api/mcp/gateway/health": [
+      {
+        "file": "dashboard/components/mcp_gateway.js",
+        "line": 211,
+        "snippet": "const r = await fetch(\"/api/mcp/gateway/health\", { headers: _authHeaders() });"
+      }
+    ],
+    "/api/observability/costs": [
+      {
+        "file": "dashboard/components/observability_costs.js",
+        "line": 96,
+        "snippet": "fetch(\"/api/observability/costs?\" + qs.toString(), { headers: _authHeaders() })"
+      },
+      {
+        "file": "dashboard/components/observability_costs.js",
+        "line": 230,
+        "snippet": "var r = await fetch(\"/api/observability/costs?\" + qs.toString(), { headers: _authHeaders() });"
+      }
+    ],
+    "/api/observability/decisions": [
+      {
+        "file": "dashboard/components/observability_decisions.js",
+        "line": 279,
+        "snippet": "var r = await fetch(\"/api/observability/decisions?\" + qs.toString(), { headers: _authHeaders() });"
+      }
+    ],
+    "/api/observability/errors": [
+      {
+        "file": "dashboard/components/observability_errors.js",
+        "line": 227,
+        "snippet": "var r = await fetch(\"/api/observability/errors?\" + qs.toString(), { headers: _authHeaders() });"
+      },
+      {
+        "file": "dashboard/components/observability_resolve_modal.js",
+        "line": 142,
+        "snippet": "var r = await fetch(\"/api/observability/errors/\" + encodeURIComponent(id) + \"/resolve\", {"
+      }
+    ],
+    "/api/observability/perf": [
+      {
+        "file": "dashboard/components/observability_perf.js",
+        "line": 194,
+        "snippet": "var r = await fetch(\"/api/observability/perf?\" + qs.toString(), { headers: _authHeaders() });"
+      }
+    ],
     "/api/outreach/generate/{param}": [
       {
         "file": "dashboard/app.js",
@@ -324,6 +551,51 @@
         "file": "dashboard/app.js",
         "line": 2544,
         "snippet": "const exec = await api(`/api/pipeline-executions/${execId}`);"
+      }
+    ],
+    "/api/pipeline-studio/drafts": [
+      {
+        "file": "dashboard/components/pipeline_studio_ab_compare.js",
+        "line": 146,
+        "snippet": "var resp = await fetch(\"/api/pipeline-studio/drafts?limit=100\", {"
+      },
+      {
+        "file": "dashboard/components/pipeline_studio_templates.js",
+        "line": 58,
+        "snippet": "var resp = await fetch(\"/api/pipeline-studio/drafts\", {"
+      }
+    ],
+    "/api/pipeline-studio/runs": [
+      {
+        "file": "dashboard/components/pipeline_studio_runs_monitor.js",
+        "line": 122,
+        "snippet": "var resp = await fetch(\"/api/pipeline-studio/runs/\" + encodeURIComponent(runId), {"
+      },
+      {
+        "file": "dashboard/components/pipeline_studio_runs_monitor.js",
+        "line": 229,
+        "snippet": "var resp = await fetch(\"/api/pipeline-studio/runs/\" + encodeURIComponent(runId) + \"/abort\", {"
+      }
+    ],
+    "/api/pipeline-studio/runs/ab-test": [
+      {
+        "file": "dashboard/components/pipeline_studio_ab_compare.js",
+        "line": 247,
+        "snippet": "var resp = await fetch(\"/api/pipeline-studio/runs/ab-test\", {"
+      }
+    ],
+    "/api/pipeline-studio/steps": [
+      {
+        "file": "dashboard/components/pipeline_studio_step_picker_modal.js",
+        "line": 69,
+        "snippet": "var resp = await fetch(\"/api/pipeline-studio/steps\", {"
+      }
+    ],
+    "/api/pipeline-studio/templates": [
+      {
+        "file": "dashboard/components/pipeline_studio_templates.js",
+        "line": 40,
+        "snippet": "var resp = await fetch(\"/api/pipeline-studio/templates\", {"
       }
     ],
     "/api/pipelines": [
@@ -501,6 +773,52 @@
         "snippet": "const r = await api(`/api/server/${action}`, { method: 'POST' });"
       }
     ],
+    "/api/skills/proposals": [
+      {
+        "file": "dashboard/components/skill_proposals_modal.js",
+        "line": 210,
+        "snippet": "_apiFetch(\"/api/skills/proposals/\" + encodeURIComponent(proposalId) + \"/accept\", {"
+      },
+      {
+        "file": "dashboard/components/skill_proposals_modal.js",
+        "line": 313,
+        "snippet": "_apiFetch(\"/api/skills/proposals/\" + encodeURIComponent(proposalId) + \"/reject\", {"
+      },
+      {
+        "file": "dashboard/components/skill_proposals_modal.js",
+        "line": 651,
+        "snippet": "_apiFetch(\"/api/skills/proposals/\" + encodeURIComponent(proposalId) + \"/verify\", {"
+      },
+      {
+        "file": "dashboard/components/skill_proposals_modal.js",
+        "line": 695,
+        "snippet": "_apiFetch(\"/api/skills/proposals/\" + encodeURIComponent(proposalId) + \"/unverify\", {"
+      },
+      {
+        "file": "dashboard/components/skill_proposals_studio.js",
+        "line": 744,
+        "snippet": "_apiFetch(\"/api/skills/proposals/\" + encodeURIComponent(proposalId))"
+      },
+      {
+        "file": "dashboard/components/skill_proposals_studio.js",
+        "line": 752,
+        "snippet": "return _apiFetch(\"/api/skills/proposals/\" + encodeURIComponent(proposalId) + \"/yaml-preview\")"
+      }
+    ],
+    "/api/skills/proposals/generate": [
+      {
+        "file": "dashboard/components/skill_proposals_modal.js",
+        "line": 351,
+        "snippet": "_apiFetch(\"/api/skills/proposals/generate\", {"
+      }
+    ],
+    "/api/skills/synthesis-runs": [
+      {
+        "file": "dashboard/components/skill_proposals_modal.js",
+        "line": 468,
+        "snippet": "_apiFetch(\"/api/skills/synthesis-runs/\" + encodeURIComponent(runId))"
+      }
+    ],
     "/api/tasks": [
       {
         "file": "dashboard/app.js",
@@ -539,6 +857,18 @@
         "file": "dashboard/app.js",
         "line": 641,
         "snippet": "const t = await api('/api/tunnel/status');"
+      }
+    ],
+    "/api/user-prefs": [
+      {
+        "file": "dashboard/components/pref_panel.js",
+        "line": 108,
+        "snippet": "const next = await _apiCall(\"PUT\", \"/api/user-prefs\", delta);"
+      },
+      {
+        "file": "dashboard/components/pref_panel.js",
+        "line": 425,
+        "snippet": "const data = await _apiCall(\"GET\", \"/api/user-prefs\");"
       }
     ],
     "/api/workqueue": [

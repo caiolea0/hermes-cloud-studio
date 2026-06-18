@@ -1,13 +1,13 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 13:33 UTC
+- **last_updated**: 2026-06-18 14:25 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 213 (163 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 94 (45.2% of public)
-- **orphans**: 114
+- **consumed**: 128 (61.5% of public)
+- **orphans**: 80
 - **top_10_priority**: see §4
 
-> Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js`.
+> Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.
 > Re-rodável: `python .claude/skills/hermes-frontend-gap/scripts/rank_gaps.py`.
 > Re-execução ao fechar QUALQUER chapter F.2-F.9 é termômetro UX (GUARDRAILS §F.1).
 
@@ -55,36 +55,37 @@
 | `hermes_api_v2.py` | 1 |
 | `vm_api/mcp_jobs.py` | 1 |
 
-## §2 Mapa consumo `dashboard/app.js`
+## §2 Mapa consumo (app.js + 35 components)
 
-- Endpoints únicos consumidos: **94**
-- Total fetch/api calls: 87
+- Endpoints únicos consumidos: **128**
+- Total fetch/api calls: 133
+- Fontes escaneadas: 36 arquivos (app.js + components/*.js + HTML inline)
 - Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, skill-proposals, skills, tasks
 
-| Endpoint | Chamadas | Locais (file:line) |
+| Endpoint | Chamadas | Fontes |
 |---|---|---|
-| `/api/dashboard` | 6 | app.js:188, app.js:270, app.js:279 |
-| `/api/prospects` | 6 | app.js:785, app.js:821, app.js:1284 |
-| `/api/pipelines` | 5 | app.js:1936, app.js:2135, app.js:2609 |
-| `/api/audit/prospect/{param}` | 3 | app.js:1386, app.js:1906, app.js:2788 |
-| `/api/pipelines/{param}` | 3 | app.js:2132, app.js:2149, app.js:2157 |
-| `/api/prospects/{param}` | 3 | app.js:1400, app.js:1541, app.js:1613 |
-| `/api/activities` | 2 | app.js:805, app.js:1494 |
-| `/api/audit/status` | 2 | app.js:776, app.js:1758 |
-| `/api/hermes/memory` | 2 | app.js:3256, app.js:3287 |
-| `/api/hermes/status` | 2 | app.js:627, app.js:746 |
-| `/api/linkedin/campaigns/{param}/stop` | 2 | app.js:5633, app.js:5767 |
-| `/api/outreach/generate/{param}` | 2 | app.js:1569, app.js:2741 |
-| `/api/pipeline-executions/active` | 2 | app.js:870, app.js:2214 |
-| `/api/pipelines/{param}/executions` | 2 | app.js:2569, app.js:2612 |
-| `/api/tasks` | 2 | app.js:835, app.js:2818 |
-| `/api/_bootstrap` | 1 | app.js:236 |
-| `/api/audit/start` | 1 | app.js:1835 |
-| `/api/claude/execute` | 1 | app.js:2919 |
-| `/api/daemon/channels` | 1 | app.js:3529 |
-| `/api/daemon/decisions` | 1 | app.js:3613 |
+| `/api/dashboard` | 6 | app.js |
+| `/api/prospects` | 6 | app.js |
+| `/api/skills/proposals` | 6 | skill_proposals_modal.js, skill_proposals_studio.js |
+| `/api/pipelines` | 5 | app.js |
+| `/api/audit/prospect/{param}` | 3 | app.js |
+| `/api/pipelines/{param}` | 3 | app.js |
+| `/api/prospects/{param}` | 3 | app.js |
+| `/api/activities` | 2 | app.js |
+| `/api/audit/status` | 2 | app.js |
+| `/api/hermes/memory` | 2 | app.js |
+| `/api/hermes/status` | 2 | app.js |
+| `/api/lab/runs/{param}` | 2 | lab_cockpit.js |
+| `/api/linkedin/campaigns/{param}/stop` | 2 | app.js |
+| `/api/linkedin/cobaia/metrics` | 2 | cobaia_studio.js |
+| `/api/linkedin/cobaia/resume` | 2 | cobaia_emergency_stop.js, cobaia_status_card.js |
+| `/api/linkedin/cobaia/status` | 2 | cobaia_status_card.js, cobaia_studio.js |
+| `/api/linkedin/cobaia/timeline` | 2 | cobaia_studio.js |
+| `/api/observability/costs` | 2 | observability_costs.js |
+| `/api/observability/errors` | 2 | observability_errors.js, observability_resolve_modal.js |
+| `/api/outreach/generate/{param}` | 2 | app.js |
 
-## §3 Órfãos — 114 endpoints sem UI
+## §3 Órfãos — 80 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -93,10 +94,6 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/daemon/broadcast` | pc | `api/daemon.py:256` | token |
 | `POST` | `/api/daemon/pause` | pc | `api/daemon.py:73` | token |
 | `POST` | `/api/daemon/resume` | pc | `api/daemon.py:84` | token |
-| `POST` | `/api/daemon/subsystems/all/pause` | pc | `api/daemon.py:393` | rate-limited |
-| `POST` | `/api/daemon/subsystems/{name}/pause` | pc | `api/daemon.py:434` | rate-limited |
-| `POST` | `/api/daemon/subsystems/{name}/resume` | pc | `api/daemon.py:443` | rate-limited |
-| `GET` | `/api/linkedin/cobaia/timeline` | pc | `api/cobaia.py:220` | token |
 | `POST` | `/api/agent-zero/chat` | pc | `api/agent_zero.py:43` | token |
 | `POST` | `/api/brain/confirm/{run_id}` | pc | `api/brain.py:151` | token |
 | `POST` | `/api/brain/decide` | pc | `api/brain.py:104` | token |
@@ -104,23 +101,16 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/prospects/{prospect_id}/resolve-conflict` | pc | `api/prospects.py:156` | token |
 | `GET` | `/api/agent-zero/status` | pc | `api/agent_zero.py:15` | token |
 | `GET` | `/api/brain/intents` | pc | `api/brain.py:218` | token |
-| `GET` | `/api/brain/runs` | pc | `api/brain.py:117` | token |
 | `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:129` | token |
 | `GET` | `/api/linkedin/visited` | pc | `api/linkedin.py:443` | token |
 | `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1528` | token |
 | `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:701` | token |
 | `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:426` | token |
 | `POST` | `/api/cobaia/verify-email` | pc | `api/cobaia.py:750` | token |
-| `POST` | `/api/lab/runs/{run_id}/abort` | pc | `api/lab.py:384` | token |
-| `POST` | `/api/lab/start` | pc | `api/lab.py:333` | rate-limited |
 | `POST` | `/api/linkedin/campaigns/discover` | pc | `api/linkedin.py:411` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1216` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | pc | `api/linkedin.py:399` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | vm | `vm_api/routes.py:1107` | token |
-| `POST` | `/api/linkedin/cobaia/emergency-stop` | pc | `api/cobaia.py:135` | token |
-| `POST` | `/api/linkedin/cobaia/pause` | pc | `api/cobaia.py:97` | token |
-| `POST` | `/api/linkedin/cobaia/resume` | pc | `api/cobaia.py:110` | token |
-| `POST` | `/api/linkedin/cobaia/start-warmup` | pc | `api/cobaia.py:81` | token |
 | `POST` | `/api/linkedin/connection/refresh` | pc | `api/linkedin.py:481` | token |
 | `POST` | `/api/linkedin/connection/refresh` | vm | `vm_api/routes.py:1708` | token |
 | `POST` | `/api/linkedin/detect-account-type` | pc | `api/linkedin.py:461` | token |
@@ -131,12 +121,10 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/mcp/coverage/publish` | vm | `vm_api/mcp_coverage.py:80` | token |
 | `POST` | `/api/observability/errors/{error_id}/resolve` | pc | `api/observability.py:402` | token |
 | `POST` | `/api/outreach/batch` | vm | `vm_api/routes.py:777` | token |
-| `POST` | `/api/pipeline-studio/drafts` | pc | `api/pipeline_studio.py:172` | token |
 | `DELETE` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:269` | token |
 | `PUT` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:219` | token |
 | `POST` | `/api/pipeline-studio/drafts/{draft_id}/clone` | pc | `api/pipeline_studio.py:601` | token |
 | `POST` | `/api/pipeline-studio/drafts/{draft_id}/execute` | pc | `api/pipeline_studio.py:459` | token |
-| `POST` | `/api/pipeline-studio/runs/ab-test` | pc | `api/pipeline_studio.py:785` | token |
 | `POST` | `/api/pipeline-studio/runs/{run_id}/abort` | pc | `api/pipeline_studio.py:748` | token |
 | `POST` | `/api/pipeline/execute` | vm | `vm_api/routes.py:824` | token |
 | `POST` | `/api/prospects/{prospect_id}/outreach` | vm | `vm_api/routes.py:738` | token |
@@ -144,8 +132,6 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/server/restart-local` | pc | `api/server_ctrl.py:22` | rate-limited |
 | `POST` | `/api/server/restart-vm` | pc | `api/server_ctrl.py:54` | rate-limited |
 | `POST` | `/api/server/shutdown-local` | pc | `api/server_ctrl.py:36` | rate-limited |
-| `POST` | `/api/skills/proposals` | pc | `api/skills.py:118` | token |
-| `POST` | `/api/skills/proposals/generate` | pc | `api/skills.py:312` | token |
 | `POST` | `/api/skills/proposals/{proposal_id}/accept` | pc | `api/skills.py:181` | token |
 | `POST` | `/api/skills/proposals/{proposal_id}/reject` | pc | `api/skills.py:241` | token |
 | `POST` | `/api/skills/proposals/{proposal_id}/unverify` | pc | `api/skills.py:455` | token |
@@ -153,9 +139,6 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/skills/webhook/pr-merged` | pc | `api/skills_webhook.py:186` | rate-limited |
 | `POST` | `/api/skills/{skill_name}/unquarantine` | pc | `api/skills.py:501` | token |
 | `POST` | `/api/tasks/bulk` | pc | `api/tasks.py:93` | token |
-| `PUT` | `/api/user-prefs` | pc | `api/user_prefs.py:76` | rate-limited |
-| `GET` | `/api/lab/runs` | pc | `api/lab.py:424` | token |
-| `GET` | `/api/lab/runs/{run_id}` | pc | `api/lab.py:431` | token |
 | `GET` | `/api/lab/runs/{run_id}/artifacts/{filename}` | pc | `api/lab.py:479` | token |
 | `GET` | `/api/stats` | pc | `api/stats.py:11` | token |
 | `GET` | `/api/stats` | vm | `vm_api/routes.py:330` | token |
@@ -169,41 +152,25 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:776` | token |
 | `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:495` | token |
 | `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:352` | token |
-| `GET` | `/api/config` | pc | `api/config.py:27` | token |
-| `GET` | `/api/linkedin/cobaia/metrics` | pc | `api/cobaia.py:150` | token |
-| `GET` | `/api/linkedin/cobaia/status` | pc | `api/cobaia.py:125` | token |
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:455` | token |
 | `GET` | `/api/linkedin/companies/lookup` | vm | `vm_api/routes.py:1586` | token |
 | `GET` | `/api/linkedin/rate-limits` | pc | `api/linkedin.py:29` | token |
 | `GET` | `/api/linkedin/rate-limits` | vm | `vm_api/routes.py:1387` | token |
 | `GET` | `/api/linkedin/session-check` | vm | `vm_api/routes.py:1400` | token |
 | `GET` | `/api/mcp/coverage/jobs/{job_id}` | vm | `vm_api/mcp_jobs.py:26` | token |
-| `GET` | `/api/mcp/coverage/latest` | pc | `api/mcp_coverage.py:78` | token |
-| `GET` | `/api/mcp/coverage/latest` | vm | `vm_api/mcp_coverage.py:26` | token |
-| `GET` | `/api/mcp/gateway/health` | pc | `api/mcp_coverage.py:100` | token |
 | `GET` | `/api/observability/_debug/explain_cost_plan` | pc | `api/observability.py:668` | token |
-| `GET` | `/api/observability/costs` | pc | `api/observability.py:59` | token |
 | `GET` | `/api/observability/credits` | pc | `api/observability.py:166` | token |
-| `GET` | `/api/observability/decisions` | pc | `api/observability.py:496` | token |
-| `GET` | `/api/observability/errors` | pc | `api/observability.py:333` | token |
 | `GET` | `/api/observability/mcp-coverage-history` | pc | `api/observability.py:621` | token |
-| `GET` | `/api/observability/perf` | pc | `api/observability.py:102` | token |
 | `GET` | `/api/photos/{photo_ref:path}` | pc | `api/photos.py:15` | token |
-| `GET` | `/api/pipeline-studio/drafts` | pc | `api/pipeline_studio.py:124` | token |
 | `GET` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:199` | token |
-| `GET` | `/api/pipeline-studio/runs` | pc | `api/pipeline_studio.py:654` | token |
 | `GET` | `/api/pipeline-studio/runs/{run_id}` | pc | `api/pipeline_studio.py:529` | token |
-| `GET` | `/api/pipeline-studio/steps` | pc | `api/pipeline_studio.py:348` | token |
-| `GET` | `/api/pipeline-studio/templates` | pc | `api/pipeline_studio.py:397` | token |
 | `GET` | `/api/scraper/history` | pc | `api/scraper.py:123` | token |
 | `GET` | `/api/scraper/history` | vm | `vm_api/routes.py:530` | token |
 | `GET` | `/api/skills/health` | pc | `api/skills.py:335` | token |
-| `GET` | `/api/skills/proposals` | pc | `api/skills.py:97` | token |
 | `GET` | `/api/skills/proposals-pending-verify` | pc | `api/skills.py:485` | token |
 | `GET` | `/api/skills/proposals/{proposal_id}` | pc | `api/skills.py:137` | token |
 | `GET` | `/api/skills/proposals/{proposal_id}/yaml-preview` | pc | `api/skills.py:150` | token |
 | `GET` | `/api/skills/synthesis-runs/{run_id}` | pc | `api/skills.py:292` | token |
-| `GET` | `/api/user-prefs` | pc | `api/user_prefs.py:70` | token |
 
 ## §4 TOP 10 priorizado
 
@@ -214,26 +181,26 @@ Ranking: owner_pain_score (5=tail/decisions live) → method (write > read) → 
 | 1 | `/api/daemon/broadcast` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/broadcast` | 5 |
 | 2 | `/api/daemon/pause` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/pause` | 5 |
 | 3 | `/api/daemon/resume` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/resume` | 5 |
-| 4 | `/api/daemon/subsystems/all/pause` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/subsystems/all/pause` | 5 |
-| 5 | `/api/daemon/subsystems/{name}/pause` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/subsystems/{name}/pause` | 5 |
-| 6 | `/api/daemon/subsystems/{name}/resume` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/subsystems/{name}/resume` | 5 |
-| 7 | `/api/linkedin/cobaia/timeline` | `GET` | pc | F.3 | — | `curl /api/linkedin/cobaia/timeline` | 5 |
-| 8 | `/api/agent-zero/chat` | `POST` | pc | F.6 | ✅ | `curl POST + parse stream manual` | 4 |
-| 9 | `/api/brain/confirm/{run_id}` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/confirm/{run_id}` | 4 |
-| 10 | `/api/brain/decide` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/decide` | 4 |
+| 4 | `/api/agent-zero/chat` | `POST` | pc | F.6 | ✅ | `curl POST + parse stream manual` | 4 |
+| 5 | `/api/brain/confirm/{run_id}` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/confirm/{run_id}` | 4 |
+| 6 | `/api/brain/decide` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/decide` | 4 |
+| 7 | `/api/brain/replay/{run_id}` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/replay/{run_id}` | 4 |
+| 8 | `/api/prospects/{prospect_id}/resolve-conflict` | `POST` | pc | F.6 | — | `curl -X POST /api/prospects/{prospect_id}/resolve-conflict` | 4 |
+| 9 | `/api/agent-zero/status` | `GET` | pc | F.6 | — | `curl + parse JSON em PowerShell` | 4 |
+| 10 | `/api/brain/intents` | `GET` | pc | F.6 | ✅ | `curl /api/brain/intents` | 4 |
 
 **Justificativa por linha**:
 
 1. **`POST /api/daemon/broadcast`** — Trigger broadcast WS arbitrário (devtool) — escondido pra owner, expose só em modo debug
 2. **`POST /api/daemon/pause`** — Botão pause daemon (timeout N min) no header Mission Control
 3. **`POST /api/daemon/resume`** — Botão resume daemon junto do pause
-4. **`POST /api/daemon/subsystems/all/pause`** — /api/daemon/subsystems/all/pause
-5. **`POST /api/daemon/subsystems/{name}/pause`** — /api/daemon/subsystems/{name}/pause
-6. **`POST /api/daemon/subsystems/{name}/resume`** — /api/daemon/subsystems/{name}/resume
-7. **`GET /api/linkedin/cobaia/timeline`** — /api/linkedin/cobaia/timeline
-8. **`POST /api/agent-zero/chat`** — Chat AI no dashboard — substitui CLI Agent Zero
-9. **`POST /api/brain/confirm/{run_id}`** — /api/brain/confirm/{run_id}
-10. **`POST /api/brain/decide`** — /api/brain/decide
+4. **`POST /api/agent-zero/chat`** — Chat AI no dashboard — substitui CLI Agent Zero
+5. **`POST /api/brain/confirm/{run_id}`** — /api/brain/confirm/{run_id}
+6. **`POST /api/brain/decide`** — /api/brain/decide
+7. **`POST /api/brain/replay/{run_id}`** — /api/brain/replay/{run_id}
+8. **`POST /api/prospects/{prospect_id}/resolve-conflict`** — Botão dismiss conflict no row de prospect
+9. **`GET /api/agent-zero/status`** — Status Agent Zero (model, context_id, last_invoked)
+10. **`GET /api/brain/intents`** — /api/brain/intents
 
 ## §5 Quick Wins UX (1 fetch + 1 toast / 1 botão)
 
@@ -260,7 +227,7 @@ Endpoints que F.2 deve consumir com canais WS dedicados:
 
 ### WS events backend vs handlers `dashboard/app.js`
 
-- Handlers em `app.js`: 15 (activity, alert, audit_done, channel_update, daemon_state, decision, linkedin_campaign_created, linkedin_campaign_done, linkedin_health, linkedin_progress, pipeline_progress, reply_received, scraper_update, string, sync)
+- Handlers no frontend: 15 (activity, alert, audit_done, channel_update, daemon_state, decision, linkedin_campaign_created, linkedin_campaign_done, linkedin_health, linkedin_progress, pipeline_progress, reply_received, scraper_update, string, sync)
 - Broadcasts no backend: 10 (activity, channel_update, daemon_state, decision, linkedin_account_type_updated, linkedin_campaign_created, linkedin_health, linkedin_progress, linkedin_session_rotated, sync)
 - ✅ Matched (emitido + handler): activity, channel_update, daemon_state, decision, linkedin_campaign_created, linkedin_health, linkedin_progress, sync
 - ⚠️ Orphan broadcasts (emitido sem handler): linkedin_account_type_updated, linkedin_session_rotated
