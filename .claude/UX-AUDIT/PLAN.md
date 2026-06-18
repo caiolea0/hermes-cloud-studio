@@ -158,6 +158,15 @@ See `issues.json` for full machine-readable list. Summary counts:
 - **Cobaia-blocking**: YES
 - **Deps**: F1
 
+#### UX-RM-F2-A: Sidebar consolidation 17→8 groups + breadcrumbs ✅ DONE 2026-06-18
+- 8 collapsible .nav-group / .nav-single items (4 groups + 3 singles + settings footer)
+- All 17 original pages routable via sub-items, data-page attrs preserved
+- localStorage 'hermes.nav.expanded_groups' persistence + auto-expand owning group on navigate()
+- aria-current="page", aria-expanded, aria-controls, role="navigation" + aria-label
+- Breadcrumb bar: Dashboard › Group › Page rendered by HermesBreadcrumbs component
+- Contrast WCAG AA fix: bc-link uses --text-2 (5.88:1), focus-visible on all new elements
+- 5 new tests, 303 pytest PASS, C3 RESOLVED in issues.json
+
 ### UX-RM-F3: Onboarding Wizard 5min
 - **Goal**: Caio Day 0 → working cobaia in <5min without docs.
 - **Effort**: 20h
@@ -236,7 +245,8 @@ See `issues.json` for full machine-readable list. Summary counts:
 
 **BLOCKING criteria** (must pass before Caio activates real LI account):
 - [x] UX-RM-F1 100% complete — zero mocks in execution paths (F1-A+B+C 2026-06-18)
-- [ ] UX-RM-F2 100% complete — Cmd+K + 8-item sidebar
+- [x] UX-RM-F2-A complete — 8-item sidebar + breadcrumbs (2026-06-18)
+- [ ] UX-RM-F2-B — Cmd+K palette (remaining F2 scope)
 - [ ] Brain confirmation drawer required for ALL destructive intents
 - [x] `LI_USE_MOCK = false` removed entirely (F1-C 2026-06-18)
 - [x] Comment edit/delete: UI hidden + endpoints 501 (F1-C 2026-06-18)

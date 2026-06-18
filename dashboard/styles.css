@@ -992,6 +992,164 @@ select option { background: var(--s2); color: var(--text); }
     transition: stroke 0.15s var(--ease);
 }
 
+/* ============================================================
+   UX-RM-F2-A — Nav Groups (sidebar consolidation 17→8)
+   ============================================================ */
+.nav-group { display: flex; flex-direction: column; }
+
+.nav-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    position: relative;
+    text-align: left;
+    transition: background 0.15s var(--ease);
+}
+.nav-group-toggle:hover { background: rgba(255,255,255,0.04); }
+.nav-group[aria-expanded="true"] .nav-group-toggle { color: var(--text); }
+.nav-group-toggle svg:first-child { width: 20px; height: 20px; flex-shrink: 0; stroke: var(--text-2); }
+.nav-group[aria-expanded="true"] .nav-group-toggle svg:first-child { stroke: var(--text); }
+
+.nav-group-toggle .nav-label {
+    opacity: 0;
+    transition: opacity 0.2s var(--ease);
+    flex: 1;
+    text-align: left;
+}
+.sidebar:hover .nav-group-toggle .nav-label { opacity: 1; }
+
+.nav-chevron {
+    margin-left: auto;
+    flex-shrink: 0;
+    stroke: var(--text-3);
+    opacity: 0;
+    transition: transform 0.2s var(--ease), opacity 0.2s var(--ease);
+}
+.sidebar:hover .nav-chevron { opacity: 1; }
+.nav-group[aria-expanded="true"] .nav-chevron { transform: rotate(180deg); }
+
+.nav-group-items { list-style: none; margin: 0; padding: 0; }
+.nav-group-items[hidden] { display: none !important; }
+.nav-group-items:not([hidden]) { display: flex; flex-direction: column; }
+
+.nav-sub-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px 8px 28px;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--text-2);
+    font-size: 12px;
+    font-weight: 400;
+    white-space: nowrap;
+    position: relative;
+    transition: background 0.15s var(--ease);
+}
+.nav-sub-item:hover { background: rgba(255,255,255,0.04); }
+.nav-sub-item.active,
+.nav-sub-item[aria-current="page"] { color: var(--accent-l); background: rgba(124,58,237,0.10); }
+.nav-sub-item.active::before,
+.nav-sub-item[aria-current="page"]::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 6px; bottom: 6px;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 0 3px 3px 0;
+}
+.nav-sub-item svg { width: 16px; height: 16px; flex-shrink: 0; stroke: var(--text-2); }
+.nav-sub-item.active svg,
+.nav-sub-item[aria-current="page"] svg { stroke: var(--accent-l); }
+.nav-sub-item span { opacity: 0; transition: opacity 0.2s var(--ease); }
+.sidebar:hover .nav-sub-item span { opacity: 1; }
+
+.nav-single {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    position: relative;
+    transition: background 0.15s var(--ease);
+}
+.nav-single:hover { background: rgba(255,255,255,0.04); }
+.nav-single.active,
+.nav-single[aria-current="page"] { color: var(--accent-l); background: rgba(124,58,237,0.12); }
+.nav-single.active::before,
+.nav-single[aria-current="page"]::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 8px; bottom: 8px;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 0 3px 3px 0;
+}
+.nav-single svg { width: 20px; height: 20px; flex-shrink: 0; stroke: var(--text-2); }
+.nav-single.active svg,
+.nav-single[aria-current="page"] svg { stroke: var(--accent-l); }
+.nav-single .nav-label { opacity: 0; transition: opacity 0.2s var(--ease); color: var(--text-2); }
+.sidebar:hover .nav-single .nav-label { opacity: 1; }
+.nav-single.active .nav-label,
+.nav-single[aria-current="page"] .nav-label { color: var(--accent-l); }
+
+/* ============================================================
+   UX-RM-F2-A — Breadcrumb Bar
+   ============================================================ */
+.breadcrumb-bar {
+    padding: 6px 20px 0;
+    min-height: 22px;
+    flex-shrink: 0;
+}
+.breadcrumb-ol {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    list-style: none;
+    margin: 0; padding: 0;
+    font-size: 11px;
+}
+.breadcrumb-ol .bc-link {
+    color: var(--text-2);
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0;
+    transition: color 0.15s var(--ease);
+}
+.breadcrumb-ol .bc-link:hover { color: var(--accent-l); }
+.breadcrumb-ol .bc-link:focus-visible {
+    outline: 2px solid var(--color-border-focus, var(--accent));
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+.breadcrumb-ol .bc-sep { color: var(--text-3); user-select: none; }
+.breadcrumb-ol .bc-current { color: var(--text-2); font-weight: 500; }
+
+/* focus-visible for new nav elements */
+.nav-group-toggle:focus-visible,
+.nav-sub-item:focus-visible,
+.nav-single:focus-visible {
+    outline: 2px solid var(--color-border-focus, var(--accent));
+    outline-offset: 2px;
+}
+
 /* Badge hover scale */
 .badge {
     transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);

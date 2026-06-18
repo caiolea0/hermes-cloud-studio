@@ -70,6 +70,8 @@
 <script src="/dashboard/components/cobaia_kpi_cards.js" defer></script>
 <script src="/dashboard/components/cobaia_activity_feed.js" defer></script>
 <script src="/dashboard/components/cobaia_studio.js" defer></script>
+<!-- UX-RM-F2-A — Breadcrumb bar -->
+<script src="/dashboard/components/breadcrumbs.js" defer></script>
 </head>
 <body>
 
@@ -271,82 +273,90 @@
             </svg>
             <span class="logo-text">Hermes</span>
         </div>
-        <nav class="sidebar-nav">
-            <div class="nav-item active" data-page="control" onclick="navigate('control')">
-                <svg><use href="#i-target"/></svg>
-                <span class="nav-label">Control</span>
-            </div>
-            <div class="nav-item" data-page="dashboard" onclick="navigate('dashboard')">
+        <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
+            <!-- G1: Dashboard -->
+            <a href="#dashboard" class="nav-single" data-page="dashboard" onclick="navigate('dashboard'); return false;" aria-label="Dashboard">
                 <svg><use href="#i-grid"/></svg>
                 <span class="nav-label">Dashboard</span>
+            </a>
+
+            <!-- G2: Operations -->
+            <div class="nav-group" data-group="operations" aria-expanded="false">
+                <button class="nav-group-toggle" onclick="toggleNavGroup('operations')" aria-expanded="false" aria-controls="nav-grp-operations" aria-label="Operations group">
+                    <svg><use href="#i-target"/></svg>
+                    <span class="nav-label">Operations</span>
+                    <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <ul class="nav-group-items" id="nav-grp-operations" hidden>
+                    <li><a href="#control" class="nav-sub-item" data-page="control" onclick="navigate('control'); return false;" aria-label="Control"><svg><use href="#i-target"/></svg><span>Control</span></a></li>
+                    <li><a href="#cobaia" class="nav-sub-item" data-page="cobaia" onclick="navigate('cobaia'); return false;" aria-label="Cobaia"><svg><use href="#i-eye"/></svg><span>Cobaia</span></a></li>
+                    <li><a href="#pipeline-studio" class="nav-sub-item" data-page="pipeline-studio" onclick="navigate('pipeline-studio'); return false;" aria-label="Pipeline Studio"><svg><use href="#i-bar-chart"/></svg><span>Pipeline Studio</span></a></li>
+                    <li><a href="#tasks" class="nav-sub-item" data-page="tasks" onclick="navigate('tasks'); return false;" aria-label="Daily Queue"><svg><use href="#i-check-square"/></svg><span>Daily Queue</span></a></li>
+                </ul>
             </div>
-            <div class="nav-item" data-page="prospects" onclick="navigate('prospects')">
-                <svg><use href="#i-users"/></svg>
-                <span class="nav-label">Prospects</span>
+
+            <!-- G3: Outreach -->
+            <div class="nav-group" data-group="outreach" aria-expanded="false">
+                <button class="nav-group-toggle" onclick="toggleNavGroup('outreach')" aria-expanded="false" aria-controls="nav-grp-outreach" aria-label="Outreach group">
+                    <svg><use href="#i-send"/></svg>
+                    <span class="nav-label">Outreach</span>
+                    <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <ul class="nav-group-items" id="nav-grp-outreach" hidden>
+                    <li><a href="#prospects" class="nav-sub-item" data-page="prospects" onclick="navigate('prospects'); return false;" aria-label="Prospects"><svg><use href="#i-users"/></svg><span>Prospects</span></a></li>
+                    <li><a href="#proposals" class="nav-sub-item" data-page="proposals" onclick="navigate('proposals'); return false;" aria-label="Propostas"><svg><use href="#i-send"/></svg><span>Propostas</span></a></li>
+                    <li><a href="#audit" class="nav-sub-item" data-page="audit" onclick="navigate('audit'); return false;" aria-label="Auditoria"><svg><use href="#i-clipboard"/></svg><span>Auditoria</span></a></li>
+                    <li><a href="#linkedin" class="nav-sub-item" data-page="linkedin" onclick="navigate('linkedin'); return false;" aria-label="LinkedIn"><svg><use href="#i-linkedin"/></svg><span>LinkedIn</span></a></li>
+                </ul>
             </div>
-            <div class="nav-item" data-page="proposals" onclick="navigate('proposals')">
-                <svg><use href="#i-send"/></svg>
-                <span class="nav-label">Propostas</span>
+
+            <!-- G4: Intelligence -->
+            <div class="nav-group" data-group="intelligence" aria-expanded="false">
+                <button class="nav-group-toggle" onclick="toggleNavGroup('intelligence')" aria-expanded="false" aria-controls="nav-grp-intelligence" aria-label="Intelligence group">
+                    <svg><use href="#i-zap"/></svg>
+                    <span class="nav-label">Intelligence</span>
+                    <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <ul class="nav-group-items" id="nav-grp-intelligence" hidden>
+                    <li><a href="#skills" class="nav-sub-item" data-page="skills" onclick="navigate('skills'); return false;" aria-label="Skills"><svg><use href="#i-zap"/></svg><span>Skills</span></a></li>
+                    <li><a href="#skill-proposals" class="nav-sub-item" data-page="skill-proposals" onclick="navigate('skill-proposals'); return false;" aria-label="Skill Proposals"><svg><use href="#i-zap"/></svg><span>Skill Proposals</span></a></li>
+                    <li><a href="#lab" class="nav-sub-item" data-page="lab" onclick="navigate('lab'); return false;" aria-label="Lab"><svg><use href="#i-eye"/></svg><span>Lab</span></a></li>
+                    <li><a href="#memory" class="nav-sub-item" data-page="memory" onclick="navigate('memory'); return false;" aria-label="Memoria"><svg><use href="#i-database"/></svg><span>Memoria</span></a></li>
+                </ul>
             </div>
-            <div class="nav-item" data-page="audit" onclick="navigate('audit')">
-                <svg><use href="#i-clipboard"/></svg>
-                <span class="nav-label">Auditoria</span>
-            </div>
-            <div class="nav-item" data-page="pipeline-studio" onclick="navigate('pipeline-studio')">
-                <svg><use href="#i-bar-chart"/></svg>
-                <span class="nav-label">Pipeline Studio</span>
-            </div>
-            <div class="nav-item" data-page="tasks" onclick="navigate('tasks')">
-                <svg><use href="#i-check-square"/></svg>
-                <span class="nav-label">Fila do Dia</span>
-            </div>
-            <div class="nav-item" data-page="skills" onclick="navigate('skills')">
-                <svg><use href="#i-zap"/></svg>
-                <span class="nav-label">Skills</span>
-            </div>
-            <div class="nav-item" data-page="skill-proposals" onclick="navigate('skill-proposals')">
-                <svg><use href="#i-zap"/></svg>
-                <span class="nav-label">Skill Proposals</span>
-            </div>
-            <div class="nav-item" data-page="linkedin" onclick="navigate('linkedin')">
-                <svg><use href="#i-linkedin"/></svg>
-                <span class="nav-label">LinkedIn</span>
-            </div>
-            <div class="nav-item" data-page="cobaia" onclick="navigate('cobaia')">
-                <svg><use href="#i-eye"/></svg>
-                <span class="nav-label">Cobaia</span>
-            </div>
-            <div class="nav-item" data-page="lab" onclick="navigate('lab')">
-                <svg><use href="#i-eye"/></svg>
-                <span class="nav-label">Lab</span>
-            </div>
-            <div class="nav-item" data-page="memory" onclick="navigate('memory')">
-                <svg><use href="#i-database"/></svg>
-                <span class="nav-label">Memoria</span>
-            </div>
-            <div class="nav-item" data-page="missions" onclick="navigate('missions')">
+
+            <!-- G5: Missions -->
+            <a href="#missions" class="nav-single" data-page="missions" onclick="navigate('missions'); return false;" aria-label="Missions">
                 <svg><use href="#i-calendar"/></svg>
-                <span class="nav-label">Missoes</span>
+                <span class="nav-label">Missions</span>
+            </a>
+
+            <!-- G6: Dev Tools -->
+            <div class="nav-group" data-group="devtools" aria-expanded="false">
+                <button class="nav-group-toggle" onclick="toggleNavGroup('devtools')" aria-expanded="false" aria-controls="nav-grp-devtools" aria-label="Dev Tools group">
+                    <svg><use href="#i-code"/></svg>
+                    <span class="nav-label">Dev Tools</span>
+                    <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <ul class="nav-group-items" id="nav-grp-devtools" hidden>
+                    <li><a href="#claude" class="nav-sub-item" data-page="claude" onclick="navigate('claude'); return false;" aria-label="AI Terminal"><svg><use href="#i-code"/></svg><span>AI Terminal</span></a></li>
+                    <li><a href="#mcp-gateway" class="nav-sub-item" data-page="mcp-gateway" onclick="navigate('mcp-gateway'); return false;" aria-label="MCP Gateway"><svg><use href="#i-database"/></svg><span>MCP Gateway</span></a></li>
+                </ul>
             </div>
-            <div class="nav-item" data-page="claude" onclick="navigate('claude')">
-                <svg><use href="#i-code"/></svg>
-                <span class="nav-label">AI Terminal</span>
-            </div>
-            <div class="nav-item" data-page="mcp-gateway" onclick="navigate('mcp-gateway')">
-                <svg><use href="#i-database"/></svg>
-                <span class="nav-label">MCP Gateway</span>
-            </div>
-            <div class="nav-item" data-page="observability" onclick="navigate('observability')">
+
+            <!-- G7: Observability -->
+            <a href="#observability" class="nav-single" data-page="observability" onclick="navigate('observability'); return false;" aria-label="Observability">
                 <svg><use href="#i-bar-chart"/></svg>
                 <span class="nav-label">Observability</span>
-            </div>
+            </a>
         </nav>
         <div class="sidebar-footer">
-            <div class="nav-item" onclick="openScraperModal()" style="background:var(--s3);border-radius:var(--r-sm);margin:0 8px 8px">
+            <div class="nav-item" onclick="openScraperModal()" style="background:var(--s3);border-radius:var(--r-sm);margin:0 8px 8px" role="button" tabindex="0" aria-label="Novo Scraping">
                 <svg style="stroke:var(--lime)"><use href="#i-search"/></svg>
                 <span class="nav-label" style="color:var(--lime)">Novo Scraping</span>
             </div>
-            <div class="nav-item" onclick="openConfigModal()">
+            <!-- G8: Settings -->
+            <div class="nav-item" onclick="openConfigModal()" role="button" tabindex="0" aria-label="Configuracoes">
                 <svg><use href="#i-settings"/></svg>
                 <span class="nav-label">Configuracoes</span>
             </div>
@@ -437,6 +447,9 @@
                 </button>
             </div>
         </header>
+
+        <!-- UX-RM-F2-A — Breadcrumb bar (rendered by HermesBreadcrumbs.update on navigate) -->
+        <div id="breadcrumb-mount" class="breadcrumb-bar" aria-label="Breadcrumb navigation"></div>
 
         <!-- CONTENT -->
         <main class="content" id="content">

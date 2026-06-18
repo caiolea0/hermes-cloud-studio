@@ -253,6 +253,8 @@ async function tryAutoBootstrap() {
 async function checkAuth() {
     let token = localStorage.getItem('hermes_token') || '';
     const startPage = () => {
+        if (window.HermesBreadcrumbs) window.HermesBreadcrumbs.mount('breadcrumb-mount');
+        _restoreNavGroups();
         const hash = window.location.hash.replace('#', '') || 'control';
         navigate(hash);
     };
@@ -463,6 +465,60 @@ _bindAudioGesture();
 })();
 
 /* ============================================================
+   UX-RM-F2-A — NAV GROUP HELPERS
+   ============================================================ */
+const _PAGE_TO_GROUP = {
+    control: 'operations', cobaia: 'operations', 'pipeline-studio': 'operations', tasks: 'operations',
+    prospects: 'outreach', proposals: 'outreach', audit: 'outreach', linkedin: 'outreach',
+    skills: 'intelligence', 'skill-proposals': 'intelligence', lab: 'intelligence', memory: 'intelligence',
+    claude: 'devtools', 'mcp-gateway': 'devtools',
+};
+
+function toggleNavGroup(groupId) {
+    const grp = document.querySelector(`.nav-group[data-group="${groupId}"]`);
+    if (!grp) return;
+    const expanded = grp.getAttribute('aria-expanded') === 'true';
+    _setNavGroupExpanded(grp, !expanded);
+    try {
+        const saved = JSON.parse(localStorage.getItem('hermes.nav.expanded_groups') || '{}');
+        saved[groupId] = !expanded;
+        localStorage.setItem('hermes.nav.expanded_groups', JSON.stringify(saved));
+    } catch (e) {}
+}
+
+function _setNavGroupExpanded(grpEl, expanded) {
+    grpEl.setAttribute('aria-expanded', String(expanded));
+    const toggle = grpEl.querySelector('.nav-group-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', String(expanded));
+    const items = grpEl.querySelector('.nav-group-items');
+    if (items) {
+        if (expanded) items.removeAttribute('hidden');
+        else items.setAttribute('hidden', '');
+    }
+}
+
+function _expandNavGroup(groupId) {
+    const grp = document.querySelector(`.nav-group[data-group="${groupId}"]`);
+    if (!grp || grp.getAttribute('aria-expanded') === 'true') return;
+    _setNavGroupExpanded(grp, true);
+    try {
+        const saved = JSON.parse(localStorage.getItem('hermes.nav.expanded_groups') || '{}');
+        saved[groupId] = true;
+        localStorage.setItem('hermes.nav.expanded_groups', JSON.stringify(saved));
+    } catch (e) {}
+}
+
+function _restoreNavGroups() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('hermes.nav.expanded_groups') || '{}');
+        Object.keys(saved).forEach(groupId => {
+            const grp = document.querySelector(`.nav-group[data-group="${groupId}"]`);
+            if (grp) _setNavGroupExpanded(grp, !!saved[groupId]);
+        });
+    } catch (e) {}
+}
+
+/* ============================================================
    NAVIGATION
    ============================================================ */
 function navigate(page) {
@@ -470,17 +526,26 @@ function navigate(page) {
     if (page === 'pipeline') page = 'pipeline-studio';
     currentPage = page;
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-item[data-page]').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('[data-page]').forEach(n => {
+        n.classList.remove('active');
+        n.removeAttribute('aria-current');
+    });
 
     const pageEl = document.getElementById(`page-${page}`);
-    const navEl = document.querySelector(`.nav-item[data-page="${page}"]`);
+    const navEl = document.querySelector(`[data-page="${page}"]`);
     if (pageEl) {
         pageEl.classList.add('active');
         pageEl.style.animation = 'none';
         void pageEl.offsetWidth;
         pageEl.style.animation = 'fade-in 0.25s var(--ease) both';
     }
-    if (navEl) navEl.classList.add('active');
+    if (navEl) {
+        navEl.classList.add('active');
+        navEl.setAttribute('aria-current', 'page');
+        const groupId = _PAGE_TO_GROUP[page] || null;
+        if (groupId) _expandNavGroup(groupId);
+        if (window.HermesBreadcrumbs) window.HermesBreadcrumbs.update(groupId, page);
+    }
 
     const titles = {
         control: 'Mission Control',

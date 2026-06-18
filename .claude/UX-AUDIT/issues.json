@@ -51,7 +51,9 @@
       "fix_hint": "Reduce to 8 primary items: Control, Cobaia, Pipeline, Outreach (merged Prospects+Propostas+Auditoria), Skills, Observability, AI Terminal, Settings. Collapsible Advanced section for Lab/MCP Gateway/Skill Proposals/Memory/Missions. Implement Cmd+K via kbar.",
       "effort_hours": 16,
       "cobaia_blocking": true,
-      "phase": "UX-RM-F2"
+      "phase": "UX-RM-F2",
+      "status": "RESOLVED",
+      "resolution": "UX-RM-F2-A 2026-06-18: sidebar 17→8 collapsible groups + nav-single items. Commit feat(UX-RM-F2-A)."
     },
     {
       "id": "C4",

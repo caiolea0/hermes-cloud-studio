@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 16:34 UTC
+- **last_updated**: 2026-06-18 17:01 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 213 (163 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 128 (61.5% of public)
@@ -55,11 +55,11 @@
 | `hermes_api_v2.py` | 1 |
 | `vm_api/mcp_jobs.py` | 1 |
 
-## §2 Mapa consumo (app.js + 35 components)
+## §2 Mapa consumo (app.js + 36 components)
 
 - Endpoints únicos consumidos: **128**
 - Total fetch/api calls: 133
-- Fontes escaneadas: 36 arquivos (app.js + components/*.js + HTML inline)
+- Fontes escaneadas: 37 arquivos (app.js + components/*.js + HTML inline)
 - Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, skill-proposals, skills, tasks
 
 | Endpoint | Chamadas | Fontes |
