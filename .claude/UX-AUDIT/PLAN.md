@@ -1,0 +1,285 @@
+# UX-AUDIT - Hermes Cloud Studio
+
+**Sealed**: 2026-06-18
+**Cobaia ETA**: ~Day 14 (warmup launch 1-2 weeks)
+**Owner**: Caio (non-technical, solo)
+**Audit scope**: 35+ components, 145+ API routes, 50+ WS events, 17+ skills, dashboard `app.js` (~7000 LOC) + `index.html` (~2400 LOC)
+
+---
+
+## 1. Executive Summary
+
+Hermes is technically dense but UX-immature for a non-technical solo operator. Backend (FastAPI + APScheduler + Brain.decide + MCP gateway) is production-shaped, but the dashboard exposes raw F.x scaffolding (17 sidebar items, 5+ modal-heavy wizards, n/c placeholders, no Cmd+K, no breadcrumbs, no keyboard shortcuts). Worse, **two CRITICAL fake-data paths** ship to UI: (a) `api/pipelines.py:354` returns randomly-generated LinkedIn profiles flagged `simulated=True` but rendered as real findings, and (b) `linkedin/cobaia_warmup.py:357` `stub_execute_skill()` returns hardcoded `mock_success` for every warmup action. Both are cobaia-blocking — shipping them once Caio activates the real account = silent zero-action warmup + fabricated prospect counts.
+
+### Top 5 wins (if F1-F4 ship)
+1. Kill 2 critical mocks + 6 daemon TODOs → Hermes becomes 100% real
+2. Consolidate 17 nav items → 8 + Cmd+K palette (kbar) → power-user navigation
+3. Lemlist-style multi-channel canvas (LI+email+WA) → 1 view replaces 3 pages
+4. Brain confirmation flow with rich preview (recipient, body, channel, ETA) → Caio approves every outbound action with confidence
+5. Tremor/shadcn tokenized design system (OKLCH) + Geist + Lucide → professional cockpit feel
+
+### Top 5 risks if NOT shipped
+1. Cobaia Day 1 silent failure — stub_execute_skill returns success, Caio sees green KPIs, zero LI activity
+2. Fabricated prospect data in pipeline runs misleads Caio into bad outreach decisions
+3. 17-item sidebar + 4-tab subsystems → Caio gets lost, abandons dashboard, runs ops blind
+4. No keyboard nav + no Cmd+K → 3x slower workflows vs Apollo/Lemlist benchmark
+5. Accessibility violations (text-3 contrast 2.8:1, divs as buttons, no H1) → fails axe-core in F.2.4 follow-through
+
+### Hermes "100% Real" Readiness Gate Criteria
+- ZERO `random.randint`, `random.choice`, `mock_success`, `simulated=True` in execution paths reachable from UI
+- ZERO `TODO` in `daemon/orchestrator.py` lines 548, 660, 666, 906, 911, 948, 955, 986, 1001
+- Comment edit/delete endpoints either complete or hidden from UI
+- `LI_USE_MOCK` flag removed from `dashboard/app.js`
+- `intelligence/` package implemented OR removed
+- Every "n/c" channel either configurable inline or hidden
+- Brain confirmation drawer required for ALL destructive intents (send_outreach, accept_connect, send_email, send_whatsapp) before Day 14
+
+---
+
+## 2. Current State Inventory
+
+### Navigation map
+- 17 sidebar items (Control, Dashboard, Prospects, Propostas, Auditoria, Pipeline Studio, Fila do Dia, Skills, Skill Proposals, LinkedIn, Cobaia, Lab, Memoria, Missoes, AI Terminal, MCP Gateway, Observability) + footer (Novo Scraping, Configuracoes)
+- Hash routing (`#<page>`) with single `index.html`, no SPA framework
+- 4-5 internal tabs each on Pipeline Studio, Observability, LinkedIn monitor, Work Queue
+- 1 modal-overlay settings panel (Configuracoes), 1 side-drawer (Brain Confirm), 1 global topbar search
+
+### Components inventory
+- **35 JS components** under `dashboard/components/` covering: skeleton/toast (F.2.4), subsystem tile grid, pref/panic panels, live log tail, lab cockpit suite (gauge + fingerprint diff + cockpit), MCP gateway, brain confirm (card + drawer), observability shell (5 tabs), pipeline studio shell (4 tabs), cobaia suite (status card + KPIs + activity feed + emergency stop + timeline + studio), skill proposals studio
+- **Critical paths**:
+  - Cobaia: `cobaia_studio.mount()` → WS `cobaia.*` events → KPI/timeline/activity render
+  - Brain: `brain_confirm_drawer` → WS `brain.run_awaiting_confirm` → confirm card → POST `/api/brain/confirm/{id}`
+  - Pipeline: `pipeline_studio_runs_monitor` → WS `pipeline.step_*` + 5s polling fallback
+  - LinkedIn: 4 campaign cards + monitor tabs → POST `/api/linkedin/campaigns/{view|engage|connect|discover}`
+
+### API routes catalog (145+)
+11 router groups: `bootstrap`, `linkedin` (40+), `cobaia` (~25), `observability` (8 + debug), `daemon` (8+), `brain` (5+), `pipelines/pipeline-studio` (10+), `prospects`/`audit` (10+), `lab` (8+), `skills`/`skills_webhook` (8+), `mcp_coverage`. Notable: `bootstrap` loopback-only for Tauri/extension auth.
+
+### WS events catalog (50+)
+- `daemon.subsystem_status`, `daemon.log_event`, `daemon.decision`
+- `cobaia.daily_check_done`, `cobaia.state_changed`, `cobaia.auto_paused`, `cobaia.activity`, `cobaia.metrics_updated`
+- `brain.run_awaiting_confirm`, `brain.run_confirm_resolved`
+- `lab.run_started/step_progress/screenshot_captured/compliance_score/fingerprint_dump/run_completed/failed/aborted`
+- `pipeline.step_*`, `pipeline.run_complete/aborted`
+- `skill_proposal.*`
+
+### Design system maturity score: **4/10**
+- **Have**: tokens.css/light.css canonical (F.2.4), window.hermesToast, window.skeleton, DOMPurify, axe-core vendored, FOUC inline script
+- **Missing**: OKLCH color space, typography scale (Geist/Geist Mono), motion budget, icon library decision (currently inline emoji + scattered), Cmd+K, focus-visible styles, density toggle, AI component state variants (idle/streaming/loading/complete/error), light/dark/auto runtime switch, semantic intent colors (success/warning/danger/info)
+- **Coexists**: legacy styles.css with shadow CSS variables (back-compat preserved)
+
+---
+
+## 3. Issues Catalog
+
+See `issues.json` for full machine-readable list. Summary counts:
+- **CRITICAL**: 4 (2 mock kills + 2 navigation overload)
+- **HIGH**: 13 (TODO daemon, hardcoded thresholds, UX coupling, a11y violations, no breadcrumbs, hidden features)
+- **MEDIUM**: 11 (in-memory stubs, no auto-refresh, modal-heavy, contrast)
+- **LOW**: 14 (comments, dead code, stub indicators, observability gaps)
+
+### Critical (cobaia-blocking)
+| # | File:line | Issue | Effort | Status |
+|---|-----------|-------|--------|--------|
+| C1 | `api/pipelines.py:354` | `generate_search_results()` returns random fake LI profiles flagged simulated=True but rendered as real | 8h | ✅ RESOLVED UX-RM-F1-A 3ef83ee |
+| C2 | `linkedin/cobaia_warmup.py:357` | `stub_execute_skill()` returns `mock_success` for every warmup action | 12h | ✅ RESOLVED UX-RM-F1-A 3ef83ee |
+| C3 | `dashboard/index.html:274` | 17 sidebar items, no Cmd+K, cognitive overload for non-technical | 16h | open |
+| C4 | `dashboard/index.html:1070` | Modal-heavy create flows (Pipeline/Task/Mission) — 640px cramped forms | 12h | open |
+
+### High (top 5 of 13)
+| # | File:line | Issue | Effort |
+|---|-----------|-------|--------|
+| H1 | `dashboard/app.js:5432` | Comment edit "Salvar (placeholder)" — modal open but operation fails | 4h |
+| H2 | `brain/_smoke.py:55` + `_react.py:32` + `safety.py:11` | MockDispatcher reachable via env + hardcoded MAX_REACT=5 + CONFIDENCE=0.5 | 6h |
+| H3 | `daemon/orchestrator.py:548,660,666,906,911,948,955,986,1001` | 9 TODOs — Telegram STOP, scoring, PDF report, sequence inbox, channel sending, enrichment, auto-reply, follow-up | 32h |
+| H4 | `dashboard/styles.css:34` | `--text-3` (#55556a) on `--s2` (#18181c) = 2.8:1, fails WCAG AA 4.5:1 | 2h |
+| H5 | `dashboard/index.html:275` | 19+ interactive divs without role/tabindex/aria-label, no keyboard nav | 8h |
+
+---
+
+## 4. 2026 Tech Stack Recommendations
+
+### AI UX patterns top 5
+1. **Command Palette (Cmd+K)** via `kbar` — fuzzy search across 145 endpoints + entities
+2. **Agent Confirmation Flow** with rich preview (recipient, body, channel, scheduled time) — extends existing BrainConfirmDrawer
+3. **Streaming AI Sidebar** — Brain.decide ReAct trace streaming token-by-token per prospect/deal
+4. **Citation Pills** — every enriched field (email/role/funding) shows source provider (Hunter/Apollo/LinkedIn/Firecrawl) + freshness
+5. **Generative UI components** — Brain returns typed ProspectCard/DealColumn/SequenceTimeline via Vercel AI SDK streamUI
+
+### Sales dashboard patterns top 5
+1. **Lemlist-style visual multi-channel canvas** — LI+email+WhatsApp+task in single drag-drop sequence
+2. **Apollo-style ICP Pipeline Builder** — 3-tier intent score (Low 0-61 / Med 62-75 / High 76-100)
+3. **MailReach/Lemwarm deliverability dashboard** — single health score 0-100 + placement-per-provider
+4. **HubSpot AI Summary cards** — drag-drop home cards (Stalled / Next Best Action / Today's Replies / Cobaia Health)
+5. **HeyReach unified inbox** — LI+email+WA in single conversation per prospect
+
+### Visual stack final
+- **Base**: shadcn/ui + Tailwind v4 (OKLCH) + Next.js (matches forge-sdk v1.0)
+- **Typography**: Geist Sans (UI) + Geist Mono (IDs/timestamps/scores) + Inter Tight fallback for dense tables
+- **Animation**: Motion 12 (95% UI) + GSAP locked behind ESLint `no-gsap-outside` (hero/storytelling only)
+- **Icons**: Lucide primary (1500+, smallest bundle) + Phosphor Fill for active tab states
+- **Color**: OKLCH B2B blue `oklch(0.62 0.21 260)` + semantic tokens (success/warning/danger/info), auto theme
+- **Liquid Glass**: SELECTIVE — ambient surfaces only (Cmd+K, toasts, Brain side panel). NEVER on prospect list/inbox/pipeline kanban
+- **Motion budget**: 200/250/300/350ms (fast/base/slow/toast), hard cap 500ms, NO animation on data refresh
+
+### Component library decision
+- **Vercel AI SDK** (`streamUI` + RSC) for Brain streaming + generative cards
+- **kbar** for Cmd+K (Linear/Sourcegraph proven)
+- **Tremor charts** (Vercel-owned) for KPI dashboards (cobaia health, brain decisions/day, hit-rate)
+- **Recharts/Visx** retained from existing observability if migration cost > value
+
+---
+
+## 5. Roadmap UX-RM-F1..F8
+
+### UX-RM-F1: Mock Kill + Real Backend Wire-Up (COBAIA-BLOCKING)
+- **Goal**: Zero fake-data in execution paths. 100% real backend before Day 14.
+- **Effort**: 40h
+- **Files**: `api/pipelines.py`, `linkedin/cobaia_warmup.py`, `daemon/orchestrator.py` (9 TODOs), `dashboard/app.js` (remove LI_USE_MOCK), `brain/safety.py`, `brain/_react.py`, `intelligence/`
+- **Acceptance**:
+  - `grep -rE "random\.(randint|choice)" api/ linkedin/ daemon/` returns zero in production paths
+  - `stub_execute_skill` deleted, `_exec_cobaia_warmup` calls real LI MCP
+  - Comment edit/delete either complete or UI hidden
+  - All "n/c" channels configurable inline OR removed
+- **Cobaia-blocking**: YES
+- **Deps**: VM linkedin MCP healthy
+
+### UX-RM-F2: IA Consolidation + Cmd+K (COBAIA-BLOCKING)
+- **Goal**: Reduce sidebar 17→8. Add Cmd+K palette. Breadcrumb trail.
+- **Effort**: 32h
+- **Files**: `dashboard/index.html`, `dashboard/app.js`, new `dashboard/components/command_palette.js`, new `dashboard/components/breadcrumb.js`
+- **Acceptance**:
+  - Sidebar: Control, Cobaia, Pipeline, Outreach (=Prospects+Propostas+Auditoria merged), Skills, Observability, AI Terminal, Settings — plus collapsible "Advanced" (Lab, MCP Gateway, Skill Proposals, Memory, Missions)
+  - Cmd+K opens kbar with fuzzy search of all pages + entities + actions
+  - Breadcrumb: `Dashboard > Outreach > [Business Name] > Audit`
+- **Cobaia-blocking**: YES
+- **Deps**: F1
+
+### UX-RM-F3: Onboarding Wizard 5min
+- **Goal**: Caio Day 0 → working cobaia in <5min without docs.
+- **Effort**: 20h
+- **Files**: new `dashboard/pages/onboarding.html`, `api/cobaia.py:cobaia_preflight`
+- **Acceptance**:
+  - 5-step wizard: 1) Cookies LI, 2) Email warmup setup, 3) ICP filters (Cuiabá), 4) First sequence template, 5) Launch confirm
+  - Preflight green = Launch enabled
+  - Replaces current scattered Configuracoes modal
+- **Cobaia-blocking**: SOFT (Caio can manually configure but wizard is launch-confidence boost)
+- **Deps**: F1, F2
+
+### UX-RM-F4: Visual Redesign (tokens + typography + motion)
+- **Goal**: Tremor-aligned cockpit feel. Pro-grade typography. Motion budget enforced.
+- **Effort**: 36h
+- **Files**: `dashboard/styles/tokens.css` (OKLCH migration), `dashboard/styles/typography.css` (Geist), `dashboard/styles/motion.css` (200/250/300/350ms tokens), all components
+- **Acceptance**:
+  - OKLCH color system + light/dark/auto toggle persisted
+  - Geist Sans/Mono loaded with preload, Inter Tight fallback
+  - All animations within budget, ESLint rule `no-motion-over-500ms`
+  - WCAG AA contrast 4.5:1 minimum (text-3 fix from H4)
+  - Lucide icons replacing inline emoji
+- **Cobaia-blocking**: NO (cosmetic, but builds trust)
+- **Deps**: F2
+
+### UX-RM-F5: AI Command Bar + Streaming Brain Sidebar
+- **Goal**: Cmd+K acts as Brain.decide entry. Streaming ReAct trace right panel.
+- **Effort**: 28h
+- **Files**: `dashboard/components/command_palette.js` (extend F2), new `dashboard/components/brain_sidebar.js`, `api/brain.py` (streaming endpoint), `brain/_react.py`
+- **Acceptance**:
+  - Cmd+K natural-language: "pause LinkedIn 1h" → Brain plans → confirm card
+  - Brain sidebar streams tokens for any prospect/deal row
+  - Citation pills on enriched fields (Hunter/Apollo/Firecrawl/LinkedIn)
+- **Cobaia-blocking**: NO
+- **Deps**: F1, F2
+
+### UX-RM-F6: Multi-Channel Campaign Editor (Lemlist-style)
+- **Goal**: Single drag-drop canvas mixing LI DM + email + WhatsApp + manual task with conditional branching.
+- **Effort**: 48h
+- **Files**: new `dashboard/pages/sequences.html`, new `dashboard/components/sequence_canvas.js`, `api/outreach.py`, `daemon/orchestrator.py` (sequence_enrollments)
+- **Acceptance**:
+  - Visual flow with channel icons + delay nodes + branching diamonds
+  - AI variables with side-by-side per-prospect preview
+  - Template gallery (Cuiabá tech recruiters, retail audit, follow-up)
+  - Unified inbox merging replies across channels per prospect
+- **Cobaia-blocking**: NO (cobaia uses LI-only initially)
+- **Deps**: F1, F2, F3
+
+### UX-RM-F7: Performance + Accessibility Polish
+- **Goal**: WCAG 2.1 AA pass, axe-core green, FCP <1.5s, TTI <3s.
+- **Effort**: 20h
+- **Files**: all components (ARIA pass), `dashboard/index.html` (H1 hierarchy), `dashboard/app.js` (keyboard handlers), `tests/a11y/*.spec.js`
+- **Acceptance**:
+  - axe-core CI passing zero violations
+  - All interactive divs → buttons or role/tabindex/aria-label + keyboard handlers
+  - H1 per page via navigate()
+  - Form labels associated via `for`/`id`
+  - Live regions for real-time updates (decisions, activity feed, KPIs)
+  - Focus-visible 3:1 contrast
+- **Cobaia-blocking**: NO
+- **Deps**: F4
+
+### UX-RM-F8: Cobaia Operator Mode
+- **Goal**: 1-screen cockpit for Caio during live ops — pause/resume per subsystem, deliverability health, Brain queue, today's actions.
+- **Effort**: 24h
+- **Files**: new `dashboard/pages/operator.html`, new `dashboard/components/operator_cockpit.js`, extends existing cobaia/* components
+- **Acceptance**:
+  - Single screen: cobaia health (green/amber/red) + warmup day + Brain queue count + today's outreach count + LI rate-limit gauge + email reputation + emergency pause
+  - Voice-to-action (Whisper) optional ("pause cobaia", "what's today's hit rate")
+  - Mobile-friendly (Caio checks from phone)
+- **Cobaia-blocking**: SOFT
+- **Deps**: F1, F2
+
+---
+
+## 6. Cobaia Day 14 Readiness Gate
+
+**BLOCKING criteria** (must pass before Caio activates real LI account):
+- [ ] UX-RM-F1 100% complete — zero mocks in execution paths
+- [ ] UX-RM-F2 100% complete — Cmd+K + 8-item sidebar
+- [ ] Brain confirmation drawer required for ALL destructive intents
+- [ ] `LI_USE_MOCK = false` removed entirely (not just disabled)
+- [ ] Comment edit/delete: backend complete OR UI hidden
+- [ ] Daemon TODOs 548 (Telegram STOP), 906 (inbox), 911 (sequence due), 948 (channel send) closed
+- [ ] All `n/c` channels either configurable inline OR hidden
+- [ ] `intelligence/scoring.py` implemented OR `/api/daemon/recalc-scoring` endpoint returns 501
+- [ ] cobaia_preflight green-light required to start warmup (block button if any check red)
+- [ ] Manual smoke: schedule fake LI campaign → confirm flow → real execution OR confirmed no-op
+- [ ] Sentry breadcrumbs flowing for all cobaia events
+- [ ] WCAG AA: text-3 contrast fix (4.5:1 minimum)
+
+**SOFT criteria** (warmup can proceed with these open, fix during 14-day window):
+- F3 onboarding wizard
+- F4 visual redesign
+- F5 streaming sidebar
+- F7 full a11y pass
+- F8 operator mode
+
+---
+
+## 7. Cross-session Persistence Protocol
+
+### TaskCreate batch (run after audit synthesis)
+```
+TaskCreate UX-RM-F1 "Mock Kill + Real Backend" priority=critical effort=40h
+TaskCreate UX-RM-F2 "IA Consolidation + Cmd+K" priority=critical effort=32h
+TaskCreate UX-RM-F3 "Onboarding Wizard 5min" priority=high effort=20h
+TaskCreate UX-RM-F4 "Visual Redesign tokens+typo+motion" priority=high effort=36h
+TaskCreate UX-RM-F5 "AI Command Bar + Streaming" priority=medium effort=28h
+TaskCreate UX-RM-F6 "Multi-Channel Campaign Editor" priority=medium effort=48h
+TaskCreate UX-RM-F7 "Performance + A11y Polish" priority=medium effort=20h
+TaskCreate UX-RM-F8 "Cobaia Operator Mode" priority=medium effort=24h
+```
+
+### memory_save (agentmemory)
+```
+type="architecture" content="Hermes UX-AUDIT 2026-06-18 sealed. 8 phases UX-RM-F1..F8. F1+F2 cobaia-blocking. Stack: shadcn+Tailwind v4 OKLCH+Motion 12+Geist+Lucide+Tremor charts+kbar Cmd+K. Mocks killed: api/pipelines.py:354 + linkedin/cobaia_warmup.py:357. PLAN+issues.json+roadmap.json at .claude/UX-AUDIT/"
+concepts=["hermes","ux-audit","cobaia","mock-kill","cmd-k","shadcn","oklch","brain-confirm"]
+files=[".claude/UX-AUDIT/PLAN.md",".claude/UX-AUDIT/issues.json",".claude/UX-AUDIT/roadmap.json"]
+```
+
+### Chapter marker
+`mark_chapter title="UX-AUDIT Sealed" summary="8 phases roadmap UX-RM-F1..F8 sealed 2026-06-18, F1+F2 cobaia-blocking, mocks identified, stack 2026 chosen"`
+
+### Slash command suggestion
+Create `/hermes-ux-start <N>` slash command (mirror `/forge-be-start`) reading `.claude/UX-AUDIT/PHASES/UX-RM-F[N].md` (to be expanded from this PLAN) + GUARDRAILS + memory.
+
+### Re-audit cadence
+Re-run this audit after every 2 phases ship (F2, F4, F6, F8) to validate progress + spot regressions. Save snapshots `.claude/UX-AUDIT/_snapshots/2026-XX-XX.json`.
