@@ -1,1 +1,1 @@
-# Intelligence Layer — ML scoring, enrichment, reply handling, A/B testing
+"""F.future intelligence package skeleton (scoring + enrichment)."""

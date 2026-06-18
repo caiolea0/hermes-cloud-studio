@@ -430,14 +430,16 @@ async def _vm_passthrough(method: str, path: str, json_body: dict = None,
 
 @router.post("/api/linkedin/comment/edit")
 async def linkedin_comment_edit(request: Request):
-    body = await request.json()
-    return await _vm_passthrough("POST", "/api/linkedin/comment/edit", json_body=body, timeout=120)
+    # F.future: comment editing via Patchright — cobaia warmup nunca edita comments
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=501, content={"ok": False, "error": "not_implemented", "detail": "F.future: comment edit não disponível no warmup"})
 
 
 @router.post("/api/linkedin/comment/delete")
 async def linkedin_comment_delete(request: Request):
-    body = await request.json()
-    return await _vm_passthrough("POST", "/api/linkedin/comment/delete", json_body=body, timeout=120)
+    # F.future: comment deletion via Patchright — cobaia warmup nunca deleta comments
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=501, content={"ok": False, "error": "not_implemented", "detail": "F.future: comment delete não disponível no warmup"})
 
 
 @router.get("/api/linkedin/visited")

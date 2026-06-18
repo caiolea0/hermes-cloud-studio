@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 15:30 UTC
+- **last_updated**: 2026-06-18 16:34 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 213 (163 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 128 (61.5% of public)
@@ -102,7 +102,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/agent-zero/status` | pc | `api/agent_zero.py:15` | token |
 | `GET` | `/api/brain/intents` | pc | `api/brain.py:218` | token |
 | `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:129` | token |
-| `GET` | `/api/linkedin/visited` | pc | `api/linkedin.py:443` | token |
+| `GET` | `/api/linkedin/visited` | pc | `api/linkedin.py:445` | token |
 | `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1528` | token |
 | `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:701` | token |
 | `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:426` | token |
@@ -111,12 +111,12 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1216` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | pc | `api/linkedin.py:399` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | vm | `vm_api/routes.py:1107` | token |
-| `POST` | `/api/linkedin/connection/refresh` | pc | `api/linkedin.py:481` | token |
+| `POST` | `/api/linkedin/connection/refresh` | pc | `api/linkedin.py:483` | token |
 | `POST` | `/api/linkedin/connection/refresh` | vm | `vm_api/routes.py:1708` | token |
-| `POST` | `/api/linkedin/detect-account-type` | pc | `api/linkedin.py:461` | token |
+| `POST` | `/api/linkedin/detect-account-type` | pc | `api/linkedin.py:463` | token |
 | `POST` | `/api/linkedin/detect-account-type` | vm | `vm_api/routes.py:1489` | token |
 | `POST` | `/api/linkedin/health/clear` | pc | `_health_ep.py:15` | token |
-| `POST` | `/api/linkedin/health/clear` | pc | `api/linkedin.py:476` | token |
+| `POST` | `/api/linkedin/health/clear` | pc | `api/linkedin.py:478` | token |
 | `POST` | `/api/linkedin/health/clear` | vm | `vm_api/routes.py:1516` | token |
 | `POST` | `/api/mcp/coverage/publish` | vm | `vm_api/mcp_coverage.py:80` | token |
 | `POST` | `/api/observability/errors/{error_id}/resolve` | pc | `api/observability.py:402` | token |
@@ -152,7 +152,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:776` | token |
 | `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:495` | token |
 | `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:352` | token |
-| `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:455` | token |
+| `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:457` | token |
 | `GET` | `/api/linkedin/companies/lookup` | vm | `vm_api/routes.py:1586` | token |
 | `GET` | `/api/linkedin/rate-limits` | pc | `api/linkedin.py:29` | token |
 | `GET` | `/api/linkedin/rate-limits` | vm | `vm_api/routes.py:1387` | token |

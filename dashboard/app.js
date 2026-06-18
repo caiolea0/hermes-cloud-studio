@@ -3550,11 +3550,12 @@ function updateChannelCard(event) {
     fill.className = 'ch-fill' + (pct > 80 ? ' danger' : pct > 60 ? ' warning' : '');
     ratio.textContent = `${used}/${limit}`;
 
-    // Health dots — null health (not_configured) renders gray + "n/c" label
+    // Health dots — null health (not_configured) renders gray + "n/c" label + configure link
     if (event.status === 'not_configured' || event.health === null || event.health === undefined) {
         health.innerHTML = Array.from({length: 5}, () =>
             `<span class="dot-off">●</span>`
-        ).join('') + '<span style="font-size:10px;color:var(--text-3);margin-left:4px">n/c</span>';
+        ).join('') + '<span style="font-size:10px;color:var(--text-3);margin-left:4px">n/c</span>' +
+        '<a href="javascript:void(0)" onclick="navigate(\'skills\')" style="font-size:10px;color:var(--accent);margin-left:6px;text-decoration:none" title="Configurar canal">Configurar</a>';
     } else {
         const h = event.health;
         const dots = Math.round(h * 5);
@@ -3874,10 +3875,8 @@ function liAddCustomRole(cardType) {
 
 // ── Load page data ──
 // ============================================================================
-// LinkedIn — Phase 2 (real backend integration, no mock)
+// LinkedIn — Phase 2 (real backend integration)
 // ============================================================================
-const LI_USE_MOCK = false;
-
 // Maps cryptic errors (Patchright / LinkedIn / network) into plain Portuguese.
 function humanizeLiError(raw) {
     if (!raw) return '';
@@ -5139,14 +5138,6 @@ function _renderLiEngageCard(po, campaignId) {
         </div>` : ''}
 
         <div class="li-comment-actions">
-            ${po.comment_generated ? `
-                <button class="btn btn-ghost btn-sm" onclick="liEditComment(${campaignId},${po.id})">
-                    <svg style="width:12px;height:12px"><use href="#i-edit"/></svg> Editar
-                </button>
-                <button class="btn btn-ghost btn-sm" onclick="liDeleteComment(${campaignId},${po.id})">
-                    <svg style="width:12px;height:12px"><use href="#i-trash"/></svg> Excluir
-                </button>
-            ` : ''}
             <a class="btn btn-ghost btn-sm" href="${po.post_url}" target="_blank" rel="noopener" style="margin-left:auto">
                 <svg style="width:12px;height:12px"><use href="#i-external-link"/></svg> Ver no LinkedIn
             </a>
@@ -5623,13 +5614,6 @@ function liDismissError(id) {
 
 function liStopCampaignById(id) {
     if (!confirm('Parar esta campanha?')) return;
-    if (LI_USE_MOCK) {
-        const c = _liAllCampaigns.find(x => x.id === id);
-        if (c) { c.status = 'stopped'; c.completed_at = new Date().toISOString(); }
-        _renderLiMonitor();
-        toast('Campanha parada', 'info');
-        return;
-    }
     api(`/api/linkedin/campaigns/${id}/stop`, { method: 'POST' })
         .then(() => { toast('Campanha parada', 'info'); loadLinkedInCampaigns(); });
 }

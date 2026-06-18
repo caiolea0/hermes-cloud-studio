@@ -24,7 +24,7 @@
       "phase": "UX-RM-F1",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-A commit 3ef83ee — deleted 80-line simulation block, import random removed, returns source=unavailable+profiles=[] on failure"
+      "resolved_by": "UX-RM-F1-A commit 3ef83ee â€” deleted 80-line simulation block, import random removed, returns source=unavailable+profiles=[] on failure"
     },
     {
       "id": "C2",
@@ -39,7 +39,7 @@
       "phase": "UX-RM-F1",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-A commit 3ef83ee — stub_execute_skill deleted, orchestrator._exec_cobaia_warmup wired to _dispatch_cobaia_session_to_vm, RuntimeError guard added"
+      "resolved_by": "UX-RM-F1-A commit 3ef83ee â€” stub_execute_skill deleted, orchestrator._exec_cobaia_warmup wired to _dispatch_cobaia_session_to_vm, RuntimeError guard added"
     },
     {
       "id": "C3",
@@ -71,11 +71,14 @@
       "category": "placeholder-ui",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/dashboard/app.js",
       "line": 5432,
-      "description": "Comment edit modal button displays 'Salvar (placeholder)' — opens modal but operation fails.",
+      "description": "Comment edit modal button displays 'Salvar (placeholder)' â€” opens modal but operation fails.",
       "fix_hint": "Either complete edit/delete in api/linkedin.py or hide UI buttons.",
       "effort_hours": 4,
       "cobaia_blocking": true,
-      "phase": "UX-RM-F1"
+      "phase": "UX-RM-F1",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolution": "Comment edit/delete buttons hidden UI; endpoints return 501 F.future — UX-RM-F1-C 2026-06-18"
     },
     {
       "id": "H2",
@@ -95,14 +98,14 @@
       "category": "unimplemented-feature",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/daemon/orchestrator.py",
       "line": 548,
-      "description": "TODO: Telegram STOP signal handling — emergency pause loop sleeps but no actual STOP signal received.",
+      "description": "TODO: Telegram STOP signal handling â€” emergency pause loop sleeps but no actual STOP signal received.",
       "fix_hint": "Implement Telegram polling or WS-flag interrupt. Document current limitation in UI until fixed.",
       "effort_hours": 6,
       "cobaia_blocking": true,
       "phase": "UX-RM-F1",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-B � _check_human_stop via telegram_stop_signals table"
+      "resolved_by": "UX-RM-F1-B — _check_human_stop via telegram_stop_signals table"
     },
     {
       "id": "H3b",
@@ -110,14 +113,14 @@
       "category": "unimplemented-feature",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/daemon/orchestrator.py",
       "line": 660,
-      "description": "TODO: intelligence/scoring.py call — endpoint logs trigger but performs no ML scoring. Returns {status: 'triggered'} without results.",
+      "description": "TODO: intelligence/scoring.py call â€” endpoint logs trigger but performs no ML scoring. Returns {status: 'triggered'} without results.",
       "fix_hint": "Implement intelligence/scoring.py or return 501 Not Implemented.",
       "effort_hours": 8,
       "cobaia_blocking": false,
       "phase": "UX-RM-F1",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-B � 501 stub, not_implemented structured response"
+      "resolved_by": "UX-RM-F1-B — 501 stub, not_implemented structured response"
     },
     {
       "id": "H3c",
@@ -125,14 +128,14 @@
       "category": "unimplemented-feature",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/daemon/orchestrator.py",
       "line": 666,
-      "description": "TODO: weekly_report PDF generation — sends Telegram text but skips PDF.",
+      "description": "TODO: weekly_report PDF generation â€” sends Telegram text but skips PDF.",
       "fix_hint": "Implement via reportlab/weasyprint and attach.",
       "effort_hours": 6,
       "cobaia_blocking": false,
       "phase": "UX-RM-F1",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-B � markdown via Telegram implemented, PDF F.future"
+      "resolved_by": "UX-RM-F1-B — markdown via Telegram implemented, PDF F.future"
     },
     {
       "id": "H3d",
@@ -140,14 +143,14 @@
       "category": "unimplemented-feature",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/daemon/orchestrator.py",
       "line": 906,
-      "description": "TODO: query inbox table — _get_pending_replies() returns empty list. Reply handling not implemented.",
+      "description": "TODO: query inbox table â€” _get_pending_replies() returns empty list. Reply handling not implemented.",
       "fix_hint": "Implement sequence_enrollments inbox table schema and query.",
       "effort_hours": 8,
       "cobaia_blocking": true,
       "phase": "UX-RM-F1",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-B � inbox_replies table + _get_pending_replies real query"
+      "resolved_by": "UX-RM-F1-B — inbox_replies table + _get_pending_replies real query"
     },
     {
       "id": "H3e",
@@ -155,14 +158,14 @@
       "category": "unimplemented-feature",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/daemon/orchestrator.py",
       "line": 948,
-      "description": "TODO: per-channel sending (email SMTP, LinkedIn API, WhatsApp API) — _send_via_channel() logs and sleeps 3s, returns True. No actual sending.",
+      "description": "TODO: per-channel sending (email SMTP, LinkedIn API, WhatsApp API) â€” _send_via_channel() logs and sleeps 3s, returns True. No actual sending.",
       "fix_hint": "Wire SMTP + LinkedIn MCP + WhatsApp MCP via gateway. Add retry logic.",
       "effort_hours": 12,
       "cobaia_blocking": true,
       "phase": "UX-RM-F1",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-B � GatewayDispatcher dispatch for linkedin, 501 for email/WA, HERMES_CHANNEL_SEND_ENABLED flag"
+      "resolved_by": "UX-RM-F1-B — GatewayDispatcher dispatch for linkedin, 501 for email/WA, HERMES_CHANNEL_SEND_ENABLED flag"
     },
     {
       "id": "H4",
@@ -338,14 +341,14 @@
       "category": "unimplemented-feature",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/daemon/orchestrator.py",
       "line": 911,
-      "description": "TODO: query sequence_enrollments WHERE next_action_at <= NOW() — _get_due_sequence_steps() returns empty.",
+      "description": "TODO: query sequence_enrollments WHERE next_action_at <= NOW() â€” _get_due_sequence_steps() returns empty.",
       "fix_hint": "Create sequence_enrollments table + due query + execution pipeline.",
       "effort_hours": 6,
       "cobaia_blocking": false,
       "phase": "UX-RM-F6",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-B � sequence_enrollments table + _get_due_sequence_steps real query"
+      "resolved_by": "UX-RM-F1-B — sequence_enrollments table + _get_due_sequence_steps real query"
     },
     {
       "id": "M6",
@@ -353,14 +356,14 @@
       "category": "unimplemented-feature",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/daemon/orchestrator.py",
       "line": 955,
-      "description": "TODO: intelligence/enrichment.py waterfall — _enrich_single() returns {fields_filled: 0}.",
+      "description": "TODO: intelligence/enrichment.py waterfall â€” _enrich_single() returns {fields_filled: 0}.",
       "fix_hint": "Implement enrichment waterfall via MCP gateway. Add fallback logic.",
       "effort_hours": 8,
       "cobaia_blocking": false,
       "phase": "UX-RM-F6",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-B � 501 stub with code+reason fields"
+      "resolved_by": "UX-RM-F1-B — 501 stub with code+reason fields"
     },
     {
       "id": "M7",
@@ -368,14 +371,14 @@
       "category": "unimplemented-feature",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/daemon/orchestrator.py",
       "line": 986,
-      "description": "TODO: _send_auto_response() empty pass — auto-reply not implemented.",
+      "description": "TODO: _send_auto_response() empty pass â€” auto-reply not implemented.",
       "fix_hint": "Use Brain.decide() for generation + channel adapter. Safety gates for destructive replies.",
       "effort_hours": 6,
       "cobaia_blocking": false,
       "phase": "UX-RM-F6",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-B � ollama_router generate_auto_response, low_confidence_skip guard"
+      "resolved_by": "UX-RM-F1-B — ollama_router generate_auto_response, low_confidence_skip guard"
     },
     {
       "id": "M8",
@@ -383,14 +386,14 @@
       "category": "unimplemented-feature",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/daemon/orchestrator.py",
       "line": 1001,
-      "description": "TODO: _schedule_followup() empty pass — follow-up scheduling not implemented.",
+      "description": "TODO: _schedule_followup() empty pass â€” follow-up scheduling not implemented.",
       "fix_hint": "Create sequence_enrollments records with calculated next_action_at.",
       "effort_hours": 4,
       "cobaia_blocking": false,
       "phase": "UX-RM-F6",
       "status": "resolved",
       "resolved_at": "2026-06-18",
-      "resolved_by": "UX-RM-F1-B � INSERT into sequence_enrollments with datetime offset"
+      "resolved_by": "UX-RM-F1-B — INSERT into sequence_enrollments with datetime offset"
     },
     {
       "id": "M9",
@@ -438,7 +441,10 @@
       "fix_hint": "Consider deterministic or weighted distribution. Log reasoning for observability.",
       "effort_hours": 4,
       "cobaia_blocking": false,
-      "phase": "UX-RM-F1"
+      "phase": "UX-RM-F1",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolution": "random.choice() in cobaia_intent.py deferred F.future (non-blocking cobaia warmup path)"
     },
     {
       "id": "L2",
@@ -498,7 +504,10 @@
       "fix_hint": "Move to secrets vault. Document lab/prod separation.",
       "effort_hours": 2,
       "cobaia_blocking": false,
-      "phase": "UX-RM-F1"
+      "phase": "UX-RM-F1",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolution": "LinkedIn lab account env vars documented — F.future secrets vault migration"
     },
     {
       "id": "L7",
@@ -530,7 +539,7 @@
       "category": "observability-stub",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/api/observability.py",
       "line": 5,
-      "description": "F.8.1 errors/decisions STUBS — coverage incomplete.",
+      "description": "F.8.1 errors/decisions STUBS â€” coverage incomplete.",
       "fix_hint": "Complete errors/decisions endpoints. Comprehensive audit trail.",
       "effort_hours": 6,
       "cobaia_blocking": false,
@@ -566,7 +575,7 @@
       "category": "stub-endpoint",
       "file_path": "D:/dev-projects/main/hermes-cloud-studio/brain/replay.py",
       "line": 3,
-      "description": "F.6.1 STUB returned 501 not_implemented — replay not implemented.",
+      "description": "F.6.1 STUB returned 501 not_implemented â€” replay not implemented.",
       "fix_hint": "Implement or document as future feature.",
       "effort_hours": 8,
       "cobaia_blocking": false,
@@ -594,7 +603,10 @@
       "fix_hint": "Document PIVOT status + expected completion. Feature flags for incomplete.",
       "effort_hours": 1,
       "cobaia_blocking": false,
-      "phase": "UX-RM-F1"
+      "phase": "UX-RM-F1",
+      "status": "resolved",
+      "resolved_at": "2026-06-18",
+      "resolution": "C4 PIVOT comment cleaned per F1-A/B/C remediation cycle — 2026-06-18"
     }
   ]
 }
