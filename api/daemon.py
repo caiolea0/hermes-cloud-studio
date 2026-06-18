@@ -174,8 +174,8 @@ async def get_daemon_channels():
             account_type=settings.linkedin_account_type,
         )
         _li_stats = LiRateLimiter(_li_cfg).get_stats()
-        li_daily_used = _li_stats.get("views_today", li_daily_used)
-        li_daily_limit = _li_stats.get("daily_view_limit", li_daily_limit)
+        li_daily_used = _li_stats.get("daily_views", li_daily_used)
+        li_daily_limit = _li_stats.get("daily_views_limit", li_daily_limit)
         li_warmup_day = _li_stats.get("warmup_day", 0)
         li_warmup_complete = bool(_li_stats.get("warmup_complete", False))
     except Exception:

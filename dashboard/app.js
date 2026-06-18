@@ -3550,12 +3550,18 @@ function updateChannelCard(event) {
     fill.className = 'ch-fill' + (pct > 80 ? ' danger' : pct > 60 ? ' warning' : '');
     ratio.textContent = `${used}/${limit}`;
 
-    // Health dots
-    const h = event.health || 1;
-    const dots = Math.round(h * 5);
-    health.innerHTML = Array.from({length: 5}, (_, i) =>
-        `<span class="${i < dots ? 'dot-on' : 'dot-off'}">●</span>`
-    ).join('');
+    // Health dots — null health (not_configured) renders gray + "n/c" label
+    if (event.status === 'not_configured' || event.health === null || event.health === undefined) {
+        health.innerHTML = Array.from({length: 5}, () =>
+            `<span class="dot-off">●</span>`
+        ).join('') + '<span style="font-size:10px;color:var(--text-3);margin-left:4px">n/c</span>';
+    } else {
+        const h = event.health;
+        const dots = Math.round(h * 5);
+        health.innerHTML = Array.from({length: 5}, (_, i) =>
+            `<span class="${i < dots ? 'dot-on' : 'dot-off'}">●</span>`
+        ).join('');
+    }
 
     // Active/disabled state
     if (card) {

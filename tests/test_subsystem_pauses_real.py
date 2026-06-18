@@ -260,3 +260,34 @@ def test_channels_returns_not_configured_whatsapp_instagram():
         assert data["instagram"]["status"] == "not_configured"
         assert data["whatsapp"]["is_active"] is False
         assert data["instagram"]["is_active"] is False
+
+
+def test_channels_linkedin_uses_real_ratelimiter_keys():
+    """R4 fix: daily_used/limit flow from real get_stats() keys, not fallback campaign count."""
+    mock_stats = {
+        "daily_views": 23,
+        "daily_views_limit": 80,
+        "warmup_day": 5,
+        "warmup_complete": False,
+    }
+    mock_rl_instance = MagicMock()
+    mock_rl_instance.get_stats.return_value = mock_stats
+
+    with patch("api.daemon.get_runtime_state", return_value="ok"), \
+         patch("api.daemon.get_db") as mock_db, \
+         patch("linkedin.limiter.RateLimiter", return_value=mock_rl_instance):
+        mock_conn = MagicMock()
+        mock_conn.execute.return_value.fetchone.return_value = {"cnt": 99}  # campaign fallback value
+        mock_db.return_value = mock_conn
+        from fastapi.testclient import TestClient
+        from fastapi import FastAPI
+        from api.daemon import router
+        app = FastAPI()
+        app.include_router(router)
+        resp = TestClient(app).get("/api/daemon/channels")
+    data = resp.json()
+    li = data["linkedin"]
+    # Must use real limiter keys, NOT the campaign count fallback (99)
+    assert li["daily_used"] == 23, f"expected 23 (daily_views), got {li['daily_used']}"
+    assert li["daily_limit"] == 80, f"expected 80 (daily_views_limit), got {li['daily_limit']}"
+    assert li["warmup_day"] == 5

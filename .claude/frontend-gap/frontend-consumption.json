@@ -1,5 +1,5 @@
 {
-  "generated_at": 1781722758.4020329,
+  "generated_at": 1781776628.0106528,
   "source": "dashboard/app.js",
   "total_endpoints": 58,
   "total_calls": 87,
@@ -76,14 +76,14 @@
     "/api/daemon/decisions": [
       {
         "file": "dashboard/app.js",
-        "line": 3607,
+        "line": 3613,
         "snippet": "const data = await api('/api/daemon/decisions');"
       }
     ],
     "/api/daemon/log": [
       {
         "file": "dashboard/app.js",
-        "line": 3637,
+        "line": 3643,
         "snippet": "const data = await api('/api/daemon/log?limit=30');"
       }
     ],
@@ -104,7 +104,7 @@
     "/api/daemon/timeline": [
       {
         "file": "dashboard/app.js",
-        "line": 3568,
+        "line": 3574,
         "snippet": "const data = await api('/api/daemon/timeline');"
       }
     ],
@@ -195,103 +195,103 @@
     "/api/linkedin/auth": [
       {
         "file": "dashboard/app.js",
-        "line": 4387,
+        "line": 4393,
         "snippet": "const r = await api('/api/linkedin/auth', { method: 'POST' });"
       }
     ],
     "/api/linkedin/campaigns": [
       {
         "file": "dashboard/app.js",
-        "line": 4512,
+        "line": 4518,
         "snippet": "const data = await api('/api/linkedin/campaigns?limit=50');"
       }
     ],
     "/api/linkedin/campaigns/connect": [
       {
         "file": "dashboard/app.js",
-        "line": 5390,
+        "line": 5396,
         "snippet": "const r = await api('/api/linkedin/campaigns/connect', {"
       }
     ],
     "/api/linkedin/campaigns/view": [
       {
         "file": "dashboard/app.js",
-        "line": 5365,
+        "line": 5371,
         "snippet": "const r = await api('/api/linkedin/campaigns/view', {"
       }
     ],
     "/api/linkedin/campaigns/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 4404,
+        "line": 4410,
         "snippet": "const r = await api(`/api/linkedin/campaigns/${type}`, {"
       }
     ],
     "/api/linkedin/campaigns/{param}/cancel": [
       {
         "file": "dashboard/app.js",
-        "line": 4289,
+        "line": 4295,
         "snippet": "const r = await api(`/api/linkedin/campaigns/${campaignId}/cancel`, { method: 'POST' });"
       }
     ],
     "/api/linkedin/campaigns/{param}/dismiss-error": [
       {
         "file": "dashboard/app.js",
-        "line": 5613,
+        "line": 5619,
         "snippet": "api(`/api/linkedin/campaigns/${id}/dismiss-error`, { method: 'POST' })"
       }
     ],
     "/api/linkedin/campaigns/{param}/log": [
       {
         "file": "dashboard/app.js",
-        "line": 5676,
+        "line": 5682,
         "snippet": "const data = await api(`/api/linkedin/campaigns/${campaignId}/log`);"
       }
     ],
     "/api/linkedin/campaigns/{param}/stop": [
       {
         "file": "dashboard/app.js",
-        "line": 5627,
+        "line": 5633,
         "snippet": "api(`/api/linkedin/campaigns/${id}/stop`, { method: 'POST' })"
       },
       {
         "file": "dashboard/app.js",
-        "line": 5761,
+        "line": 5767,
         "snippet": "await api(`/api/linkedin/campaigns/${_liActiveCampaignId}/stop`, { method: 'POST' });"
       }
     ],
     "/api/linkedin/comment/delete": [
       {
         "file": "dashboard/app.js",
-        "line": 5480,
+        "line": 5486,
         "snippet": "const r = await api('/api/linkedin/comment/delete', {"
       }
     ],
     "/api/linkedin/comment/edit": [
       {
         "file": "dashboard/app.js",
-        "line": 5469,
+        "line": 5475,
         "snippet": "const r = await api('/api/linkedin/comment/edit', {"
       }
     ],
     "/api/linkedin/health": [
       {
         "file": "dashboard/app.js",
-        "line": 3956,
+        "line": 3962,
         "snippet": "api('/api/linkedin/health').catch(() => ({state: 'unknown'})),"
       }
     ],
     "/api/linkedin/profiles": [
       {
         "file": "dashboard/app.js",
-        "line": 5541,
+        "line": 5547,
         "snippet": "const cached = await api('/api/linkedin/profiles?url=' + encodeURIComponent(profileUrl));"
       }
     ],
     "/api/linkedin/status": [
       {
         "file": "dashboard/app.js",
-        "line": 3955,
+        "line": 3961,
         "snippet": "api('/api/linkedin/status'),"
       }
     ],

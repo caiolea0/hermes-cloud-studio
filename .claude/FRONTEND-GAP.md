@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-17 18:59 UTC
+- **last_updated**: 2026-06-18 09:57 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 210 (160 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 94 (45.9% of public)
@@ -73,7 +73,7 @@
 | `/api/audit/status` | 2 | app.js:776, app.js:1758 |
 | `/api/hermes/memory` | 2 | app.js:3256, app.js:3287 |
 | `/api/hermes/status` | 2 | app.js:627, app.js:746 |
-| `/api/linkedin/campaigns/{param}/stop` | 2 | app.js:5627, app.js:5761 |
+| `/api/linkedin/campaigns/{param}/stop` | 2 | app.js:5633, app.js:5767 |
 | `/api/outreach/generate/{param}` | 2 | app.js:1569, app.js:2741 |
 | `/api/pipeline-executions/active` | 2 | app.js:870, app.js:2214 |
 | `/api/pipelines/{param}/executions` | 2 | app.js:2569, app.js:2612 |
@@ -82,7 +82,7 @@
 | `/api/audit/start` | 1 | app.js:1835 |
 | `/api/claude/execute` | 1 | app.js:2919 |
 | `/api/daemon/channels` | 1 | app.js:3529 |
-| `/api/daemon/decisions` | 1 | app.js:3607 |
+| `/api/daemon/decisions` | 1 | app.js:3613 |
 
 ## §3 Órfãos — 111 endpoints sem UI
 
