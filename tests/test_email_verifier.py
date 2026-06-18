@@ -1,6 +1,7 @@
-"""F.7 P5 hardening — Hunter.io EmailVerifier unit tests (8 tests, MOCK-DRIVEN).
+"""F.7 P5 hardening — Hunter.io EmailVerifier unit tests.
 
-All tests use a temp SQLite DB + mocked httpx — no Hunter API call real.
+R7 refactor: all tests mock GatewayDispatcher.invoke_tool instead of httpx.
+No Hunter API calls ever made during tests.
 """
 from __future__ import annotations
 
@@ -31,25 +32,97 @@ def tmp_db(tmp_path):
     return str(db)
 
 
-def _mock_response(status_code: int, json_data: dict | None = None):
-    resp = MagicMock()
-    resp.status_code = status_code
-    resp.json = MagicMock(return_value=json_data or {})
-    return resp
+def _gateway_ok(tool_result: dict) -> dict:
+    """Wrap a tool return dict in the gateway success response envelope."""
+    return {
+        "ok": True,
+        "call_id": "test-call-id",
+        "server": "hermes-hunter",
+        "tool": "verify_email",
+        "response": [{"type": "text", "text": json.dumps(tool_result)}],
+        "duration_ms": 42,
+    }
+
+
+def _gateway_err(error: str = "connect_error:ConnectionError") -> dict:
+    return {"ok": False, "error": error}
+
+
+def _make_verifier(tmp_db: str, invoke_return: dict) -> tuple[EmailVerifier, AsyncMock]:
+    mock_dispatcher = MagicMock()
+    mock_dispatcher.invoke_tool = AsyncMock(return_value=invoke_return)
+    verifier = EmailVerifier(api_key="test-key", db_path=tmp_db, dispatcher=mock_dispatcher)
+    return verifier, mock_dispatcher.invoke_tool
+
+
+# ── R7 new tests ────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_verify_email_dispatches_via_gateway(tmp_db):
+    """GatewayDispatcher.invoke_tool is called with correct server/tool/args."""
+    tool_result = {
+        "email": "test@example.com", "status": "valid", "score": 95,
+        "smtp_check": True, "mx_records": True, "disposable": False, "webmail": False,
+    }
+    verifier, invoke_mock = _make_verifier(tmp_db, _gateway_ok(tool_result))
+
+    result = await verifier.verify_email("test@example.com")
+
+    invoke_mock.assert_called_once_with(
+        server="hermes-hunter",
+        tool="verify_email",
+        args={"email": "test@example.com"},
+    )
+    assert result["status"] == "valid"
+    assert result["score"] == 95
+    assert result["smtp_check"] is True
+    assert result["cached"] is False
+
+
+@pytest.mark.asyncio
+async def test_verify_email_cache_hit_skips_dispatch(tmp_db):
+    """Second call to same email hits SQLite cache — no gateway dispatch."""
+    tool_result = {
+        "email": "cached@example.com", "status": "valid", "score": 90,
+        "smtp_check": True, "mx_records": True, "disposable": False, "webmail": False,
+    }
+    verifier, invoke_mock = _make_verifier(tmp_db, _gateway_ok(tool_result))
+
+    r1 = await verifier.verify_email("cached@example.com")
+    r2 = await verifier.verify_email("cached@example.com")
+
+    assert r1["cached"] is False
+    assert r2["cached"] is True
+    assert r2["status"] == "valid"
+    assert invoke_mock.call_count == 1  # cache hit on 2nd call
+
+
+@pytest.mark.asyncio
+async def test_dispatcher_failure_graceful_fallback(tmp_db):
+    """Gateway ok=False → graceful status='unknown', no exception raised."""
+    verifier, _ = _make_verifier(tmp_db, _gateway_err("connect_error:ConnectionRefused"))
+
+    result = await verifier.verify_email("fail@example.com")
+
+    assert result["status"] == "unknown"
+    assert result["cached"] is False
+    assert "error" in result
+
+
+# ── Preserved existing tests (updated to use gateway mock) ──────────────────
 
 
 @pytest.mark.asyncio
 async def test_verify_email_returns_structured_dict(tmp_db):
-    verifier = EmailVerifier(api_key="test-key", db_path=tmp_db)
-    fake_resp = _mock_response(200, {
-        "data": {
-            "status": "valid", "score": 95, "smtp_check": True,
-            "mx_records": True, "disposable": False, "webmail": False,
-        }
-    })
-    with patch.object(verifier, "_http", new=AsyncMock(return_value=MagicMock(
-            get=AsyncMock(return_value=fake_resp)))):
-        result = await verifier.verify_email("test@example.com")
+    tool_result = {
+        "email": "test@example.com", "status": "valid", "score": 95,
+        "smtp_check": True, "mx_records": True, "disposable": False, "webmail": False,
+    }
+    verifier, _ = _make_verifier(tmp_db, _gateway_ok(tool_result))
+
+    result = await verifier.verify_email("test@example.com")
+
     assert result["status"] == "valid"
     assert result["score"] == 95
     assert result["smtp_check"] is True
@@ -59,26 +132,8 @@ async def test_verify_email_returns_structured_dict(tmp_db):
 
 
 @pytest.mark.asyncio
-async def test_verify_email_cache_hit_skips_api_call(tmp_db):
-    verifier = EmailVerifier(api_key="test-key", db_path=tmp_db)
-    fake_resp = _mock_response(200, {
-        "data": {"status": "valid", "score": 90, "smtp_check": True,
-                 "mx_records": True, "disposable": False, "webmail": False}
-    })
-    get_mock = AsyncMock(return_value=fake_resp)
-    with patch.object(verifier, "_http", new=AsyncMock(return_value=MagicMock(get=get_mock))):
-        r1 = await verifier.verify_email("cache@example.com")
-        r2 = await verifier.verify_email("cache@example.com")
-    assert r1["cached"] is False
-    assert r2["cached"] is True
-    assert r2["status"] == "valid"
-    assert get_mock.call_count == 1  # cache hit on 2nd call
-
-
-@pytest.mark.asyncio
 async def test_verify_email_cache_ttl_30d_expires(tmp_db):
-    verifier = EmailVerifier(api_key="test-key", db_path=tmp_db)
-    # Insert expired row manually
+    """Expired cache row is ignored — fresh gateway call is made."""
     conn = sqlite3.connect(tmp_db)
     past = (datetime.now(timezone.utc) - timedelta(days=_CACHE_TTL_DAYS + 1)).isoformat()
     conn.execute(
@@ -86,103 +141,103 @@ async def test_verify_email_cache_ttl_30d_expires(tmp_db):
            (email, status, score, smtp_check, mx_records, disposable, webmail,
             raw_json, verified_at, expires_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        ("expired@example.com", "valid", 80, 1, 1, 0, 0, "{}",
-         past, past),  # expires_at past
+        ("expired@example.com", "valid", 80, 1, 1, 0, 0, "{}", past, past),
     )
     conn.commit()
     conn.close()
-    fake_resp = _mock_response(200, {
-        "data": {"status": "invalid", "score": 10, "smtp_check": False,
-                 "mx_records": False, "disposable": True, "webmail": False}
-    })
-    get_mock = AsyncMock(return_value=fake_resp)
-    with patch.object(verifier, "_http", new=AsyncMock(return_value=MagicMock(get=get_mock))):
-        result = await verifier.verify_email("expired@example.com")
-    assert result["cached"] is False  # cache expired, fresh call
+
+    tool_result = {
+        "email": "expired@example.com", "status": "invalid", "score": 10,
+        "smtp_check": False, "mx_records": False, "disposable": True, "webmail": False,
+    }
+    verifier, invoke_mock = _make_verifier(tmp_db, _gateway_ok(tool_result))
+
+    result = await verifier.verify_email("expired@example.com")
+    assert result["cached"] is False
     assert result["status"] == "invalid"
-    assert get_mock.call_count == 1
+    assert invoke_mock.call_count == 1
 
 
 @pytest.mark.asyncio
 async def test_quota_exhausted_graceful_fallback(tmp_db):
-    verifier = EmailVerifier(api_key="test-key", db_path=tmp_db)
-    fake_resp = _mock_response(429, {})
-    with patch.object(verifier, "_http", new=AsyncMock(return_value=MagicMock(
-            get=AsyncMock(return_value=fake_resp)))):
-        result = await verifier.verify_email("quota@example.com")
+    """MCP returns quota_exhausted → EmailVerifier passes it through, no exception."""
+    tool_result = {"email": "quota@example.com", "status": "quota_exhausted", "score": 0}
+    verifier, _ = _make_verifier(tmp_db, _gateway_ok(tool_result))
+
+    result = await verifier.verify_email("quota@example.com")
     assert result["status"] == "quota_exhausted"
     assert result["score"] == 0
-    assert "error" not in result or result.get("cached") is False
 
 
 @pytest.mark.asyncio
 async def test_rate_limit_15_per_min_throttle(tmp_db):
-    """Verify sliding window: 15 calls fill window, 16th forces throttle."""
-    verifier = EmailVerifier(api_key="test-key", db_path=tmp_db)
-    now = time.time()
-    verifier._rate_window = [now - 5] * 15  # 15 recent calls
-    sleep_calls = []
+    """Sliding window: 15 calls fill window, 16th forces asyncio.sleep."""
+    tool_result = {
+        "email": "rl@example.com", "status": "valid", "score": 90,
+        "smtp_check": True, "mx_records": True, "disposable": False, "webmail": False,
+    }
+    verifier, _ = _make_verifier(tmp_db, _gateway_ok(tool_result))
 
-    async def fake_sleep(s):
+    now = time.time()
+    verifier._rate_window = [now - 5] * 15
+    sleep_calls: list[float] = []
+
+    async def fake_sleep(s: float) -> None:
         sleep_calls.append(s)
 
-    fake_resp = _mock_response(200, {
-        "data": {"status": "valid", "score": 90, "smtp_check": True,
-                 "mx_records": True, "disposable": False, "webmail": False}
-    })
-    with patch("core.email_verifier.asyncio.sleep", new=fake_sleep), \
-         patch.object(verifier, "_http", new=AsyncMock(return_value=MagicMock(
-                 get=AsyncMock(return_value=fake_resp)))):
-        await verifier.verify_email("ratelimit@example.com")
+    with patch("core.email_verifier.asyncio.sleep", new=fake_sleep):
+        await verifier.verify_email("rl@example.com")
+
     assert len(sleep_calls) == 1, f"expected throttle sleep, got {sleep_calls}"
     assert sleep_calls[0] > 0
 
 
 @pytest.mark.asyncio
 async def test_disposable_email_detection(tmp_db):
-    verifier = EmailVerifier(api_key="test-key", db_path=tmp_db)
-    fake_resp = _mock_response(200, {
-        "data": {"status": "valid", "score": 50, "smtp_check": True,
-                 "mx_records": True, "disposable": True, "webmail": False}
-    })
-    with patch.object(verifier, "_http", new=AsyncMock(return_value=MagicMock(
-            get=AsyncMock(return_value=fake_resp)))):
-        result = await verifier.verify_email("user@mailinator.com")
+    tool_result = {
+        "email": "user@mailinator.com", "status": "valid", "score": 50,
+        "smtp_check": True, "mx_records": True, "disposable": True, "webmail": False,
+    }
+    verifier, _ = _make_verifier(tmp_db, _gateway_ok(tool_result))
+
+    result = await verifier.verify_email("user@mailinator.com")
     assert result["disposable"] is True
 
 
 @pytest.mark.asyncio
 async def test_invalid_email_blocked_from_warmup(tmp_db):
-    """Invalid email returns status='invalid' — cobaia warmup MUST skip."""
-    verifier = EmailVerifier(api_key="test-key", db_path=tmp_db)
-    fake_resp = _mock_response(200, {
-        "data": {"status": "invalid", "score": 5, "smtp_check": False,
-                 "mx_records": False, "disposable": False, "webmail": False}
-    })
-    with patch.object(verifier, "_http", new=AsyncMock(return_value=MagicMock(
-            get=AsyncMock(return_value=fake_resp)))):
-        result = await verifier.verify_email("bogus@nonexistent-xyz.com")
+    """format_invalid is returned without gateway call; invalid status propagated."""
+    tool_result = {
+        "email": "bogus@nonexistent-xyz.com", "status": "invalid", "score": 5,
+        "smtp_check": False, "mx_records": False, "disposable": False, "webmail": False,
+    }
+    verifier, invoke_mock = _make_verifier(tmp_db, _gateway_ok(tool_result))
+
+    result = await verifier.verify_email("bogus@nonexistent-xyz.com")
     assert result["status"] == "invalid"
     assert result["smtp_check"] is False
-    # Format invalid path
+
     bad = await verifier.verify_email("not-an-email")
     assert bad["status"] == "format_invalid"
+    # format_invalid short-circuits before gateway
+    assert invoke_mock.call_count == 1
 
 
 @pytest.mark.asyncio
 async def test_sentry_breadcrumb_each_verify(tmp_db):
-    verifier = EmailVerifier(api_key="test-key", db_path=tmp_db)
-    crumbs = []
+    """Breadcrumbs emitted on gateway_dispatch and cache_hit calls."""
+    tool_result = {
+        "email": "crumb@example.com", "status": "valid", "score": 90,
+        "smtp_check": True, "mx_records": True, "disposable": False, "webmail": False,
+    }
+    verifier, _ = _make_verifier(tmp_db, _gateway_ok(tool_result))
+    crumbs: list[tuple] = []
     verifier._breadcrumb = lambda msg, data: crumbs.append((msg, data))
-    fake_resp = _mock_response(200, {
-        "data": {"status": "valid", "score": 90, "smtp_check": True,
-                 "mx_records": True, "disposable": False, "webmail": False}
-    })
-    with patch.object(verifier, "_http", new=AsyncMock(return_value=MagicMock(
-            get=AsyncMock(return_value=fake_resp)))):
-        await verifier.verify_email("crumb@example.com")
-        await verifier.verify_email("crumb@example.com")  # cache hit
+
+    await verifier.verify_email("crumb@example.com")
+    await verifier.verify_email("crumb@example.com")  # cache hit
+
     assert len(crumbs) >= 2
     kinds = [c[0] for c in crumbs]
-    assert any("api_call" in k for k in kinds)
+    assert any("gateway_dispatch" in k for k in kinds)
     assert any("cache_hit" in k for k in kinds)

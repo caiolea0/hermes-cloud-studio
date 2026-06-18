@@ -16,7 +16,25 @@ gateway:
   pool_max_idle: 10
 
 # F.5.2 entrega: 3 custom MCPs ACTIVE com command/args wired
+# R7 2026-06-18: hermes-hunter added (Hunter.io email verifier via gateway)
 upstream_mcps:
+  - name: hermes-hunter
+    status: active            # R7 — 4 tools Hunter.io v2 (verify_email, domain_search, email_count, check_account_usage)
+    kind: custom
+    chapter_owner: F.7
+    required_by_dc: [F.7.done]
+    transport: stdio
+    command: python3
+    args: ["mcps/hunter/server.py"]
+    cwd: "/home/hermes-gcp/.hermes"
+    auth_env: HUNTER_API_KEY
+    scope_notes: "R7 fix — httpx direct api.hunter.io em core/email_verifier.py era BANNED-PATTERNS loophole (httpx nao coberto por requests regex). MCP le HUNTER_API_KEY do env; EmailVerifier despacha via GatewayDispatcher. Free tier: 25 verify/mo + 100 domain_search/mo. check_account_usage rastreia quota real."
+    tools_preview:
+      - verify_email
+      - domain_search
+      - email_count
+      - check_account_usage
+
   - name: hermes-linkedin
     status: active            # F.5.2 — 8 tools wrapper sobre linkedin/* (BLACKLIST R2 intact)
     kind: custom

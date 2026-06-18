@@ -56,6 +56,12 @@
       "scope": "brain/, api/agent_zero.py, skills/"
     },
     {
+      "pattern": "httpx\\.AsyncClient.*api\\.hunter\\.io",
+      "reason": "R7 fix — httpx direto api.hunter.io e BANNED mesmo loophole de B4/H5. Usar GatewayDispatcher → hermes-hunter MCP. Excecoes: mcps/ (MCP servers proprios fazem chamadas externas)",
+      "severity": "BLOCKER",
+      "scope": "core/, brain/, api/, daemon/, scripts/"
+    },
+    {
       "pattern": "import sentry_sdk",
       "reason": "H5 — usar core.sentry_via_gateway (capture_exception/capture_message/add_breadcrumb). Wrapper roteia via gateway loopback com fallback sentry_sdk + buffer. sentry_sdk direto quebra defense-in-depth MCP gateway.",
       "severity": "BLOCKER",

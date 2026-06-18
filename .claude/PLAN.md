@@ -3643,7 +3643,7 @@ Total wall-clock: ~15-20h spread 4 sessões.
 ### 📋 WARN remediation (R4+R7+R8+R9+R10+R11+R12+R13)
 
 - [ ] **R4** (Task #9) — F.2 LinkedIn channel keys real (api/daemon.py:177-178 wrong keys)
-- [ ] **R7** (Task #10) — Hunter.io via MCP gateway refactor (audit pattern repeat)
+- [x] **R7** (Task #10) — Hunter.io via MCP gateway refactor (audit pattern repeat) — **DONE 2026-06-18** mcps/hunter/server.py NEW + config.yaml registered + core/email_verifier.py GatewayDispatcher refactor + BANNED-PATTERNS httpx rule + 10 tests (238 PASS, BLACKLIST R2 INTACTO 43 SS)
 - [ ] **R8** (Task #11) — F.8 status filter post-merge (B19 regression)
 - [ ] **R9** (Task #12) — Cobaia WS broadcast asyncio loop fix
 - [ ] **R10** (Task #13) — H2 flaky test Windows STATUS_DLL_INIT_FAILED
