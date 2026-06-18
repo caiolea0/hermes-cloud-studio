@@ -167,6 +167,19 @@ See `issues.json` for full machine-readable list. Summary counts:
 - Contrast WCAG AA fix: bc-link uses --text-2 (5.88:1), focus-visible on all new elements
 - 5 new tests, 303 pytest PASS, C3 RESOLVED in issues.json
 
+#### UX-RM-F2-B: Cmd+K palette + G-prefix shortcuts + filter persistence ✅ DONE 2026-06-18
+- HermesCommandPalette: Ctrl/Cmd+K toggle, fuzzy filter, grouped results, Arrow/Enter/Escape nav
+- WCAG 2.1 AA: role=dialog, aria-modal, aria-label, focus trap, live region aria-live=polite
+- 17 navigation commands + 4 action commands registered from app.js startup
+- HermesKeyboardShortcuts: g-prefix 1500ms window, 9 shortcuts (g d/c/b/p/o/l/s/m/x)
+- Skips when focused on INPUT/TEXTAREA/SELECT, ? key triggers help overlay
+- HermesShortcutsHelp: grouped modal, Escape/click-outside to close, focus restored on close
+- HermesFilterPersistence: localStorage namespace hermes.filters.<page>, prospects+proposals wired
+- Filter restore after loadFilters() populates dropdowns; change listeners auto-save
+- H4 RESOLVED: --text-3 #55556a → #8a8a9a (~4.7:1 WCAG AA pass) in styles.css
+- 33 new tests, 336 pytest PASS, C3+H4 RESOLVED in issues.json
+- UX-RM-F2 100% COMPLETE (F2-A 14h + F2-B 18h = 32h)
+
 ### UX-RM-F3: Onboarding Wizard 5min
 - **Goal**: Caio Day 0 → working cobaia in <5min without docs.
 - **Effort**: 20h
@@ -246,7 +259,7 @@ See `issues.json` for full machine-readable list. Summary counts:
 **BLOCKING criteria** (must pass before Caio activates real LI account):
 - [x] UX-RM-F1 100% complete — zero mocks in execution paths (F1-A+B+C 2026-06-18)
 - [x] UX-RM-F2-A complete — 8-item sidebar + breadcrumbs (2026-06-18)
-- [ ] UX-RM-F2-B — Cmd+K palette (remaining F2 scope)
+- [x] UX-RM-F2-B — Cmd+K palette + G-prefix shortcuts + filter persistence (2026-06-18)
 - [ ] Brain confirmation drawer required for ALL destructive intents
 - [x] `LI_USE_MOCK = false` removed entirely (F1-C 2026-06-18)
 - [x] Comment edit/delete: UI hidden + endpoints 501 (F1-C 2026-06-18)

@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 17:01 UTC
+- **last_updated**: 2026-06-18 17:26 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 213 (163 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 128 (61.5% of public)
@@ -55,11 +55,11 @@
 | `hermes_api_v2.py` | 1 |
 | `vm_api/mcp_jobs.py` | 1 |
 
-## §2 Mapa consumo (app.js + 36 components)
+## §2 Mapa consumo (app.js + 40 components)
 
 - Endpoints únicos consumidos: **128**
-- Total fetch/api calls: 133
-- Fontes escaneadas: 37 arquivos (app.js + components/*.js + HTML inline)
+- Total fetch/api calls: 135
+- Fontes escaneadas: 41 arquivos (app.js + components/*.js + HTML inline)
 - Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, skill-proposals, skills, tasks
 
 | Endpoint | Chamadas | Fontes |
@@ -69,6 +69,7 @@
 | `/api/skills/proposals` | 6 | skill_proposals_modal.js, skill_proposals_studio.js |
 | `/api/pipelines` | 5 | app.js |
 | `/api/audit/prospect/{param}` | 3 | app.js |
+| `/api/linkedin/cobaia/resume` | 3 | app.js, cobaia_emergency_stop.js, cobaia_status_card.js |
 | `/api/pipelines/{param}` | 3 | app.js |
 | `/api/prospects/{param}` | 3 | app.js |
 | `/api/activities` | 2 | app.js |
@@ -78,12 +79,11 @@
 | `/api/lab/runs/{param}` | 2 | lab_cockpit.js |
 | `/api/linkedin/campaigns/{param}/stop` | 2 | app.js |
 | `/api/linkedin/cobaia/metrics` | 2 | cobaia_studio.js |
-| `/api/linkedin/cobaia/resume` | 2 | cobaia_emergency_stop.js, cobaia_status_card.js |
+| `/api/linkedin/cobaia/pause` | 2 | app.js, cobaia_status_card.js |
 | `/api/linkedin/cobaia/status` | 2 | cobaia_status_card.js, cobaia_studio.js |
 | `/api/linkedin/cobaia/timeline` | 2 | cobaia_studio.js |
 | `/api/observability/costs` | 2 | observability_costs.js |
 | `/api/observability/errors` | 2 | observability_errors.js, observability_resolve_modal.js |
-| `/api/outreach/generate/{param}` | 2 | app.js |
 
 ## §3 Órfãos — 80 endpoints sem UI
 

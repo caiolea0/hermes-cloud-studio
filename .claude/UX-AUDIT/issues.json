@@ -179,7 +179,11 @@
       "fix_hint": "Increase --text-3 luminance to #8a8a9a or use --text-2 (#8b8b98, ~4.8:1).",
       "effort_hours": 2,
       "cobaia_blocking": false,
-      "phase": "UX-RM-F4"
+      "phase": "UX-RM-F4",
+      "status": "RESOLVED",
+      "resolved_in": "UX-RM-F2-B",
+      "resolved_commit": "pending",
+      "resolution": "--text-3 updated from #55556a to #8a8a9a (~4.7:1 on --s2, WCAG AA pass)"
     },
     {
       "id": "H5",

@@ -257,6 +257,9 @@ async function checkAuth() {
         _restoreNavGroups();
         const hash = window.location.hash.replace('#', '') || 'control';
         navigate(hash);
+        // UX-RM-F2-B — register commands + wire filters (defer scripts may already be loaded)
+        _registerHermesCommands();
+        _wireFilterPersistence();
     };
 
     if (!token) {
@@ -1329,6 +1332,18 @@ async function loadFilters() {
             }
         });
         filtersLoaded = true;
+        // UX-RM-F2-B — restore persisted filter values after options are populated
+        if (window.HermesFilterPersistence) {
+            const pf = window.HermesFilterPersistence.get('prospects');
+            if (pf['filter-city'])     { const el = document.getElementById('filter-city');     if (el) el.value = pf['filter-city']; }
+            if (pf['filter-category']) { const el = document.getElementById('filter-category'); if (el) el.value = pf['filter-category']; }
+            if (pf['filter-website'])  { const el = document.getElementById('filter-website');  if (el) el.value = pf['filter-website']; }
+            if (pf['filter-stage'])    { const el = document.getElementById('filter-stage');    if (el) el.value = pf['filter-stage']; }
+            const pp = window.HermesFilterPersistence.get('proposals');
+            if (pp['proposal-filter-city'])     { const el = document.getElementById('proposal-filter-city');     if (el) el.value = pp['proposal-filter-city']; }
+            if (pp['proposal-filter-category']) { const el = document.getElementById('proposal-filter-category'); if (el) el.value = pp['proposal-filter-category']; }
+            if (pp['proposal-filter-sent'])     { const el = document.getElementById('proposal-filter-sent');     if (el) el.value = pp['proposal-filter-sent']; }
+        }
     } catch { /* silent */ }
 }
 
@@ -5868,4 +5883,114 @@ function handleWsEvent(event) {
             loadLinkedInCampaigns();
         }
     }
+}
+
+/* ============================================================
+   UX-RM-F2-B — Command Palette registration + Filter Persistence wiring
+   ============================================================ */
+function _registerHermesCommands() {
+    const palette = window.HermesCommandPalette;
+    const shortcuts = window.HermesKeyboardShortcuts;
+    if (!palette && !shortcuts) return;
+
+    const NAV_COMMANDS = [
+        { id: 'go-dashboard',       label: 'Ir para Dashboard',       group: 'Navegacao',    shortcut: 'g d', action: () => navigate('dashboard') },
+        { id: 'go-control',         label: 'Ir para Mission Control',  group: 'Operacoes',    shortcut: 'g c', action: () => navigate('control') },
+        { id: 'go-cobaia',          label: 'Ir para Cobaia',           group: 'Operacoes',    shortcut: 'g b', action: () => navigate('cobaia') },
+        { id: 'go-pipeline-studio', label: 'Ir para Pipeline Studio',  group: 'Operacoes',                    action: () => navigate('pipeline-studio') },
+        { id: 'go-tasks',           label: 'Ir para Fila do Dia',      group: 'Operacoes',                    action: () => navigate('tasks') },
+        { id: 'go-prospects',       label: 'Ir para Prospects',        group: 'Outreach',     shortcut: 'g p', action: () => navigate('prospects') },
+        { id: 'go-proposals',       label: 'Ir para Propostas',        group: 'Outreach',     shortcut: 'g o', action: () => navigate('proposals') },
+        { id: 'go-audit',           label: 'Ir para Auditoria',        group: 'Outreach',                     action: () => navigate('audit') },
+        { id: 'go-linkedin',        label: 'Ir para LinkedIn',         group: 'Outreach',     shortcut: 'g l', action: () => navigate('linkedin') },
+        { id: 'go-skills',          label: 'Ir para Skills',           group: 'Inteligencia', shortcut: 'g s', action: () => navigate('skills') },
+        { id: 'go-skill-proposals', label: 'Ir para Skill Proposals',  group: 'Inteligencia',                 action: () => navigate('skill-proposals') },
+        { id: 'go-lab',             label: 'Ir para Lab Stealth',      group: 'Inteligencia',                 action: () => navigate('lab') },
+        { id: 'go-memory',          label: 'Ir para Memoria',          group: 'Inteligencia', shortcut: 'g m', action: () => navigate('memory') },
+        { id: 'go-missions',        label: 'Ir para Missoes',          group: 'Inteligencia',                 action: () => navigate('missions') },
+        { id: 'go-claude',          label: 'Ir para AI Terminal',      group: 'DevTools',                     action: () => navigate('claude') },
+        { id: 'go-mcp-gateway',     label: 'Ir para MCP Gateway',      group: 'DevTools',                     action: () => navigate('mcp-gateway') },
+        { id: 'go-observability',   label: 'Ir para Observability',    group: 'DevTools',     shortcut: 'g x', action: () => navigate('observability') },
+    ];
+
+    const ACTION_COMMANDS = [
+        {
+            id: 'action-panic', label: 'Panic Stop — Parar tudo', group: 'Acoes',
+            action: () => { if (window.HermesPanicButton) window.HermesPanicButton.open(); }
+        },
+        {
+            id: 'action-cobaia-pause', label: 'Pausar Cobaia', group: 'Acoes',
+            action: async () => {
+                try { await api('/api/linkedin/cobaia/pause', { method: 'POST' }); toast('Cobaia pausada', 'warning'); }
+                catch (e) { toast('Erro: ' + e.message, 'error'); }
+            }
+        },
+        {
+            id: 'action-cobaia-resume', label: 'Retomar Cobaia', group: 'Acoes',
+            action: async () => {
+                try { await api('/api/linkedin/cobaia/resume', { method: 'POST' }); toast('Cobaia retomada', 'success'); }
+                catch (e) { toast('Erro: ' + e.message, 'error'); }
+            }
+        },
+        {
+            id: 'action-shortcuts', label: 'Mostrar Atalhos de Teclado', group: 'Ajuda', shortcut: '?',
+            action: () => { if (window.HermesShortcutsHelp) window.HermesShortcutsHelp.show(); }
+        },
+    ];
+
+    if (palette) {
+        [...NAV_COMMANDS, ...ACTION_COMMANDS].forEach(c => palette.register(c));
+    }
+
+    if (shortcuts) {
+        const SHORTCUTS = [
+            ['g d', () => navigate('dashboard'),      'Ir para Dashboard',      'Navegacao'],
+            ['g c', () => navigate('control'),         'Ir para Mission Control', 'Operacoes'],
+            ['g b', () => navigate('cobaia'),          'Ir para Cobaia',          'Operacoes'],
+            ['g p', () => navigate('prospects'),       'Ir para Prospects',       'Outreach'],
+            ['g o', () => navigate('proposals'),       'Ir para Propostas',       'Outreach'],
+            ['g l', () => navigate('linkedin'),        'Ir para LinkedIn',        'Outreach'],
+            ['g s', () => navigate('skills'),          'Ir para Skills',          'Inteligencia'],
+            ['g m', () => navigate('memory'),          'Ir para Memoria',         'Inteligencia'],
+            ['g x', () => navigate('observability'),   'Ir para Observability',   'DevTools'],
+        ];
+        SHORTCUTS.forEach(([combo, action, label, category]) =>
+            shortcuts.register(combo, action, label, category)
+        );
+    }
+}
+
+function _wireFilterPersistence() {
+    const fp = window.HermesFilterPersistence;
+    if (!fp) return;
+
+    // Prospects filters — save on change
+    ['filter-city', 'filter-category', 'filter-website', 'filter-stage'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', () => {
+            const saved = fp.get('prospects');
+            saved[id] = el.value;
+            fp.set('prospects', saved);
+        });
+    });
+    const searchEl = document.getElementById('prospect-search');
+    if (searchEl) {
+        searchEl.addEventListener('input', () => {
+            const saved = fp.get('prospects');
+            saved['search'] = searchEl.value;
+            fp.set('prospects', saved);
+        });
+    }
+
+    // Proposals filters — save on change
+    ['proposal-filter-city', 'proposal-filter-category', 'proposal-filter-sent'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('change', () => {
+            const saved = fp.get('proposals');
+            saved[id] = el.value;
+            fp.set('proposals', saved);
+        });
+    });
 }
