@@ -12,6 +12,7 @@ Usage (wired in server.py lifespan via init_cobaia_scheduler):
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -19,6 +20,10 @@ if TYPE_CHECKING:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 logger = logging.getLogger("hermes.cobaia.scheduler")
+
+# Captured at init_cobaia_scheduler() time — used by _ws_emit for run_coroutine_threadsafe.
+# R9: fixes silent NO-OP when _ws_emit is called from an executor thread (APScheduler sync callback).
+_MAIN_LOOP: asyncio.AbstractEventLoop | None = None
 
 
 def _dispatch_cobaia_session_to_vm(phase: str, caps: dict, account_handle: str) -> dict:
@@ -96,8 +101,8 @@ def _record_cobaia_metrics(account_handle: str, delta: dict) -> None:
         logger.warning("cobaia _record_cobaia_metrics error: %s", exc)
 
 
-def _run_daily_check():
-    """Synchronous job callback for APScheduler."""
+async def _run_daily_check():
+    """Async job callback for APScheduler AsyncIOScheduler — runs in main event loop."""
     try:
         from linkedin.cobaia_warmup import CobaiaWarmupManager
         from linkedin.config import CobaiaConfig
@@ -148,17 +153,22 @@ def _run_daily_check():
         logger.error("cobaia daily_check exception: %s", exc, exc_info=True)
 
 
-def _ws_emit(event_type: str, data: dict):
+def _ws_emit(event_type: str, data: dict) -> None:
+    # R9: use run_coroutine_threadsafe with _MAIN_LOOP captured at init time.
+    # asyncio.get_event_loop() from an executor thread returns a non-running loop → silent NO-OP.
+    # broadcast() expects a dict; previous code passed json.dumps() string (double-serialization bug).
+    global _MAIN_LOOP
     try:
         from core.state import ws_manager
-        import asyncio
-        import json
-        payload = json.dumps({"type": event_type, **data})
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            asyncio.ensure_future(ws_manager.broadcast(payload))
-    except Exception:
-        pass
+        if _MAIN_LOOP and _MAIN_LOOP.is_running():
+            asyncio.run_coroutine_threadsafe(
+                ws_manager.broadcast({"type": event_type, **data}),
+                _MAIN_LOOP,
+            )
+        else:
+            logger.warning("R9: no main loop for WS emit %s", event_type)
+    except Exception as exc:
+        logger.warning("R9: _ws_emit error for %s: %s", event_type, exc)
 
 
 def _sentry_alert(data: dict):
@@ -174,8 +184,16 @@ def _sentry_alert(data: dict):
 def init_cobaia_scheduler(scheduler) -> bool:
     """Register cobaia_warmup_daily_check job on existing APScheduler instance.
 
+    Captures the running event loop for _ws_emit (R9 fix).
     Returns True if registered, False if APScheduler unavailable.
     """
+    global _MAIN_LOOP
+    try:
+        _MAIN_LOOP = asyncio.get_running_loop()
+    except RuntimeError:
+        _MAIN_LOOP = None
+        logger.warning("R9: init_cobaia_scheduler called outside async context — _MAIN_LOOP=None")
+
     try:
         from apscheduler.triggers.cron import CronTrigger
     except ImportError:

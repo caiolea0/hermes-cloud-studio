@@ -157,8 +157,9 @@ def test_record_cobaia_metrics_delta_accumulates(tmp_path):
     assert row[1] == 3  # 2 + 1
 
 
-def test_daily_check_dispatch_called_on_success(tmp_path):
-    """_run_daily_check calls _dispatch_cobaia_session_to_vm after daily_check succeeds."""
+@pytest.mark.anyio
+async def test_daily_check_dispatch_called_on_success(tmp_path):
+    """_run_daily_check (async) calls _dispatch_cobaia_session_to_vm after daily_check succeeds."""
     from daemon.cobaia_warmup_scheduler import _run_daily_check
 
     mock_result = {
@@ -173,14 +174,15 @@ def test_daily_check_dispatch_called_on_success(tmp_path):
         MockMgr.return_value.reset_errors = MagicMock()
         with patch("daemon.cobaia_warmup_scheduler._dispatch_cobaia_session_to_vm", return_value=mock_dispatch_result) as mock_dispatch:
             with patch("daemon.cobaia_warmup_scheduler._ws_emit"):
-                _run_daily_check()
+                await _run_daily_check()
 
     mock_dispatch.assert_called_once_with("normal", mock_result["caps"], "caio-leao-cobaia")
     MockMgr.return_value.reset_errors.assert_called_once()
 
 
-def test_daily_check_records_error_on_dispatch_failure(tmp_path):
-    """_run_daily_check calls mgr.record_error when dispatch returns error."""
+@pytest.mark.anyio
+async def test_daily_check_records_error_on_dispatch_failure(tmp_path):
+    """_run_daily_check (async) calls mgr.record_error when dispatch returns error."""
     from daemon.cobaia_warmup_scheduler import _run_daily_check
 
     mock_result = {
@@ -194,10 +196,80 @@ def test_daily_check_records_error_on_dispatch_failure(tmp_path):
         MockMgr.return_value.reset_errors = MagicMock()
         with patch("daemon.cobaia_warmup_scheduler._dispatch_cobaia_session_to_vm", return_value={"error": "vm_http_503"}) as mock_dispatch:
             with patch("daemon.cobaia_warmup_scheduler._ws_emit"):
-                _run_daily_check()
+                await _run_daily_check()
 
     MockMgr.return_value.record_error.assert_called_once()
     MockMgr.return_value.reset_errors.assert_not_called()
+
+
+# ── R9 new tests ──────────────────────────────────────────────────────────────
+
+
+@pytest.mark.anyio
+async def test_run_daily_check_async_invokes_ws_broadcast():
+    """_run_daily_check is async and calls _ws_emit with cobaia.daily_check_done."""
+    from daemon.cobaia_warmup_scheduler import _run_daily_check
+
+    mock_result = {
+        "skipped": False, "auto_paused": False,
+        "phase": "warmup", "current_day": 8, "caps": {"views": 30, "connects": 5, "engagements": 10},
+    }
+    emitted: list = []
+
+    def _capture_emit(event_type, data):
+        emitted.append((event_type, data))
+
+    with patch("linkedin.cobaia_warmup.CobaiaWarmupManager") as MockMgr:
+        MockMgr.return_value.daily_check.return_value = mock_result
+        MockMgr.return_value.record_error = MagicMock()
+        MockMgr.return_value.reset_errors = MagicMock()
+        with patch("daemon.cobaia_warmup_scheduler._dispatch_cobaia_session_to_vm",
+                   return_value={"session_id": "s2", "status": "queued", "actions_planned": 10, "metrics": {}}):
+            with patch("daemon.cobaia_warmup_scheduler._ws_emit", side_effect=_capture_emit):
+                await _run_daily_check()
+
+    event_types = [e[0] for e in emitted]
+    assert "cobaia.daily_check_done" in event_types
+    assert "cobaia.session_dispatched" in event_types
+
+
+def test_ws_emit_uses_main_loop_when_running():
+    """_ws_emit submits broadcast coroutine via run_coroutine_threadsafe when loop running."""
+    import asyncio
+    import daemon.cobaia_warmup_scheduler as sched_mod
+    from unittest.mock import AsyncMock, patch
+
+    mock_ws_manager = MagicMock()
+    mock_ws_manager.broadcast = AsyncMock()
+
+    fake_loop = MagicMock(spec=asyncio.AbstractEventLoop)
+    fake_loop.is_running.return_value = True
+
+    sched_mod._MAIN_LOOP = fake_loop
+
+    with patch("core.state.ws_manager", mock_ws_manager):
+        with patch("asyncio.run_coroutine_threadsafe") as mock_rcf:
+            sched_mod._ws_emit("cobaia.test_event", {"key": "val"})
+
+    mock_rcf.assert_called_once()
+    call_args = mock_rcf.call_args
+    assert call_args.args[1] is fake_loop
+
+
+def test_ws_emit_logs_warning_when_no_loop(caplog):
+    """_ws_emit logs warning and skips broadcast when _MAIN_LOOP is None."""
+    import daemon.cobaia_warmup_scheduler as sched_mod
+    import logging
+
+    original_loop = sched_mod._MAIN_LOOP
+    sched_mod._MAIN_LOOP = None
+    try:
+        with caplog.at_level(logging.WARNING, logger="hermes.cobaia.scheduler"):
+            sched_mod._ws_emit("cobaia.test_event", {"key": "val"})
+    finally:
+        sched_mod._MAIN_LOOP = original_loop
+
+    assert any("no main loop" in r.message for r in caplog.records)
 
 
 @pytest.mark.anyio
