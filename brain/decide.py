@@ -558,27 +558,68 @@ class Brain:
         prompt: str,
         context: dict[str, Any] | None = None,
         intent_hint: str | None = None,
+        image_b64: str | None = None,
     ):
-        """Async generator yielding SSE event dicts for Cmd+K AI streaming (UX-RM-F5-A).
+        """Async generator yielding SSE event dicts for Cmd+K AI streaming (UX-RM-F5-A/B).
 
-        Uses intent_hint if in INTENT_REGISTRY, else defaults to 'answer_owner' (general chat).
-        Yields: thought | tool_call | tool_result | final | error dicts.
-        Caller wires to StreamingResponse via /api/brain/stream-decide.
+        F5-B: citation events after final, image_b64 graceful 501 stub.
+        Uses intent_hint if in INTENT_REGISTRY, else defaults to 'answer_owner'.
+        Yields: thought | tool_call | tool_result | citation | final | error dicts.
         """
         from ._react import react_loop_streaming
+        from .citation_resolver import resolve_citation
 
         ctx = dict(context or {})
         ctx.setdefault("user_prompt", prompt)
+
+        # F5-B: image analysis — graceful 501 stub (vision not configured)
+        if image_b64:
+            yield {"type": "thought", "chunk": "Analisando imagem recebida..."}
+            yield {
+                "type": "final",
+                "answer": (
+                    "Análise de imagem não disponível nesta versão (F.future). "
+                    "Envie texto com sua pergunta."
+                ),
+                "confidence": 0.0,
+                "iterations": 0,
+                "status": "not_implemented",
+                "intent": "image_analysis",
+            }
+            return
 
         intent = intent_hint if (intent_hint and intent_hint in INTENT_REGISTRY) else "answer_owner"
 
         yield {"type": "thought", "chunk": f"Analisando solicitação ({intent})..."}
 
         intent_config = INTENT_REGISTRY[intent]
+        tool_calls_seen: list[dict[str, Any]] = []
 
         async for event in react_loop_streaming(intent, ctx, intent_config, self.dispatcher):
-            if event.get("type") == "final":
+            if event.get("type") == "tool_call":
+                tool_calls_seen.append(event)
+                yield event
+            elif event.get("type") == "final":
                 yield {**event, "intent": intent}
+                # F5-B: emit citation pills for each tool invoked
+                for tc in tool_calls_seen:
+                    tool_full = tc.get("tool", "")
+                    parts = tool_full.split(".", 1)
+                    server = parts[0] if parts else ""
+                    tool_name = parts[1] if len(parts) > 1 else tool_full
+                    source_type, source_id = _map_tool_to_citation(
+                        server, tool_name, tc.get("args") or {}
+                    )
+                    resolved = resolve_citation(source_type, source_id)
+                    yield {
+                        "type": "citation",
+                        "source_type": source_type,
+                        "source_id": source_id,
+                        "source_url": resolved.get("url", "#dashboard"),
+                        "title": resolved.get("title", source_id),
+                        "snippet": resolved.get("snippet", ""),
+                        "confidence": 0.8,
+                    }
             else:
                 yield event
 
@@ -594,3 +635,22 @@ class Brain:
             f"Brain.decide intent={intent} status={status}. "
             f"Context preview: {ctx_preview}. Result: {ans_preview}"
         )[:2000]
+
+
+# F5-B module-level helper — used by Brain.stream_decide citation emit.
+
+def _map_tool_to_citation(server: str, tool: str, args: dict[str, Any]) -> tuple[str, str]:
+    """Map (server, tool, args) → (source_type, source_id) for citation resolver."""
+    if "agentmemory" in server:
+        sid = args.get("key") or args.get("source_id") or args.get("type") or "memory"
+        return "memory", str(sid)[:80]
+    if "hermes-skills" in server or "skill" in tool.lower():
+        sid = args.get("skill_id") or args.get("name") or tool
+        return "skill", str(sid)[:80]
+    if "hermes-linkedin" in server:
+        return "tool_result", f"linkedin.{tool}"[:80]
+    if "hermes-llm" in server:
+        return "tool_result", f"llm.{tool}"[:80]
+    if server:
+        return "tool_result", f"{server}.{tool}"[:80]
+    return "tool_result", str(tool)[:80]

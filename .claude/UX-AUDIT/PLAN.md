@@ -205,15 +205,29 @@ See `issues.json` for full machine-readable list. Summary counts:
 - **Deps**: F2
 
 ### UX-RM-F5: AI Command Bar + Streaming Brain Sidebar
-- **Goal**: Cmd+K acts as Brain.decide entry. Streaming ReAct trace right panel.
-- **Effort**: 28h
-- **Files**: `dashboard/components/command_palette.js` (extend F2), new `dashboard/components/brain_sidebar.js`, `api/brain.py` (streaming endpoint), `brain/_react.py`
-- **Acceptance**:
-  - Cmd+K natural-language: "pause LinkedIn 1h" → Brain plans → confirm card
-  - Brain sidebar streams tokens for any prospect/deal row
-  - Citation pills on enriched fields (Hunter/Apollo/Firecrawl/LinkedIn)
-- **Cobaia-blocking**: NO
-- **Deps**: F1, F2
+
+#### UX-RM-F5-A: Brain streaming endpoint + Cmd+K AI mode SSE ✅ DONE 2026-06-18
+- POST /api/brain/stream-decide SSE endpoint, rate limit 10/min (BRAIN_STREAM_MAX_RPM), fail-CLOSED 429+Retry-After
+- react_loop_streaming() async generator yields thought/tool_call/tool_result/final/error events
+- Brain.stream_decide() wires streaming ReAct to Cmd+K AI mode (/ or ?ask prefix)
+- HermesCommandPalette extended: AI mode detection, SSE reader+AbortController, typewriter thoughts, tool pills, conf badge
+- WCAG AA: Tab→Stop btn, role=log+aria-live, XSS-safe (Number.isFinite coercion), all contrast ≥4.5:1
+- WS telemetry brain.ai_query_used after stream, 6 new tests (342 PASS total)
+- commit 1195d4b
+
+#### UX-RM-F5-B: Brain sidebar + citation pills + multimodal paste + confirm flow ✅ DONE 2026-06-18
+- Citation events in stream_decide + brain/citation_resolver.py (skill/memory/log/tool/doc resolvers)
+- Citation pills in Cmd+K: clickable buttons, Tab+Enter nav, CSS tooltip, confidence badge, navigate() on click
+- Image paste handler: clipboard paste → base64 → image_b64 POST field → graceful 501 stub
+- BrainStreamRequest.image_b64 field (server-side 10MB cap, client 5MB guard)
+- "Expandir →" button on final answers > 1000 chars → opens HermesBrainSidebar
+- HermesBrainSidebar: right-side 420px panel, follow-up questions, 10-turn localStorage history
+- BrainConfirmDrawer.show({intent, confidence, source}) + palette_ai_mode telemetry WS broadcast
+- requires_confirm=True in final event → palette closes → BrainConfirmDrawer.show() in 600ms
+- WCAG AA: --accent-l (#a78bfa) 6.50:1 on --s2, all pills Tab+Enter, sidebar focus mgmt
+- 7 new tests, 349 pytest PASS, BLACKLIST R2 INTACTO 54 SS
+- frontend-ux-reviewer: PASS-WITH-NOTES (1 BLOCKER fixed, W1+W2 fixed, 5 WARNs F.future)
+- UX-RM-F5 100% COMPLETE (F5-A 16h + F5-B 12h = 28h)
 
 ### UX-RM-F6: Multi-Channel Campaign Editor (Lemlist-style)
 - **Goal**: Single drag-drop canvas mixing LI DM + email + WhatsApp + manual task with conditional branching.

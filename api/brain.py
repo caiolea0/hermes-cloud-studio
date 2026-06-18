@@ -53,11 +53,17 @@ router = APIRouter(prefix="/api/brain", tags=["brain"])
 
 
 class BrainStreamRequest(BaseModel):
-    """Input schema for POST /api/brain/stream-decide (UX-RM-F5-A)."""
+    """Input schema for POST /api/brain/stream-decide (UX-RM-F5-A/B)."""
 
     prompt: str = Field(..., min_length=1, max_length=2000, description="Natural language query for Brain AI mode")
     context: dict[str, Any] = Field(default_factory=dict, description="Ambient context (current page, etc.)")
     intent_hint: str | None = Field(default=None, description="Optional INTENT_REGISTRY key; defaults to answer_owner")
+    # F5-B multimodal: base64-encoded image, client-side 5MB guard, server-side 10MB cap.
+    image_b64: str | None = Field(
+        default=None,
+        max_length=13_981_016,  # ceil(10MB * 4/3) base64 overhead
+        description="F5-B multimodal: base64-encoded image (max ~10MB decoded). 501 stub until vision configured.",
+    )
 
 
 class BrainDecideRequest(BaseModel):
@@ -153,6 +159,7 @@ async def stream_decide(body: BrainStreamRequest, bg: BackgroundTasks) -> Stream
                 prompt=body.prompt,
                 context=body.context,
                 intent_hint=body.intent_hint,
+                image_b64=body.image_b64,
             ):
                 last_event = event
                 yield f"data: {json.dumps(event)}\n\n"

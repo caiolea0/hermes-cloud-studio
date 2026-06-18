@@ -1,10 +1,11 @@
 {
-  "generated_at": 1781812288.4925816,
+  "generated_at": 1781815979.732311,
   "sources": [
     "dashboard/app.js",
     "dashboard/components/_utils.js",
     "dashboard/components/brain_confirm_card.js",
     "dashboard/components/brain_confirm_drawer.js",
+    "dashboard/components/brain_sidebar.js",
     "dashboard/components/breadcrumbs.js",
     "dashboard/components/cobaia_activity_feed.js",
     "dashboard/components/cobaia_emergency_stop.js",
@@ -43,7 +44,7 @@
     "dashboard/components/toast.js",
     "dashboard/index.html"
   ],
-  "sources_count": 41,
+  "sources_count": 42,
   "total_endpoints": 90,
   "total_calls": 136,
   "consumed": {
@@ -112,7 +113,7 @@
     "/api/brain/stream-decide": [
       {
         "file": "dashboard/components/command_palette.js",
-        "line": 317,
+        "line": 362,
         "snippet": "const resp = await fetch('/api/brain/stream-decide', {"
       }
     ],

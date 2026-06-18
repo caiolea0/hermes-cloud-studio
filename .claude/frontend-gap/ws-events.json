@@ -1,5 +1,5 @@
 {
-  "generated_at": 1781812288.493237,
+  "generated_at": 1781815979.7328334,
   "handlers_in_frontend": [
     "activity",
     "alert",
@@ -7,6 +7,8 @@
     "channel_update",
     "daemon_state",
     "decision",
+    "error",
+    "final",
     "linkedin_campaign_created",
     "linkedin_campaign_done",
     "linkedin_health",
@@ -15,7 +17,8 @@
     "reply_received",
     "scraper_update",
     "string",
-    "sync"
+    "sync",
+    "thought"
   ],
   "broadcasts_in_backend": {
     "activity": [
@@ -146,10 +149,13 @@
   "dead_handlers": [
     "alert",
     "audit_done",
+    "error",
+    "final",
     "linkedin_campaign_done",
     "pipeline_progress",
     "reply_received",
     "scraper_update",
-    "string"
+    "string",
+    "thought"
   ]
 }

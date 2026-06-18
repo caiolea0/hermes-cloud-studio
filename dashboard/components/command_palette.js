@@ -1,5 +1,6 @@
 /* UX-RM-F2-B — Command Palette (Cmd+K / Ctrl+K)
  * UX-RM-F5-A — AI Mode (/ prefix or ?ask prefix → Brain SSE streaming)
+ * UX-RM-F5-B — Citation pills + multimodal paste + Expand sidebar + confirm flow
  * API global: window.HermesCommandPalette.{register, open, close}
  * WCAG 2.1 AA: role=dialog, aria-modal, focus trap, live region, keyboard nav.
  * Vanilla JS — no external deps.
@@ -28,6 +29,11 @@
             this._aiAbortCtrl = null;
             this._aiFinalAnswer = null;
             this._lastToolPillEl = null;
+            // F5-B additions
+            this._pendingImage = null;       // Blob from clipboard paste
+            this._pendingImageUrl = null;    // ObjectURL for preview
+            this._lastPrompt = '';           // for sidebar "Expand →"
+            this._citationsRowEl = null;     // citation pills container
             this._buildDOM();
             this._bindGlobalShortcut();
         }
@@ -48,6 +54,9 @@
             this._overlay.setAttribute('aria-hidden', 'false');
             this._aiMode = false;
             this._updateAIModeUI(false);
+            // F5-B: reset image state on open
+            this._clearPendingImage();
+            this._citationsRowEl = null;
             requestAnimationFrame(() => this._inputEl.focus());
             this._renderResults();
         }
@@ -59,6 +68,7 @@
             this._inputEl.setAttribute('aria-expanded', 'false');
             this._overlay.setAttribute('hidden', '');
             this._overlay.setAttribute('aria-hidden', 'true');
+            this._clearPendingImage();
             if (this._prevFocused && typeof this._prevFocused.focus === 'function') {
                 this._prevFocused.focus();
             }
@@ -216,6 +226,19 @@
             this._aiBarEl = aiBar;
             this._aiResponseEl = aiResponse;
             this._aiStopBtnEl = aiStopBtn;
+
+            // F5-B: paste handler for images
+            input.addEventListener('paste', async (e) => {
+                const items = (e.clipboardData || {}).items || [];
+                for (const item of items) {
+                    if (item.type && item.type.startsWith('image/')) {
+                        e.preventDefault();
+                        const blob = item.getAsFile();
+                        if (blob) await this._handleImagePaste(blob);
+                        break;
+                    }
+                }
+            });
         }
 
         _bindGlobalShortcut() {
@@ -297,11 +320,13 @@
         async _submitAIQuery() {
             if (this._aiStreaming) return;
             const promptText = this._extractPrompt(this._inputEl.value);
-            if (!promptText) return;
+            if (!promptText && !this._pendingImage) return;
 
             this._aiStreaming = true;
             this._aiFinalAnswer = null;
             this._lastToolPillEl = null;
+            this._citationsRowEl = null;
+            this._lastPrompt = promptText || 'Analyze this image';
             this._aiAbortCtrl = new AbortController();
             this._showStopBtn(true);
             this._aiResponseEl.innerHTML = '';
@@ -310,9 +335,29 @@
 
             const thinkingEl = this._appendThinkingBlock();
 
+            // F5-B: read image_b64 if pending image (client 5MB guard)
+            let image_b64 = null;
+            if (this._pendingImage) {
+                try {
+                    image_b64 = await this._blobToBase64(this._pendingImage);
+                    if (image_b64 && image_b64.length > 5 * 1024 * 1024 * (4 / 3)) {
+                        this._appendErrorBlock('Imagem muito grande (máx 5MB)');
+                        this._aiStreaming = false;
+                        this._showStopBtn(false);
+                        if (thinkingEl.parentNode) thinkingEl.remove();
+                        return;
+                    }
+                } catch (_) {
+                    image_b64 = null;
+                }
+            }
+
             try {
                 const token = (typeof localStorage !== 'undefined' && localStorage.getItem('hermes_token')) || '';
                 const page = (typeof window !== 'undefined' && window.currentPage) || 'unknown';
+
+                const bodyPayload = { prompt: promptText || 'Analyze this image', context: { page } };
+                if (image_b64) bodyPayload.image_b64 = image_b64;
 
                 const resp = await fetch('/api/brain/stream-decide', {
                     method: 'POST',
@@ -320,10 +365,7 @@
                         'Content-Type': 'application/json',
                         'X-Hermes-Token': token,
                     },
-                    body: JSON.stringify({
-                        prompt: promptText,
-                        context: { page },
-                    }),
+                    body: JSON.stringify(bodyPayload),
                     signal: this._aiAbortCtrl.signal,
                 });
 
@@ -431,7 +473,7 @@
 
                 const pill = document.createElement('div');
                 pill.className = 'ai-tool-pill';
-                pill.setAttribute('aria-label', `Ferramenta: ${event.tool || ''}`);
+                pill.setAttribute('aria-label', `Ferramenta: ${this._esc(event.tool || '')}`);
                 const toolName = this._esc(event.tool || '');
                 pill.innerHTML =
                     '<span class="ai-tool-icon" aria-hidden="true">&#128295;</span>' +
@@ -450,6 +492,70 @@
                 }
                 this._lastToolPillEl = null;
 
+            } else if (type === 'citation') {
+                // F5-B: citation pill — clickable source reference
+                const row = this._getOrCreateCitationsRow();
+                const pill = document.createElement('button');
+                pill.className = 'ai-citation-pill';
+                pill.type = 'button';
+                pill.dataset.sourceType = event.source_type || '';
+                pill.dataset.sourceId = event.source_id || '';
+                pill.dataset.sourceUrl = event.source_url || '#';
+                pill.setAttribute('aria-label', `Fonte: ${this._esc(event.source_type || '')}:${this._esc(event.source_id || '')}`);
+
+                const iconSpan = document.createElement('span');
+                iconSpan.setAttribute('aria-hidden', 'true');
+                iconSpan.className = 'citation-icon';
+                iconSpan.textContent = this._citationIcon(event.source_type || '');
+
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'citation-label';
+                labelSpan.textContent = event.source_id || event.source_type || '';
+
+                const confSpan = document.createElement('span');
+                confSpan.className = 'citation-confidence';
+                const confPct = Number.isFinite(event.confidence) ? Math.round(event.confidence * 100) : 80;
+                confSpan.textContent = confPct + '%';
+
+                pill.appendChild(iconSpan);
+                pill.appendChild(labelSpan);
+                pill.appendChild(confSpan);
+
+                // Tooltip popover for snippet (ARIA role=tooltip on hover)
+                if (event.snippet) {
+                    pill.title = event.snippet;
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'citation-tooltip';
+                    tooltip.setAttribute('role', 'tooltip');
+                    tooltip.textContent = String(event.snippet).slice(0, 200);
+                    pill.appendChild(tooltip);
+                }
+
+                pill.addEventListener('click', () => {
+                    this.close();
+                    const url = String(event.source_url || '#');
+                    if (url.startsWith('#')) {
+                        // Navigate to internal page via hash routing
+                        const page = url.slice(1);
+                        if (typeof window.navigate === 'function') {
+                            window.navigate(page);
+                        } else {
+                            window.location.hash = page;
+                        }
+                    } else {
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                    }
+                });
+
+                pill.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        pill.click();
+                    }
+                });
+
+                row.appendChild(pill);
+
             } else if (type === 'final') {
                 if (thinkingEl && thinkingEl.parentNode) thinkingEl.remove();
 
@@ -465,6 +571,7 @@
                 // BLOCKER-FIX: coerce to integer — prevents XSS if backend sends non-numeric value
                 const iters = Number.isFinite(event.iterations) ? Math.round(event.iterations) : 0;
                 const isMaxIter = event.status === 'max_iterations_reached';
+                const rawAnswer = String(event.answer || '');
 
                 finalEl.innerHTML =
                     `<div class="ai-final-text">${answerText}</div>` +
@@ -475,6 +582,25 @@
                     '</div>';
                 finalEl.setAttribute('tabindex', '-1');
 
+                // F5-B: "Expandir →" button when response > 1000 chars
+                if (rawAnswer.length > 1000) {
+                    const expandBtn = document.createElement('button');
+                    expandBtn.className = 'ai-expand-btn';
+                    expandBtn.type = 'button';
+                    expandBtn.textContent = 'Expandir →';
+                    expandBtn.setAttribute('aria-label', 'Expandir resposta no painel lateral');
+                    expandBtn.addEventListener('click', () => {
+                        this.close();
+                        if (window.HermesBrainSidebar) {
+                            window.HermesBrainSidebar.show({
+                                initialPrompt: this._lastPrompt || '',
+                                initialResponse: rawAnswer,
+                            });
+                        }
+                    });
+                    finalEl.appendChild(expandBtn);
+                }
+
                 const copyHint = document.createElement('div');
                 copyHint.className = 'ai-copy-hint';
                 copyHint.setAttribute('aria-label', 'Pressione Enter para copiar a resposta');
@@ -483,8 +609,25 @@
                 this._aiResponseEl.appendChild(finalEl);
                 this._aiResponseEl.appendChild(copyHint);
 
-                this._aiFinalAnswer = String(event.answer || '');
+                this._aiFinalAnswer = rawAnswer;
                 finalEl.focus();
+
+                // F5-B: requires_confirm — close palette + open BrainConfirmDrawer
+                if (event.requires_confirm && window.BrainConfirmDrawer) {
+                    setTimeout(() => {
+                        this.close();
+                        if (typeof window.BrainConfirmDrawer.show === 'function') {
+                            window.BrainConfirmDrawer.show({
+                                intent: event.intent || '',
+                                preview: rawAnswer,
+                                confidence: typeof event.confidence === 'number' ? event.confidence : 0,
+                                source: 'palette_ai_mode',
+                            });
+                        } else {
+                            window.BrainConfirmDrawer.open();
+                        }
+                    }, 600);
+                }
 
             } else if (type === 'error') {
                 if (thinkingEl && thinkingEl.parentNode) thinkingEl.remove();
@@ -614,6 +757,119 @@
             try { cmd.action(); } catch (e) {
                 console.error('[HermesCommandPalette] action error:', e);
             }
+        }
+
+        // ── F5-B helpers ─────────────────────────────────────────────────────
+
+        async _handleImagePaste(blob) {
+            // Client-side 5MB guard
+            if (blob.size > 5 * 1024 * 1024) {
+                if (window.hermesToast) window.hermesToast.error('Imagem muito grande (máx 5MB)');
+                return;
+            }
+            this._clearPendingImage();
+            this._pendingImage = blob;
+            this._pendingImageUrl = URL.createObjectURL(blob);
+            this._showImagePreview(this._pendingImageUrl);
+
+            // Auto-enter AI mode with "Analyze this image" prompt
+            this._aiMode = true;
+            this._inputEl.value = '/ Analyze this image';
+            this._updateAIModeUI(true);
+            this._renderAIHint();
+            this._inputEl.focus();
+        }
+
+        _showImagePreview(objectUrl) {
+            // Remove existing preview
+            const existing = this._dialog.querySelector('.ai-image-pill');
+            if (existing) existing.remove();
+
+            const pill = document.createElement('div');
+            pill.className = 'ai-image-pill';
+            pill.setAttribute('role', 'img');
+            pill.setAttribute('aria-label', 'Imagem colada — pronta para análise');
+
+            const img = document.createElement('img');
+            img.src = objectUrl;
+            img.alt = 'Imagem para análise pelo Brain';
+            img.className = 'ai-image-preview';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'ai-image-remove';
+            removeBtn.type = 'button';
+            removeBtn.setAttribute('aria-label', 'Remover imagem');
+            removeBtn.textContent = '×';
+            removeBtn.addEventListener('click', () => {
+                this._clearPendingImage();
+                pill.remove();
+                this._aiMode = false;
+                this._inputEl.value = '';
+                this._updateAIModeUI(false);
+                this._renderResults();
+                this._inputEl.focus();
+            });
+
+            pill.appendChild(img);
+            pill.appendChild(removeBtn);
+
+            // Insert before the input wrap
+            const inputWrap = this._dialog.querySelector('.cmd-palette-input-wrap');
+            if (inputWrap) {
+                this._dialog.insertBefore(pill, inputWrap);
+            } else {
+                this._dialog.prepend(pill);
+            }
+        }
+
+        _clearPendingImage() {
+            if (this._pendingImageUrl) {
+                try { URL.revokeObjectURL(this._pendingImageUrl); } catch (_) {}
+                this._pendingImageUrl = null;
+            }
+            this._pendingImage = null;
+        }
+
+        _blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const result = reader.result;
+                    if (typeof result === 'string') {
+                        // Strip data URL prefix (data:image/png;base64,...)
+                        const idx = result.indexOf(',');
+                        resolve(idx >= 0 ? result.slice(idx + 1) : result);
+                    } else {
+                        reject(new Error('FileReader result not string'));
+                    }
+                };
+                reader.onerror = () => reject(reader.error);
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        _getOrCreateCitationsRow() {
+            if (this._citationsRowEl && this._citationsRowEl.parentNode) {
+                return this._citationsRowEl;
+            }
+            const row = document.createElement('div');
+            row.className = 'ai-citations-row';
+            row.setAttribute('aria-label', 'Fontes citadas pelo Brain');
+            row.setAttribute('role', 'group');
+            this._aiResponseEl.appendChild(row);
+            this._citationsRowEl = row;
+            return row;
+        }
+
+        _citationIcon(sourceType) {
+            const icons = {
+                skill: '📚',       // 📚
+                memory: '🧠',      // 🧠
+                log: '📋',         // 📋
+                tool_result: '🔧', // 🔧
+                doc: '📄',         // 📄
+            };
+            return icons[sourceType] || '🔗';  // 🔗
         }
     }
 

@@ -265,11 +265,50 @@
     function close() { _close(); }
     function refresh() { _hydrateFromServer(); }
 
+    /**
+     * F5-B: show() — open drawer from palette AI mode or explicit click.
+     * opts.source: 'palette_ai_mode' | 'explicit_click' | 'cobaia_loop' (telemetry).
+     * Fires WS event brain.confirm_requested.from_palette when source=palette_ai_mode.
+     */
+    function show(opts) {
+        opts = opts || {};
+        state.lastSource = opts.source || 'direct';
+        _open();
+
+        // Telemetry: broadcast source if from palette
+        if (opts.source === 'palette_ai_mode') {
+            _broadcastConfirmRequested(opts);
+        }
+    }
+
+    function _broadcastConfirmRequested(opts) {
+        try {
+            var api = (localStorage.getItem("hermes_api") || "").replace(/\/+$/, "");
+            var token = localStorage.getItem("hermes_token") || "";
+            // Fire-and-forget POST to WS broadcast endpoint — non-critical
+            fetch(api + "/api/daemon/broadcast", {
+                method: "POST",
+                headers: { "X-Hermes-Token": token, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    event_type: "brain.confirm_requested.from_palette",
+                    payload: {
+                        intent: opts.intent || "",
+                        confidence: typeof opts.confidence === "number" ? opts.confidence : 0,
+                        source: opts.source || "palette_ai_mode",
+                    },
+                }),
+            }).catch(function () {});
+        } catch (e) {
+            // telemetry non-critical — never throw
+        }
+    }
+
     window.BrainConfirmDrawer = {
         init: init,
         open: open,
         close: close,
         refresh: refresh,
+        show: show,
         onWSEvent: onWSEvent,
         _state: state,  // testing only
     };

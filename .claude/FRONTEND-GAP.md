@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 19:51 UTC
+- **last_updated**: 2026-06-18 20:52 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 214 (164 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 129 (61.7% of public)
@@ -55,11 +55,11 @@
 | `hermes_api_v2.py` | 1 |
 | `vm_api/mcp_jobs.py` | 1 |
 
-## §2 Mapa consumo (app.js + 40 components)
+## §2 Mapa consumo (app.js + 41 components)
 
 - Endpoints únicos consumidos: **129**
 - Total fetch/api calls: 136
-- Fontes escaneadas: 41 arquivos (app.js + components/*.js + HTML inline)
+- Fontes escaneadas: 42 arquivos (app.js + components/*.js + HTML inline)
 - Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, skill-proposals, skills, tasks
 
 | Endpoint | Chamadas | Fontes |
@@ -95,13 +95,13 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/daemon/pause` | pc | `api/daemon.py:73` | token |
 | `POST` | `/api/daemon/resume` | pc | `api/daemon.py:84` | token |
 | `POST` | `/api/agent-zero/chat` | pc | `api/agent_zero.py:43` | token |
-| `POST` | `/api/brain/confirm/{run_id}` | pc | `api/brain.py:229` | token |
-| `POST` | `/api/brain/decide` | pc | `api/brain.py:182` | token |
-| `POST` | `/api/brain/replay/{run_id}` | pc | `api/brain.py:218` | token |
+| `POST` | `/api/brain/confirm/{run_id}` | pc | `api/brain.py:236` | token |
+| `POST` | `/api/brain/decide` | pc | `api/brain.py:189` | token |
+| `POST` | `/api/brain/replay/{run_id}` | pc | `api/brain.py:225` | token |
 | `POST` | `/api/prospects/{prospect_id}/resolve-conflict` | pc | `api/prospects.py:156` | token |
 | `GET` | `/api/agent-zero/status` | pc | `api/agent_zero.py:15` | token |
-| `GET` | `/api/brain/intents` | pc | `api/brain.py:296` | token |
-| `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:207` | token |
+| `GET` | `/api/brain/intents` | pc | `api/brain.py:303` | token |
+| `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:214` | token |
 | `GET` | `/api/linkedin/visited` | pc | `api/linkedin.py:445` | token |
 | `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1528` | token |
 | `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:701` | token |
@@ -227,11 +227,11 @@ Endpoints que F.2 deve consumir com canais WS dedicados:
 
 ### WS events backend vs handlers `dashboard/app.js`
 
-- Handlers no frontend: 15 (activity, alert, audit_done, channel_update, daemon_state, decision, linkedin_campaign_created, linkedin_campaign_done, linkedin_health, linkedin_progress, pipeline_progress, reply_received, scraper_update, string, sync)
+- Handlers no frontend: 18 (activity, alert, audit_done, channel_update, daemon_state, decision, error, final, linkedin_campaign_created, linkedin_campaign_done, linkedin_health, linkedin_progress, pipeline_progress, reply_received, scraper_update, string, sync, thought)
 - Broadcasts no backend: 10 (activity, channel_update, daemon_state, decision, linkedin_account_type_updated, linkedin_campaign_created, linkedin_health, linkedin_progress, linkedin_session_rotated, sync)
 - ✅ Matched (emitido + handler): activity, channel_update, daemon_state, decision, linkedin_campaign_created, linkedin_health, linkedin_progress, sync
 - ⚠️ Orphan broadcasts (emitido sem handler): linkedin_account_type_updated, linkedin_session_rotated
-- 🪦 Dead handlers (handler sem emitter local): alert, audit_done, linkedin_campaign_done, pipeline_progress, reply_received, scraper_update, string
+- 🪦 Dead handlers (handler sem emitter local): alert, audit_done, error, final, linkedin_campaign_done, pipeline_progress, reply_received, scraper_update, string, thought
 
 ---
 
