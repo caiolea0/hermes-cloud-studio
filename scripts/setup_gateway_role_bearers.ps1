@@ -120,7 +120,8 @@ try {
 
             # --- Step 4: Restart gateway on VM ---
             Write-Host "[R5] Restarting hermes-mcps-gateway on VM..."
-            $restartResult = ssh -i $SshKey $VmHost "sudo systemctl restart hermes-mcps-gateway && sleep 2 && systemctl is-active hermes-mcps-gateway" 2>&1
+            # NOTE: hermes-mcps-gateway is USER-level systemd (not system). Use --user, no sudo.
+            $restartResult = ssh -i $SshKey $VmHost "systemctl --user restart hermes-mcps-gateway && sleep 4 && systemctl --user is-active hermes-mcps-gateway" 2>&1
             if ($LASTEXITCODE -ne 0) {
                 Write-Warning "[R5] Gateway restart may have failed: $restartResult"
             } else {
