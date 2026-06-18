@@ -103,18 +103,23 @@ def test_load_matrix_from_real_file_picks_up_default_policy_and_rules(tmp_path):
     assert allowed is False
 
 
-def test_load_matrix_missing_file_fail_open(tmp_path):
-    """Missing config must not crash gateway startup — fail-open allow."""
+def test_load_matrix_missing_file_fail_closed(tmp_path):
+    """R6 hardening: missing config -> fail-CLOSED (deny-all).
+
+    Reverted from fail-open: inverting security posture on partial deploy
+    or permissions error was unsafe. Now CRITICAL log + default_policy='deny'.
+    """
     p = tmp_path / "does_not_exist.json"
     m = load_matrix(p)
-    assert m.default_policy == "allow"
+    assert m.default_policy == "deny"
 
 
-def test_load_matrix_malformed_json_fail_open(tmp_path):
+def test_load_matrix_malformed_json_fail_closed(tmp_path):
+    """R6 hardening: parse error -> fail-CLOSED (deny-all)."""
     p = tmp_path / "broken.json"
     p.write_text("{ not valid json ", encoding="utf-8")
     m = load_matrix(p)
-    assert m.default_policy == "allow"
+    assert m.default_policy == "deny"
 
 
 def test_repo_access_matrix_json_loads_and_has_expected_requesters():
