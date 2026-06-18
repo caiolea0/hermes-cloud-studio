@@ -25,20 +25,21 @@
 <script src="/dashboard/components/_utils.js" defer></script>
 <script src="/dashboard/components/toast.js" defer></script>
 <script src="/dashboard/components/skeleton.js" defer></script>
+<!-- UX-RM-F7-A — lazy loader + skeleton patterns + WS status indicator (CRITICAL: antes de app.js) -->
+<script src="/dashboard/loader.js" defer></script>
+<script src="/dashboard/components/skeleton_patterns.js" defer></script>
+<script src="/dashboard/components/ws_status_indicator.js" defer></script>
 <script src="/dashboard/components/subsystem_tile.js" defer></script>
 <!-- F.2.5b — panic button + preferências panel (header Mission Control) -->
 <script src="/dashboard/components/panic_button.js" defer></script>
 <script src="/dashboard/components/pref_panel.js" defer></script>
 <!-- F.2.5c — live log tail (consume daemon.log_event + daemon.decision WS) -->
 <script src="/dashboard/components/live_log_tail.js" defer></script>
-<script src="/dashboard/components/lab_gauge.js" defer></script>
-<script src="/dashboard/components/lab_fingerprint_diff.js" defer></script>
-<script src="/dashboard/components/lab_cockpit.js" defer></script>
+<!-- lab_gauge.js + lab_fingerprint_diff.js + lab_cockpit.js: lazy-loaded on navigate lab -->
 <script src="/dashboard/components/mcp_gateway.js" defer></script>
-<!-- F.6.4 — Brain Confirm Drawer (safety UX side-drawer + summary card) -->
+<!-- F.6.4 — Brain Confirm CSS (drawer loaded lazily on first brain.* WS event) -->
 <link rel="stylesheet" href="/dashboard/styles/brain-confirm.css">
-<script src="/dashboard/components/brain_confirm_card.js" defer></script>
-<script src="/dashboard/components/brain_confirm_drawer.js" defer></script>
+<!-- brain_confirm_card.js + brain_confirm_drawer.js: lazy-loaded by app.js on brain.* WS event -->
 <!-- F.8.3 — Observability shell + 4 tabs + Chart.js vendor + resolve modal -->
 <link rel="stylesheet" href="/dashboard/styles/observability.css">
 <script src="/dashboard/vendor/chart.min.js" defer></script>
@@ -57,10 +58,9 @@
 <script src="/dashboard/components/pipeline_studio_templates.js" defer></script>
 <script src="/dashboard/components/pipeline_studio_runs_monitor.js" defer></script>
 <script src="/dashboard/components/pipeline_studio_ab_compare.js" defer></script>
-<!-- F.4.3 — Skill Proposals Studio (Monaco editor + 3-pane) -->
+<!-- F.4.3 — Skill Proposals Studio CSS (scripts lazy-loaded on navigate skill-proposals) -->
 <link rel="stylesheet" href="/dashboard/styles/skill-proposals.css">
-<script src="/dashboard/components/skill_proposals_studio.js" defer></script>
-<script src="/dashboard/components/skill_proposals_modal.js" defer></script>
+<!-- skill_proposals_studio.js + skill_proposals_modal.js: lazy-loaded by app.js on navigate -->
 <!-- F.7 C1 — Cobaia Warmup Status Card -->
 <script src="/dashboard/components/cobaia_status_card.js" defer></script>
 <!-- F.7 C3 — Cobaia Live Ops dashboard -->
@@ -72,21 +72,15 @@
 <script src="/dashboard/components/cobaia_studio.js" defer></script>
 <!-- UX-RM-F2-A — Breadcrumb bar -->
 <script src="/dashboard/components/breadcrumbs.js" defer></script>
-<!-- UX-RM-F2-B — Command Palette + Keyboard Shortcuts + Filter Persistence -->
+<!-- UX-RM-F2-B — Keyboard Shortcuts + Filter Persistence (EAGER: needed at startup) -->
+<!-- command_palette.js: lazy-loaded on first Ctrl/Cmd+K press -->
+<!-- shortcuts_help_overlay.js: lazy-loaded on first ? key -->
 <script src="/dashboard/components/filter_persistence.js" defer></script>
 <script src="/dashboard/components/keyboard_shortcuts.js" defer></script>
-<script src="/dashboard/components/shortcuts_help_overlay.js" defer></script>
-<script src="/dashboard/components/command_palette.js" defer></script>
-<!-- UX-RM-F5-A/B — Brain sidebar -->
-<script src="/dashboard/components/brain_sidebar.js" defer></script>
-<!-- UX-RM-F3-A — Onboarding Wizard -->
+<!-- UX-RM-F5-A/B — brain_sidebar.js: lazy-loaded on first Brain expand click -->
+<!-- UX-RM-F3-A — Onboarding CSS (wizard + steps lazy-loaded if not completed) -->
 <link rel="stylesheet" href="/dashboard/styles/onboarding.css">
-<script src="/dashboard/components/onboarding_wizard.js" defer></script>
-<script src="/dashboard/components/onboarding_steps/welcome.js" defer></script>
-<script src="/dashboard/components/onboarding_steps/profile.js" defer></script>
-<script src="/dashboard/components/onboarding_steps/channels.js" defer></script>
-<script src="/dashboard/components/onboarding_steps/icp.js" defer></script>
-<script src="/dashboard/components/onboarding_steps/launch.js" defer></script>
+<!-- onboarding_wizard.js + onboarding_steps/*: lazy-loaded by _checkOnboarding() -->
 </head>
 <body>
 

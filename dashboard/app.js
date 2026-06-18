@@ -262,6 +262,8 @@ async function checkAuth() {
         _wireFilterPersistence();
         // UX-RM-F3-A — first-run onboarding wizard
         _checkOnboarding();
+        // UX-RM-F7-A — lazy Ctrl+K handler (antes do command_palette.js carregar)
+        _registerLazyKeyHandlers();
     };
 
     if (!token) {
@@ -623,7 +625,21 @@ function navigate(page) {
         renderClaudeHistory();
     } else if (page === 'lab') {
         // F.3.3 — Lab Cockpit init (idempotent: re-entry no-op).
-        if (window.HermesLabCockpit && typeof window.HermesLabCockpit.init === 'function') {
+        // UX-RM-F7-A: lazy-load lab suite on first navigate to lab.
+        if (!window.HermesLabCockpit && window.loadComponent) {
+            window.loadComponent('lab_gauge').then(function () {
+                return window.loadComponent('lab_fingerprint_diff');
+            }).then(function () {
+                return window.loadComponent('lab_cockpit');
+            }).then(function () {
+                if (window.HermesLabCockpit && typeof window.HermesLabCockpit.init === 'function') {
+                    try { window.HermesLabCockpit.init('[data-component="lab-cockpit"]'); }
+                    catch (e) { console.warn('HermesLabCockpit init failed', e); }
+                }
+            }).catch(function (e) {
+                if (window.hermesToast) window.hermesToast.error('Falha ao carregar Lab Cockpit');
+            });
+        } else if (window.HermesLabCockpit && typeof window.HermesLabCockpit.init === 'function') {
             try { window.HermesLabCockpit.init('[data-component="lab-cockpit"]'); }
             catch (e) { console.warn('HermesLabCockpit init failed', e); }
         }
@@ -647,7 +663,19 @@ function navigate(page) {
         }
     } else if (page === 'skill-proposals') {
         // F.4.3 — Skill Proposals Studio init (idempotent: re-entry refresh).
-        if (window.SkillProposalsStudio && typeof window.SkillProposalsStudio.init === 'function') {
+        // UX-RM-F7-A: lazy-load studio + modal on first navigate to skill-proposals.
+        if (!window.SkillProposalsStudio && window.loadComponent) {
+            window.loadComponent('skill_proposals_studio').then(function () {
+                return window.loadComponent('skill_proposals_modal');
+            }).then(function () {
+                if (window.SkillProposalsStudio && typeof window.SkillProposalsStudio.init === 'function') {
+                    try { window.SkillProposalsStudio.init('[data-component="skill-proposals-studio"]'); }
+                    catch (e) { console.warn('SkillProposalsStudio init failed', e); }
+                }
+            }).catch(function (e) {
+                if (window.hermesToast) window.hermesToast.error('Falha ao carregar Skill Proposals Studio');
+            });
+        } else if (window.SkillProposalsStudio && typeof window.SkillProposalsStudio.init === 'function') {
             try { window.SkillProposalsStudio.init('[data-component="skill-proposals-studio"]'); }
             catch (e) { console.warn('SkillProposalsStudio init failed', e); }
         }
@@ -1362,6 +1390,13 @@ async function loadProspects() {
     if (hasWebsite) params.set('has_website', hasWebsite);
     if (stage) params.set('stage', stage);
 
+    // UX-RM-F7-A — skeleton while fetching (wrapped in valid <tr><td> for <tbody>)
+    const _tbodyPre = document.getElementById('prospects-tbody');
+    if (_tbodyPre && window.skeletonPatterns) {
+        _tbodyPre.innerHTML = '<tr><td colspan="9" style="padding:8px 0">' +
+            window.skeletonPatterns.table(20, 6) + '</td></tr>';
+    }
+
     try {
         const data = await api(`/api/prospects?${params}`);
         const items = data.prospects || data.items || data || [];
@@ -1734,6 +1769,12 @@ async function loadProposals() {
     if (search) params.set('search', search);
     if (city) params.set('city', city);
     if (category) params.set('category', category);
+
+    // UX-RM-F7-A — skeleton while fetching
+    const _gridPre = document.getElementById('proposals-grid');
+    if (_gridPre && window.skeletonPatterns) {
+        _gridPre.innerHTML = window.skeletonPatterns.card_grid(10);
+    }
 
     try {
         const data = await api(`/api/prospects?${params}`);
@@ -3069,6 +3110,8 @@ let ws = null;
 // F.2.5a — polling fallback ≥30s pra /api/daemon/subsystems quando WS down.
 // _wsAlive toggled em ws.onopen/onclose/onerror. Polling NUNCA roda com WS up.
 let _wsAlive = false;
+// UX-RM-F7-A — reconnect attempt counter for exponential backoff (capped 30s).
+let _wsRetryAttempt = 0;
 let _subsystemsPollingTimer = null;
 
 function startSubsystemsPollingFallback() {
@@ -3128,21 +3171,34 @@ function connectWS() {
     };
     ws.onopen  = () => {
         _wsAlive = true;
+        _wsRetryAttempt = 0;
         stopSubsystemsPollingFallback();
-        document.getElementById('status-dot').className = 'status-dot';
-        document.getElementById('status-text').textContent = 'Online';
+        if (window.HermesWSStatus) {
+            window.HermesWSStatus.setState('connected');
+        } else {
+            document.getElementById('status-dot').className = 'status-dot';
+            document.getElementById('status-text').textContent = 'Online';
+        }
     };
     ws.onclose = () => {
         _wsAlive = false;
         startSubsystemsPollingFallback();
-        document.getElementById('status-dot').className = 'status-dot offline';
-        document.getElementById('status-text').textContent = 'Offline';
         ws = null;
-        setTimeout(connectWS, 3000);
+        // UX-RM-F7-A — exponential backoff capped at 30s
+        const attempt = ++_wsRetryAttempt;
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000);
+        if (window.HermesWSStatus) {
+            window.HermesWSStatus.setState('reconnecting', attempt);
+        } else {
+            document.getElementById('status-dot').className = 'status-dot offline';
+            document.getElementById('status-text').textContent = 'Offline';
+        }
+        setTimeout(connectWS, delay);
     };
     ws.onerror = () => {
         _wsAlive = false;
         startSubsystemsPollingFallback();
+        if (window.HermesWSStatus) window.HermesWSStatus.setState('reconnecting', _wsRetryAttempt);
         ws?.close();
     };
 }
@@ -3250,10 +3306,19 @@ function handleWSEvent(event) {
     }
 
     // F.6.4 — Brain Confirm Drawer WS handlers (2 events brain.*).
-    // Delega pra window.BrainConfirmDrawer.onWSEvent (no-op se drawer não inicializado).
-    // Sempre processa, independente da página atual — drawer é global (topbar badge).
+    // UX-RM-F7-A: lazy-load brain_confirm_card + drawer on first brain.* event.
     if (typeof event.type === 'string' && event.type.indexOf('brain.') === 0) {
-        if (window.BrainConfirmDrawer && typeof window.BrainConfirmDrawer.onWSEvent === 'function') {
+        if (!window.BrainConfirmDrawer && window.loadComponent) {
+            const _pendingEvent = event;
+            window.loadComponent('brain_confirm_card').then(function () {
+                return window.loadComponent('brain_confirm_drawer');
+            }).then(function () {
+                if (window.BrainConfirmDrawer && typeof window.BrainConfirmDrawer.onWSEvent === 'function') {
+                    try { window.BrainConfirmDrawer.onWSEvent(_pendingEvent); }
+                    catch (e) { console.warn('BrainConfirmDrawer onWSEvent failed', _pendingEvent.type, e); }
+                }
+            }).catch(function () {});
+        } else if (window.BrainConfirmDrawer && typeof window.BrainConfirmDrawer.onWSEvent === 'function') {
             try { window.BrainConfirmDrawer.onWSEvent(event); }
             catch (e) { console.warn('BrainConfirmDrawer onWSEvent failed', event.type, e); }
         }
@@ -5998,9 +6063,67 @@ function _wireFilterPersistence() {
 }
 
 /* ============================================================
+   UX-RM-F7-A — LAZY KEY HANDLERS (Ctrl+K, ?)
+   ============================================================ */
+function _registerLazyKeyHandlers() {
+    // Ctrl/Cmd+K — lazy-load command_palette.js on first press
+    document.addEventListener('keydown', async (e) => {
+        if (window.HermesCommandPalette) return; // palette already loaded, its own handler fires
+        const isMac = navigator.platform ? navigator.platform.toUpperCase().includes('MAC') : false;
+        const trigger = isMac ? e.metaKey : e.ctrlKey;
+        if (trigger && e.key === 'k') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (!window.loadComponent) return;
+            try {
+                await window.loadComponent('command_palette');
+                _registerHermesCommands(); // wire commands into newly-loaded palette
+                if (window.HermesCommandPalette) window.HermesCommandPalette.open();
+            } catch (err) {
+                if (window.hermesToast) window.hermesToast.error('Falha ao carregar paleta de comandos');
+            }
+        }
+    }, true);
+
+    // ? key — lazy-load shortcuts_help_overlay.js on first press
+    document.addEventListener('keydown', async (e) => {
+        if (e.key !== '?' || e.ctrlKey || e.metaKey) return;
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (window.HermesShortcutsHelp) { window.HermesShortcutsHelp.show(); return; }
+        if (!window.loadComponent) return;
+        try {
+            await window.loadComponent('shortcuts_help_overlay');
+            if (window.HermesShortcutsHelp) window.HermesShortcutsHelp.show();
+        } catch (err) {
+            if (window.hermesToast) window.hermesToast.error('Falha ao carregar atalhos');
+        }
+    });
+}
+
+/* ============================================================
    UX-RM-F3-A — ONBOARDING FIRST-RUN CHECK
    ============================================================ */
 async function _checkOnboarding() {
+    if (localStorage.getItem('hermes.onboarding.completed')) return;
+
+    // UX-RM-F7-A: lazy-load wizard + all steps on first check
+    if (!window.HermesOnboardingWizard && window.loadComponent) {
+        try {
+            await window.loadComponent('onboarding_wizard');
+            await Promise.all([
+                window.loadComponent('welcome', 'onboarding_steps'),
+                window.loadComponent('profile', 'onboarding_steps'),
+                window.loadComponent('channels', 'onboarding_steps'),
+                window.loadComponent('icp', 'onboarding_steps'),
+                window.loadComponent('launch', 'onboarding_steps'),
+            ]);
+        } catch (e) {
+            if (window.hermesToast) window.hermesToast.error('Falha ao carregar wizard de onboarding');
+            return;
+        }
+    }
+
     const wiz = window.HermesOnboardingWizard;
     if (!wiz) return;
 

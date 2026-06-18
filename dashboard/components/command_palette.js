@@ -589,8 +589,16 @@
                     expandBtn.type = 'button';
                     expandBtn.textContent = 'Expandir →';
                     expandBtn.setAttribute('aria-label', 'Expandir resposta no painel lateral');
-                    expandBtn.addEventListener('click', () => {
+                    expandBtn.addEventListener('click', async () => {
                         this.close();
+                        // UX-RM-F7-A: lazy-load brain_sidebar if not yet loaded
+                        if (!window.HermesBrainSidebar && window.loadComponent) {
+                            try { await window.loadComponent('brain_sidebar'); }
+                            catch (e) {
+                                if (window.hermesToast) window.hermesToast.error('Falha ao carregar painel lateral');
+                                return;
+                            }
+                        }
                         if (window.HermesBrainSidebar) {
                             window.HermesBrainSidebar.show({
                                 initialPrompt: this._lastPrompt || '',

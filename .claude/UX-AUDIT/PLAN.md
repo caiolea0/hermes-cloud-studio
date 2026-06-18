@@ -199,6 +199,25 @@ See `issues.json` for full machine-readable list. Summary counts:
 - 6 tests (355 pytest PASS), frontend-ux-reviewer PASS-WITH-NOTES (B1+B2 fixed pre-commit, 5 WARNs F.future)
 - Browser smoke: all 3 steps navigate, skip persists, resume from state works
 
+#### UX-RM-F3-B: ICP Filters + Launch Preflight + Start Warmup CTA ✅ DONE 2026-06-18
+- migrations/2026_06_icp_profile.sql: icp_profile table (11 cols, idempotent)
+- core/icp_store.py: DAL upsert_profile+get_profile, JSON array serialization for list fields
+- api/icp.py: GET/POST /api/icp/profile + GET /api/icp/presets (3 Cuiaba-MT templates)
+- Step 4 ICP: 3 preset cards + custom fieldsets (industries/size/job_titles/seniority/geo/daily)
+  - _loadPreset updates inputs directly (no re-render) — avoids async card listener bug
+  - _escAttr on all value= attributes; onExit POSTs /api/icp/profile; validate requires target+geo
+- Step 5 Launch: 5 async preflight checks via Promise.all
+  - profile/channels/icp/connections(warn)/hermes — aria-live polite + spinners + prefers-reduced-motion
+  - allGreen enables "Iniciar Warmup" CTA; connections is warn-only (not blocking)
+  - _startWarmup: POST start-warmup + hermesToast + complete() + navigate(cobaia)
+  - _escHtml on user-derived strings in innerHTML
+- onboarding.css +271 lines: ICP form, fieldsets, preset grid, seniority chips, preflight list, launch CTA
+  - BLOCKER fixed: .wiz-field input:focus-visible outline (WCAG 2.1 AA 2.4.7)
+  - amber as var(--amber, #f59e0b) token; btn-secondary added
+- 7 tests (362 pytest PASS, 2 skipped), frontend-ux-reviewer NEEDS-FIXES→fixed (1 BLOCKER + 5 WARNs resolved pre-commit)
+- Browser smoke: presets load+click fills form, 5 preflight items render, ICP=ok, hermes=ok
+- UX-RM-F3 100% COMPLETE (F3-A + F3-B = 20h), BLACKLIST R2 INTACTO 56 SS
+
 ### UX-RM-F4: Visual Redesign (tokens + typography + motion)
 - **Goal**: Tremor-aligned cockpit feel. Pro-grade typography. Motion budget enforced.
 - **Effort**: 36h
