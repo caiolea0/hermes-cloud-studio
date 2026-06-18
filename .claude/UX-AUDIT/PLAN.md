@@ -183,13 +183,21 @@ See `issues.json` for full machine-readable list. Summary counts:
 ### UX-RM-F3: Onboarding Wizard 5min
 - **Goal**: Caio Day 0 → working cobaia in <5min without docs.
 - **Effort**: 20h
-- **Files**: new `dashboard/pages/onboarding.html`, `api/cobaia.py:cobaia_preflight`
-- **Acceptance**:
-  - 5-step wizard: 1) Cookies LI, 2) Email warmup setup, 3) ICP filters (Cuiabá), 4) First sequence template, 5) Launch confirm
-  - Preflight green = Launch enabled
-  - Replaces current scattered Configuracoes modal
 - **Cobaia-blocking**: SOFT (Caio can manually configure but wizard is launch-confidence boost)
 - **Deps**: F1, F2
+
+#### UX-RM-F3-A: Wizard Framework + Welcome + Profile + Channels ✅ DONE 2026-06-18
+- HermesOnboardingWizard IIFE: register(step), open({resume,startStep}), next/prev/skip/complete
+- First-run detection in startPage() via _checkOnboarding() — server-side + localStorage fallback
+- api/onboarding.py: GET/POST /api/onboarding/state + POST /api/onboarding/complete + POST /api/channels/configure + GET /api/channels/{ch}/test (501 for unconfigured)
+- migrations/2026_06_onboarding_state.sql: onboarding_state table, idempotent
+- Step 1 Welcome: 3 value cards (AI Brain/Cobaia Segura/Observabilidade), "~5min" disclosure, Comecar button
+- Step 2 Profile: 8-item checklist, min 4 done to advance (aria-disabled), inline 14-day playbook expandable
+- Step 3 Channels: 4 accordion sections (LI/Email/WA/TG), inline config fields + Test/Save per channel, aria-live status
+- WCAG: role=dialog aria-modal focus-trap Tab/Shift+Tab Escape focus-restore aria-valuenow progressbar aria-disabled next-btn
+- CSS: dashboard/styles/onboarding.css — all tokens, --accent-l for summary contrast (6.93:1 AA pass)
+- 6 tests (355 pytest PASS), frontend-ux-reviewer PASS-WITH-NOTES (B1+B2 fixed pre-commit, 5 WARNs F.future)
+- Browser smoke: all 3 steps navigate, skip persists, resume from state works
 
 ### UX-RM-F4: Visual Redesign (tokens + typography + motion)
 - **Goal**: Tremor-aligned cockpit feel. Pro-grade typography. Motion budget enforced.

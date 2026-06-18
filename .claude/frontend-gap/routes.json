@@ -1,7 +1,7 @@
 {
-  "generated_at": 1781815979.2961318,
-  "total": 214,
-  "pc_count": 164,
+  "generated_at": 1781818261.4711661,
+  "total": 219,
+  "pc_count": 169,
   "vm_count": 50,
   "ws_count": 1,
   "internal_count": 5,
@@ -162,6 +162,26 @@
       "file": "api/brain.py",
       "line": 137,
       "function": "stream_decide",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/channels/configure",
+      "file": "api/onboarding.py",
+      "line": 131,
+      "function": "configure_channel",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/channels/{channel}/test",
+      "file": "api/onboarding.py",
+      "line": 146,
+      "function": "test_channel",
       "side": "pc",
       "internal_only": false,
       "rate_limited": false
@@ -962,6 +982,36 @@
       "file": "api/observability.py",
       "line": 102,
       "function": "get_perf",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/onboarding/complete",
+      "file": "api/onboarding.py",
+      "line": 118,
+      "function": "complete_onboarding",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/onboarding/state",
+      "file": "api/onboarding.py",
+      "line": 104,
+      "function": "get_onboarding_state",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/onboarding/state",
+      "file": "api/onboarding.py",
+      "line": 111,
+      "function": "save_onboarding_state",
       "side": "pc",
       "internal_only": false,
       "rate_limited": false

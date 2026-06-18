@@ -366,6 +366,8 @@ app.include_router(skills_router)  # F.4.1 — /api/skills/proposals/* CRUD + /a
 app.include_router(config_router)  # F.4.3 — /api/config whitelisted feature flags
 # F.4.4 FIX: webhook include removed (endpoint lives on VM via Cloudflare tunnel)
 app.include_router(cobaia_router)  # F.7 C1 — /api/linkedin/cobaia/* warmup endpoints
+from api.onboarding import router as onboarding_router
+app.include_router(onboarding_router)  # UX-RM-F3-A — /api/onboarding/* + /api/channels/*
 
 
 if __name__ == "__main__":

@@ -260,6 +260,8 @@ async function checkAuth() {
         // UX-RM-F2-B — register commands + wire filters (defer scripts may already be loaded)
         _registerHermesCommands();
         _wireFilterPersistence();
+        // UX-RM-F3-A — first-run onboarding wizard
+        _checkOnboarding();
     };
 
     if (!token) {
@@ -5993,4 +5995,36 @@ function _wireFilterPersistence() {
             fp.set('proposals', saved);
         });
     });
+}
+
+/* ============================================================
+   UX-RM-F3-A — ONBOARDING FIRST-RUN CHECK
+   ============================================================ */
+async function _checkOnboarding() {
+    const wiz = window.HermesOnboardingWizard;
+    if (!wiz) return;
+
+    if (localStorage.getItem('hermes.onboarding.completed')) return;
+
+    // Server-side check (authoritative)
+    try {
+        const r = await api('/api/onboarding/state');
+        if (r && r.data && r.data.completed) {
+            localStorage.setItem('hermes.onboarding.completed', '1');
+            return;
+        }
+        const skipped = localStorage.getItem('hermes.onboarding.skipped');
+        if (r && r.data && r.data.last_step > 0 && !skipped) {
+            // Resume from where user left off
+            wiz.open({ resume: true });
+            return;
+        }
+        if (!skipped) {
+            wiz.open();
+        }
+    } catch (_) {
+        // Offline — fall back to localStorage
+        const skipped = localStorage.getItem('hermes.onboarding.skipped');
+        if (!skipped) wiz.open();
+    }
 }
