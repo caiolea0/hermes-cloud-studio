@@ -3656,7 +3656,12 @@ Total wall-clock: ~15-20h spread 4 sessões.
 ### 📋 Phase 4+5 (FUTURE, defer)
 
 - [ ] **Phase 4** (Task #16) — Per-MCP JWT B11 root cause Opus 4.7 ~1-2 dias (trigger: Phase 1+2 stable 2 weeks)
-- [ ] **Phase 5** (Task #17) — Skill owner_verified gate D7 F.5.6 (trigger: ANTES cobaia warmup activate)
+- [x] **Phase 5** (Task #17) — Skill owner_verified gate D7 F.5.6 — **COMPLETED 2026-06-18** (commits 4d28327+bd7bb5b)
+  - Migration: 6 cols + idx_skill_proposals_verified
+  - auto_skill_runner: Phase 5 GATE blocks PR if owner_verified=0, stamps awaiting_verify_since + WS emit
+  - api/skills.py: POST /verify + /unverify + GET /proposals-pending-verify
+  - Dashboard: "Aguarda Verificação" filter chip, verify drawer modal, enriched badges, WS subscriptions
+  - **COBAIA ACTIVATION GATES: 3/3 DONE** — cobaia READY tecnicamente (warmup 14d pending)
 
 ### 🎯 Ordem execução otimizada
 
