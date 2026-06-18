@@ -221,9 +221,14 @@ def _query_local_errors(
     db_path,
     category: str,
     range_str: str,
-    status: str,
+    status: Optional[str],
 ) -> list[dict[str, Any]]:
-    """Local errors_inbox query aligned on category + status + time range."""
+    """Local errors_inbox query aligned on category + time range.
+
+    Pass status=None to fetch all statuses (required for correct post-merge
+    filtering — resolved local rows must enter _merge_errors so local status
+    overrides the Sentry default 'open' before the caller applies status gate).
+    """
     interval = _RANGE_INTERVALS.get(range_str, "-1 day")
     if not db_path.exists():
         return []
@@ -235,15 +240,26 @@ def _query_local_errors(
         ).fetchone()
         if not existing:
             return []
-        rows = conn.execute(
-            """SELECT id, category, severity, title, message, sentry_issue_id,
-                      status, resolved_by, resolved_at, metadata_json, created_at
-               FROM errors_inbox
-               WHERE category = ? AND status = ? AND created_at > datetime('now', ?)
-               ORDER BY created_at DESC
-               LIMIT 500""",
-            (category, status, interval),
-        ).fetchall()
+        if status is not None:
+            rows = conn.execute(
+                """SELECT id, category, severity, title, message, sentry_issue_id,
+                          status, resolved_by, resolved_at, metadata_json, created_at
+                   FROM errors_inbox
+                   WHERE category = ? AND status = ? AND created_at > datetime('now', ?)
+                   ORDER BY created_at DESC
+                   LIMIT 500""",
+                (category, status, interval),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT id, category, severity, title, message, sentry_issue_id,
+                          status, resolved_by, resolved_at, metadata_json, created_at
+                   FROM errors_inbox
+                   WHERE category = ? AND created_at > datetime('now', ?)
+                   ORDER BY created_at DESC
+                   LIMIT 500""",
+                (category, interval),
+            ).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
@@ -345,9 +361,11 @@ async def get_errors(
         sentry_items = await _query_sentry_issues(cat, range)
         if not sentry_items:
             result["sentry_available"] = False
-        local_items = _query_local_errors(DB_PATH, cat, range, status)
+        # Fetch ALL local statuses so _merge_errors can apply local-wins override
+        # before the status gate — prevents resolved-local linked to Sentry-open
+        # from leaking through as 'open' (B19 regression fix).
+        local_items = _query_local_errors(DB_PATH, cat, range, None)
         merged = _merge_errors(sentry_items, local_items)
-        # Status filter applied consistently — Sentry items default to "open" (line 275)
         merged = [m for m in merged if m.get("status") == status]
 
         total = len(merged)

@@ -1,9 +1,15 @@
-"""H3 hardening-future — F.8 Observability fixes (B18 + B19, 5 tests).
+"""H3 hardening-future + R8 post-audit — F.8 Observability fixes (B18 + B19, 8 tests).
 
 B18: CSV export must go through fetch+Blob (not window.location.assign) to carry
      X-Hermes-Token header — validated by inspecting the JS source pattern.
 B19: /errors filter status= must apply consistently to all items including Sentry;
      the previous bypass (or source=="sentry") leaked resolved/open items.
+
+R8 (B19 regression fix): _query_local_errors was pre-filtering by status BEFORE
+     _merge_errors, so a local row with status='resolved' linked to a Sentry item
+     (default status='open') never overrode the Sentry status.  The Sentry item
+     leaked as 'open' even though the local row marked it resolved.
+     Fix: pass status=None to _query_local_errors, apply filter post-merge.
 """
 from __future__ import annotations
 
@@ -12,7 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from api.observability import _merge_errors, get_errors
+from api.observability import _merge_errors, _query_local_errors, get_errors
 
 
 # ---------------------------------------------------------------------------
@@ -92,3 +98,74 @@ def test_errors_no_status_filter_returns_all_statuses():
     assert len(open_items) == 2
     assert len(resolved_items) == 1
     assert len(wontfix_items) == 1
+
+
+# ---------------------------------------------------------------------------
+# R8 — B19 regression: pre-merge status filter leaked Sentry-open for resolved
+# ---------------------------------------------------------------------------
+
+def test_r8_open_filter_excludes_sentry_item_with_resolved_local_link():
+    """R8 adversarial: Sentry item (default open) linked to resolved local row
+    must NOT appear when status=open filter is applied post-merge.
+
+    Old bug: _query_local_errors pre-filtered to status='open' → resolved local
+    row never entered _merge_errors → Sentry item kept status='open' → leaked.
+    Fixed: fetch all local rows, merge, THEN apply status gate.
+    """
+    sentry = [_sentry_item("s10", status="open")]
+    # Simulate _query_local_errors(status=None): returns ALL local rows including resolved
+    local_all = [_local_item(10, status="resolved", sentry_id="s10")]
+
+    merged = _merge_errors(sentry, local_all)
+    # After merge, the item should be source='both', status='resolved'
+    assert len(merged) == 1
+    assert merged[0]["source"] == "both"
+    assert merged[0]["status"] == "resolved", "local resolved must override Sentry open"
+
+    # Applying status=open filter post-merge must return EMPTY (not leak)
+    open_filtered = [m for m in merged if m.get("status") == "open"]
+    assert len(open_filtered) == 0, "Resolved item must not leak as open"
+
+
+def test_r8_resolved_filter_includes_linked_item_post_merge():
+    """R8: status=resolved filter post-merge correctly includes linked resolved item."""
+    sentry = [_sentry_item("s11", status="open")]
+    local_all = [_local_item(11, status="resolved", sentry_id="s11")]
+
+    merged = _merge_errors(sentry, local_all)
+    resolved_filtered = [m for m in merged if m.get("status") == "resolved"]
+    assert len(resolved_filtered) == 1
+    assert resolved_filtered[0]["sentry_issue_id"] == "s11"
+
+
+def test_r8_query_local_errors_none_status_skips_sql_filter(tmp_path):
+    """R8: _query_local_errors with status=None must return rows of ALL statuses."""
+    import sqlite3 as _sqlite3
+    db = tmp_path / "test.db"
+    conn = _sqlite3.connect(str(db))
+    conn.execute(
+        """CREATE TABLE errors_inbox (
+               id INTEGER PRIMARY KEY, category TEXT, severity TEXT,
+               title TEXT, message TEXT, sentry_issue_id TEXT,
+               status TEXT, resolved_by TEXT, resolved_at TEXT,
+               metadata_json TEXT, created_at TEXT)"""
+    )
+    conn.executemany(
+        "INSERT INTO errors_inbox (category, severity, title, status, created_at) VALUES (?,?,?,?,datetime('now'))",
+        [("app", "error", "Open err", "open"),
+         ("app", "error", "Resolved err", "resolved"),
+         ("app", "error", "Wontfix err", "wontfix")],
+    )
+    conn.commit()
+    conn.close()
+
+    rows_all = _query_local_errors(db, "app", "24h", None)
+    assert len(rows_all) == 3, "status=None must return all 3 rows"
+
+    rows_open = _query_local_errors(db, "app", "24h", "open")
+    assert len(rows_open) == 1
+    assert rows_open[0]["status"] == "open"
+
+    rows_resolved = _query_local_errors(db, "app", "24h", "resolved")
+    assert len(rows_resolved) == 1
+    assert rows_resolved[0]["status"] == "resolved"

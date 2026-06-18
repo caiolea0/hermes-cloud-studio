@@ -3644,7 +3644,7 @@ Total wall-clock: ~15-20h spread 4 sessões.
 
 - [ ] **R4** (Task #9) — F.2 LinkedIn channel keys real (api/daemon.py:177-178 wrong keys)
 - [x] **R7** (Task #10) — Hunter.io via MCP gateway refactor (audit pattern repeat) — **DONE 2026-06-18** mcps/hunter/server.py NEW + config.yaml registered + core/email_verifier.py GatewayDispatcher refactor + BANNED-PATTERNS httpx rule + 10 tests (238 PASS, BLACKLIST R2 INTACTO 43 SS)
-- [ ] **R8** (Task #11) — F.8 status filter post-merge (B19 regression)
+- [x] **R8** (Task #11) — F.8 status filter post-merge (B19 regression) — **DONE 2026-06-18** _query_local_errors(status=None) fetch-all + post-merge filter + 3 adversarial tests (241 PASS, BLACKLIST R2 INTACTO 44 SS)
 - [ ] **R9** (Task #12) — Cobaia WS broadcast asyncio loop fix
 - [ ] **R10** (Task #13) — H2 flaky test Windows STATUS_DLL_INIT_FAILED
 - [ ] **R11+R12+R13** (Task #14) — Dead code cleanup (events_jsonl_path + cobaia_autotune_synthesis + PLAN false closeout)
