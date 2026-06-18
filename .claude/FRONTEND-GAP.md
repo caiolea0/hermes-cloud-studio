@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 10:46 UTC
+- **last_updated**: 2026-06-18 13:33 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 210 (160 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 94 (45.9% of public)
-- **orphans**: 111
+- **routes_total**: 213 (163 PC + 50 VM, 5 internal-only excluded)
+- **consumed**: 94 (45.2% of public)
+- **orphans**: 114
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **210** rotas FastAPI (160 PC, 50 VM)
+- Total: **213** rotas FastAPI (163 PC, 50 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -23,8 +23,8 @@
 | `api/linkedin.py` | 21 |
 | `api/cobaia.py` | 17 |
 | `api/pipeline_studio.py` | 13 |
+| `api/skills.py` | 13 |
 | `api/daemon.py` | 12 |
-| `api/skills.py` | 10 |
 | `api/pipelines.py` | 9 |
 | `api/prospects.py` | 9 |
 | `api/observability.py` | 8 |
@@ -84,7 +84,7 @@
 | `/api/daemon/channels` | 1 | app.js:3529 |
 | `/api/daemon/decisions` | 1 | app.js:3613 |
 
-## §3 Órfãos — 111 endpoints sem UI
+## §3 Órfãos — 114 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -144,12 +144,14 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/server/restart-local` | pc | `api/server_ctrl.py:22` | rate-limited |
 | `POST` | `/api/server/restart-vm` | pc | `api/server_ctrl.py:54` | rate-limited |
 | `POST` | `/api/server/shutdown-local` | pc | `api/server_ctrl.py:36` | rate-limited |
-| `POST` | `/api/skills/proposals` | pc | `api/skills.py:115` | token |
-| `POST` | `/api/skills/proposals/generate` | pc | `api/skills.py:309` | token |
-| `POST` | `/api/skills/proposals/{proposal_id}/accept` | pc | `api/skills.py:178` | token |
-| `POST` | `/api/skills/proposals/{proposal_id}/reject` | pc | `api/skills.py:238` | token |
+| `POST` | `/api/skills/proposals` | pc | `api/skills.py:118` | token |
+| `POST` | `/api/skills/proposals/generate` | pc | `api/skills.py:312` | token |
+| `POST` | `/api/skills/proposals/{proposal_id}/accept` | pc | `api/skills.py:181` | token |
+| `POST` | `/api/skills/proposals/{proposal_id}/reject` | pc | `api/skills.py:241` | token |
+| `POST` | `/api/skills/proposals/{proposal_id}/unverify` | pc | `api/skills.py:455` | token |
+| `POST` | `/api/skills/proposals/{proposal_id}/verify` | pc | `api/skills.py:411` | token |
 | `POST` | `/api/skills/webhook/pr-merged` | pc | `api/skills_webhook.py:186` | rate-limited |
-| `POST` | `/api/skills/{skill_name}/unquarantine` | pc | `api/skills.py:403` | token |
+| `POST` | `/api/skills/{skill_name}/unquarantine` | pc | `api/skills.py:501` | token |
 | `POST` | `/api/tasks/bulk` | pc | `api/tasks.py:93` | token |
 | `PUT` | `/api/user-prefs` | pc | `api/user_prefs.py:76` | rate-limited |
 | `GET` | `/api/lab/runs` | pc | `api/lab.py:424` | token |
@@ -195,11 +197,12 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/pipeline-studio/templates` | pc | `api/pipeline_studio.py:397` | token |
 | `GET` | `/api/scraper/history` | pc | `api/scraper.py:123` | token |
 | `GET` | `/api/scraper/history` | vm | `vm_api/routes.py:530` | token |
-| `GET` | `/api/skills/health` | pc | `api/skills.py:332` | token |
-| `GET` | `/api/skills/proposals` | pc | `api/skills.py:94` | token |
-| `GET` | `/api/skills/proposals/{proposal_id}` | pc | `api/skills.py:134` | token |
-| `GET` | `/api/skills/proposals/{proposal_id}/yaml-preview` | pc | `api/skills.py:147` | token |
-| `GET` | `/api/skills/synthesis-runs/{run_id}` | pc | `api/skills.py:289` | token |
+| `GET` | `/api/skills/health` | pc | `api/skills.py:335` | token |
+| `GET` | `/api/skills/proposals` | pc | `api/skills.py:97` | token |
+| `GET` | `/api/skills/proposals-pending-verify` | pc | `api/skills.py:485` | token |
+| `GET` | `/api/skills/proposals/{proposal_id}` | pc | `api/skills.py:137` | token |
+| `GET` | `/api/skills/proposals/{proposal_id}/yaml-preview` | pc | `api/skills.py:150` | token |
+| `GET` | `/api/skills/synthesis-runs/{run_id}` | pc | `api/skills.py:292` | token |
 | `GET` | `/api/user-prefs` | pc | `api/user_prefs.py:70` | token |
 
 ## §4 TOP 10 priorizado

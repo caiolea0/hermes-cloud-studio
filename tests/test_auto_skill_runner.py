@@ -14,14 +14,34 @@ from core.auto_skill_runner import AutoSkillRunner, _shortid, _slugify
 from core.skill_proposals import SkillProposalsManager
 
 
+def _apply_sql_file_idempotent(conn: sqlite3.Connection, path: Path) -> None:
+    """Apply SQL migration, stripping comment-only lines to avoid `;` in comments breaking split."""
+    sql = path.read_text(encoding="utf-8")
+    lines = [l for l in sql.splitlines() if not l.strip().startswith("--")]
+    for stmt in "\n".join(lines).split(";"):
+        stmt = stmt.strip()
+        if not stmt:
+            continue
+        try:
+            conn.execute(stmt)
+            conn.commit()
+        except sqlite3.OperationalError as exc:
+            msg = str(exc).lower()
+            if "duplicate column" in msg or "already exists" in msg:
+                pass
+            else:
+                raise
+
+
 @pytest.fixture
 def runner_with_tmp_db(monkeypatch, tmp_path):
     db_path = tmp_path / "f42c1.db"
-    sql = Path(__file__).parent.parent.joinpath(
-        "migrations", "2026_06_skill_proposals.sql"
-    ).read_text(encoding="utf-8")
+    root = Path(__file__).parent.parent
     conn = sqlite3.connect(str(db_path))
-    conn.executescript(sql)
+    # Base schema
+    conn.executescript(root.joinpath("migrations", "2026_06_skill_proposals.sql").read_text(encoding="utf-8"))
+    # Phase 5: owner_verified columns (idempotent)
+    _apply_sql_file_idempotent(conn, root / "migrations" / "2026_06_skill_owner_verified.sql")
     conn.close()
 
     monkeypatch.setattr(state_module, "DB_PATH", db_path)
@@ -191,7 +211,11 @@ class _MockDispatcher:
 
 
 def _make_passed_proposal(manager, name="cobaia-daily"):
-    """Helper — create proposal + force lab_passed via runner inline validation."""
+    """Helper — create proposal + force lab_passed + set owner_verified=1.
+
+    Tests using this helper test behavior AFTER Phase 5 gate (D4, PR creation, etc.).
+    owner_verified=1 bypasses Phase 5 gate so the existing D4/D5/D7 tests stay valid.
+    """
     created = manager.create(
         name=name,
         description="C2 fixture rationale",
@@ -211,6 +235,8 @@ def _make_passed_proposal(manager, name="cobaia-daily"):
         },
         lab_test_status="passed",
     )
+    # Phase 5: set owner_verified=1 so tests reach the D4 gate (lab-not-passed check).
+    manager.update_owner_verified(created["id"], verified=True, allowed_mcps='["sentry"]')
     return created["id"]
 
 
@@ -228,6 +254,8 @@ def test_dispatch_github_pr_blocks_on_lab_failed(runner_with_tmp_db):
          "latency_ms": 1, "exit_code": 1, "mock": True},
         lab_test_status="failed",
     )
+    # Phase 5: set owner_verified=1 so we test the D4 (lab-not-passed) gate specifically.
+    manager.update_owner_verified(created["id"], verified=True, allowed_mcps='["sentry"]')
     result = asyncio.run(runner.dispatch_github_pr(created["id"]))
     assert result["status"] == "blocked"
     assert result["reason"] == "lab_not_passed"

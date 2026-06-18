@@ -462,6 +462,103 @@ class SkillProposalsManager:
         }
 
 
+    def update_owner_verified(
+        self,
+        proposal_id: str,
+        verified: bool,
+        allowed_mcps: Optional[str],
+        notes: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Phase 5 — set owner_verified flag + allowed_mcps allowlist.
+
+        verified=True  → sets verified_at + verified_by='caio', clears awaiting_verify_since.
+        verified=False → clears verification fields (unverify/revoke).
+        """
+        conn = _connect()
+        try:
+            existing = conn.execute(
+                "SELECT status FROM skill_proposals WHERE id = ?", (proposal_id,)
+            ).fetchone()
+            if not existing:
+                raise LookupError("proposal_not_found")
+            if verified:
+                conn.execute(
+                    """UPDATE skill_proposals
+                       SET owner_verified = 1,
+                           allowed_mcps = ?,
+                           verified_at = CURRENT_TIMESTAMP,
+                           verified_by = 'caio',
+                           verification_notes = ?,
+                           awaiting_verify_since = NULL,
+                           updated_at = CURRENT_TIMESTAMP
+                       WHERE id = ?""",
+                    (allowed_mcps, notes, proposal_id),
+                )
+            else:
+                conn.execute(
+                    """UPDATE skill_proposals
+                       SET owner_verified = 0,
+                           allowed_mcps = NULL,
+                           verified_at = NULL,
+                           verified_by = NULL,
+                           verification_notes = ?,
+                           updated_at = CURRENT_TIMESTAMP
+                       WHERE id = ?""",
+                    (notes, proposal_id),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+        return {
+            "id": proposal_id,
+            "owner_verified": verified,
+            "allowed_mcps": allowed_mcps,
+        }
+
+    def mark_awaiting_verify(self, proposal_id: str) -> dict[str, Any]:
+        """Phase 5 — auto_skill_runner stamps awaiting_verify_since when lab_passed but not owner_verified.
+
+        Does NOT change status (stays lab_passed, within CHECK constraint).
+        Dashboard detects pending-verify via lab_passed + owner_verified=0 + awaiting_verify_since IS NOT NULL.
+        """
+        conn = _connect()
+        try:
+            existing = conn.execute(
+                "SELECT status FROM skill_proposals WHERE id = ?", (proposal_id,)
+            ).fetchone()
+            if not existing:
+                raise LookupError("proposal_not_found")
+            conn.execute(
+                """UPDATE skill_proposals
+                   SET awaiting_verify_since = CURRENT_TIMESTAMP,
+                       updated_at = CURRENT_TIMESTAMP
+                   WHERE id = ?""",
+                (proposal_id,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return {"id": proposal_id, "status": existing["status"], "awaiting_verify_since_set": True}
+
+    def get_pending_verification(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Phase 5 — lab_passed proposals not yet owner_verified. Used by dashboard filter + API."""
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                """SELECT id, name, description, status, lab_test_status,
+                          owner_verified, allowed_mcps, verified_at, awaiting_verify_since,
+                          cost_credits, created_at, updated_at
+                   FROM skill_proposals
+                   WHERE owner_verified = 0
+                     AND status = 'lab_passed'
+                   ORDER BY updated_at DESC
+                   LIMIT ?""",
+                (limit,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
     def get_by_name(self, name: str) -> Optional[dict[str, Any]]:
         conn = _connect()
         try:

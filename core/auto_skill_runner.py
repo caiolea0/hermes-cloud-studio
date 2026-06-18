@@ -453,6 +453,30 @@ class AutoSkillRunner:
         """
         proposal = self.manager.get(proposal_id)  # raises LookupError
 
+        # Phase 5 GATE — owner_verified must be explicitly set before PR creation.
+        # Default is 0 (False) — explicit opt-in security for cobaia activation safety.
+        if not proposal.get("owner_verified"):
+            log.info(
+                "Phase 5 GATE: PR creation skipped — owner_verified=False proposal_id=%s"
+                " requester=%s. Owner manual verify required via dashboard.",
+                proposal_id, F4_REQUESTER,
+            )
+            try:
+                self.manager.mark_awaiting_verify(proposal_id)
+            except Exception as exc:  # noqa: BLE001 — gate must never crash caller
+                log.warning("mark_awaiting_verify failed proposal_id=%s: %s", proposal_id, exc)
+            await self._ws_emit("brain.skill_awaiting_verify", {
+                "proposal_id": proposal_id,
+                "name": proposal.get("name"),
+                "db_status": proposal.get("status"),
+                "reason": "owner_verified_required",
+            })
+            return {
+                "status": "skipped_owner_verify_required",
+                "proposal_id": proposal_id,
+                "reason": "owner_verified_required — visit /skills page to verify this skill",
+            }
+
         # D4 — gate on lab result.
         lab_blob = json.loads(proposal.get("lab_test_result") or "{}")
         lab_status = lab_blob.get("status")

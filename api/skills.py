@@ -41,6 +41,9 @@ from core.skill_proposals import (
     manager as proposals_manager,
 )
 
+_VALID_MCPS = {"sentry", "hermes-linkedin", "hermes-prospects", "hermes-skills",
+               "github", "hermes-hunter"}
+
 log = logging.getLogger("hermes.api.skills")
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
@@ -394,6 +397,101 @@ async def skills_health(window_days: int = Query(7, ge=1, le=90)):
 
 # ---------------------------------------------------------------------------
 # POST /api/skills/{name}/unquarantine — D5 (F.4.4 C2)
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Phase 5: POST /api/skills/proposals/{id}/verify — owner verify gate
+# ---------------------------------------------------------------------------
+
+class VerifySkillRequest(BaseModel):
+    allowed_mcps: list[str] = Field(..., min_length=1)
+    notes: Optional[str] = Field(None, max_length=500)
+
+
+@router.post("/proposals/{proposal_id}/verify")
+async def verify_proposal(proposal_id: str, body: VerifySkillRequest):
+    """Phase 5: Owner manually verifies skill safe + sets MCP allowlist.
+
+    After verify, skill becomes eligible for F.4 auto-skill loop PR creation.
+    Rejects unknown MCP names to prevent accidental allowlist expansion.
+    """
+    _ensure_table_or_503()
+    allowed_set = set(body.allowed_mcps)
+    invalid = allowed_set - _VALID_MCPS
+    if invalid:
+        raise HTTPException(400, f"Invalid MCPs: {sorted(invalid)}. Valid: {sorted(_VALID_MCPS)}")
+
+    try:
+        result = proposals_manager.update_owner_verified(
+            proposal_id=proposal_id,
+            verified=True,
+            allowed_mcps=json.dumps(sorted(allowed_set)),
+            notes=body.notes,
+        )
+    except LookupError:
+        raise HTTPException(404, "proposal_not_found")
+
+    # WS emit (best-effort)
+    try:
+        from core.state import ws_manager
+        await ws_manager.broadcast({
+            "event_type": "brain.skill_verified",
+            "payload": {
+                "proposal_id": proposal_id,
+                "allowed_mcps": sorted(allowed_set),
+                "notes_provided": bool(body.notes),
+            },
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.debug("ws emit brain.skill_verified failed: %s", exc)
+
+    return {"status": "verified", "proposal_id": proposal_id, **result}
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: POST /api/skills/proposals/{id}/unverify — revoke verification
+# ---------------------------------------------------------------------------
+
+@router.post("/proposals/{proposal_id}/unverify")
+async def unverify_proposal(proposal_id: str):
+    """Revert verification (e.g., post-incident audit). Blocks PR creation again."""
+    _ensure_table_or_503()
+    try:
+        result = proposals_manager.update_owner_verified(
+            proposal_id=proposal_id,
+            verified=False,
+            allowed_mcps=None,
+            notes="owner_unverify",
+        )
+    except LookupError:
+        raise HTTPException(404, "proposal_not_found")
+
+    try:
+        from core.state import ws_manager
+        await ws_manager.broadcast({
+            "event_type": "brain.skill_unverified",
+            "payload": {"proposal_id": proposal_id},
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.debug("ws emit brain.skill_unverified failed: %s", exc)
+
+    return {"status": "unverified", "proposal_id": proposal_id, **result}
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: GET /api/skills/proposals/pending-verify — proposals awaiting owner action
+# ---------------------------------------------------------------------------
+
+@router.get("/proposals-pending-verify")
+async def list_pending_verify():
+    """Phase 5 — list proposals with lab_passed or awaiting_owner_verify + owner_verified=0."""
+    _ensure_table_or_503()
+    items = proposals_manager.get_pending_verification()
+    return {"items": items, "total": len(items)}
+
+
+# ---------------------------------------------------------------------------
+# Unquarantine endpoint
 # ---------------------------------------------------------------------------
 
 class UnquarantineRequest(BaseModel):
