@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-19 14:32 UTC
+- **last_updated**: 2026-06-19 14:59 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 225 (175 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 136 (61.8% of public)
@@ -108,14 +108,14 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1528` | token |
 | `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:701` | token |
 | `POST` | `/api/channels/configure` | pc | `api/onboarding.py:131` | token |
-| `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:426` | token |
-| `POST` | `/api/cobaia/verify-email` | pc | `api/cobaia.py:750` | token |
+| `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:427` | token |
+| `POST` | `/api/cobaia/verify-email` | pc | `api/cobaia.py:751` | token |
 | `POST` | `/api/icp/profile` | pc | `api/icp.py:85` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | pc | `api/linkedin.py:411` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1216` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | pc | `api/linkedin.py:399` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | vm | `vm_api/routes.py:1107` | token |
-| `POST` | `/api/linkedin/cobaia/today-queue/{item_id}/skip` | pc | `api/cobaia.py:820` | token |
+| `POST` | `/api/linkedin/cobaia/today-queue/{item_id}/skip` | pc | `api/cobaia.py:821` | token |
 | `POST` | `/api/linkedin/connection/refresh` | pc | `api/linkedin.py:483` | token |
 | `POST` | `/api/linkedin/connection/refresh` | vm | `vm_api/routes.py:1708` | token |
 | `POST` | `/api/linkedin/detect-account-type` | pc | `api/linkedin.py:463` | token |
@@ -150,14 +150,14 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/` | pc | `api/dashboard.py:14` | token |
 | `GET` | `/api/_ping` | vm | `hermes_api_v2.py:157` | token |
 | `GET` | `/api/channels/{channel}/test` | pc | `api/onboarding.py:146` | token |
-| `GET` | `/api/cobaia/autotune-history` | pc | `api/cobaia.py:368` | token |
-| `GET` | `/api/cobaia/autotune-status` | pc | `api/cobaia.py:400` | token |
-| `GET` | `/api/cobaia/bug-export` | pc | `api/cobaia.py:267` | token |
-| `GET` | `/api/cobaia/f7-report` | pc | `api/cobaia.py:634` | token |
-| `GET` | `/api/cobaia/health-score` | pc | `api/cobaia.py:295` | token |
-| `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:776` | token |
-| `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:495` | token |
-| `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:352` | token |
+| `GET` | `/api/cobaia/autotune-history` | pc | `api/cobaia.py:369` | token |
+| `GET` | `/api/cobaia/autotune-status` | pc | `api/cobaia.py:401` | token |
+| `GET` | `/api/cobaia/bug-export` | pc | `api/cobaia.py:268` | token |
+| `GET` | `/api/cobaia/f7-report` | pc | `api/cobaia.py:635` | token |
+| `GET` | `/api/cobaia/health-score` | pc | `api/cobaia.py:296` | token |
+| `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:777` | token |
+| `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:496` | token |
+| `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:353` | token |
 | `GET` | `/api/icp/presets` | pc | `api/icp.py:92` | token |
 | `GET` | `/api/icp/profile` | pc | `api/icp.py:78` | token |
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:457` | token |

@@ -2,7 +2,6 @@
 
 ## Orphans → Consumed (vitórias)
 
-- ✅ `GET /api/linkedin/rate-limits`
 
 ## New orphans (regressões / backend novo sem UI)
 

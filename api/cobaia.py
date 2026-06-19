@@ -37,6 +37,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+from core.state import get_db
 
 logger = logging.getLogger("hermes.cobaia")
 router = APIRouter()
