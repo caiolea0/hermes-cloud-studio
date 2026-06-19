@@ -14,9 +14,12 @@
     } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
 })();
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- UX-RM-F4-A — Geist self-hosted (no CDN; preload reduces FOUT) -->
+<link rel="preload" href="/dashboard/static/fonts/geist-sans-variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/dashboard/static/fonts/geist-mono-variable.woff2" as="font" type="font/woff2" crossorigin>
 <!-- F.2.4 — design system tokens (DARK default em tokens.css; light overrides em light.css) -->
 <link rel="stylesheet" href="/dashboard/styles/tokens.css">
+<link rel="stylesheet" href="/dashboard/styles/typography.css">
 <link rel="stylesheet" href="/dashboard/styles/light.css">
 <link rel="stylesheet" href="/dashboard/styles.css">
 <!-- F.2.4 — vendor axe-core 4.10 (WCAG audit manual via DevTools), components (window.hermesToast/window.skeleton) -->

@@ -414,7 +414,7 @@
     border: 1px solid var(--border, rgba(255,255,255,0.06));
     border-radius: 8px;
     padding: 10px;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-2, #8b8b98);
     white-space: pre-wrap;
@@ -428,7 +428,7 @@
     border: 1px solid var(--border, rgba(255,255,255,0.06));
     border-radius: 8px;
     padding: 6px;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     max-height: 320px;
     overflow-y: auto;
@@ -516,7 +516,7 @@
 }
 
 .sp-meta-key { color: var(--text-2, #8b8b98); }
-.sp-meta-val { color: var(--text, #f0f0f4); font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.sp-meta-val { color: var(--text, #f0f0f4); font-family: var(--font-mono); }
 
 .sp-pr-link {
     color: var(--accent, #7c3aed);
@@ -643,7 +643,7 @@
     border: 1px solid var(--border, rgba(255,255,255,0.06));
     border-radius: 8px;
     padding: 10px;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     color: var(--text-2, #8b8b98);
     white-space: pre-wrap;

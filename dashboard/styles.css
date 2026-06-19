@@ -1,46 +1,7 @@
 ﻿/* ============================================================
-   CSS VARIABLES & DESIGN TOKENS
+   Tokens → dashboard/styles/tokens.css (UX-RM-F4-A migration)
+   All :root {} custom properties live there. styles.css = layout + components.
    ============================================================ */
-:root {
-    --bg: #0a0a0c;
-    --s1: #111114;
-    --s2: #18181c;
-    --s3: #1f1f24;
-    --s4: #27272d;
-    --s5: #303038;
-    --accent: #7c3aed;
-    --accent-l: #a78bfa;
-    --lime: #d1fe17;
-    --lime-dim: rgba(209,254,23,0.12);
-    --green: #10b981;
-    --green-dim: rgba(16,185,129,0.12);
-    --red: #ef4444;
-    --red-dim: rgba(239,68,68,0.12);
-    --red-l: #fca5a5;              /* F.4.3 C2 — danger light, WCAG AA 9.33:1 on --s2 */
-    --red-l-pressed: #f87171;      /* F.4.3 C2 — hover/active state for --red-l */
-    --amber: #f59e0b;
-    --amber-dim: rgba(245,158,11,0.12);
-    --orange: #f97316;              /* Phase 5 — owner_verify pending alert */
-    --orange-dim: rgba(249,115,22,0.08);
-    --blue: #3b82f6;
-    --blue-dim: rgba(59,130,246,0.12);
-    --pink: #ec4899;
-    --pink-dim: rgba(236,72,153,0.12);
-    --border: rgba(255,255,255,0.06);
-    --border-h: rgba(255,255,255,0.12);
-    --border-a: rgba(255,255,255,0.20);
-    --text: #f0f0f4;
-    --text-2: #8b8b98;
-    --text-3: #8a8a9a; /* H4 fix: was #8a8a9a (~2.8:1), now ~4.7:1 on --s2 (WCAG AA) */
-    --r: 14px;
-    --r-md: 10px;
-    --r-sm: 8px;
-    --r-xs: 6px;
-    --ease: cubic-bezier(0.4,0,0.2,1);
-    --sidebar-w: 56px;
-    --sidebar-exp: 220px;
-    --topbar-h: 48px;
-}
 
 /* ============================================================
    RESET & BASE
@@ -48,7 +9,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 13px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 body {
-    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-family: var(--font-sans);
     background: var(--bg);
     color: var(--text);
     overflow: hidden;
@@ -826,7 +787,7 @@ select option { background: var(--s2); color: var(--text); }
     border: 1px solid var(--border);
     border-radius: var(--r-sm);
     padding: 12px;
-    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     line-height: 1.6;
     max-height: 180px;
@@ -1526,7 +1487,7 @@ select option { background: var(--s2); color: var(--text); }
     background: var(--s0, #08080a);
     border-radius: var(--r-sm);
     padding: 10px 12px;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     line-height: 1.6;
     scrollbar-width: thin;
@@ -2286,7 +2247,7 @@ select option { background: var(--s2); color: var(--text); }
 .li-campaign-card-id {
     font-size: 11px;
     color: var(--text-3);
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: var(--font-mono);
 }
 .li-campaign-card-time {
     font-size: 11px;
@@ -3103,7 +3064,7 @@ select option { background: var(--s2); color: var(--text); }
 }
 .li-sc-template code {
     display: block;
-    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-family: var(--font-mono);
     font-size: 11.5px;
     color: var(--text);
     white-space: pre-wrap;

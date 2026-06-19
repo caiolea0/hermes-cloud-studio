@@ -1,0 +1,112 @@
+/* ============================================================
+   Hermes Cloud Studio — Typography (UX-RM-F4-A)
+   ============================================================
+   Self-hosted Geist (Vercel). NO external font CDN.
+   Variable fonts: single file covers wght 100–900.
+   font-display: swap — avoids FOIT, FOUT acceptable.
+   ============================================================ */
+
+@font-face {
+    font-family: 'Geist Sans';
+    src: url('/dashboard/static/fonts/geist-sans-variable.woff2') format('woff2-variations');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Geist Mono';
+    src: url('/dashboard/static/fonts/geist-mono-variable.woff2') format('woff2-variations');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ─── Global base ─── */
+html {
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    color: var(--text);
+}
+
+/* ─── Heading hierarchy ─── */
+h1 {
+    font-size: var(--text-3xl);
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tight);
+    font-weight: var(--weight-bold);
+}
+
+h2 {
+    font-size: var(--text-2xl);
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tight);
+    font-weight: var(--weight-semibold);
+}
+
+h3 {
+    font-size: var(--text-xl);
+    line-height: var(--leading-snug);
+    font-weight: var(--weight-semibold);
+}
+
+h4 {
+    font-size: var(--text-lg);
+    line-height: var(--leading-snug);
+    font-weight: var(--weight-medium);
+}
+
+h5 {
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    font-weight: var(--weight-medium);
+}
+
+h6 {
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+}
+
+/* ─── Mono elements ─── */
+code, pre, kbd, samp, .mono {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+}
+
+pre {
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+}
+
+/* ─── Utility classes ─── */
+.text-xs   { font-size: var(--text-xs); }
+.text-sm   { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-lg   { font-size: var(--text-lg); }
+.text-xl   { font-size: var(--text-xl); }
+.text-2xl  { font-size: var(--text-2xl); }
+.text-3xl  { font-size: var(--text-3xl); }
+
+.font-light    { font-weight: var(--weight-light); }
+.font-normal   { font-weight: var(--weight-normal); }
+.font-medium   { font-weight: var(--weight-medium); }
+.font-semibold { font-weight: var(--weight-semibold); }
+.font-bold     { font-weight: var(--weight-bold); }
+
+.leading-tight   { line-height: var(--leading-tight); }
+.leading-normal  { line-height: var(--leading-normal); }
+.leading-relaxed { line-height: var(--leading-relaxed); }
+
+.tracking-tight { letter-spacing: var(--tracking-tight); }
+.tracking-wide  { letter-spacing: var(--tracking-wide); }

@@ -231,6 +231,23 @@ See `issues.json` for full machine-readable list. Summary counts:
 - **Cobaia-blocking**: NO (cosmetic, but builds trust)
 - **Deps**: F2
 
+#### UX-RM-F4-A: OKLCH tokens + Geist typography + scale system ✅ DONE 2026-06-19
+- tokens.css REWRITTEN: hex fallback :root{} + @supports(oklch) enhancement block; 30+ OKLCH tokens
+- All surface/text/accent/semantic/dim colors migrated to OKLCH (Chrome 111+/Safari 15.4+/Firefox 113+)
+- New token scales: --space-0..16 (8px base), --radius-xs..full, --shadow-sm..xl, --z-base..tooltip
+- --text-1..4 aliases + --success/warning/error/info semantic tokens
+- --color-* F.2.4 backward compat aliases updated to OKLCH in @supports block
+- Legacy --r/--r-md/--r-sm/--r-xs/--ease preserved for existing consumers
+- typography.css NEW: Geist Sans + Geist Mono self-hosted @font-face (woff2-variations, font-display:swap)
+- dashboard/static/fonts/geist-sans-variable.woff2 (~70KB) + geist-mono-variable.woff2 (~71KB)
+- Type scale: --text-xs..5xl, --leading-*, --tracking-*, --weight-* tokens
+- h1-h6 global styles with consistent size/weight/letter-spacing progression
+- index.html: Google Fonts CDN removed; font preload tags (as=font, crossorigin); typography.css linked
+- styles.css: :root{} block removed (tokens.css is now sole source); body font-family → var(--font-sans)
+- pipeline-studio.css + skill-proposals.css: 6 hardcoded mono font stacks → var(--font-mono)
+- 19 new tests (428 PASS total), frontend-ux-reviewer READY-TO-MERGE 0 BLOCKERs 4 WARNs F.future
+- BLACKLIST R2 INTACTO 62 SS
+
 ### UX-RM-F5: AI Command Bar + Streaming Brain Sidebar
 
 #### UX-RM-F5-A: Brain streaming endpoint + Cmd+K AI mode SSE ✅ DONE 2026-06-18

@@ -1,65 +1,251 @@
 /* ============================================================
-   Hermes Cloud Studio — Design System Tokens (F.2.4)
+   Hermes Cloud Studio — Design System Tokens (UX-RM-F4-A)
    ============================================================
-   DARK default (Hermes Command Center é dark-first).
-   Light theme overrides em styles/light.css sob :root[data-theme=light].
+   Single source of truth for ALL CSS custom properties.
+   DARK default. Light theme overrides in light.css.
 
-   Regra anti-hex-literal:
-   - Hex/rgb literais ficam APENAS neste arquivo + light.css.
-   - styles.css + components/* DEVEM usar var(--*).
-   - Exceções pontuais (border decorativo único, debug temp) precisam comment justificando.
+   Color strategy: hex fallback → @supports oklch() enhancement
+   Hue 270–290 = blue-violet (brand neutral axis)
 
-   Ver dashboard/styles/README.md pra convenção completa + procedure axe-core.
+   NEVER introduce hex/rgb/hsl literals outside this file
+   and light.css. All other CSS MUST use var(--*).
    ============================================================ */
 
+/* ──────────────────────────────────────────────
+   HEX FALLBACK — universally supported
+   (pre-Chrome 111 / Safari < 15.4 / Firefox < 113)
+   ────────────────────────────────────────────── */
 :root {
-    /* === Color tokens === */
-    --color-bg: #0d1117;
-    --color-bg-2: #161b22;
-    --color-bg-3: #21262d;
-    --color-fg: #e6edf3;
-    --color-fg-muted: #8b949e;
-    --color-accent: #58a6ff;
-    --color-success: #3fb950;
-    --color-warn: #d29922;
-    --color-error: #f85149;
-    --color-info: #58a6ff;
-    --color-border: #30363d;
-    --color-border-focus: #58a6ff;
+    /* Surface scale */
+    --bg:  #0a0a0c;
+    --s0:  #0a0a0c;
+    --s1:  #111114;
+    --s2:  #18181c;
+    --s3:  #1f1f24;
+    --s4:  #27272d;
+    --s5:  #303038;
 
-    /* === Spacing — base 4px === */
-    --space-xs: 4px;
-    --space-sm: 8px;
-    --space-md: 16px;
-    --space-lg: 24px;
-    --space-xl: 32px;
-    --space-2xl: 48px;
+    /* Brand accent (purple) */
+    --accent:    #7c3aed;
+    --accent-l:  #a78bfa;
+    --accent-d:  #5b21b6;
+    --accent-bg: rgba(124,58,237,0.20);
 
-    /* === Radii === */
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
+    /* Semantic palette */
+    --lime:        #d1fe17;
+    --lime-dim:    rgba(209,254,23,0.12);
+    --green:       #10b981;
+    --green-dim:   rgba(16,185,129,0.12);
+    --red:         #ef4444;
+    --red-dim:     rgba(239,68,68,0.12);
+    --red-l:       #fca5a5;
+    --red-l-pressed: #f87171;
+    --amber:       #f59e0b;
+    --amber-dim:   rgba(245,158,11,0.12);
+    --orange:      #f97316;
+    --orange-dim:  rgba(249,115,22,0.08);
+    --blue:        #3b82f6;
+    --blue-dim:    rgba(59,130,246,0.12);
+    --pink:        #ec4899;
+    --pink-dim:    rgba(236,72,153,0.12);
+
+    /* Semantic intent aliases */
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error:   #ef4444;
+    --info:    #3b82f6;
+    --status-green: #10b981;
+    --status-amber: #f59e0b;
+    --status-red:   #ef4444;
+
+    /* Border */
+    --border:   rgba(255,255,255,0.06);
+    --border-h: rgba(255,255,255,0.12);
+    --border-a: rgba(255,255,255,0.20);
+
+    /* Text scale */
+    --text:   #f0f0f4;
+    --text-1: #f0f0f4;
+    --text-2: #8b8b98;
+    --text-3: #8a8a9a;
+    --text-4: #55556a;
+
+    /* ─── Space scale — 8px base ─── */
+    --space-0:  0;
+    --space-1:  4px;
+    --space-2:  8px;
+    --space-3:  12px;
+    --space-4:  16px;
+    --space-5:  20px;
+    --space-6:  24px;
+    --space-8:  32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* ─── Radius scale ─── */
+    --radius-xs:  2px;
+    --radius-sm:  4px;
+    --radius-md:  8px;
+    --radius-lg:  12px;
+    --radius-xl:  16px;
+    --radius-2xl: 24px;
     --radius-full: 9999px;
 
-    /* === Typography === */
-    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
-    --text-xs: 11px;
-    --text-sm: 13px;
+    /* Legacy radius aliases (backward compat) */
+    --r:    14px;
+    --r-md: 10px;
+    --r-sm: 8px;
+    --r-xs: 6px;
+
+    /* ─── Shadow scale ─── */
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.40);
+    --shadow-md: 0 4px 8px rgb(0 0 0 / 0.50);
+    --shadow-lg: 0 10px 15px rgb(0 0 0 / 0.55);
+    --shadow-xl: 0 20px 25px rgb(0 0 0 / 0.60);
+
+    /* ─── Z-index scale ─── */
+    --z-base:    0;
+    --z-overlay: 100;
+    --z-drawer:  200;
+    --z-modal:   300;
+    --z-toast:   400;
+    --z-tooltip: 500;
+
+    /* ─── Typography ─── */
+    --font-sans: 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'Geist Mono', 'Cascadia Code', 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+    --text-xs:   11px;
+    --text-sm:   13px;
     --text-base: 14px;
-    --text-lg: 16px;
-    --text-xl: 20px;
-    --text-2xl: 28px;
+    --text-lg:   16px;
+    --text-xl:   20px;
+    --text-2xl:  24px;
+    --text-3xl:  30px;
+    --text-4xl:  36px;
+    --text-5xl:  48px;
 
-    /* === Shadows === */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.5);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --leading-none:    1;
+    --leading-tight:   1.25;
+    --leading-snug:    1.375;
+    --leading-normal:  1.5;
+    --leading-relaxed: 1.625;
+    --leading-loose:   2;
 
-    /* === Motion === */
+    --tracking-tighter: -0.05em;
+    --tracking-tight:   -0.025em;
+    --tracking-normal:  0;
+    --tracking-wide:    0.025em;
+    --tracking-wider:   0.05em;
+
+    --weight-light:    300;
+    --weight-normal:   400;
+    --weight-medium:   500;
+    --weight-semibold: 600;
+    --weight-bold:     700;
+
+    /* ─── Motion ─── */
     --motion-fast: 120ms;
     --motion-base: 200ms;
     --motion-slow: 400ms;
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+
+    /* ─── Layout ─── */
+    --sidebar-w:   56px;
+    --sidebar-exp: 220px;
+    --topbar-h:    48px;
+
+    /* ─── Legacy --color-* aliases (F.2.4 backward compat) ─── */
+    --color-bg:           #0a0a0c;
+    --color-bg-2:         #18181c;
+    --color-bg-3:         #1f1f24;
+    --color-fg:           #f0f0f4;
+    --color-fg-muted:     #8b8b98;
+    --color-accent:       #7c3aed;
+    --color-success:      #10b981;
+    --color-warn:         #f59e0b;
+    --color-error:        #ef4444;
+    --color-info:         #3b82f6;
+    --color-border:       rgba(255,255,255,0.06);
+    --color-border-focus: #7c3aed;
+}
+
+/* ──────────────────────────────────────────────
+   OKLCH ENHANCEMENT — Chrome 111+, Safari 15.4+, Firefox 113+
+   Perceptually uniform, P3-wide-gamut colors.
+   Hue axis: 270 = blue-violet (near--neutral)
+   ────────────────────────────────────────────── */
+@supports (color: oklch(50% 0.1 200)) {
+    :root {
+        /* Surface scale — dark neutral blue-violet */
+        --bg:  oklch(9%  0.005 285);
+        --s0:  oklch(9%  0.005 285);
+        --s1:  oklch(12% 0.006 285);
+        --s2:  oklch(16% 0.007 285);
+        --s3:  oklch(20% 0.008 285);
+        --s4:  oklch(25% 0.009 285);
+        --s5:  oklch(30% 0.010 285);
+
+        /* Brand accent — purple */
+        --accent:    oklch(47% 0.243 290);
+        --accent-l:  oklch(68% 0.178 290);
+        --accent-d:  oklch(37% 0.265 290);
+        --accent-bg: oklch(30% 0.12 290 / 0.20);
+
+        /* Semantic palette */
+        --lime:      oklch(93% 0.230 113);
+        --lime-dim:  oklch(93% 0.230 113 / 0.12);
+        --green:     oklch(70% 0.18 160);
+        --green-dim: oklch(70% 0.18 160 / 0.12);
+        --red:       oklch(59% 0.23 25);
+        --red-dim:   oklch(59% 0.23 25 / 0.12);
+        --red-l:     oklch(82% 0.12 22);
+        --red-l-pressed: oklch(74% 0.15 22);
+        --amber:     oklch(78% 0.18 73);
+        --amber-dim: oklch(78% 0.18 73 / 0.12);
+        --orange:    oklch(72% 0.21 42);
+        --orange-dim: oklch(72% 0.21 42 / 0.08);
+        --blue:      oklch(60% 0.21 247);
+        --blue-dim:  oklch(60% 0.21 247 / 0.12);
+        --pink:      oklch(60% 0.23 344);
+        --pink-dim:  oklch(60% 0.23 344 / 0.12);
+
+        /* Semantic intent */
+        --success: oklch(70% 0.18 160);
+        --warning: oklch(78% 0.18 73);
+        --error:   oklch(59% 0.23 25);
+        --info:    oklch(60% 0.21 247);
+        --status-green: oklch(70% 0.18 160);
+        --status-amber: oklch(78% 0.18 73);
+        --status-red:   oklch(59% 0.23 25);
+
+        /* Border — white alpha */
+        --border:   oklch(100% 0 0 / 0.06);
+        --border-h: oklch(100% 0 0 / 0.12);
+        --border-a: oklch(100% 0 0 / 0.20);
+
+        /* Text scale */
+        --text:   oklch(95% 0.005 285);
+        --text-1: oklch(95% 0.005 285);
+        --text-2: oklch(59% 0.010 285);
+        --text-3: oklch(61% 0.012 285);
+        --text-4: oklch(42% 0.015 285);
+
+        /* --color-* legacy aliases updated to OKLCH */
+        --color-bg:           oklch(9%  0.005 285);
+        --color-bg-2:         oklch(16% 0.007 285);
+        --color-bg-3:         oklch(20% 0.008 285);
+        --color-fg:           oklch(95% 0.005 285);
+        --color-fg-muted:     oklch(59% 0.010 285);
+        --color-accent:       oklch(47% 0.243 290);
+        --color-success:      oklch(70% 0.18 160);
+        --color-warn:         oklch(78% 0.18 73);
+        --color-error:        oklch(59% 0.23 25);
+        --color-info:         oklch(60% 0.21 247);
+        --color-border:       oklch(100% 0 0 / 0.06);
+        --color-border-focus: oklch(47% 0.243 290);
+    }
 }
