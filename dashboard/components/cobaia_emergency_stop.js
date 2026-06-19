@@ -116,7 +116,7 @@
         } else {
             _mount.innerHTML = `
                 <button class="cobaia-emergency-btn" aria-label="Pausar toda atividade cobaia imediatamente">
-                    ⏹ PAUSE ALL
+                    ${typeof window.icon === 'function' ? window.icon('stop') : '⏹'} PAUSE ALL
                 </button>`;
             const btn = _mount.querySelector('.cobaia-emergency-btn');
             btn.addEventListener('click', () => _dialog.showModal());

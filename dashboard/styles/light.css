@@ -1,30 +1,162 @@
 /* ============================================================
-   Hermes Cloud Studio — Light theme overrides (F.2.4)
+   Hermes Cloud Studio — Light theme OKLCH (UX-RM-F4-B)
    ============================================================
-   Hermes é dark-first (tokens.css define dark default).
-   Light é opt-in via localStorage hermes_theme='light' OU prefers-color-scheme: light.
-   FOUC-prevention inline script em index.html seta data-theme ANTES paint.
+   Full OKLCH rewrite. Overrides ALL surface/text/accent/semantic
+   tokens from tokens.css for light mode.
+   Targeted via :root[data-theme="light"] set by FOUC script
+   (localStorage key 'hermes.theme') before first paint.
+
+   Strategy: invert dark surface scale to high-L values.
+   Accent shifted darker for WCAG 4.5:1 on light backgrounds.
+   Zero hex literals inside @supports block.
+
+   Load order: tokens.css → light.css (overrides)
    ============================================================ */
 
+/* ── Hex fallback — pre-OKLCH browsers ── */
 :root[data-theme="light"] {
-    /* === Color overrides === */
-    --color-bg: #ffffff;
-    --color-bg-2: #f6f8fa;
-    --color-bg-3: #eaeef2;
-    --color-fg: #1f2328;
-    --color-fg-muted: #656d76;
-    --color-accent: #0969da;
-    --color-success: #1a7f37;
-    --color-warn: #9a6700;
-    --color-error: #cf222e;
-    --color-info: #0969da;
-    --color-border: #d0d7de;
-    --color-border-focus: #0969da;
+    --bg:  #f7f7fb;
+    --s0:  #f7f7fb;
+    --s1:  #f1f1f7;
+    --s2:  #e8e8f2;
+    --s3:  #dcdce8;
+    --s4:  #d0d0e0;
+    --s5:  #c4c4d8;
 
-    /* === Shadow overrides — lighter alpha em light theme === */
-    --shadow-sm: 0 1px 2px rgba(31, 35, 40, 0.08);
-    --shadow-md: 0 4px 8px rgba(31, 35, 40, 0.12);
-    --shadow-lg: 0 8px 24px rgba(31, 35, 40, 0.18);
+    --text:   #111118;
+    --text-1: #111118;
+    --text-2: #3a3a52;
+    --text-3: #575772;
+    --text-4: #8a8aaa;
 
-    /* Spacing/radii/typography/motion herdados do default (tokens.css) */
+    --accent:    #5b1eb8;
+    --accent-l:  #7c3aed;
+    --accent-d:  #3d1480;
+    --accent-bg: rgba(91,30,184,0.12);
+
+    --lime:      #4d7a00;
+    --lime-dim:  rgba(77,122,0,0.15);
+    --green:     #166534;
+    --green-dim: rgba(22,101,52,0.12);
+    --red:       #991b1b;
+    --red-dim:   rgba(153,27,27,0.10);
+    --red-l:     #b91c1c;
+    --red-l-pressed: #7f1d1d;
+    --amber:     #92400e;
+    --amber-dim: rgba(146,64,14,0.12);
+    --orange:    #7c2d12;
+    --orange-dim: rgba(124,45,18,0.08);
+    --blue:      #1e40af;
+    --blue-dim:  rgba(30,64,175,0.12);
+    --pink:      #9d174d;
+    --pink-dim:  rgba(157,23,77,0.12);
+
+    --success: #166534;
+    --warning: #92400e;
+    --error:   #991b1b;
+    --info:    #1e40af;
+    --status-green: #166534;
+    --status-amber: #92400e;
+    --status-red:   #991b1b;
+
+    --border:   rgba(0,0,0,0.10);
+    --border-h: rgba(0,0,0,0.18);
+    --border-a: rgba(0,0,0,0.32);
+
+    --shadow-sm: 0 1px 2px  rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 8px  rgba(0,0,0,0.12);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.16);
+    --shadow-xl: 0 20px 25px rgba(0,0,0,0.20);
+
+    --color-bg:           #f7f7fb;
+    --color-bg-2:         #e8e8f2;
+    --color-bg-3:         #dcdce8;
+    --color-fg:           #111118;
+    --color-fg-muted:     #575772;
+    --color-accent:       #5b1eb8;
+    --color-success:      #166534;
+    --color-warn:         #92400e;
+    --color-error:        #991b1b;
+    --color-info:         #1e40af;
+    --color-border:       rgba(0,0,0,0.10);
+    --color-border-focus: #5b1eb8;
+}
+
+/* ── OKLCH enhancement — Chrome 111+, Safari 15.4+, Firefox 113+ ── */
+@supports (color: oklch(50% 0.1 200)) {
+    :root[data-theme="light"] {
+        /* Surface scale — light (inverted from dark) */
+        --bg:  oklch(98% 0.005 285);
+        --s0:  oklch(98% 0.005 285);
+        --s1:  oklch(96% 0.006 285);
+        --s2:  oklch(93% 0.007 285);
+        --s3:  oklch(90% 0.008 285);
+        --s4:  oklch(86% 0.009 285);
+        --s5:  oklch(81% 0.010 285);
+
+        /* Text scale — dark text on light bg (WCAG AA ≥4.5:1) */
+        --text:   oklch(13% 0.008 285);
+        --text-1: oklch(13% 0.008 285);   /* ~18:1 on s0 */
+        --text-2: oklch(32% 0.012 285);   /* ~8:1  */
+        --text-3: oklch(47% 0.015 285);   /* ~4.6:1 WCAG AA ✓ */
+        --text-4: oklch(63% 0.012 285);   /* disabled only */
+
+        /* Accent — darker for contrast on light bg */
+        --accent:    oklch(48% 0.258 290);
+        --accent-l:  oklch(58% 0.220 290);
+        --accent-d:  oklch(38% 0.270 290);
+        --accent-bg: oklch(55% 0.130 290 / 0.12);
+
+        /* Semantic palette — darker for readability on light */
+        --lime:      oklch(55% 0.195 113);
+        --lime-dim:  oklch(55% 0.195 113 / 0.15);
+        --green:     oklch(42% 0.165 160);
+        --green-dim: oklch(42% 0.165 160 / 0.12);
+        --red:       oklch(42% 0.215 25);
+        --red-dim:   oklch(42% 0.215 25  / 0.10);
+        --red-l:     oklch(48% 0.175 22);
+        --red-l-pressed: oklch(42% 0.200 22);
+        --amber:     oklch(50% 0.155 73);
+        --amber-dim: oklch(50% 0.155 73  / 0.12);
+        --orange:    oklch(47% 0.185 42);
+        --orange-dim: oklch(47% 0.185 42 / 0.08);
+        --blue:      oklch(45% 0.195 247);
+        --blue-dim:  oklch(45% 0.195 247 / 0.12);
+        --pink:      oklch(45% 0.215 344);
+        --pink-dim:  oklch(45% 0.215 344 / 0.12);
+
+        /* Semantic intent */
+        --success: oklch(42% 0.165 160);
+        --warning: oklch(50% 0.155 73);
+        --error:   oklch(42% 0.215 25);
+        --info:    oklch(45% 0.195 247);
+        --status-green: oklch(42% 0.165 160);
+        --status-amber: oklch(50% 0.155 73);
+        --status-red:   oklch(42% 0.215 25);
+
+        /* Border — dark alpha on light bg */
+        --border:   oklch(0% 0 0 / 0.10);
+        --border-h: oklch(0% 0 0 / 0.18);
+        --border-a: oklch(0% 0 0 / 0.32);
+
+        /* Shadow — soft on light bg */
+        --shadow-sm: 0 1px 2px  oklch(0% 0 0 / 0.08);
+        --shadow-md: 0 4px 8px  oklch(0% 0 0 / 0.12);
+        --shadow-lg: 0 10px 15px oklch(0% 0 0 / 0.16);
+        --shadow-xl: 0 20px 25px oklch(0% 0 0 / 0.20);
+
+        /* Legacy --color-* aliases (backward compat) */
+        --color-bg:           oklch(98% 0.005 285);
+        --color-bg-2:         oklch(93% 0.007 285);
+        --color-bg-3:         oklch(90% 0.008 285);
+        --color-fg:           oklch(13% 0.008 285);
+        --color-fg-muted:     oklch(47% 0.015 285);
+        --color-accent:       oklch(48% 0.258 290);
+        --color-success:      oklch(42% 0.165 160);
+        --color-warn:         oklch(50% 0.155 73);
+        --color-error:        oklch(42% 0.215 25);
+        --color-info:         oklch(45% 0.195 247);
+        --color-border:       oklch(0% 0 0 / 0.10);
+        --color-border-focus: oklch(48% 0.258 290);
+    }
 }

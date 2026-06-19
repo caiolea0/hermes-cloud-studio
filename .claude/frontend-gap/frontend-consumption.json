@@ -1,5 +1,5 @@
 {
-  "generated_at": 1781883380.8327668,
+  "generated_at": 1781888681.264205,
   "sources": [
     "dashboard/app.js",
     "dashboard/components/_utils.js",
@@ -23,6 +23,7 @@
     "dashboard/components/command_palette.js",
     "dashboard/components/error_boundary.js",
     "dashboard/components/filter_persistence.js",
+    "dashboard/components/icon.js",
     "dashboard/components/keyboard_shortcuts.js",
     "dashboard/components/lab_cockpit.js",
     "dashboard/components/lab_fingerprint_diff.js",
@@ -52,11 +53,12 @@
     "dashboard/components/skill_proposals_modal.js",
     "dashboard/components/skill_proposals_studio.js",
     "dashboard/components/subsystem_tile.js",
+    "dashboard/components/theme_toggle.js",
     "dashboard/components/toast.js",
     "dashboard/components/ws_status_indicator.js",
     "dashboard/index.html"
   ],
-  "sources_count": 54,
+  "sources_count": 56,
   "total_endpoints": 96,
   "total_calls": 160,
   "consumed": {
@@ -153,21 +155,21 @@
     "/api/daemon/channels": [
       {
         "file": "dashboard/app.js",
-        "line": 3715,
+        "line": 3716,
         "snippet": "const data = await api('/api/daemon/channels');"
       }
     ],
     "/api/daemon/decisions": [
       {
         "file": "dashboard/app.js",
-        "line": 3800,
+        "line": 3801,
         "snippet": "const data = await api('/api/daemon/decisions');"
       }
     ],
     "/api/daemon/log": [
       {
         "file": "dashboard/app.js",
-        "line": 3830,
+        "line": 3833,
         "snippet": "const data = await api('/api/daemon/log?limit=30');"
       }
     ],
@@ -209,7 +211,7 @@
     "/api/daemon/timeline": [
       {
         "file": "dashboard/app.js",
-        "line": 3761,
+        "line": 3762,
         "snippet": "const data = await api('/api/daemon/timeline');"
       }
     ],
@@ -338,68 +340,68 @@
     "/api/linkedin/auth": [
       {
         "file": "dashboard/app.js",
-        "line": 4578,
+        "line": 4582,
         "snippet": "const r = await api('/api/linkedin/auth', { method: 'POST' });"
       }
     ],
     "/api/linkedin/campaigns": [
       {
         "file": "dashboard/app.js",
-        "line": 4703,
+        "line": 4707,
         "snippet": "const data = await api('/api/linkedin/campaigns?limit=50');"
       }
     ],
     "/api/linkedin/campaigns/connect": [
       {
         "file": "dashboard/app.js",
-        "line": 5577,
+        "line": 5581,
         "snippet": "const r = await api('/api/linkedin/campaigns/connect', {"
       }
     ],
     "/api/linkedin/campaigns/view": [
       {
         "file": "dashboard/app.js",
-        "line": 5552,
+        "line": 5556,
         "snippet": "const r = await api('/api/linkedin/campaigns/view', {"
       }
     ],
     "/api/linkedin/campaigns/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 4595,
+        "line": 4599,
         "snippet": "const r = await api(`/api/linkedin/campaigns/${type}`, {"
       }
     ],
     "/api/linkedin/campaigns/{param}/cancel": [
       {
         "file": "dashboard/app.js",
-        "line": 4480,
+        "line": 4484,
         "snippet": "const r = await api(`/api/linkedin/campaigns/${campaignId}/cancel`, { method: 'POST' });"
       }
     ],
     "/api/linkedin/campaigns/{param}/dismiss-error": [
       {
         "file": "dashboard/app.js",
-        "line": 5800,
+        "line": 5804,
         "snippet": "api(`/api/linkedin/campaigns/${id}/dismiss-error`, { method: 'POST' })"
       }
     ],
     "/api/linkedin/campaigns/{param}/log": [
       {
         "file": "dashboard/app.js",
-        "line": 5856,
+        "line": 5860,
         "snippet": "const data = await api(`/api/linkedin/campaigns/${campaignId}/log`);"
       }
     ],
     "/api/linkedin/campaigns/{param}/stop": [
       {
         "file": "dashboard/app.js",
-        "line": 5807,
+        "line": 5811,
         "snippet": "api(`/api/linkedin/campaigns/${id}/stop`, { method: 'POST' })"
       },
       {
         "file": "dashboard/app.js",
-        "line": 5941,
+        "line": 5945,
         "snippet": "await api(`/api/linkedin/campaigns/${_liActiveCampaignId}/stop`, { method: 'POST' });"
       }
     ],
@@ -452,7 +454,7 @@
     "/api/linkedin/cobaia/pause": [
       {
         "file": "dashboard/app.js",
-        "line": 6034,
+        "line": 6038,
         "snippet": "try { await api('/api/linkedin/cobaia/pause', { method: 'POST' }); toast('Cobaia pausada', 'warning'); }"
       },
       {
@@ -464,7 +466,7 @@
     "/api/linkedin/cobaia/resume": [
       {
         "file": "dashboard/app.js",
-        "line": 6041,
+        "line": 6045,
         "snippet": "try { await api('/api/linkedin/cobaia/resume', { method: 'POST' }); toast('Cobaia retomada', 'success'); }"
       },
       {
@@ -557,40 +559,40 @@
     "/api/linkedin/cobaia/today-queue": [
       {
         "file": "dashboard/components/cobaia_today_queue.js",
-        "line": 128,
+        "line": 130,
         "snippet": "_apiFetch('/api/linkedin/cobaia/today-queue')"
       },
       {
         "file": "dashboard/components/cobaia_today_queue.js",
-        "line": 135,
+        "line": 137,
         "snippet": "_apiPost('/api/linkedin/cobaia/today-queue/' + id + '/skip')"
       }
     ],
     "/api/linkedin/comment/delete": [
       {
         "file": "dashboard/app.js",
-        "line": 5667,
+        "line": 5671,
         "snippet": "const r = await api('/api/linkedin/comment/delete', {"
       }
     ],
     "/api/linkedin/comment/edit": [
       {
         "file": "dashboard/app.js",
-        "line": 5656,
+        "line": 5660,
         "snippet": "const r = await api('/api/linkedin/comment/edit', {"
       }
     ],
     "/api/linkedin/health": [
       {
         "file": "dashboard/app.js",
-        "line": 4147,
+        "line": 4151,
         "snippet": "api('/api/linkedin/health').catch(() => ({state: 'unknown'})),"
       }
     ],
     "/api/linkedin/profiles": [
       {
         "file": "dashboard/app.js",
-        "line": 5728,
+        "line": 5732,
         "snippet": "const cached = await api('/api/linkedin/profiles?url=' + encodeURIComponent(profileUrl));"
       }
     ],
@@ -604,7 +606,7 @@
     "/api/linkedin/status": [
       {
         "file": "dashboard/app.js",
-        "line": 4146,
+        "line": 4150,
         "snippet": "api('/api/linkedin/status'),"
       }
     ],
@@ -675,7 +677,7 @@
     "/api/onboarding/state": [
       {
         "file": "dashboard/app.js",
-        "line": 6177,
+        "line": 6197,
         "snippet": "const r = await api('/api/onboarding/state');"
       },
       {
@@ -1034,7 +1036,7 @@
       },
       {
         "file": "dashboard/components/pref_panel.js",
-        "line": 425,
+        "line": 434,
         "snippet": "const data = await _apiCall(\"GET\", \"/api/user-prefs\");"
       }
     ],

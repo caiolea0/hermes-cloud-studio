@@ -223,7 +223,11 @@
             "aria-label": "Confiança " + _fmt_pct(conf),
         }, _fmt_pct(conf) + " conf"));
         if (run.action_class) {
-            header.appendChild(_make_el("span", { className: "brain-confirm-destructive" }, "⚠ " + run.action_class));
+            var dEl = document.createElement("span");
+            dEl.className = "brain-confirm-destructive";
+            dEl.innerHTML = typeof window.icon === 'function' ? window.icon('alert-triangle') : '⚠';
+            dEl.appendChild(document.createTextNode(' ' + run.action_class));
+            header.appendChild(dEl);
         }
         card.appendChild(header);
 

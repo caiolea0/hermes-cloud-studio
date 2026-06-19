@@ -506,7 +506,7 @@
                 const iconSpan = document.createElement('span');
                 iconSpan.setAttribute('aria-hidden', 'true');
                 iconSpan.className = 'citation-icon';
-                iconSpan.textContent = this._citationIcon(event.source_type || '');
+                iconSpan.innerHTML = this._citationIcon(event.source_type || '');
 
                 const labelSpan = document.createElement('span');
                 labelSpan.className = 'citation-label';
@@ -871,13 +871,14 @@
 
         _citationIcon(sourceType) {
             const icons = {
-                skill: '📚',       // 📚
-                memory: '🧠',      // 🧠
-                log: '📋',         // 📋
-                tool_result: '🔧', // 🔧
-                doc: '📄',         // 📄
+                skill:       'code',
+                memory:      'layers',
+                log:         'clipboard',
+                tool_result: 'wrench',
+                doc:         'file-text',
             };
-            return icons[sourceType] || '🔗';  // 🔗
+            const name = icons[sourceType] || 'link';
+            return typeof window.icon === 'function' ? window.icon(name, {size: 14}) : name;
         }
     }
 

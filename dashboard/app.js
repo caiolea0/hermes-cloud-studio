@@ -3589,7 +3589,7 @@ function _mountMissionControlHeaderActions() {
         prefBtn.dataset.role = 'pref-trigger';
         prefBtn.setAttribute('aria-label', 'Abrir preferências');
         prefBtn.title = 'Preferências (Ctrl+,)';
-        prefBtn.textContent = '⚙';
+        prefBtn.innerHTML = typeof window.icon === 'function' ? window.icon('settings', {label: 'Preferências'}) : '⚙';
         prefBtn.addEventListener('click', () => {
             if (window.HermesPrefPanel && typeof window.HermesPrefPanel.open === 'function') {
                 window.HermesPrefPanel.open();
@@ -3633,17 +3633,18 @@ async function loadDaemonState() {
 
         // Update badge
         const badge = document.getElementById('daemon-badge');
+        const _ic = typeof window.icon === 'function' ? window.icon : () => '';
         const stateMap = {
-            idle: { text: '🟢 ONLINE', cls: 'online' },
-            working: { text: '⚡ WORKING', cls: 'working' },
-            paused: { text: '⏸ PAUSED', cls: 'paused' },
-            error: { text: '🔴 ERROR', cls: 'error' },
-            sleeping: { text: '😴 SLEEPING', cls: '' },
-            cooldown: { text: '⏳ COOLDOWN', cls: 'paused' },
-            offline: { text: '⚪ OFFLINE', cls: '' },
+            idle:     { html: '<span class="status-dot status-dot-green" aria-hidden="true"></span>ONLINE',   cls: 'online' },
+            working:  { html: _ic('zap')     + ' WORKING',   cls: 'working' },
+            paused:   { html: _ic('pause')   + ' PAUSED',    cls: 'paused' },
+            error:    { html: '<span class="status-dot status-dot-red" aria-hidden="true"></span>ERROR',      cls: 'error' },
+            sleeping: { html: _ic('moon')    + ' SLEEPING',  cls: '' },
+            cooldown: { html: _ic('hourglass') + ' COOLDOWN', cls: 'paused' },
+            offline:  { html: '<span class="status-dot status-dot-grey" aria-hidden="true"></span>OFFLINE',   cls: '' },
         };
         const s = stateMap[data.state] || stateMap.offline;
-        badge.textContent = s.text;
+        badge.innerHTML = s.html;
         badge.className = 'daemon-badge ' + s.cls;
 
         // Update counters
@@ -3665,7 +3666,7 @@ async function loadDaemonState() {
         updateHermesAvatar(data);
 
     } catch (e) {
-        document.getElementById('daemon-badge').textContent = '⚪ OFFLINE';
+        document.getElementById('daemon-badge').innerHTML = '<span class="status-dot status-dot-grey" aria-hidden="true"></span>OFFLINE';
         document.getElementById('daemon-badge').className = 'daemon-badge';
     }
 }
@@ -3802,9 +3803,10 @@ async function loadDaemonDecisions() {
             document.getElementById('decisions-list').innerHTML = '<div style="font-size:11px;color:var(--text-3);padding:12px;text-align:center">Nenhuma decisao registrada</div>';
             return;
         }
+        const _di = typeof window.icon === 'function' ? window.icon : () => '';
         document.getElementById('decisions-list').innerHTML = data.slice(0, 10).map(d => {
-            const icons = { handle_reply: '💬', execute_sequence_step: '📨', enrich_batch: '🔍', discovery_scrape: '🌐', batch_audit: '📋', recalculate_scores: '📊', weekly_report: '📄' };
-            const icon = icons[d.action] || '⚡';
+            const icons = { handle_reply: 'message-circle', execute_sequence_step: 'inbox', enrich_batch: 'search', discovery_scrape: 'globe', batch_audit: 'clipboard', recalculate_scores: 'bar-chart', weekly_report: 'file-text' };
+            const icon = _di(icons[d.action] || 'zap');
             const time = d.timestamp ? new Date(d.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
             return `<div class="decision-item"><span class="decision-icon">${icon}</span><span class="decision-text">${d.reason}</span><span class="decision-time">${time}</span></div>`;
         }).join('');
@@ -3814,8 +3816,9 @@ async function loadDaemonDecisions() {
 function addDecisionItem(event) {
     const list = document.getElementById('decisions-list');
     if (!list) return;
-    const icons = { handle_reply: '💬', execute_sequence_step: '📨', enrich_batch: '🔍', discovery_scrape: '🌐', batch_audit: '📋', send_proposal: '📑' };
-    const icon = icons[event.action] || '⚡';
+    const _di2 = typeof window.icon === 'function' ? window.icon : () => '';
+    const icons = { handle_reply: 'message-circle', execute_sequence_step: 'inbox', enrich_batch: 'search', discovery_scrape: 'globe', batch_audit: 'clipboard', send_proposal: 'send' };
+    const icon = _di2(icons[event.action] || 'zap');
     const time = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
     const item = document.createElement('div');
     item.className = 'decision-item';
@@ -3841,8 +3844,9 @@ async function loadDaemonFeed() {
 }
 
 function renderFeedItem(event) {
-    const catIcons = { outreach: '📨', reply: '💬', discovery: '🔍', enrichment: '🔎', audit: '📋', scoring: '📊', system: '⚙️', error: '⚠️' };
-    const icon = catIcons[event.category] || '⚡';
+    const _fi = typeof window.icon === 'function' ? window.icon : () => '';
+    const catIcons = { outreach: 'inbox', reply: 'message-circle', discovery: 'search', enrichment: 'search', audit: 'clipboard', scoring: 'bar-chart', system: 'settings', error: 'alert-triangle' };
+    const icon = _fi(catIcons[event.category] || 'zap');
     const time = event.timestamp ? new Date(event.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
     const cat = event.category || 'system';
     const title = event.action || event.message || '';
@@ -4903,7 +4907,7 @@ function _renderLiCampaignDetail(c) {
         const friendly = humanizeLiError(c.error);
         const showTech = friendly !== c.error;
         content += `<div class="li-campaign-error-msg">
-            ⚠ ${escapeHtml(friendly)}
+            ${typeof window.icon === 'function' ? window.icon('alert-triangle', {size:14}) : '⚠'} ${escapeHtml(friendly)}
             ${showTech ? `<details style="margin-top:6px;font-size:11px;opacity:.6">
                 <summary style="cursor:pointer">Ver erro técnico</summary>
                 <code style="display:block;white-space:pre-wrap;padding:6px;background:rgba(0,0,0,.2);border-radius:4px;margin-top:4px">${escapeHtml(c.error)}</code>
@@ -4919,7 +4923,7 @@ function _renderLiCampaignDetail(c) {
     if (c.status === 'cooldown' || (lastLog && lastLog.phase === 'cooldown')) {
         const msg = lastLog?.msg || 'Campanha bloqueada por proteção anti-cooldown';
         content += `<div class="li-campaign-error-msg" style="background:rgba(245,158,11,.1);color:#f59e0b">
-            ⏸ ${escapeHtml(humanizeLiError(msg))}
+            ${typeof window.icon === 'function' ? window.icon('pause', {size:14}) : '⏸'} ${escapeHtml(humanizeLiError(msg))}
         </div>`;
     }
     // v6: Scheduled banner with live countdown + cancel button
@@ -6045,6 +6049,22 @@ function _registerHermesCommands() {
         {
             id: 'action-shortcuts', label: 'Mostrar Atalhos de Teclado', group: 'Ajuda', shortcut: '?',
             action: () => { if (window.HermesShortcutsHelp) window.HermesShortcutsHelp.show(); }
+        },
+        {
+            id: 'action-theme-cycle', label: 'Alternar Tema (Auto/Dark/Light)', group: 'Aparencia',
+            action: () => { if (window.HermesThemeToggle) window.HermesThemeToggle.cycle(); }
+        },
+        {
+            id: 'action-theme-dark',  label: 'Tema Escuro', group: 'Aparencia',
+            action: () => { if (window.HermesThemeToggle) window.HermesThemeToggle.setTheme('dark'); }
+        },
+        {
+            id: 'action-theme-light', label: 'Tema Claro', group: 'Aparencia',
+            action: () => { if (window.HermesThemeToggle) window.HermesThemeToggle.setTheme('light'); }
+        },
+        {
+            id: 'action-theme-auto',  label: 'Tema Automatico (Sistema)', group: 'Aparencia',
+            action: () => { if (window.HermesThemeToggle) window.HermesThemeToggle.setTheme('auto'); }
         },
     ];
 

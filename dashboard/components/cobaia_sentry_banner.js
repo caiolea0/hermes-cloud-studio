@@ -86,7 +86,9 @@
         var iconEl = document.createElement('span');
         iconEl.className = 'sentry-banner-icon';
         iconEl.setAttribute('aria-hidden', 'true');
-        iconEl.textContent = sev === 'critical' ? '🚨' : '⚠';
+        iconEl.innerHTML = typeof window.icon === 'function'
+            ? window.icon(sev === 'critical' ? 'alert-octagon' : 'alert-triangle')
+            : '';
 
         var content = document.createElement('div');
         content.className = 'sentry-banner-content';

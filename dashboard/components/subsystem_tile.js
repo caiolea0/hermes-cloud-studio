@@ -19,12 +19,12 @@
     "use strict";
 
     const SUBSYSTEMS = [
-        { name: "linkedin", icon: "🔗", label: "LinkedIn" },
-        { name: "email", icon: "📧", label: "Email" },
-        { name: "scraper", icon: "🕷", label: "Scraper" },
-        { name: "audit", icon: "🛡", label: "Audit" },
-        { name: "daemon", icon: "⚙", label: "Daemon" },
-        { name: "tunnel", icon: "🌐", label: "Tunnel" },
+        { name: "linkedin", icon: "linkedin",  label: "LinkedIn" },
+        { name: "email",    icon: "mail",       label: "Email" },
+        { name: "scraper",  icon: "bug",        label: "Scraper" },
+        { name: "audit",    icon: "shield",     label: "Audit" },
+        { name: "daemon",   icon: "settings",   label: "Daemon" },
+        { name: "tunnel",   icon: "globe",      label: "Tunnel" },
     ];
 
     const STATUS_ALLOWED = new Set([
@@ -89,7 +89,7 @@
         header.className = "tile-header";
         const iconEl = document.createElement("span");
         iconEl.className = "tile-icon";
-        iconEl.textContent = spec.icon;
+        iconEl.innerHTML = typeof window.icon === 'function' ? window.icon(spec.icon) : '';
         iconEl.setAttribute("aria-hidden", "true");
         const nameEl = document.createElement("span");
         nameEl.className = "tile-name";
@@ -128,7 +128,7 @@
         pauseBtn.className = "tile-action tile-pause";
         pauseBtn.dataset.role = "pause-btn";
         pauseBtn.setAttribute("aria-label", `Pausar ${spec.label} por 5 minutos`);
-        pauseBtn.textContent = "⏸ Pausar 5min";
+        pauseBtn.innerHTML = (typeof window.icon === 'function' ? window.icon('pause') : '') + ' Pausar 5min';
         pauseBtn.addEventListener("click", () => _onPauseClick(spec.name, pauseBtn));
 
         const resumeBtn = document.createElement("button");

@@ -208,7 +208,7 @@
             '<button class="btn btn-danger op-panic-trigger" type="button" ' +
                     'aria-label="Acionar parada de emergência da cobaia" ' +
                     'style="min-height:44px;min-width:44px;">' +
-                '🚨 Panic Stop' +
+                (typeof window.icon === 'function' ? window.icon('alert-octagon') : '🚨') + ' Panic Stop' +
             '</button>' +
             '<div class="op-panic-confirm" id="op-panic-confirm" hidden ' +
                  'role="alertdialog" aria-modal="false" ' +

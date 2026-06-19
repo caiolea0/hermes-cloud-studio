@@ -134,7 +134,7 @@
                         const drift = document.createElement("span");
                         drift.className = "mcp-drift-tag";
                         drift.title = "Registry tier: " + c.registry_tier + " (drift detected)";
-                        drift.textContent = "⚠";
+                        drift.innerHTML = typeof window.icon === 'function' ? window.icon('alert-triangle', {size: 12}) : '⚠';
                         td.appendChild(drift);
                     }
                 } else {

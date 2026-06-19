@@ -1,0 +1,157 @@
+/* ============================================================
+   Hermes Cloud Studio — Motion patterns (UX-RM-F4-B)
+   ============================================================
+   Reusable animation classes using --duration-* + --ease-* tokens.
+   ALL durations collapse to 0ms when prefers-reduced-motion active
+   (see tokens.css @media block).
+
+   NEVER exceed --duration-slowest (800ms) for UI animations.
+   NO animation on data table refreshes or list updates.
+   ============================================================ */
+
+/* ── Fade ── */
+.motion-fade-in {
+    animation: _fade-in var(--duration-normal) var(--ease-out) both;
+}
+@keyframes _fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.motion-fade-out {
+    animation: _fade-out var(--duration-fast) var(--ease-in) both;
+}
+@keyframes _fade-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+/* ── Slide up ── */
+.motion-slide-up {
+    animation: _slide-up var(--duration-slow) var(--ease-emphasis) both;
+}
+@keyframes _slide-up {
+    from { transform: translateY(8px); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+}
+
+/* ── Slide down ── */
+.motion-slide-down {
+    animation: _slide-down var(--duration-slow) var(--ease-emphasis) both;
+}
+@keyframes _slide-down {
+    from { transform: translateY(-8px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Spin ── */
+.motion-spin {
+    animation: _spin var(--duration-slowest) linear infinite;
+}
+@keyframes _spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Pulse ── */
+.motion-pulse {
+    animation: _pulse var(--duration-slowest) var(--ease-in-out) infinite;
+}
+@keyframes _pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+}
+
+/* ── Bounce in ── */
+.motion-bounce-in {
+    animation: _bounce-in var(--duration-slow) var(--ease-bounce) both;
+}
+@keyframes _bounce-in {
+    from { transform: scale(0.85); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+}
+
+/* ── Hover lift (interactive cards) ── */
+.motion-lift {
+    transition:
+        transform    var(--duration-fast) var(--ease-out),
+        box-shadow   var(--duration-fast) var(--ease-out);
+}
+.motion-lift:hover {
+    transform:  translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* ── Hover glow (accent elements) ── */
+.motion-glow {
+    transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+.motion-glow:hover {
+    box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+/* ── Transition helpers ── */
+.motion-transition-all {
+    transition: all var(--duration-normal) var(--ease-in-out);
+}
+.motion-transition-colors {
+    transition:
+        color            var(--duration-fast) var(--ease-out),
+        background-color var(--duration-fast) var(--ease-out),
+        border-color     var(--duration-fast) var(--ease-out);
+}
+.motion-transition-opacity {
+    transition: opacity var(--duration-normal) var(--ease-out);
+}
+.motion-transition-transform {
+    transition: transform var(--duration-normal) var(--ease-emphasis);
+}
+
+/* ── Status dot (replaces colored circle emoji) ── */
+.status-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-full);
+    margin-right: 5px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.status-dot-green { background: var(--status-green); }
+.status-dot-red   { background: var(--status-red); }
+.status-dot-amber { background: var(--status-amber); }
+.status-dot-grey  { background: var(--text-4); }
+
+/* ── Icon utility class (SVG <use> icons) ── */
+.icon {
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+    stroke: currentColor;
+    fill: none;
+}
+.icon-sm { width: 14px; height: 14px; }
+.icon-md { width: 16px; height: 16px; }
+.icon-lg { width: 20px; height: 20px; }
+
+/* ── Reduced motion: hard-zero ALL durations ── */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --duration-instant: 0ms;
+        --duration-fast:    0ms;
+        --duration-normal:  0ms;
+        --duration-slow:    0ms;
+        --duration-slower:  0ms;
+        --duration-slowest: 0ms;
+        --motion-fast:      0ms;
+        --motion-base:      0ms;
+        --motion-slow:      0ms;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration:       0.01ms !important;
+        animation-iteration-count: 1     !important;
+        transition-duration:      0.01ms !important;
+    }
+}

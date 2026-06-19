@@ -62,7 +62,7 @@
     cursor: pointer;
     font-family: var(--font-sans);
     font-size: 0.85rem;
-    transition: background 120ms ease, border-color 120ms ease;
+    transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease);
 }
 
 .observability-refresh-btn:hover {
@@ -99,7 +99,7 @@
     font-size: 0.92rem;
     font-weight: 500;
     cursor: pointer;
-    transition: color 120ms ease, border-color 120ms ease;
+    transition: color var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease);
 }
 
 .observability-tab-btn:hover {
@@ -639,7 +639,7 @@
     border-radius: var(--radius-sm);
     background: var(--color-bg-3);
     cursor: default;
-    transition: transform 100ms ease;
+    transition: transform var(--duration-instant) var(--ease-out);
 }
 
 .heatmap-cell:hover {

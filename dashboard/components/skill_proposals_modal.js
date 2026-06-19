@@ -404,7 +404,7 @@
                     '</ol>' +
                     '<pre class="sp-modal-preview" id="sp-path1-prompt">' + _escape(promptText) + '</pre>' +
                     '<div style="display:flex;gap:8px;align-items:center;">' +
-                        '<button class="sp-btn sp-btn-primary" type="button" id="sp-path1-copy" data-autofocus aria-label="Copiar prompt para clipboard">📋 Copiar prompt</button>' +
+                        '<button class="sp-btn sp-btn-primary" type="button" id="sp-path1-copy" data-autofocus aria-label="Copiar prompt para clipboard">' + (typeof window.icon === 'function' ? window.icon('clipboard', {size:14}) : '📋') + ' Copiar prompt</button>' +
                         '<span class="sp-copy-confirm" id="sp-path1-copy-confirm" aria-live="polite">Copiado ✓</span>' +
                     '</div>' +
                     '<p class="sp-modal-status" id="sp-path1-status" aria-live="polite">' +

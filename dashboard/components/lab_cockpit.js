@@ -155,7 +155,7 @@
         abortBtn.type = "button";
         abortBtn.className = "lab-btn-abort hidden";
         abortBtn.setAttribute("aria-label", "Abortar run em andamento");
-        abortBtn.textContent = "⏹ Abort";
+        abortBtn.textContent = "Abort";
         abortBtn.addEventListener("click", _onAbortClick);
 
         actions.appendChild(flowSelect);
@@ -562,7 +562,7 @@
         const title = document.createElement("h2");
         title.id = "lab-abort-title";
         title.className = "lab-confirm-title";
-        title.textContent = "⏹ Abortar run em andamento?";
+        title.textContent = "Abortar run em andamento?";
 
         const desc = document.createElement("p");
         desc.id = "lab-abort-desc";

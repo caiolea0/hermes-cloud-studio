@@ -8,7 +8,7 @@
 <script>
 (function(){
     try {
-        var t = localStorage.getItem('hermes_theme') || 'auto';
+        var t = localStorage.getItem('hermes.theme') || 'auto';
         var dark = t === 'dark' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
@@ -21,9 +21,13 @@
 <link rel="stylesheet" href="/dashboard/styles/tokens.css">
 <link rel="stylesheet" href="/dashboard/styles/typography.css">
 <link rel="stylesheet" href="/dashboard/styles/light.css">
+<link rel="stylesheet" href="/dashboard/styles/motion.css">
 <link rel="stylesheet" href="/dashboard/styles.css">
 <!-- F.2.4 — vendor axe-core 4.10 (WCAG audit manual via DevTools), components (window.hermesToast/window.skeleton) -->
 <script src="/dashboard/vendor/axe.min.js" defer></script>
+<!-- UX-RM-F4-B — icon helper (window.icon) + theme toggle (window.HermesThemeToggle) — ANTES dos demais -->
+<script src="/dashboard/components/icon.js" defer></script>
+<script src="/dashboard/components/theme_toggle.js" defer></script>
 <!-- F.2.5b prep — shared utils carregado ANTES dos componentes (safeMerge usado em PrefPanel + LiveLogTail + F.6) -->
 <script src="/dashboard/components/_utils.js" defer></script>
 <script src="/dashboard/components/toast.js" defer></script>
@@ -281,6 +285,50 @@
 </symbol>
 <symbol id="i-layers" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M2 10l8 4 8-4"/><path d="M2 14l8 4 8-4"/><path d="M10 2l8 4-8 4-8-4z"/>
+</symbol>
+
+<!-- UX-RM-F4-B — new symbols (emoji replacements) -->
+<symbol id="i-alert-triangle" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 3L1.5 17h17L10 3z"/><path d="M10 8v4"/><circle cx="10" cy="14.5" r=".75" fill="currentColor" stroke="none"/>
+</symbol>
+<symbol id="i-alert-octagon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="7.5,2 12.5,2 18,7.5 18,12.5 12.5,18 7.5,18 2,12.5 2,7.5"/><path d="M10 7v3"/><circle cx="10" cy="13" r=".75" fill="currentColor" stroke="none"/>
+</symbol>
+<symbol id="i-file-text" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2H6a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V8z"/><path d="M12 2v6h6M7 13h6M7 10h3"/>
+</symbol>
+<symbol id="i-link" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 13a4 4 0 006 0l2-2a4 4 0 00-5.66-5.66L10 6.5"/><path d="M11 7a4 4 0 00-6 0L3 9a4 4 0 005.66 5.66L10 13.5"/>
+</symbol>
+<symbol id="i-inbox" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 13l2.5-7h11L18 13"/><rect x="2" y="13" width="16" height="5" rx="1.5"/><path d="M7 15.5h6"/>
+</symbol>
+<symbol id="i-bug" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="10" cy="11" r="4"/><path d="M6 8L4 6M14 8l2-6M2 11H0M18 11h2M6 14L4 16M14 14l2 2M7.5 8a2.5 2.5 0 015 0"/>
+</symbol>
+<symbol id="i-shield" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 2L3 6v5c0 4 3 6.5 7 7 4-.5 7-3 7-7V6L10 2z"/>
+</symbol>
+<symbol id="i-pause" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="5" y="4" width="3.5" height="12" rx="1"/><rect x="11.5" y="4" width="3.5" height="12" rx="1"/>
+</symbol>
+<symbol id="i-lock" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="9" width="12" height="9" rx="2"/><path d="M7 9V7a3 3 0 016 0v2"/>
+</symbol>
+<symbol id="i-moon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 12A8 8 0 117 3a8 8 0 0011 9z"/>
+</symbol>
+<symbol id="i-hourglass" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 2h12M4 18h12"/><path d="M6 2v4l4 4-4 4v4"/><path d="M14 2v4l-4 4 4 4v4"/>
+</symbol>
+<symbol id="i-hammer" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4l2 2L5 15l-3 .5.5-3L12 4z"/><path d="M14 3l3 3"/>
+</symbol>
+<symbol id="i-scale" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 3v14M5 5h10"/><path d="M3 7l3.5 6h-7L3 7z"/><path d="M17 7l-3.5 6h7L17 7z"/>
+</symbol>
+<symbol id="i-database" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="10" cy="5" rx="8" ry="3"/><path d="M2 5v5c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M2 10v5c0 1.7 3.6 3 8 3s8-1.3 8-3v-5"/>
 </symbol>
 </defs>
 </svg>
@@ -1854,19 +1902,19 @@
                         <button class="ps-tab-btn active" id="ps-tab-btn-builder"
                                 data-tab="builder" role="tab"
                                 aria-selected="true" aria-controls="ps-panel-builder"
-                                tabindex="0" type="button">🔨 Builder</button>
+                                tabindex="0" type="button"><svg class="icon" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false"><use href="#i-hammer"/></svg> Builder</button>
                         <button class="ps-tab-btn" id="ps-tab-btn-templates"
                                 data-tab="templates" role="tab"
                                 aria-selected="false" aria-controls="ps-panel-templates"
-                                tabindex="-1" type="button">📋 Templates</button>
+                                tabindex="-1" type="button"><svg class="icon" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false"><use href="#i-clipboard"/></svg> Templates</button>
                         <button class="ps-tab-btn" id="ps-tab-btn-runs-monitor"
                                 data-tab="runs-monitor" role="tab"
                                 aria-selected="false" aria-controls="ps-panel-runs-monitor"
-                                tabindex="-1" type="button">📊 Runs Monitor</button>
+                                tabindex="-1" type="button"><svg class="icon" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false"><use href="#i-bar-chart"/></svg> Runs Monitor</button>
                         <button class="ps-tab-btn" id="ps-tab-btn-ab-compare"
                                 data-tab="ab-compare" role="tab"
                                 aria-selected="false" aria-controls="ps-panel-ab-compare"
-                                tabindex="-1" type="button">⚖️ A/B Compare</button>
+                                tabindex="-1" type="button"><svg class="icon" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false"><use href="#i-scale"/></svg> A/B Compare</button>
                     </nav>
 
                     <div class="ps-panels">

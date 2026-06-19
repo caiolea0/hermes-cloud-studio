@@ -48,7 +48,7 @@
         var icon = document.createElement('span');
         icon.className = 'brain-queue-icon';
         icon.setAttribute('aria-hidden', 'true');
-        icon.textContent = '⚙';
+        icon.innerHTML = typeof window.icon === 'function' ? window.icon('settings') : '⚙';
 
         var count = document.createElement('span');
         count.className = 'brain-queue-count';

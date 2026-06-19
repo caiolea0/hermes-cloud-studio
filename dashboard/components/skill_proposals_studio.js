@@ -575,10 +575,10 @@
             '<div class="sp-actions">' +
                 (canVerify ? '<button class="sp-btn ' + (awaitingVerify ? "sp-btn-warning" : "") + '" id="sp-btn-verify" type="button" ' +
                     'aria-label="' + (ownerVerified ? "Atualizar verificação desta skill" : "Verificar skill e permitir PR") + '">' +
-                    (ownerVerified ? "🔒 Atualizar Verificação" : "🔒 Verificar Skill") + '</button>' : "") +
+                    (typeof window.icon === 'function' ? window.icon('lock', {size:14}) : '🔒') + ' ' + (ownerVerified ? "Atualizar Verificação" : "Verificar Skill") + '</button>' : "") +
                 '<button class="sp-btn sp-btn-primary" id="sp-btn-accept" type="button" ' + (canDecide ? "" : "disabled") + ' aria-label="Aceitar proposal e disparar lab + PR">✓ Accept</button>' +
                 '<button class="sp-btn sp-btn-danger" id="sp-btn-reject" type="button" ' + (canDecide ? "" : "disabled") + ' aria-label="Rejeitar proposal com motivo">✗ Reject</button>' +
-                '<button class="sp-btn" id="sp-btn-runworkflow" type="button" ' + (canRunWorkflow ? "" : "disabled") + ' aria-label="Disparar workflow de sintetização agora">⚡ Run Workflow Now</button>' +
+                '<button class="sp-btn" id="sp-btn-runworkflow" type="button" ' + (canRunWorkflow ? "" : "disabled") + ' aria-label="Disparar workflow de sintetização agora">' + (typeof window.icon === 'function' ? window.icon('zap', {size:14}) : '⚡') + ' Run Workflow Now</button>' +
             '</div>'
         );
 

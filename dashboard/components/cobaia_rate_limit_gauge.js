@@ -17,11 +17,11 @@
     var _refreshInterval = null;
 
     var BUCKETS = [
-        { key: 'views',   label: 'Views',     icon: '👁',
+        { key: 'views',   label: 'Views',     icon: 'eye',
           used: 'daily_views',   limit: 'daily_views_limit' },
-        { key: 'connect', label: 'Connects',  icon: '🤝',
+        { key: 'connect', label: 'Connects',  icon: 'users',
           used: 'daily_connections', limit: 'daily_connections_limit' },
-        { key: 'engage',  label: 'Engage',    icon: '💬',
+        { key: 'engage',  label: 'Engage',    icon: 'message-circle',
           used: 'daily_engagements', limit: 'engagements_limit' },
     ];
 
@@ -70,7 +70,7 @@
             var iconEl = document.createElement('span');
             iconEl.className = 'rl-gauge-icon';
             iconEl.setAttribute('aria-hidden', 'true');
-            iconEl.textContent = b.icon;
+            iconEl.innerHTML = typeof window.icon === 'function' ? window.icon(b.icon) : '';
 
             var labelEl = document.createElement('span');
             labelEl.className = 'rl-gauge-name';

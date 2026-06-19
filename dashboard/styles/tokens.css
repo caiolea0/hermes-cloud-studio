@@ -145,13 +145,27 @@
     --weight-semibold: 600;
     --weight-bold:     700;
 
-    /* ─── Motion ─── */
+    /* ─── Motion — legacy aliases ─── */
     --motion-fast: 120ms;
     --motion-base: 200ms;
     --motion-slow: 400ms;
     --ease: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+
+    /* ─── Motion — Duration scale (UX-RM-F4-B) ─── */
+    --duration-instant: 100ms;
+    --duration-fast:    150ms;
+    --duration-normal:  200ms;
+    --duration-slow:    300ms;
+    --duration-slower:  500ms;
+    --duration-slowest: 800ms;
+
+    /* ─── Motion — Easing curves (UX-RM-F4-B) ─── */
+    --ease-linear:   linear;
+    --ease-in:       cubic-bezier(0.4, 0, 1, 1);
+    --ease-bounce:   cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --ease-emphasis: cubic-bezier(0.2, 0, 0, 1);
 
     /* ─── Layout ─── */
     --sidebar-w:   56px;

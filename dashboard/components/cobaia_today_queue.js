@@ -17,11 +17,11 @@
     const TOKEN = () => localStorage.getItem('hermes_token') || '';
 
     const ACTION_ICONS = {
-        view: '👁',   // 👁
-        connect: '🔗', // 🔗
-        engage: '💬',  // 💬
-        follow: '➕',        // ➕
-        message: '📩', // 📩
+        view:    'eye',
+        connect: 'link',
+        engage:  'message-circle',
+        follow:  'plus',
+        message: 'inbox',
     };
 
     let _mount = null;
@@ -49,7 +49,9 @@
     }
 
     function _actionIcon(action) {
-        return ACTION_ICONS[action] || '•'; // bullet fallback
+        var name = ACTION_ICONS[action];
+        if (name && typeof window.icon === 'function') return window.icon(name);
+        return '•'; // bullet fallback
     }
 
     function _renderError() {
@@ -98,7 +100,7 @@
 
             var icon = document.createElement('span');
             icon.className = 'op-queue-action-icon';
-            icon.textContent = _actionIcon(item.action);
+            icon.innerHTML = _actionIcon(item.action);
             icon.setAttribute('aria-hidden', 'true');
 
             var text = document.createElement('span');

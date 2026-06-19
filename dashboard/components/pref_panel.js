@@ -343,15 +343,24 @@
 
         // Section 1: Theme
         const themeSec = _section("Tema");
-        const currentTheme = _cache.data.theme || localStorage.getItem("hermes_theme") || "auto";
+        // Read from canonical key (hermes.theme). Fall back to legacy key for upgrade path.
+        const currentTheme = _cache.data.theme
+            || localStorage.getItem("hermes.theme")
+            || localStorage.getItem("hermes_theme")
+            || "auto";
         const themeGrp = _radioGroup("Tema da UI", "pref-theme", [
             { value: "light", label: "Claro" },
             { value: "dark", label: "Escuro" },
             { value: "auto", label: "Sistema (auto)" },
         ], currentTheme, (v) => {
-            try { localStorage.setItem("hermes_theme", v); } catch { /* noop */ }
-            const dark = v === "dark" || (v === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
-            document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+            // Delegate to canonical theme system if available
+            if (window.HermesThemeToggle) {
+                window.HermesThemeToggle.setTheme(v);
+            } else {
+                try { localStorage.setItem("hermes.theme", v); } catch { /* noop */ }
+                const dark = v === "dark" || (v === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+                document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+            }
             _queueDelta("theme", v);
         });
         themeSec.appendChild(themeGrp);
