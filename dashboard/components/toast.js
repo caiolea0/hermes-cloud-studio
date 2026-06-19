@@ -47,12 +47,14 @@
             }
             .hermes-toast {
                 background: var(--color-bg-2);
+                backdrop-filter: blur(16px) saturate(1.4);
+                -webkit-backdrop-filter: blur(16px) saturate(1.4);
                 color: var(--color-fg);
                 border: 1px solid var(--color-border);
                 border-left: 4px solid var(--color-info);
                 border-radius: var(--radius-md);
                 padding: var(--space-sm) var(--space-md);
-                box-shadow: var(--shadow-md);
+                box-shadow: var(--shadow-xl);
                 font-family: var(--font-sans);
                 font-size: var(--text-sm);
                 display: flex;

@@ -1,0 +1,137 @@
+/* ============================================================
+   Hermes Cloud Studio — Micro-interactions (UX-RM-F4-C)
+   ============================================================
+   Utility classes for button lift, card hover, focus ring,
+   input focus glow, status pulse, tab underline animation.
+   ALL durations use var(--duration-*) tokens from tokens.css.
+   Collapsed to 0ms when prefers-reduced-motion active (via motion.css).
+   ============================================================ */
+
+/* ── Button base transitions ── */
+.btn-base {
+    transition:
+        background-color var(--duration-fast) var(--ease-out),
+        color            var(--duration-fast) var(--ease-out),
+        border-color     var(--duration-fast) var(--ease-out),
+        transform        var(--duration-fast) var(--ease-out),
+        box-shadow       var(--duration-fast) var(--ease-out),
+        opacity          var(--duration-fast) var(--ease-out);
+    cursor: pointer;
+}
+
+.btn-base:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-base:active:not(:disabled) {
+    transform: translateY(0);
+    transition-duration: var(--duration-instant);
+}
+
+.btn-base:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ── Interactive card lift ── */
+.card-interactive {
+    transition:
+        transform      var(--duration-normal) var(--ease-out),
+        box-shadow     var(--duration-normal) var(--ease-out),
+        border-color   var(--duration-normal) var(--ease-out);
+    cursor: pointer;
+}
+
+.card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--accent-l);
+}
+
+.card-interactive:active {
+    transform: translateY(0);
+    transition-duration: var(--duration-instant);
+}
+
+/* Touch: disable hover lift (no hover on tap devices) */
+@media (hover: none) {
+    .card-interactive:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: var(--border);
+    }
+}
+
+/* ── Global focus-visible ring (keyboard nav) ── */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+/* ── Link hover ── */
+a:not(.btn-base):not([class*="nav"]):hover {
+    color: var(--accent-l);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
+/* ── Input / textarea / select focus glow ── */
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+    transition:
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow   var(--duration-fast) var(--ease-out);
+    outline: none;
+}
+
+/* ── Status dot pulse (live indicator) ── */
+.status-dot.live {
+    animation: _status-pulse var(--duration-slowest) var(--ease-in-out) infinite;
+}
+
+@keyframes _status-pulse {
+    0%, 100% { transform: scale(1);   opacity: 1; }
+    50%       { transform: scale(1.25); opacity: 0.7; }
+}
+
+/* ── Tab selected underline slide-in ── */
+[role="tab"] {
+    position: relative;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
+[role="tab"][aria-selected="true"]::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    border-radius: var(--radius-xs);
+    animation: _tab-underline-enter var(--duration-normal) var(--ease-emphasis) both;
+}
+
+@keyframes _tab-underline-enter {
+    from { transform: scaleX(0); opacity: 0; }
+    to   { transform: scaleX(1); opacity: 1; }
+}
+
+/* ── Skeleton shimmer (enhanced — uses motion tokens) ── */
+.skel {
+    animation: _skel-shimmer var(--duration-slowest) var(--ease-in-out) infinite;
+    background-size: 200% 100%;
+}
+
+@keyframes _skel-shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}

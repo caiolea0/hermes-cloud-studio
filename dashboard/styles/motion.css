@@ -61,6 +61,24 @@
     50%       { opacity: 0.5; }
 }
 
+/* ── Slide right (drawer enter from right) ── */
+.motion-slide-right {
+    animation: _slide-right var(--duration-slow) var(--ease-emphasis) both;
+}
+@keyframes _slide-right {
+    from { transform: translateX(100%); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── Scale in (modal dialog enter) ── */
+.motion-scale-in {
+    animation: _scale-in var(--duration-slow) var(--ease-emphasis) both;
+}
+@keyframes _scale-in {
+    from { transform: scale(0.95) translateY(-4px); opacity: 0; }
+    to   { transform: scale(1)    translateY(0);    opacity: 1; }
+}
+
 /* ── Bounce in ── */
 .motion-bounce-in {
     animation: _bounce-in var(--duration-slow) var(--ease-bounce) both;

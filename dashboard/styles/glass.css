@@ -1,0 +1,105 @@
+/* ============================================================
+   Hermes Cloud Studio — Liquid Glass primitives (UX-RM-F4-C)
+   ============================================================
+   3 utility classes for selective glass morphism.
+   RULE: glass ONLY on navigation chrome, overlays, and floating
+   ephemeral surfaces (toasts, Cmd+K, drawers).
+   NEVER apply to data-dense surfaces (tables, card grids, feeds).
+
+   @supports guards degrade gracefully on older browsers.
+   prefers-reduced-transparency collapses backdrop-filter to none.
+   ============================================================ */
+
+/* ── Glass Chrome — sidebar / topbar navigation chrome ── */
+.glass-chrome {
+    backdrop-filter: blur(24px) saturate(1.3);
+    -webkit-backdrop-filter: blur(24px) saturate(1.3);
+    background: rgb(17 17 20 / 0.85);
+}
+
+@supports (color: oklch(50% 0.1 200)) {
+    .glass-chrome {
+        background: oklch(12% 0.006 285 / 0.85);
+    }
+}
+
+/* ── Glass Overlay — modal/drawer backdrop scrim ── */
+.glass-overlay {
+    backdrop-filter: blur(12px) saturate(1.5);
+    -webkit-backdrop-filter: blur(12px) saturate(1.5);
+    background: rgb(0 0 0 / 0.55);
+}
+
+@supports (color: oklch(50% 0.1 200)) {
+    .glass-overlay {
+        background: oklch(5% 0.002 285 / 0.55);
+    }
+}
+
+/* ── Glass Floating — toasts, Cmd+K dialog, popovers ── */
+.glass-floating {
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    background: rgb(24 24 28 / 0.82);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgb(255 255 255 / 0.10);
+}
+
+@supports (color: oklch(50% 0.1 200)) {
+    .glass-floating {
+        background: oklch(16% 0.007 285 / 0.82);
+        border-color: oklch(100% 0 0 / 0.10);
+    }
+}
+
+/* ── Light theme overrides ── */
+:root[data-theme="light"] .glass-chrome {
+    background: rgb(248 248 252 / 0.82);
+}
+@supports (color: oklch(50% 0.1 200)) {
+    :root[data-theme="light"] .glass-chrome {
+        background: oklch(97% 0.003 285 / 0.82);
+    }
+}
+
+:root[data-theme="light"] .glass-overlay {
+    background: rgb(0 0 0 / 0.35);
+}
+@supports (color: oklch(50% 0.1 200)) {
+    :root[data-theme="light"] .glass-overlay {
+        background: oklch(10% 0.002 285 / 0.35);
+    }
+}
+
+:root[data-theme="light"] .glass-floating {
+    background: rgb(255 255 255 / 0.88);
+    border-color: rgb(0 0 0 / 0.08);
+    box-shadow: var(--shadow-xl);
+}
+@supports (color: oklch(50% 0.1 200)) {
+    :root[data-theme="light"] .glass-floating {
+        background: oklch(99% 0.003 285 / 0.88);
+        border-color: oklch(0% 0 0 / 0.08);
+    }
+}
+
+/* ── Accessibility: disable glass for reduced transparency preference ── */
+@media (prefers-reduced-transparency: reduce) {
+    .glass-chrome,
+    .glass-overlay,
+    .glass-floating {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    .glass-chrome  { background: var(--s1); }
+    .glass-overlay { background: rgb(0 0 0 / 0.70); }
+    .glass-floating {
+        background: var(--s2);
+        box-shadow: var(--shadow-lg);
+    }
+
+    :root[data-theme="light"] .glass-chrome  { background: rgb(248 248 252); }
+    :root[data-theme="light"] .glass-overlay { background: rgb(0 0 0 / 0.40); }
+    :root[data-theme="light"] .glass-floating { background: rgb(255 255 255); }
+}
