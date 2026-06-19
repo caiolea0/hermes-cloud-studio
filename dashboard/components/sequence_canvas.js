@@ -38,6 +38,10 @@
         "square": '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
         "save": '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>',
         "plus": '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+        "eye": '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',
+        "zap": '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+        "users": '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+        "pause-circle": '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="10" y1="15" x2="10" y2="9"/><line x1="14" y1="15" x2="14" y2="9"/></svg>',
         "trash": '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
         "x": '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
     };
@@ -148,6 +152,11 @@
             '<button class="btn btn-sm seq-tb-btn" data-add="delay" aria-label="Adicionar espera">' + _icon("clock") + ' Aguardar</button>' +
             '<button class="btn btn-sm seq-tb-btn" data-add="condition" aria-label="Adicionar condicao">' + _icon("git-branch") + ' Condicao</button>' +
             '<span class="seq-tb-sep seq-tb-spacer" aria-hidden="true"></span>' +
+            /* F6-C: status badge + orchestration buttons */
+            '<span class="seq-status-badge seq-status-draft" role="status" aria-label="Status: rascunho">draft</span>' +
+            '<button class="btn btn-ghost btn-sm seq-dry-run-btn" aria-label="Pre-visualizar sequencia">' + _icon("eye") + ' Simular</button>' +
+            '<button class="btn btn-sm seq-activate-btn" aria-label="Ativar sequencia" style="background:var(--green,#10b981);color:var(--bg,#0a0a0c)">' + _icon("zap") + ' Ativar</button>' +
+            '<button class="btn btn-sm seq-enroll-btn" aria-label="Inscrever prospects" disabled aria-disabled="true" style="background:var(--accent,#7c3aed);color:#fff">' + _icon("users") + ' Inscrever</button>' +
             '<button class="btn btn-primary btn-sm seq-save-btn" aria-label="Salvar sequencia">' + _icon("save") + ' Salvar</button>';
         this._container.appendChild(toolbar);
 
@@ -369,6 +378,27 @@
             }
             var saveBtn = e.target.closest(".seq-save-btn");
             if (saveBtn) { self.save(); return; }
+
+            /* F6-C: dry-run, activate, enroll */
+            var dryRunBtn = e.target.closest(".seq-dry-run-btn");
+            if (dryRunBtn && self._sequenceId) {
+                if (window.sequenceDryRun) {
+                    window.sequenceDryRun.open(self._sequenceId, {
+                        onActivate: function () { self._activateSequence(); }
+                    });
+                }
+                return;
+            }
+            var activateBtn = e.target.closest(".seq-activate-btn");
+            if (activateBtn) { self._activateSequence(); return; }
+
+            var enrollBtn = e.target.closest(".seq-enroll-btn");
+            if (enrollBtn && !enrollBtn.disabled && self._sequenceId) {
+                if (window.sequenceEnrollModal) {
+                    window.sequenceEnrollModal.open(self._sequenceId, self._sequenceName || "Sequência");
+                }
+                return;
+            }
 
             var zoomBtn = e.target.closest("[data-zoom]");
             if (zoomBtn) {
@@ -819,6 +849,7 @@
             self._sequenceId = seqId;
             self._sequenceName = data.sequence.name || "Sequencia";
             self._sequenceDescription = data.sequence.description || "";
+            self._sequenceStatus = data.sequence.status || "draft";
             self._nodes = (data.nodes || []).map(function (n) {
                 return {
                     id: n.id,
@@ -834,6 +865,7 @@
                 return { from: e.from_node, to: e.to_node, type: e.edge_type };
             });
             self._renderAll();
+            self._setStatusBadge(self._sequenceStatus);
         })
         .catch(function (err) {
             if (window.hermesToast) window.hermesToast.error("Erro ao carregar sequencia: " + err.message);
@@ -844,12 +876,81 @@
         this._sequenceId = null;
         this._sequenceName = "Nova Sequencia";
         this._sequenceDescription = "";
+        this._sequenceStatus = "draft";
         this._selectedNodeId = null;
         this._nodes = [];
         this._edges = [];
         this._initDefaultNodes();
         this._renderAll();
         this._renderInspector();
+        this._setStatusBadge("draft");
+    };
+
+    /* F6-C: Status badge update + enroll button gate */
+    HermesSequenceCanvas.prototype._setStatusBadge = function (status) {
+        this._sequenceStatus = status || "draft";
+        var badge = this._container.querySelector(".seq-status-badge");
+        var enrollBtn = this._container.querySelector(".seq-enroll-btn");
+        var activateBtn = this._container.querySelector(".seq-activate-btn");
+        if (!badge) return;
+
+        badge.textContent = this._sequenceStatus;
+        badge.className = "seq-status-badge seq-status-" + this._sequenceStatus;
+
+        var labels = { draft: "rascunho", active: "ativa", paused: "pausada", archived: "arquivada" };
+        badge.setAttribute("aria-label", "Status: " + (labels[this._sequenceStatus] || this._sequenceStatus));
+
+        if (enrollBtn) {
+            if (this._sequenceStatus === "active") {
+                enrollBtn.disabled = false;
+                enrollBtn.removeAttribute("aria-disabled");
+            } else {
+                enrollBtn.disabled = true;
+                enrollBtn.setAttribute("aria-disabled", "true");
+            }
+        }
+        if (activateBtn) {
+            if (this._sequenceStatus === "active") {
+                activateBtn.innerHTML = _icon("pause-circle") + " Pausar";
+                activateBtn.setAttribute("aria-label", "Pausar sequencia");
+                activateBtn.style.background = "var(--text-3,#666)";
+                activateBtn.style.color = "var(--text-1,#e0e0e0)";
+            } else {
+                activateBtn.innerHTML = _icon("zap") + " Ativar";
+                activateBtn.setAttribute("aria-label", "Ativar sequencia");
+                activateBtn.style.background = "var(--green,#10b981)";
+                activateBtn.style.color = "var(--bg,#0a0a0c)";
+            }
+        }
+    };
+
+    /* F6-C: Activate / pause toggle */
+    HermesSequenceCanvas.prototype._activateSequence = function () {
+        if (!this._sequenceId) {
+            if (window.hermesToast) window.hermesToast.error("Salve a sequência primeiro.");
+            return;
+        }
+        var self = this;
+        var newStatus = this._sequenceStatus === "active" ? "paused" : "active";
+        var token = typeof getToken === "function" ? getToken() : (localStorage.getItem("hermes_token") || "");
+
+        fetch("/api/sequences/" + this._sequenceId, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "X-Hermes-Token": token },
+            body: JSON.stringify({ status: newStatus }),
+        })
+            .then(function (r) {
+                if (!r.ok) throw new Error("HTTP " + r.status);
+                return r.json();
+            })
+            .then(function () {
+                self._setStatusBadge(newStatus);
+                var msg = newStatus === "active" ? "Sequência ativada!" : "Sequência pausada.";
+                if (window.hermesToast) { if (newStatus === "active") window.hermesToast.success(msg); else window.hermesToast.info(msg); }
+            })
+            .catch(function (err) {
+                if (window.hermesToast) window.hermesToast.error("Erro: " + err.message);
+            });
     };
 
     /* ── Zoom ────────────────────────────────────────────── */

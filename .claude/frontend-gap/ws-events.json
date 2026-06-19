@@ -1,5 +1,5 @@
 {
-  "generated_at": 1781899651.4776838,
+  "generated_at": 1781901888.1890092,
   "handlers_in_frontend": [
     "activity",
     "alert",
@@ -24,14 +24,14 @@
     "activity": [
       {
         "file": "daemon/orchestrator.py",
-        "line": 282,
+        "line": 301,
         "snippet": "await self._broadcast({"
       }
     ],
     "channel_update": [
       {
         "file": "daemon/orchestrator.py",
-        "line": 625,
+        "line": 644,
         "snippet": "await self._broadcast({"
       }
     ],
@@ -48,14 +48,14 @@
       },
       {
         "file": "daemon/orchestrator.py",
-        "line": 259,
+        "line": 278,
         "snippet": "await self._broadcast({"
       }
     ],
     "decision": [
       {
         "file": "daemon/orchestrator.py",
-        "line": 322,
+        "line": 341,
         "snippet": "await self._broadcast({"
       }
     ],

@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-19 20:07 UTC
+- **last_updated**: 2026-06-19 20:44 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 237 (187 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 141 (60.8% of public)
-- **orphans**: 91
+- **routes_total**: 239 (189 PC + 50 VM, 5 internal-only excluded)
+- **consumed**: 141 (60.3% of public)
+- **orphans**: 93
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **237** rotas FastAPI (187 PC, 50 VM)
+- Total: **239** rotas FastAPI (189 PC, 50 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -30,11 +30,11 @@
 | `api/brain.py` | 8 |
 | `api/observability.py` | 8 |
 | `api/hermes.py` | 7 |
+| `api/sequences.py` | 7 |
 | `api/templates.py` | 7 |
 | `api/onboarding.py` | 5 |
 | `api/lab.py` | 5 |
 | `api/scraper.py` | 5 |
-| `api/sequences.py` | 5 |
 | `api/tasks.py` | 5 |
 | `api/audit.py` | 4 |
 | `api/server_ctrl.py` | 4 |
@@ -59,20 +59,20 @@
 | `hermes_api_v2.py` | 1 |
 | `vm_api/mcp_jobs.py` | 1 |
 
-## §2 Mapa consumo (app.js + 57 components)
+## §2 Mapa consumo (app.js + 59 components)
 
 - Endpoints únicos consumidos: **141**
-- Total fetch/api calls: 167
-- Fontes escaneadas: 58 arquivos (app.js + components/*.js + HTML inline)
+- Total fetch/api calls: 170
+- Fontes escaneadas: 60 arquivos (app.js + components/*.js + HTML inline)
 - Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, sequences, skill-proposals, skills, tasks
 
 | Endpoint | Chamadas | Fontes |
 |---|---|---|
 | `/api/linkedin/cobaia/status` | 7 | cobaia_day_countdown.js, cobaia_operator.js, cobaia_status_card.js |
+| `/api/prospects` | 7 | app.js, sequence_enroll_modal.js |
 | `/api/dashboard` | 6 | app.js |
 | `/api/linkedin/cobaia/metrics` | 6 | cobaia_operator.js, cobaia_studio.js |
 | `/api/linkedin/cobaia/timeline` | 6 | cobaia_operator.js, cobaia_studio.js |
-| `/api/prospects` | 6 | app.js |
 | `/api/skills/proposals` | 6 | skill_proposals_modal.js, skill_proposals_studio.js |
 | `/api/pipelines` | 5 | app.js |
 | `/api/templates` | 5 | app.js, sequence_canvas.js, template_editor.js |
@@ -82,14 +82,14 @@
 | `/api/onboarding/state` | 3 | app.js, onboarding_wizard.js |
 | `/api/pipelines/{param}` | 3 | app.js |
 | `/api/prospects/{param}` | 3 | app.js |
+| `/api/sequences` | 3 | sequence_canvas.js, sequence_enroll_modal.js |
 | `/api/activities` | 2 | app.js |
 | `/api/audit/status` | 2 | app.js |
 | `/api/hermes/memory` | 2 | app.js |
 | `/api/hermes/skills/{param}` | 2 | app.js |
 | `/api/hermes/status` | 2 | app.js |
-| `/api/lab/runs/{param}` | 2 | lab_cockpit.js |
 
-## §3 Órfãos — 91 endpoints sem UI
+## §3 Órfãos — 93 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -135,8 +135,10 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/pipeline-studio/runs/{run_id}/abort` | pc | `api/pipeline_studio.py:748` | token |
 | `POST` | `/api/pipeline/execute` | vm | `vm_api/routes.py:824` | token |
 | `POST` | `/api/prospects/{prospect_id}/outreach` | vm | `vm_api/routes.py:738` | token |
-| `DELETE` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:195` | token |
-| `PUT` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:165` | token |
+| `DELETE` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:199` | token |
+| `PUT` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:169` | token |
+| `POST` | `/api/sequences/{seq_id}/dry-run` | pc | `api/sequences.py:322` | token |
+| `POST` | `/api/sequences/{seq_id}/enroll` | pc | `api/sequences.py:250` | token |
 | `POST` | `/api/server/restart-all` | pc | `api/server_ctrl.py:80` | rate-limited |
 | `POST` | `/api/server/restart-local` | pc | `api/server_ctrl.py:22` | rate-limited |
 | `POST` | `/api/server/restart-vm` | pc | `api/server_ctrl.py:54` | rate-limited |
@@ -179,7 +181,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/pipeline-studio/runs/{run_id}` | pc | `api/pipeline_studio.py:529` | token |
 | `GET` | `/api/scraper/history` | pc | `api/scraper.py:123` | token |
 | `GET` | `/api/scraper/history` | vm | `vm_api/routes.py:530` | token |
-| `GET` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:142` | token |
+| `GET` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:146` | token |
 | `GET` | `/api/skills/health` | pc | `api/skills.py:335` | token |
 | `GET` | `/api/skills/proposals-pending-verify` | pc | `api/skills.py:485` | token |
 | `GET` | `/api/skills/proposals/{proposal_id}` | pc | `api/skills.py:137` | token |

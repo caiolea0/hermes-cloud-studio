@@ -1,5 +1,5 @@
 {
-  "generated_at": 1781899651.4761863,
+  "generated_at": 1781901888.1876662,
   "sources": [
     "dashboard/app.js",
     "dashboard/components/_utils.js",
@@ -48,6 +48,8 @@
     "dashboard/components/pipeline_studio_templates.js",
     "dashboard/components/pref_panel.js",
     "dashboard/components/sequence_canvas.js",
+    "dashboard/components/sequence_dry_run.js",
+    "dashboard/components/sequence_enroll_modal.js",
     "dashboard/components/shortcuts_help_overlay.js",
     "dashboard/components/skeleton.js",
     "dashboard/components/skeleton_patterns.js",
@@ -60,9 +62,9 @@
     "dashboard/components/ws_status_indicator.js",
     "dashboard/index.html"
   ],
-  "sources_count": 58,
+  "sources_count": 60,
   "total_endpoints": 99,
-  "total_calls": 167,
+  "total_calls": 170,
   "consumed": {
     "/api/_bootstrap": [
       {
@@ -862,6 +864,11 @@
         "file": "dashboard/app.js",
         "line": 2192,
         "snippet": "const data = await api('/api/prospects?stage=audited&limit=30&offset=0');"
+      },
+      {
+        "file": "dashboard/components/sequence_enroll_modal.js",
+        "line": 319,
+        "snippet": "fetch(API_BASE + \"/api/prospects?limit=200\", { headers: _authHeaders() })"
       }
     ],
     "/api/prospects/bulk": [
@@ -940,8 +947,18 @@
     "/api/sequences": [
       {
         "file": "dashboard/components/sequence_canvas.js",
-        "line": 809,
+        "line": 839,
         "snippet": "fetch(\"/api/sequences/\" + seqId, {"
+      },
+      {
+        "file": "dashboard/components/sequence_canvas.js",
+        "line": 937,
+        "snippet": "fetch(\"/api/sequences/\" + this._sequenceId, {"
+      },
+      {
+        "file": "dashboard/components/sequence_enroll_modal.js",
+        "line": 265,
+        "snippet": "fetch(API_BASE + \"/api/sequences/\" + this._seqId + \"/enroll\", {"
       }
     ],
     "/api/server/{param}": [
@@ -1036,12 +1053,12 @@
       },
       {
         "file": "dashboard/components/sequence_canvas.js",
-        "line": 671,
+        "line": 701,
         "snippet": "api(\"/api/templates?channel=\" + encodeURIComponent(channel))"
       },
       {
         "file": "dashboard/components/sequence_canvas.js",
-        "line": 707,
+        "line": 737,
         "snippet": "api(\"/api/templates/\" + tid).then(function (d) {"
       },
       {

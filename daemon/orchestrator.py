@@ -217,6 +217,25 @@ class HermesDaemon:
                 PRIMARY KEY (prospect_id, channel)
             );
 
+            CREATE TABLE IF NOT EXISTS sequence_nodes (
+                id TEXT PRIMARY KEY,
+                sequence_id INTEGER NOT NULL DEFAULT 0,
+                node_type TEXT NOT NULL DEFAULT 'action',
+                channel TEXT,
+                action_type TEXT,
+                position_x REAL NOT NULL DEFAULT 0,
+                position_y REAL NOT NULL DEFAULT 0,
+                config_json TEXT NOT NULL DEFAULT '{}'
+            );
+
+            CREATE TABLE IF NOT EXISTS sequence_edges (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sequence_id INTEGER NOT NULL DEFAULT 0,
+                from_node TEXT NOT NULL,
+                to_node TEXT NOT NULL,
+                edge_type TEXT NOT NULL DEFAULT 'default'
+            );
+
             CREATE INDEX IF NOT EXISTS idx_daemon_log_ts ON daemon_log(timestamp DESC);
             CREATE INDEX IF NOT EXISTS idx_daemon_log_cat ON daemon_log(category);
             CREATE INDEX IF NOT EXISTS idx_daemon_decisions_ts ON daemon_decisions(timestamp DESC);
@@ -977,19 +996,77 @@ class HermesDaemon:
         ]
 
     async def _get_due_sequence_steps(self) -> list:
-        """Get sequence steps due for execution (next_action_at <= now, not completed)."""
+        """Get sequence steps due for execution — JOIN sequence_nodes for action details."""
         conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            "SELECT id, prospect_id, sequence_id, current_step "
-            "FROM sequence_enrollments "
-            "WHERE next_action_at <= datetime('now') AND completed = 0 "
+            "SELECT e.id, e.prospect_id, e.sequence_id, e.current_step, "
+            "n.node_type, n.channel, n.action_type, n.config_json "
+            "FROM sequence_enrollments e "
+            "LEFT JOIN sequence_nodes n ON CAST(e.current_step AS TEXT) = n.id "
+            "WHERE e.next_action_at <= datetime('now') AND e.completed = 0 "
             "LIMIT 50"
         ).fetchall()
         conn.close()
-        return [
-            {"id": r[0], "prospect_id": r[1], "sequence_id": r[2], "current_step": r[3]}
-            for r in rows
-        ]
+        return [dict(r) for r in rows]
+
+    async def _advance_enrollment(self, enrollment_id: int, sequence_id: str,
+                                  executed_node_id: str) -> None:
+        """After executing a node, advance enrollment to the next node via edges.
+
+        If no next node or next node is 'end', marks enrollment completed=1.
+        Computes next_action_at respecting business hours via send_scheduler.
+        """
+        try:
+            from core.send_scheduler import compute_delay_dt
+        except ImportError:
+            from datetime import timedelta
+            def compute_delay_dt(days, base=None):  # type: ignore[misc]
+                from datetime import datetime
+                b = base or datetime.utcnow()
+                return b + timedelta(days=max(days, 0))
+
+        conn = sqlite3.connect(str(DB_PATH))
+        conn.row_factory = sqlite3.Row
+        try:
+            # Find next node via edges (if_true preferred over default)
+            next_edge = conn.execute(
+                "SELECT to_node FROM sequence_edges "
+                "WHERE sequence_id=? AND from_node=? "
+                "ORDER BY CASE edge_type WHEN 'if_true' THEN 0 ELSE 1 END LIMIT 1",
+                (sequence_id, executed_node_id),
+            ).fetchone()
+
+            if not next_edge:
+                conn.execute("UPDATE sequence_enrollments SET completed=1 WHERE id=?", (enrollment_id,))
+                conn.commit()
+                return
+
+            next_node = conn.execute(
+                "SELECT * FROM sequence_nodes WHERE id=?", (next_edge["to_node"],)
+            ).fetchone()
+
+            if not next_node or next_node["node_type"] in ("end", "stop"):
+                conn.execute("UPDATE sequence_enrollments SET completed=1 WHERE id=?", (enrollment_id,))
+                conn.commit()
+                return
+
+            # Compute delay
+            delay_days = 0
+            if next_node["node_type"] == "delay":
+                cfg = json.loads(next_node["config_json"] or "{}")
+                delay_days = int(cfg.get("delay_days", 0))
+
+            next_at = compute_delay_dt(delay_days)
+            next_at_str = next_at.strftime("%Y-%m-%d %H:%M:%S")
+            conn.execute(
+                "UPDATE sequence_enrollments SET current_step=?, next_action_at=? WHERE id=?",
+                (next_node["id"], next_at_str, enrollment_id),
+            )
+            conn.commit()
+            logger.debug("[advance_enrollment] id=%s → node=%s at %s", enrollment_id, next_node["id"], next_at_str)
+        finally:
+            conn.close()
 
     async def _get_unenriched_prospects(self, limit: int = 5) -> list:
         """Get prospects missing key fields (email, linkedin, etc)."""

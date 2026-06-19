@@ -90,6 +90,23 @@ def _build_db(tmp_path: Path) -> Path:
             received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (prospect_id, channel)
         );
+        CREATE TABLE IF NOT EXISTS sequence_nodes (
+            id TEXT PRIMARY KEY,
+            sequence_id INTEGER NOT NULL DEFAULT 0,
+            node_type TEXT NOT NULL DEFAULT 'action',
+            channel TEXT,
+            action_type TEXT,
+            position_x REAL NOT NULL DEFAULT 0,
+            position_y REAL NOT NULL DEFAULT 0,
+            config_json TEXT NOT NULL DEFAULT '{}'
+        );
+        CREATE TABLE IF NOT EXISTS sequence_edges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sequence_id INTEGER NOT NULL DEFAULT 0,
+            from_node TEXT NOT NULL,
+            to_node TEXT NOT NULL,
+            edge_type TEXT NOT NULL DEFAULT 'default'
+        );
         INSERT OR IGNORE INTO daemon_state (id, state, started_at, last_heartbeat)
         VALUES (1, 'idle', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
     """)
