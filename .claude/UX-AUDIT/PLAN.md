@@ -329,6 +329,8 @@ See `issues.json` for full machine-readable list. Summary counts:
 - **Cobaia-blocking**: SOFT
 - **Deps**: F1, F2
 - **F8-A DONE** 2026-06-19 — cobaia_operator.js + cobaia_day_countdown.js + cobaia_today_queue.js + today-queue API + operator CSS grid + mode toggle (localStorage) + migration cobaia_warmup_schedule. 393 pytest PASS. BLACKLIST R2 INTACTO 59 SS. Browser smoke OK (both modes). commit feat(UX-RM-F8-A). F8-B NEXT.
+- **F8-B DONE** 2026-06-19 — mobile responsive CSS (768/480 breakpoints) + cobaia_brain_queue_badge.js + cobaia_rate_limit_gauge.js + cobaia_sentry_banner.js + inline panic confirm + /api/brain/queue-stats endpoint + 14 new tests. 404 pytest PASS. BLACKLIST R2 INTACTO 60 SS. commit feat(UX-RM-F8-B).
+- **UX-RM-F8 100% COMPLETE** 2026-06-19 — F8-A (12h) + F8-B (12h) = 24h. All acceptance criteria met: operator cockpit, warmup day countdown, Brain queue badge, LI rate-limit gauge, Sentry banner, mobile responsive, inline panic confirm.
 
 ---
 

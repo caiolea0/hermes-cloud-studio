@@ -5614,3 +5614,262 @@ button.li-chip:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
+
+/* ============================================================
+   UX-RM-F8-B — Mobile Responsive (Cobaia Operator)
+   ============================================================ */
+
+@media (max-width: 768px) {
+    .cobaia-operator-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .op-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .op-header-countdown { width: 100%; }
+    .op-header-actions   { width: 100%; }
+    .cobaia-mode-tab { min-height: 44px; }
+    .op-kpis-hero {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    .op-main-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .op-day-badge .day-n { font-size: 14px; }
+    .cobaia-mode-bar { overflow-x: auto; }
+    .cobaia-mode-tablist { min-width: max-content; }
+    .cobaia-mode-tab { min-width: 80px; }
+}
+
+@media (max-width: 480px) {
+    .op-kpis-hero {
+        grid-template-columns: 1fr;
+    }
+    .op-header { gap: 6px; }
+}
+
+/* ============================================================
+   UX-RM-F8-B — Brain Queue Badge
+   ============================================================ */
+
+.brain-queue-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: var(--r-xs);
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--s3);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    min-height: 32px;
+    user-select: none;
+}
+.brain-queue-badge--active {
+    background: var(--accent-l);
+    background: rgba(124,58,237,0.15);
+    border-color: var(--accent);
+    color: var(--accent-l);
+}
+.brain-queue-badge--offline { opacity: 0.5; }
+
+.brain-queue-icon  { font-size: 13px; line-height: 1; }
+.brain-queue-count { font-size: 14px; font-weight: 700; min-width: 16px; text-align: center; }
+.brain-queue-label { font-size: 11px; opacity: 0.8; }
+.brain-queue-today { font-size: 10px; opacity: 0.6; margin-left: 4px; }
+
+.brain-queue-spinner {
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   UX-RM-F8-B — Rate-Limit Gauge
+   ============================================================ */
+
+.rl-gauge-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+.rl-gauge-grid--offline { opacity: 0.5; }
+
+.rl-gauge {
+    background: var(--s3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.rl-gauge-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-2);
+    font-weight: 600;
+}
+.rl-gauge-icon { font-size: 13px; }
+.rl-gauge-name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.rl-gauge-bar {
+    height: 6px;
+    background: var(--s5);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.rl-gauge-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s var(--ease);
+}
+.rl-gauge--green  .rl-gauge-fill { background: var(--green); }
+.rl-gauge--amber  .rl-gauge-fill { background: var(--amber); }
+.rl-gauge--red    .rl-gauge-fill { background: var(--red); }
+.rl-gauge--offline .rl-gauge-fill { background: var(--s5); }
+
+.rl-gauge-numbers {
+    font-size: 11px;
+    color: var(--text-2);
+    display: flex;
+    gap: 2px;
+}
+
+@media (max-width: 768px) {
+    .rl-gauge-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .rl-gauge { padding: 8px 10px; }
+}
+@media (max-width: 480px) {
+    .rl-gauge-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   UX-RM-F8-B — Sentry Banner
+   ============================================================ */
+
+.sentry-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: var(--r-sm);
+    border-left: 3px solid var(--amber);
+    background: var(--amber-dim);
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+.sentry-banner--critical {
+    border-left-color: var(--red);
+    background: var(--red-dim);
+}
+.sentry-banner--error {
+    border-left-color: var(--red);
+    background: var(--red-dim);
+}
+.sentry-banner--warning {
+    border-left-color: var(--amber);
+    background: var(--amber-dim);
+}
+.sentry-banner-icon { font-size: 16px; flex-shrink: 0; }
+.sentry-banner-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.sentry-banner-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sentry-banner-meta {
+    font-size: 11px;
+    color: var(--text-2);
+}
+.sentry-banner-link {
+    font-size: 12px;
+    color: var(--accent-l);
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.sentry-banner-link:hover { text-decoration: underline; }
+.sentry-banner-dismiss {
+    background: none;
+    border: none;
+    color: var(--text-2);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 6px;
+    line-height: 1;
+    border-radius: var(--r-xs);
+    flex-shrink: 0;
+    min-width: 28px;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.sentry-banner-dismiss:hover { color: var(--text); background: var(--s4); }
+.sentry-banner-dismiss:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ============================================================
+   UX-RM-F8-B — Inline Panic Confirmation
+   ============================================================ */
+
+.op-panic-inline { display: flex; flex-direction: column; gap: 6px; }
+.op-panic-confirm {
+    background: var(--red-dim);
+    border: 1px solid var(--red);
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    animation: panic-slide-in 0.15s var(--ease);
+}
+@keyframes panic-slide-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.op-panic-confirm strong { font-size: 13px; color: var(--red-l); }
+.op-panic-confirm p { font-size: 12px; color: var(--text-2); margin: 0; }
+.op-panic-confirm-actions { display: flex; gap: 8px; }
+
+/* Cobaia operator header — badge + brain mount alignment */
+.op-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.op-brain-badge-mount { display: flex; align-items: center; }
+.op-sentry-banner-wrap { width: 100%; }
+.op-rl-gauge-section { padding: 12px 0 4px; }
+.op-rl-gauge-section h3 {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}

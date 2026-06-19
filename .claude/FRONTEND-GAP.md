@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-19 14:08 UTC
+- **last_updated**: 2026-06-19 14:32 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 224 (174 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 133 (60.7% of public)
-- **orphans**: 86
+- **routes_total**: 225 (175 PC + 50 VM, 5 internal-only excluded)
+- **consumed**: 136 (61.8% of public)
+- **orphans**: 84
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **224** rotas FastAPI (174 PC, 50 VM)
+- Total: **225** rotas FastAPI (175 PC, 50 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -27,8 +27,8 @@
 | `api/daemon.py` | 12 |
 | `api/pipelines.py` | 9 |
 | `api/prospects.py` | 9 |
+| `api/brain.py` | 8 |
 | `api/observability.py` | 8 |
-| `api/brain.py` | 7 |
 | `api/hermes.py` | 7 |
 | `api/onboarding.py` | 5 |
 | `api/lab.py` | 5 |
@@ -57,11 +57,11 @@
 | `hermes_api_v2.py` | 1 |
 | `vm_api/mcp_jobs.py` | 1 |
 
-## §2 Mapa consumo (app.js + 50 components)
+## §2 Mapa consumo (app.js + 53 components)
 
-- Endpoints únicos consumidos: **133**
-- Total fetch/api calls: 156
-- Fontes escaneadas: 51 arquivos (app.js + components/*.js + HTML inline)
+- Endpoints únicos consumidos: **136**
+- Total fetch/api calls: 160
+- Fontes escaneadas: 54 arquivos (app.js + components/*.js + HTML inline)
 - Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, skill-proposals, skills, tasks
 
 | Endpoint | Chamadas | Fontes |
@@ -75,6 +75,7 @@
 | `/api/pipelines` | 5 | app.js |
 | `/api/audit/prospect/{param}` | 3 | app.js |
 | `/api/linkedin/cobaia/resume` | 3 | app.js, cobaia_emergency_stop.js, cobaia_status_card.js |
+| `/api/observability/errors` | 3 | cobaia_sentry_banner.js, observability_errors.js, observability_resolve_modal.js |
 | `/api/onboarding/state` | 3 | app.js, onboarding_wizard.js |
 | `/api/pipelines/{param}` | 3 | app.js |
 | `/api/prospects/{param}` | 3 | app.js |
@@ -85,9 +86,8 @@
 | `/api/hermes/status` | 2 | app.js |
 | `/api/lab/runs/{param}` | 2 | lab_cockpit.js |
 | `/api/linkedin/campaigns/{param}/stop` | 2 | app.js |
-| `/api/linkedin/cobaia/pause` | 2 | app.js, cobaia_status_card.js |
 
-## §3 Órfãos — 86 endpoints sem UI
+## §3 Órfãos — 84 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -102,7 +102,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/brain/replay/{run_id}` | pc | `api/brain.py:225` | token |
 | `POST` | `/api/prospects/{prospect_id}/resolve-conflict` | pc | `api/prospects.py:156` | token |
 | `GET` | `/api/agent-zero/status` | pc | `api/agent_zero.py:15` | token |
-| `GET` | `/api/brain/intents` | pc | `api/brain.py:303` | token |
+| `GET` | `/api/brain/intents` | pc | `api/brain.py:347` | token |
 | `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:214` | token |
 | `GET` | `/api/linkedin/visited` | pc | `api/linkedin.py:445` | token |
 | `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1528` | token |
@@ -162,8 +162,6 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/icp/profile` | pc | `api/icp.py:78` | token |
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:457` | token |
 | `GET` | `/api/linkedin/companies/lookup` | vm | `vm_api/routes.py:1586` | token |
-| `GET` | `/api/linkedin/rate-limits` | pc | `api/linkedin.py:29` | token |
-| `GET` | `/api/linkedin/rate-limits` | vm | `vm_api/routes.py:1387` | token |
 | `GET` | `/api/linkedin/session-check` | vm | `vm_api/routes.py:1400` | token |
 | `GET` | `/api/mcp/coverage/jobs/{job_id}` | vm | `vm_api/mcp_jobs.py:26` | token |
 | `GET` | `/api/observability/_debug/explain_cost_plan` | pc | `api/observability.py:668` | token |

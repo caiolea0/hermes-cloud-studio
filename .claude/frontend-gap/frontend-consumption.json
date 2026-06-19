@@ -1,5 +1,5 @@
 {
-  "generated_at": 1781878088.374359,
+  "generated_at": 1781879526.2859874,
   "sources": [
     "dashboard/app.js",
     "dashboard/components/_utils.js",
@@ -9,10 +9,13 @@
     "dashboard/components/brain_sidebar.js",
     "dashboard/components/breadcrumbs.js",
     "dashboard/components/cobaia_activity_feed.js",
+    "dashboard/components/cobaia_brain_queue_badge.js",
     "dashboard/components/cobaia_day_countdown.js",
     "dashboard/components/cobaia_emergency_stop.js",
     "dashboard/components/cobaia_kpi_cards.js",
     "dashboard/components/cobaia_operator.js",
+    "dashboard/components/cobaia_rate_limit_gauge.js",
+    "dashboard/components/cobaia_sentry_banner.js",
     "dashboard/components/cobaia_status_card.js",
     "dashboard/components/cobaia_studio.js",
     "dashboard/components/cobaia_timeline.js",
@@ -53,9 +56,9 @@
     "dashboard/components/ws_status_indicator.js",
     "dashboard/index.html"
   ],
-  "sources_count": 51,
-  "total_endpoints": 93,
-  "total_calls": 156,
+  "sources_count": 54,
+  "total_endpoints": 96,
+  "total_calls": 160,
   "consumed": {
     "/api/_bootstrap": [
       {
@@ -110,6 +113,13 @@
         "file": "dashboard/app.js",
         "line": 1909,
         "snippet": "const data = await api('/api/audit/status');"
+      }
+    ],
+    "/api/brain/queue-stats": [
+      {
+        "file": "dashboard/components/cobaia_brain_queue_badge.js",
+        "line": 26,
+        "snippet": "_api('/api/brain/queue-stats').then(function (r) {"
       }
     ],
     "/api/brain/runs": [
@@ -418,7 +428,7 @@
       },
       {
         "file": "dashboard/components/cobaia_operator.js",
-        "line": 242,
+        "line": 317,
         "snippet": "var metricsP  = _api('/api/linkedin/cobaia/metrics?days=7').catch(function () { return null; });"
       },
       {
@@ -430,6 +440,13 @@
         "file": "dashboard/components/cobaia_studio.js",
         "line": 107,
         "snippet": "const metricsP = _apiFetch('/api/linkedin/cobaia/metrics?days=7').catch(() => null);"
+      }
+    ],
+    "/api/linkedin/cobaia/panic": [
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 253,
+        "snippet": "_api('/api/linkedin/cobaia/panic').then(function () {"
       }
     ],
     "/api/linkedin/cobaia/pause": [
@@ -486,12 +503,12 @@
       },
       {
         "file": "dashboard/components/cobaia_operator.js",
-        "line": 241,
+        "line": 316,
         "snippet": "var statusP   = _api('/api/linkedin/cobaia/status').catch(function () { return null; });"
       },
       {
         "file": "dashboard/components/cobaia_operator.js",
-        "line": 306,
+        "line": 391,
         "snippet": "_api('/api/linkedin/cobaia/status').then(function (status) {"
       },
       {
@@ -523,7 +540,7 @@
       },
       {
         "file": "dashboard/components/cobaia_operator.js",
-        "line": 243,
+        "line": 318,
         "snippet": "var timelineP = _api('/api/linkedin/cobaia/timeline').catch(function () { return null; });"
       },
       {
@@ -577,6 +594,13 @@
         "snippet": "const cached = await api('/api/linkedin/profiles?url=' + encodeURIComponent(profileUrl));"
       }
     ],
+    "/api/linkedin/rate-limits": [
+      {
+        "file": "dashboard/components/cobaia_rate_limit_gauge.js",
+        "line": 35,
+        "snippet": "_api('/api/linkedin/rate-limits').then(function (r) {"
+      }
+    ],
     "/api/linkedin/status": [
       {
         "file": "dashboard/app.js",
@@ -618,6 +642,11 @@
       }
     ],
     "/api/observability/errors": [
+      {
+        "file": "dashboard/components/cobaia_sentry_banner.js",
+        "line": 46,
+        "snippet": "_api('/api/observability/errors?status=open&limit=5').then(function (r) {"
+      },
       {
         "file": "dashboard/components/observability_errors.js",
         "line": 227,

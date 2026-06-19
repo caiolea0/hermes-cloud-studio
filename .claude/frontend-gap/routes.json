@@ -1,7 +1,7 @@
 {
-  "generated_at": 1781878088.0559127,
-  "total": 224,
-  "pc_count": 174,
+  "generated_at": 1781879525.957953,
+  "total": 225,
+  "pc_count": 175,
   "vm_count": 50,
   "ws_count": 1,
   "internal_count": 5,
@@ -120,8 +120,18 @@
       "method": "GET",
       "path": "/api/brain/intents",
       "file": "api/brain.py",
-      "line": 303,
+      "line": 347,
       "function": "list_intents",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/brain/queue-stats",
+      "file": "api/brain.py",
+      "line": 303,
+      "function": "brain_queue_stats",
       "side": "pc",
       "internal_only": false,
       "rate_limited": false

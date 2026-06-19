@@ -300,6 +300,50 @@ async def confirm_run(
     return JSONResponse(status_code=200, content=result)
 
 
+@router.get("/queue-stats")
+async def brain_queue_stats() -> dict[str, Any]:
+    """F8-B — brain queue stats for cobaia operator badge.
+
+    Returns counts of brain_runs in each state:
+      pending      — requires_confirm (awaiting owner approval)
+      processing   — NULL final_state started in last 10 min (still running)
+      decided_today — completed today
+    Graceful: returns zeros if table missing or error.
+    """
+    import datetime
+    import sqlite3 as _sqlite3
+
+    from brain.persistence import _DEFAULT_DB
+
+    db_path = _DEFAULT_DB
+    try:
+        conn = _sqlite3.connect(str(db_path), check_same_thread=False)
+        conn.row_factory = _sqlite3.Row
+        tbl = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='brain_runs'"
+        ).fetchone()
+        if not tbl:
+            conn.close()
+            return {"pending": 0, "processing": 0, "decided_today": 0}
+        pending = conn.execute(
+            "SELECT COUNT(*) AS c FROM brain_runs WHERE final_state='requires_confirm'"
+        ).fetchone()["c"]
+        processing = conn.execute(
+            "SELECT COUNT(*) AS c FROM brain_runs"
+            " WHERE final_state IS NULL AND started_at > datetime('now', '-10 minutes')"
+        ).fetchone()["c"]
+        today_str = datetime.date.today().isoformat()
+        decided_today = conn.execute(
+            "SELECT COUNT(*) AS c FROM brain_runs"
+            " WHERE final_state='completed' AND date(finished_at) = ?",
+            (today_str,),
+        ).fetchone()["c"]
+        conn.close()
+        return {"pending": int(pending), "processing": int(processing), "decided_today": int(decided_today)}
+    except Exception as exc:  # noqa: BLE001 — graceful non-critical
+        return {"pending": 0, "processing": 0, "decided_today": 0, "error": str(exc)[:100]}
+
+
 @router.get("/intents")
 async def list_intents() -> dict[str, Any]:
     """F.6.1 utility — list registered intents + metadata (UI dashboard F.6.4 will consume)."""

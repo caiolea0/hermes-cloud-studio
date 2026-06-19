@@ -201,21 +201,95 @@
 
     // ── Operator layout ───────────────────────────────────────────────────────
 
+    // ── Inline panic confirmation HTML ────────────────────────────────────────
+
+    function _panicInlineHTML() {
+        return '<div class="op-panic-inline" id="op-panic-inline" data-state="idle">' +
+            '<button class="btn btn-danger op-panic-trigger" type="button" ' +
+                    'aria-label="Acionar parada de emergência da cobaia" ' +
+                    'style="min-height:44px;min-width:44px;">' +
+                '🚨 Panic Stop' +
+            '</button>' +
+            '<div class="op-panic-confirm" id="op-panic-confirm" hidden ' +
+                 'role="alertdialog" aria-modal="false" ' +
+                 'aria-label="Confirmação de parada de emergência" ' +
+                 'aria-describedby="op-panic-desc">' +
+                '<strong>Confirmar parada?</strong>' +
+                '<p id="op-panic-desc">Cobaia warmup será pausado imediatamente.</p>' +
+                '<div class="op-panic-confirm-actions">' +
+                    '<button class="btn btn-danger op-panic-exec" id="op-panic-exec" type="button" ' +
+                            'style="min-height:44px;">' +
+                        'Sim, parar' +
+                    '</button>' +
+                    '<button class="btn btn-ghost op-panic-cancel" type="button" ' +
+                            'style="min-height:44px;">' +
+                        'Cancelar' +
+                    '</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    function _bindPanicInline() {
+        var wrap = document.getElementById('op-panic-inline');
+        if (!wrap) return;
+        var trigger = wrap.querySelector('.op-panic-trigger');
+        var confirm = document.getElementById('op-panic-confirm');
+        var execBtn = document.getElementById('op-panic-exec');
+        var cancelBtn = wrap.querySelector('.op-panic-cancel');
+
+        function _show() {
+            if (trigger) trigger.hidden = true;
+            if (confirm) { confirm.hidden = false; }
+            if (execBtn) execBtn.focus();
+        }
+        function _hide() {
+            if (trigger) trigger.hidden = false;
+            if (confirm) confirm.hidden = true;
+            if (trigger) trigger.focus();
+        }
+        function _execute() {
+            _hide();
+            _api('/api/linkedin/cobaia/panic').then(function () {
+                if (window.toast) toast('Cobaia pausada — emergência executada', 'error');
+            }).catch(function (e) {
+                if (window.toast) toast('Erro ao pausar cobaia: ' + e.message, 'error');
+            });
+        }
+        if (trigger) trigger.addEventListener('click', _show);
+        if (execBtn) execBtn.addEventListener('click', _execute);
+        if (cancelBtn) cancelBtn.addEventListener('click', _hide);
+
+        // Esc closes confirm
+        wrap.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && confirm && !confirm.hidden) { e.stopPropagation(); _hide(); }
+        });
+    }
+
     function _renderOperator() {
         if (!_container) return;
         _container.innerHTML =
             _toggleBarHTML() +
             '<div class="cobaia-operator-grid" role="region" aria-label="Cobaia Operator Mode">' +
+                // Sentry banner above everything
+                '<div class="op-sentry-banner-wrap" id="op-sentry-banner-mount"></div>' +
                 '<header class="op-header">' +
-                    '<div id="op-day-countdown-mount" class="op-header-countdown"></div>' +
+                    '<div class="op-header-left">' +
+                        '<div id="op-day-countdown-mount" class="op-header-countdown"></div>' +
+                        '<div id="op-brain-badge-mount" class="op-brain-badge-mount"></div>' +
+                    '</div>' +
                     '<div id="op-status-badge-mount" class="op-header-status" aria-live="polite"></div>' +
                     '<div class="op-header-actions">' +
-                        '<div id="op-emergency-stop-mount"></div>' +
+                        _panicInlineHTML() +
                     '</div>' +
                 '</header>' +
                 '<section class="op-kpis-hero" aria-label="KPIs principais cobaia">' +
                     '<h2 class="op-panel-title">KPIs Cobaia</h2>' +
                     '<div id="op-kpi-mount"></div>' +
+                '</section>' +
+                '<section class="op-rl-gauge-section" aria-label="LinkedIn rate limits">' +
+                    '<h2 class="op-panel-title">Rate Limits LinkedIn</h2>' +
+                    '<div id="op-rl-gauge-mount"></div>' +
                 '</section>' +
                 '<div class="op-main-grid">' +
                     '<section class="op-queue-panel" aria-label="Proximas acoes de hoje">' +
@@ -234,6 +308,7 @@
             '</div>';
 
         _bindTabs();
+        _bindPanicInline();
         _loadOperator();
     }
 
@@ -252,9 +327,19 @@
             }
             _renderOperatorStatusBadge(status);
 
-            if (window.CobaiaEmergencyStop) {
-                window.CobaiaEmergencyStop.mount('op-emergency-stop-mount', status && status.phase, _onStateChange);
+            // F8-B: brain queue badge
+            if (window.HermesCobaiaBrainQueueBadge) {
+                window.HermesCobaiaBrainQueueBadge.mount('op-brain-badge-mount');
             }
+            // F8-B: sentry banner
+            if (window.HermesCobaiaSentryBanner) {
+                window.HermesCobaiaSentryBanner.mount('op-sentry-banner-mount');
+            }
+            // F8-B: rate-limit gauge
+            if (window.HermesCobaiaRateLimitGauge) {
+                window.HermesCobaiaRateLimitGauge.mount('op-rl-gauge-mount');
+            }
+
             if (window.CobaiaKpiCards) {
                 window.CobaiaKpiCards.mount('op-kpi-mount');
                 window.CobaiaKpiCards.render(metrics || {});
@@ -342,6 +427,10 @@
         if (window.CobaiaKpiCards) window.CobaiaKpiCards.destroy();
         if (window.CobaiaTodayQueue) window.CobaiaTodayQueue.destroy();
         if (window.CobaiaDayCountdown) window.CobaiaDayCountdown.destroy();
+        // F8-B new components
+        if (window.HermesCobaiaBrainQueueBadge) window.HermesCobaiaBrainQueueBadge.destroy();
+        if (window.HermesCobaiaSentryBanner) window.HermesCobaiaSentryBanner.destroy();
+        if (window.HermesCobaiaRateLimitGauge) window.HermesCobaiaRateLimitGauge.destroy();
         _dedup.clear();
         _container = null;
     }

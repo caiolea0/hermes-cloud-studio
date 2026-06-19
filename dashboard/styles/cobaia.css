@@ -711,6 +711,18 @@
 @media (max-width: 768px) {
     .op-main-grid { grid-template-columns: 1fr; }
     .op-header { grid-template-columns: 1fr; gap: var(--space-sm); }
+    /* F8-B: KPI hero 2×2 on tablet */
+    .op-kpis-hero .cobaia-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    /* F8-B: mode bar scrollable on narrow screens */
+    .cobaia-mode-bar { overflow-x: auto; }
+    .cobaia-mode-tab { min-height: 44px; min-width: 72px; }
+    /* F8-B: touch targets in header */
+    .op-header-actions button { min-height: 44px; min-width: 44px; }
+}
+
+@media (max-width: 480px) {
+    /* F8-B: KPIs single column on very small phones */
+    .op-kpis-hero .cobaia-kpi-grid { grid-template-columns: 1fr; }
 }
 
 .op-queue-panel,
