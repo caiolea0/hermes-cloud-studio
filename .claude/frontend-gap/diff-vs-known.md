@@ -5,7 +5,8 @@
 
 ## New orphans (regressões / backend novo sem UI)
 
-- 🆕 `DELETE /api/sequences/{seq_id}`
+- 🆕 `DELETE /api/templates/{template_id}`
 - 🆕 `GET /`
-- 🆕 `GET /api/sequences/{seq_id}`
-- 🆕 `PUT /api/sequences/{seq_id}`
+- 🆕 `GET /api/templates/{template_id}`
+- 🆕 `POST /api/templates/render`
+- 🆕 `PUT /api/templates/{template_id}`

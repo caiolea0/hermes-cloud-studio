@@ -612,17 +612,142 @@
             panel.appendChild(formGroup("Regra", "insp-cond-rule-" + node.id, condSel));
         }
 
-        /* action: channel (read-only label) */
+        /* action: channel label + template selector (UX-RM-F6-B) */
         if (node.type === "action") {
             var chLabel = document.createElement("p");
             chLabel.className = "seq-inspector-meta";
             chLabel.textContent = "Canal: " + (node.channel || "—") + " / Acao: " + (node.action || "—");
             panel.appendChild(chLabel);
 
-            var tmplNote = document.createElement("p");
-            tmplNote.className = "seq-inspector-note";
-            tmplNote.textContent = "Templates e personalizacao: disponivel em F6-B.";
-            panel.appendChild(tmplNote);
+            var tplSection = document.createElement("div");
+            tplSection.className = "seq-tpl-section";
+
+            var tplTitle = document.createElement("p");
+            tplTitle.className = "seq-tpl-section-title";
+            tplTitle.textContent = "Template";
+            tplSection.appendChild(tplTitle);
+
+            /* Selector row: <select> + Edit button */
+            var tplRow = document.createElement("div");
+            tplRow.className = "seq-tpl-select-row";
+
+            var tplSel = document.createElement("select");
+            tplSel.className = "seq-field-input seq-tpl-select";
+            tplSel.setAttribute("aria-label", "Selecionar template");
+            var optNone = document.createElement("option");
+            optNone.value = "";
+            optNone.textContent = "— sem template —";
+            tplSel.appendChild(optNone);
+            tplRow.appendChild(tplSel);
+
+            var tplEditBtn = document.createElement("button");
+            tplEditBtn.className = "btn btn-ghost btn-sm seq-tpl-edit-btn";
+            tplEditBtn.setAttribute("aria-label", "Editar template selecionado");
+            tplEditBtn.innerHTML = _icon("save");
+            tplEditBtn.disabled = true;
+            tplRow.appendChild(tplEditBtn);
+
+            tplSection.appendChild(tplRow);
+
+            /* Preview box */
+            var tplPreviewBox = document.createElement("div");
+            tplPreviewBox.className = "seq-tpl-preview-box";
+            tplPreviewBox.setAttribute("aria-live", "polite");
+            tplPreviewBox.textContent = "Nenhum template selecionado.";
+            tplSection.appendChild(tplPreviewBox);
+
+            /* New template button */
+            var tplNewBtn = document.createElement("button");
+            tplNewBtn.className = "btn btn-ghost btn-sm seq-tpl-new-btn";
+            tplNewBtn.innerHTML = _icon("plus") + " Novo template";
+            tplSection.appendChild(tplNewBtn);
+
+            panel.appendChild(tplSection);
+
+            /* Load templates for this channel */
+            (function (n, sel, editBtn, previewBox) {
+                var channel = n.channel || "";
+                if (typeof api === "function") {
+                    api("/api/templates?channel=" + encodeURIComponent(channel))
+                        .then(function (data) {
+                            var templates = (data && data.templates) || [];
+                            templates.forEach(function (t) {
+                                var opt = document.createElement("option");
+                                opt.value = String(t.id);
+                                opt.textContent = t.name;
+                                sel.appendChild(opt);
+                            });
+                            /* Restore saved template_id from node config */
+                            var saved = n.config && n.config.template_id;
+                            if (saved) {
+                                sel.value = String(saved);
+                                editBtn.disabled = false;
+                                /* Show preview snippet */
+                                var found = templates.find(function (t) { return t.id === saved; });
+                                if (found) previewBox.textContent = (found.body || "").slice(0, 120);
+                            }
+                        })
+                        .catch(function () { /* silent — templates optional */ });
+                }
+
+                sel.addEventListener("change", function () {
+                    var tid = parseInt(sel.value, 10) || null;
+                    n.config = n.config || {};
+                    n.config.template_id = tid;
+                    editBtn.disabled = !tid;
+                    if (!tid) {
+                        previewBox.textContent = "Nenhum template selecionado.";
+                        return;
+                    }
+                    /* Update preview from already-loaded options text */
+                    var chosen = Array.from(sel.options).find(function (o) { return o.value === sel.value; });
+                    if (chosen) previewBox.textContent = chosen.textContent;
+                    /* Try to fetch body snippet */
+                    if (typeof api === "function") {
+                        api("/api/templates/" + tid).then(function (d) {
+                            if (d && d.template) previewBox.textContent = (d.template.body || "").slice(0, 120);
+                        }).catch(function () {});
+                    }
+                });
+
+                editBtn.addEventListener("click", function () {
+                    var tid = parseInt(sel.value, 10) || null;
+                    if (!tid || !window.templateEditor) return;
+                    window.templateEditor.open({
+                        templateId: tid,
+                        channel: channel,
+                        actionType: n.action,
+                        onSave: function (savedId, payload) {
+                            /* Update option label in selector */
+                            var opt = Array.from(sel.options).find(function (o) { return o.value === String(savedId); });
+                            if (opt && payload) opt.textContent = payload.name;
+                            if (payload) previewBox.textContent = (payload.body || "").slice(0, 120);
+                        },
+                    });
+                });
+            }(node, tplSel, tplEditBtn, tplPreviewBox));
+
+            /* New template opens editor, on save adds option + assigns */
+            tplNewBtn.addEventListener("click", function () {
+                if (!window.templateEditor) return;
+                window.templateEditor.open({
+                    channel: node.channel,
+                    actionType: node.action,
+                    onSave: function (savedId, payload) {
+                        if (!savedId || !payload) return;
+                        var opt = document.createElement("option");
+                        opt.value = String(savedId);
+                        opt.textContent = payload.name || "Template " + savedId;
+                        tplSel.appendChild(opt);
+                        tplSel.value = String(savedId);
+                        node.config = node.config || {};
+                        node.config.template_id = savedId;
+                        tplEditBtn.disabled = false;
+                        tplPreviewBox.textContent = (payload.body || "").slice(0, 120);
+                        if (window.hermesToast) window.hermesToast.success("Template atribuido ao no");
+                    },
+                });
+            });
         }
 
         /* remove button (not for start/end) */

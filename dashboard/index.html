@@ -2416,17 +2416,51 @@
     </div>
 </div>
 
-<!-- ========================== PAGE: SEQUENCES (UX-RM-F6-A — canvas sequence builder) ========================== -->
+<!-- ========================== PAGE: SEQUENCES (UX-RM-F6-A/B — canvas + templates) ========================== -->
 <div class="page" id="page-sequences">
     <h1 class="sr-only">Sequences</h1>
     <div class="page-header">
         <span style="font-size:18px;font-weight:700;color:var(--text-1,var(--text))">Sequences</span>
-        <button class="btn btn-primary btn-sm" onclick="if(window.sequenceCanvas) window.sequenceCanvas.newSequence();" aria-label="Criar nova sequencia">
-            <svg style="width:13px;height:13px"><use href="#i-plus"/></svg> Nova Sequencia
+        <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-ghost btn-sm" id="seq-load-presets-btn" aria-label="Carregar templates pre-definidos B2B">
+                <svg style="width:13px;height:13px"><use href="#i-plus"/></svg> Presets B2B
+            </button>
+            <button class="btn btn-primary btn-sm" id="seq-new-sequence-btn" aria-label="Criar nova sequencia">
+                <svg style="width:13px;height:13px"><use href="#i-plus"/></svg> Nova Sequencia
+            </button>
+        </div>
+    </div>
+    <!-- Tab bar: Canvas | Templates -->
+    <div class="seq-tab-bar" role="tablist" aria-label="Sequences abas">
+        <button class="seq-tab-btn" role="tab" id="seq-tab-canvas" aria-controls="seq-panel-canvas" aria-selected="true">
+            Canvas
+        </button>
+        <button class="seq-tab-btn" role="tab" id="seq-tab-templates" aria-controls="seq-panel-templates" aria-selected="false">
+            Templates
         </button>
     </div>
     <div class="seq-page-body">
-        <div id="seq-canvas-container" style="flex:1;overflow:hidden"></div>
+        <!-- Canvas panel -->
+        <div id="seq-panel-canvas" class="seq-tab-panel" role="tabpanel" aria-labelledby="seq-tab-canvas" aria-hidden="false" tabindex="0">
+            <div id="seq-canvas-container" style="flex:1;overflow:hidden"></div>
+        </div>
+        <!-- Templates gallery panel -->
+        <div id="seq-panel-templates" class="seq-tab-panel" role="tabpanel" aria-labelledby="seq-tab-templates" aria-hidden="true" tabindex="0">
+            <div class="tpl-gallery" id="seq-tpl-gallery">
+                <div class="tpl-gallery-header">
+                    <div class="tpl-gallery-filters" role="group" aria-label="Filtrar por canal">
+                        <button class="tpl-filter-btn active" data-channel="" aria-pressed="true">Todos</button>
+                        <button class="tpl-filter-btn" data-channel="linkedin" aria-pressed="false">LinkedIn</button>
+                        <button class="tpl-filter-btn" data-channel="email" aria-pressed="false">Email</button>
+                        <button class="tpl-filter-btn" data-channel="whatsapp" aria-pressed="false">WhatsApp</button>
+                    </div>
+                    <button class="btn btn-primary btn-sm" id="tpl-new-btn" aria-label="Criar novo template">
+                        <svg style="width:13px;height:13px"><use href="#i-plus"/></svg> Novo Template
+                    </button>
+                </div>
+                <div id="tpl-cards-grid" class="tpl-cards-grid" aria-live="polite" aria-label="Lista de templates"></div>
+            </div>
+        </div>
     </div>
 </div>
 

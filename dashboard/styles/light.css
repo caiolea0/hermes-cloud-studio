@@ -160,3 +160,9 @@
         --color-border-focus: oklch(48% 0.258 290);
     }
 }
+
+/* UX-RM-F6-B — light theme contrast overrides for template badges */
+[data-theme="light"] .tpl-channel-badge.email,
+[data-theme="light"] .tpl-var-chip {
+    color: var(--accent-d, #3d1480); /* #3d1480 on light bg = 8.1:1 — WCAG AA */
+}

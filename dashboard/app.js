@@ -722,7 +722,176 @@ function navigate(page) {
         } else if (window.sequenceCanvas && _seqContainer) {
             window.sequenceCanvas.mount(_seqContainer);
         }
+
+        // UX-RM-F6-B: lazy-load template editor + wire tab bar + gallery
+        if (window.loadComponent) {
+            window.loadComponent('template_editor').catch(function () {});
+        }
+        _seqInitTabs();
     }
+}
+
+/* ── Sequences page: tab bar + template gallery (UX-RM-F6-B) ─── */
+
+var _seqTabsInited = false;
+var _seqGalleryChannel = '';
+
+function _seqInitTabs() {
+    if (_seqTabsInited) return;
+    _seqTabsInited = true;
+
+    var tabCanvas = document.getElementById('seq-tab-canvas');
+    var tabTemplates = document.getElementById('seq-tab-templates');
+    var panelCanvas = document.getElementById('seq-panel-canvas');
+    var panelTemplates = document.getElementById('seq-panel-templates');
+    var newSeqBtn = document.getElementById('seq-new-sequence-btn');
+    var loadPresetsBtn = document.getElementById('seq-load-presets-btn');
+    var newTplBtn = document.getElementById('tpl-new-btn');
+
+    if (!tabCanvas || !tabTemplates) return;
+
+    function _switchTab(tab) {
+        var isCanvas = tab === 'canvas';
+        tabCanvas.setAttribute('aria-selected', isCanvas ? 'true' : 'false');
+        tabTemplates.setAttribute('aria-selected', isCanvas ? 'false' : 'true');
+        /* W3: roving-tabindex — only active tab in tab order */
+        tabCanvas.setAttribute('tabindex', isCanvas ? '0' : '-1');
+        tabTemplates.setAttribute('tabindex', isCanvas ? '-1' : '0');
+        panelCanvas.setAttribute('aria-hidden', isCanvas ? 'false' : 'true');
+        panelTemplates.setAttribute('aria-hidden', isCanvas ? 'true' : 'false');
+        if (newSeqBtn) newSeqBtn.style.display = isCanvas ? '' : 'none';
+        if (loadPresetsBtn) loadPresetsBtn.style.display = isCanvas ? 'none' : '';
+        if (!isCanvas) _seqLoadGallery(_seqGalleryChannel);
+    }
+
+    tabCanvas.addEventListener('click', function () { _switchTab('canvas'); });
+    tabTemplates.addEventListener('click', function () { _switchTab('templates'); });
+
+    /* Keyboard nav for tablist */
+    [tabCanvas, tabTemplates].forEach(function (btn, i, arr) {
+        btn.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowRight') { e.preventDefault(); arr[(i + 1) % arr.length].focus(); }
+            if (e.key === 'ArrowLeft')  { e.preventDefault(); arr[(i - 1 + arr.length) % arr.length].focus(); }
+        });
+    });
+
+    /* New sequence button */
+    if (newSeqBtn) {
+        newSeqBtn.addEventListener('click', function () {
+            if (window.sequenceCanvas) window.sequenceCanvas.newSequence();
+        });
+    }
+
+    /* Load presets button */
+    if (loadPresetsBtn) {
+        loadPresetsBtn.style.display = 'none';
+        loadPresetsBtn.addEventListener('click', _seqLoadPresets);
+    }
+
+    /* New template button in gallery */
+    if (newTplBtn) {
+        newTplBtn.addEventListener('click', function () {
+            if (!window.templateEditor) return;
+            window.templateEditor.open({
+                channel: _seqGalleryChannel || 'linkedin',
+                onSave: function () { _seqLoadGallery(_seqGalleryChannel); },
+            });
+        });
+    }
+
+    /* Channel filter buttons */
+    var filterBtns = document.querySelectorAll('#seq-tpl-gallery .tpl-filter-btn');
+    filterBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            filterBtns.forEach(function (b) {
+                b.classList.remove('active');
+                b.setAttribute('aria-pressed', 'false');
+            });
+            btn.classList.add('active');
+            btn.setAttribute('aria-pressed', 'true');
+            _seqGalleryChannel = btn.getAttribute('data-channel') || '';
+            _seqLoadGallery(_seqGalleryChannel);
+        });
+    });
+}
+
+function _seqLoadGallery(channel) {
+    var grid = document.getElementById('tpl-cards-grid');
+    if (!grid) return;
+    var url = '/api/templates' + (channel ? '?channel=' + encodeURIComponent(channel) : '');
+    grid.innerHTML = '<p class="tpl-gallery-empty">Carregando...</p>';
+    api(url).then(function (data) {
+        var templates = (data && data.templates) || [];
+        if (!templates.length) {
+            grid.innerHTML = '<p class="tpl-gallery-empty">Nenhum template encontrado.<br><span class="tpl-preset-hint">Use "Presets B2B" para carregar exemplos ou crie um novo.</span></p>';
+            return;
+        }
+        grid.innerHTML = templates.map(function (t) {
+            var ch = escapeHtml(t.channel || '');
+            var preview = (t.body || '').replace(/\{spintax:\s*[^}]+\}/g, function (m) {
+                var first = m.replace(/\{spintax:\s*/, '').replace(/\}/, '').split('|')[0];
+                return (first || '').trim();
+            }).replace(/\{\{(\w+)\}\}/g, '[$1]');
+            return [
+                '<div class="tpl-card" data-id="' + t.id + '">',
+                '  <div class="tpl-card-header">',
+                '    <span class="tpl-card-name">' + escapeHtml(t.name) + '</span>',
+                '    <span class="tpl-channel-badge ' + ch + '">' + ch + '</span>',
+                '  </div>',
+                '  <p class="tpl-card-preview">' + escapeHtml(preview) + '</p>',
+                '  <div class="tpl-card-actions">',
+                '    <button class="btn btn-ghost btn-sm" data-tpl-edit="' + t.id + '" data-tpl-channel="' + ch + '" aria-label="Editar template ' + escapeHtml(t.name) + '">Editar</button>',
+                '    <button class="btn btn-ghost btn-sm" data-tpl-delete="' + t.id + '" aria-label="Excluir template ' + escapeHtml(t.name) + '" style="color:var(--red)">Excluir</button>',
+                '  </div>',
+                '</div>',
+            ].join('');
+        }).join('');
+
+        /* Wire edit/delete via delegation */
+        grid.querySelectorAll('[data-tpl-edit]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var tid = parseInt(btn.getAttribute('data-tpl-edit'), 10);
+                var ch = btn.getAttribute('data-tpl-channel') || 'linkedin';
+                if (!window.templateEditor) return;
+                window.templateEditor.open({
+                    templateId: tid,
+                    channel: ch,
+                    onSave: function () { _seqLoadGallery(_seqGalleryChannel); },
+                });
+            });
+        });
+        grid.querySelectorAll('[data-tpl-delete]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var tid = parseInt(btn.getAttribute('data-tpl-delete'), 10);
+                if (!confirm('Excluir este template?')) return;
+                api('/api/templates/' + tid, { method: 'DELETE' }).then(function () {
+                    if (window.hermesToast) window.hermesToast.success('Template excluido');
+                    _seqLoadGallery(_seqGalleryChannel);
+                }).catch(function (e) {
+                    if (window.hermesToast) window.hermesToast.error('Erro ao excluir: ' + (e.message || e));
+                });
+            });
+        });
+    }).catch(function (e) {
+        grid.innerHTML = '<p class="tpl-gallery-empty">Erro ao carregar templates.</p>';
+        if (window.hermesToast) window.hermesToast.error('Erro ao carregar templates');
+    });
+}
+
+function _seqLoadPresets() {
+    api('/api/templates/presets').then(function (data) {
+        var presets = (data && data.presets) || [];
+        if (!presets.length) return;
+        var promises = presets.map(function (p) {
+            return api('/api/templates', { method: 'POST', body: JSON.stringify(p) });
+        });
+        Promise.allSettled(promises).then(function () {
+            if (window.hermesToast) window.hermesToast.success('Presets carregados!');
+            _seqLoadGallery(_seqGalleryChannel);
+        });
+    }).catch(function (e) {
+        if (window.hermesToast) window.hermesToast.error('Erro ao carregar presets');
+    });
 }
 
 function refreshCurrentPage() {

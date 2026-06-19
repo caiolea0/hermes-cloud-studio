@@ -383,6 +383,8 @@ from api.icp import router as icp_router
 app.include_router(icp_router)  # UX-RM-F3-B — /api/icp/profile + /api/icp/presets
 from api.sequences import router as sequences_router
 app.include_router(sequences_router)  # UX-RM-F6-A — /api/sequences/* canvas builder CRUD
+from api.templates import router as templates_router
+app.include_router(templates_router)  # UX-RM-F6-B — /api/templates/* CRUD + render + presets
 
 
 if __name__ == "__main__":

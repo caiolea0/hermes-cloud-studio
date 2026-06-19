@@ -6111,3 +6111,399 @@ button.li-chip:focus-visible {
     .seq-layout { grid-template-columns: 1fr; }
     .seq-inspector { display: none; }
 }
+
+/* ── Template Editor Modal (UX-RM-F6-B) ────────────────────────── */
+.tpl-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal, 500);
+    background: rgba(0,0,0,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.tpl-dialog {
+    background: var(--s1);
+    border: 1px solid var(--border, var(--s4));
+    border-radius: var(--radius-lg, 14px);
+    width: min(860px, 96vw);
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: var(--shadow-xl, 0 20px 60px rgba(0,0,0,0.4));
+}
+.tpl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border, var(--s4));
+    flex-shrink: 0;
+}
+.tpl-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-1, var(--text));
+    margin: 0;
+}
+.tpl-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+.tpl-close-btn:hover { background: var(--s3); }
+.tpl-close-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tpl-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+}
+.tpl-form {
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    border-right: 1px solid var(--border, var(--s4));
+}
+.tpl-preview-panel {
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: var(--s0, #06060a);
+}
+.tpl-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.tpl-preview-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-2);
+    margin: 0;
+}
+.tpl-preview-select-wrap { flex: 1; max-width: 220px; }
+.tpl-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.tpl-field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.tpl-input {
+    background: var(--s2);
+    border: 1px solid var(--s4);
+    border-radius: 7px;
+    padding: 7px 10px;
+    font-size: 13px;
+    color: var(--text-1, var(--text));
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+    font-family: var(--font-sans, inherit);
+}
+.tpl-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 20%, transparent);
+}
+.tpl-select { appearance: none; }
+.tpl-textarea {
+    resize: vertical;
+    min-height: 120px;
+    font-family: var(--font-mono, monospace);
+    font-size: 12px;
+    line-height: 1.6;
+}
+.tpl-vars { display: flex; flex-direction: column; gap: 8px; }
+.tpl-vars-label {
+    font-size: 11px;
+    color: var(--text-2);
+    margin: 0;
+}
+.tpl-var-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+.tpl-var-chip {
+    background: var(--s2);
+    border: 1px solid var(--s4);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-family: var(--font-mono, monospace);
+    color: var(--accent-l, #a78bfa); /* --accent-l: 6.5:1 dark, 4.68:1 light — WCAG AA */
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+    line-height: 1.8;
+}
+.tpl-var-chip:hover { background: var(--s3); border-color: var(--accent); }
+.tpl-var-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tpl-spintax-help {
+    font-size: 11px;
+    color: var(--text-3, var(--text-2));
+}
+.tpl-spintax-help summary { cursor: pointer; color: var(--text-2); }
+.tpl-spintax-help code {
+    display: block;
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: var(--s2);
+    border-radius: 5px;
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    color: var(--lime, #d1fe17);
+}
+.tpl-rendered {
+    background: var(--s1);
+    border: 1px solid var(--s4);
+    border-radius: 8px;
+    padding: 14px;
+    min-height: 80px;
+    font-size: 13px;
+    color: var(--text-1, var(--text));
+    line-height: 1.6;
+    flex: 1;
+}
+.tpl-preview-subject {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-1, var(--text));
+    display: block;
+    margin-bottom: 4px;
+}
+.tpl-preview-hr {
+    border: none;
+    border-top: 1px solid var(--s4);
+    margin: 8px 0;
+}
+.tpl-preview-body { margin: 0; }
+.tpl-missing-var {
+    background: color-mix(in oklch, var(--red, #ef4444) 15%, transparent);
+    color: var(--red, #ef4444);
+    border-radius: 3px;
+    padding: 0 3px;
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+}
+.tpl-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border, var(--s4));
+    flex-shrink: 0;
+}
+@media (max-width: 640px) {
+    .tpl-dialog { width: 100%; max-height: 95vh; }
+    .tpl-body { grid-template-columns: 1fr; }
+    .tpl-preview-panel { display: none; }
+}
+
+/* ── Template Gallery (sequences page tab) (UX-RM-F6-B) ─────────── */
+.seq-tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border, var(--s4));
+    padding: 0 16px;
+    background: var(--s1);
+    flex-shrink: 0;
+}
+.seq-tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-bottom: -1px;
+}
+.seq-tab-btn:hover { color: var(--text-1, var(--text)); }
+.seq-tab-btn[aria-selected="true"] {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+}
+.seq-tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seq-tab-panel { display: none; flex: 1; overflow: hidden; }
+.seq-tab-panel[aria-hidden="false"] { display: flex; flex-direction: column; }
+
+/* Template gallery */
+.tpl-gallery {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+.tpl-gallery-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+.tpl-gallery-filters {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.tpl-filter-btn {
+    background: var(--s2);
+    border: 1px solid var(--s4);
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.tpl-filter-btn:hover { background: var(--s3); }
+.tpl-filter-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+.tpl-filter-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tpl-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+.tpl-card {
+    background: var(--s1);
+    border: 1px solid var(--border, var(--s4));
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tpl-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--accent) 20%, transparent);
+}
+.tpl-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.tpl-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-1, var(--text));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.tpl-channel-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+.tpl-channel-badge.linkedin { background: color-mix(in oklch, #0a66c2 20%, transparent); color: #4d9de0; }
+.tpl-channel-badge.email { background: color-mix(in oklch, var(--accent) 20%, transparent); color: var(--accent-l, #a78bfa); } /* accent-l: 5.97:1 dark — WCAG AA */
+.tpl-channel-badge.whatsapp { background: color-mix(in oklch, var(--green) 20%, transparent); color: var(--green); }
+.tpl-card-preview {
+    font-size: 12px;
+    color: var(--text-2);
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    font-family: var(--font-sans, inherit);
+}
+.tpl-card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 6px;
+    border-top: 1px solid var(--s3);
+}
+.tpl-gallery-empty {
+    text-align: center;
+    color: var(--text-2);
+    font-size: 13px;
+    padding: 48px 20px;
+}
+.tpl-preset-hint {
+    font-size: 12px;
+    color: var(--text-3, var(--text-2));
+    margin-top: 4px;
+}
+
+/* Inspector template selector (UX-RM-F6-B) */
+.seq-tpl-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.seq-tpl-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin: 0;
+}
+.seq-tpl-select-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.seq-tpl-select { flex: 1; }
+.seq-tpl-edit-btn {
+    flex-shrink: 0;
+    padding: 6px 8px;
+}
+.seq-tpl-preview-box {
+    background: var(--s2);
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 11px;
+    color: var(--text-2);
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    font-family: var(--font-sans, inherit);
+}
+.seq-tpl-new-btn {
+    width: 100%;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+}

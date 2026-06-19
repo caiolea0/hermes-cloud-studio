@@ -1,7 +1,7 @@
 {
-  "generated_at": 1781893284.0266228,
-  "total": 230,
-  "pc_count": 180,
+  "generated_at": 1781899651.0073576,
+  "total": 237,
+  "pc_count": 187,
   "vm_count": 50,
   "ws_count": 1,
   "internal_count": 5,
@@ -1742,6 +1742,76 @@
       "file": "api/tasks.py",
       "line": 76,
       "function": "send_task_to_claude",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates",
+      "file": "api/templates.py",
+      "line": 165,
+      "function": "list_templates",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/templates",
+      "file": "api/templates.py",
+      "line": 184,
+      "function": "create_template",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates/presets",
+      "file": "api/templates.py",
+      "line": 97,
+      "function": "get_presets",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/templates/render",
+      "file": "api/templates.py",
+      "line": 259,
+      "function": "render_template",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/templates/{template_id}",
+      "file": "api/templates.py",
+      "line": 247,
+      "function": "delete_template",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/templates/{template_id}",
+      "file": "api/templates.py",
+      "line": 203,
+      "function": "get_template",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/templates/{template_id}",
+      "file": "api/templates.py",
+      "line": 216,
+      "function": "update_template",
       "side": "pc",
       "internal_only": false,
       "rate_limited": false
