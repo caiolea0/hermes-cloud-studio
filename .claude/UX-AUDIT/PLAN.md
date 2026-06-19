@@ -329,6 +329,19 @@ See `issues.json` for full machine-readable list. Summary counts:
 - frontend-ux-reviewer: NEEDS-FIXES → fixed (B1 chip contrast, B2 email badge, W1 toast, W2+W3 a11y roving)
 - commit 8366e63, F6: 67% (32h/48h)
 
+#### UX-RM-F6-C: Sequence Orchestration + Scheduling + Dry-Run + Enroll ✅ DONE 2026-06-19
+- core/send_scheduler.py NEW: next_send_window BRT 9-19h Mon-Fri + weekend skip + anti-detection jitter (randint 0-30min, legit exception like spintax)
+- api/sequences.py: POST /enroll (UNIQUE constraint, WS broadcast sequence.enrolled) + POST /dry-run (actual_send=False always, traverses nodes by position_y, renders templates via template_renderer)
+- daemon/orchestrator.py: _get_due_sequence_steps LEFT JOIN sequence_nodes for action details + _advance_enrollment edge traversal (if_true > default priority) + sequence_nodes/edges tables in _init_db
+- dashboard/components/sequence_dry_run.js NEW: dry-run timeline modal, focus trap, aria-live, _esc() XSS, actual_send safeguard check
+- dashboard/components/sequence_enroll_modal.js NEW: multi-select prospect picker role=listbox/option + aria-selected + start_at datetime-local + hermesToast on success
+- dashboard/components/sequence_canvas.js: status badge (draft/active/paused/archived) + Simular/Ativar/Inscrever toolbar buttons; Inscrever disabled unless active
+- 12 new tests (496 PASS total), BLACKLIST R2 INTACTO 67 SS
+- frontend-ux-reviewer: NEEDS-FIXES → fixed (B1+B2 hermesToast API mismatch, B3 green btn contrast, B4 archived badge, B5 dry-run text-3)
+- W1 --yellow → --amber fixed, W2-W7 F.future
+- commit fd2d8b3, F6: 100% (48h/48h)
+- **UX-RM-F6 100% COMPLETE** 2026-06-19 — F6-A canvas (16h) + F6-B templates (16h) + F6-C orchestration (16h) = 48h
+
 ### UX-RM-F7: Performance + Accessibility Polish
 - **Goal**: WCAG 2.1 AA pass, axe-core green, FCP <1.5s, TTI <3s.
 - **Effort**: 20h
