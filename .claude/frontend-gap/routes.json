@@ -1,7 +1,7 @@
 {
-  "generated_at": 1781873631.5146258,
-  "total": 222,
-  "pc_count": 172,
+  "generated_at": 1781878088.0559127,
+  "total": 224,
+  "pc_count": 174,
   "vm_count": 50,
   "ws_count": 1,
   "internal_count": 5,
@@ -782,6 +782,26 @@
       "file": "api/cobaia.py",
       "line": 220,
       "function": "cobaia_timeline",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/linkedin/cobaia/today-queue",
+      "file": "api/cobaia.py",
+      "line": 791,
+      "function": "cobaia_today_queue",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/linkedin/cobaia/today-queue/{item_id}/skip",
+      "file": "api/cobaia.py",
+      "line": 820,
+      "function": "cobaia_today_queue_skip",
       "side": "pc",
       "internal_only": false,
       "rate_limited": false
@@ -1720,7 +1740,7 @@
       "method": "WS",
       "path": "/ws",
       "file": "server.py",
-      "line": 255,
+      "line": 266,
       "function": "websocket_endpoint",
       "side": "pc",
       "internal_only": false,

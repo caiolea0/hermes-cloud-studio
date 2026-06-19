@@ -1,5 +1,5 @@
 {
-  "generated_at": 1781873632.090442,
+  "generated_at": 1781878088.374359,
   "sources": [
     "dashboard/app.js",
     "dashboard/components/_utils.js",
@@ -9,11 +9,14 @@
     "dashboard/components/brain_sidebar.js",
     "dashboard/components/breadcrumbs.js",
     "dashboard/components/cobaia_activity_feed.js",
+    "dashboard/components/cobaia_day_countdown.js",
     "dashboard/components/cobaia_emergency_stop.js",
     "dashboard/components/cobaia_kpi_cards.js",
+    "dashboard/components/cobaia_operator.js",
     "dashboard/components/cobaia_status_card.js",
     "dashboard/components/cobaia_studio.js",
     "dashboard/components/cobaia_timeline.js",
+    "dashboard/components/cobaia_today_queue.js",
     "dashboard/components/command_palette.js",
     "dashboard/components/error_boundary.js",
     "dashboard/components/filter_persistence.js",
@@ -50,9 +53,9 @@
     "dashboard/components/ws_status_indicator.js",
     "dashboard/index.html"
   ],
-  "sources_count": 48,
-  "total_endpoints": 92,
-  "total_calls": 141,
+  "sources_count": 51,
+  "total_endpoints": 93,
+  "total_calls": 156,
   "consumed": {
     "/api/_bootstrap": [
       {
@@ -64,48 +67,48 @@
     "/api/activities": [
       {
         "file": "dashboard/app.js",
-        "line": 924,
+        "line": 931,
         "snippet": "const data = await api('/api/activities?limit=15');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 1632,
+        "line": 1639,
         "snippet": "api(`/api/activities?prospect_id=${id}&limit=20`).then(data => {"
       }
     ],
     "/api/audit/prospect/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 1524,
+        "line": 1531,
         "snippet": "await api(`/api/audit/prospect/${id}`, { method: 'POST' });"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2050,
+        "line": 2057,
         "snippet": "const result = await api(`/api/audit/prospect/${prospectId}`, { method: 'POST' });"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2932,
+        "line": 2939,
         "snippet": "const result = await api(`/api/audit/prospect/${id}`, { method: 'POST' });"
       }
     ],
     "/api/audit/start": [
       {
         "file": "dashboard/app.js",
-        "line": 1979,
+        "line": 1986,
         "snippet": "const result = await api('/api/audit/start', {"
       }
     ],
     "/api/audit/status": [
       {
         "file": "dashboard/app.js",
-        "line": 895,
+        "line": 902,
         "snippet": "api('/api/audit/status')"
       },
       {
         "file": "dashboard/app.js",
-        "line": 1902,
+        "line": 1909,
         "snippet": "const data = await api('/api/audit/status');"
       }
     ],
@@ -126,7 +129,7 @@
     "/api/claude/execute": [
       {
         "file": "dashboard/app.js",
-        "line": 3063,
+        "line": 3070,
         "snippet": "const result = await api('/api/claude/execute', { method: 'POST', body: JSON.stringify({ command: cmd, context: 'termina"
       }
     ],
@@ -140,35 +143,35 @@
     "/api/daemon/channels": [
       {
         "file": "dashboard/app.js",
-        "line": 3708,
+        "line": 3715,
         "snippet": "const data = await api('/api/daemon/channels');"
       }
     ],
     "/api/daemon/decisions": [
       {
         "file": "dashboard/app.js",
-        "line": 3793,
+        "line": 3800,
         "snippet": "const data = await api('/api/daemon/decisions');"
       }
     ],
     "/api/daemon/log": [
       {
         "file": "dashboard/app.js",
-        "line": 3823,
+        "line": 3830,
         "snippet": "const data = await api('/api/daemon/log?limit=30');"
       }
     ],
     "/api/daemon/state": [
       {
         "file": "dashboard/app.js",
-        "line": 3624,
+        "line": 3631,
         "snippet": "const data = await api('/api/daemon/state');"
       }
     ],
     "/api/daemon/subsystems": [
       {
         "file": "dashboard/app.js",
-        "line": 3162,
+        "line": 3169,
         "snippet": "const data = await api('/api/daemon/subsystems');"
       }
     ],
@@ -196,7 +199,7 @@
     "/api/daemon/timeline": [
       {
         "file": "dashboard/app.js",
-        "line": 3754,
+        "line": 3761,
         "snippet": "const data = await api('/api/daemon/timeline');"
       }
     ],
@@ -218,74 +221,74 @@
       },
       {
         "file": "dashboard/app.js",
-        "line": 827,
+        "line": 834,
         "snippet": "const data = await api('/api/dashboard');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 894,
+        "line": 901,
         "snippet": "api('/api/dashboard'),"
       },
       {
         "file": "dashboard/app.js",
-        "line": 1886,
+        "line": 1893,
         "snippet": "const data = await api('/api/dashboard');"
       }
     ],
     "/api/hermes/memory": [
       {
         "file": "dashboard/app.js",
-        "line": 3435,
+        "line": 3442,
         "snippet": "const data = await api('/api/hermes/memory');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 3466,
+        "line": 3473,
         "snippet": "await api('/api/hermes/memory', { method: 'POST', body: JSON.stringify({ type, content: content.trim() }) });"
       }
     ],
     "/api/hermes/memory/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 3477,
+        "line": 3484,
         "snippet": "await api(`/api/hermes/memory/${id}`, { method: 'DELETE' });"
       }
     ],
     "/api/hermes/skills": [
       {
         "file": "dashboard/app.js",
-        "line": 3376,
+        "line": 3383,
         "snippet": "const data = await api('/api/hermes/skills');"
       }
     ],
     "/api/hermes/skills/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 3412,
+        "line": 3419,
         "snippet": "apiCall: () => api(`/api/hermes/skills/${name}`, { method: 'PATCH', body: JSON.stringify({ active }) }),"
       },
       {
         "file": "dashboard/app.js",
-        "line": 3419,
+        "line": 3426,
         "snippet": "await api(`/api/hermes/skills/${name}`, { method: 'PATCH', body: JSON.stringify({ active }) });"
       }
     ],
     "/api/hermes/status": [
       {
         "file": "dashboard/app.js",
-        "line": 746,
+        "line": 753,
         "snippet": "const data = await api('/api/hermes/status');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 865,
+        "line": 872,
         "snippet": "const s = await api('/api/hermes/status');"
       }
     ],
     "/api/hermes/sync": [
       {
         "file": "dashboard/app.js",
-        "line": 2774,
+        "line": 2781,
         "snippet": "await api('/api/hermes/sync', { method: 'POST' });"
       }
     ],
@@ -325,68 +328,68 @@
     "/api/linkedin/auth": [
       {
         "file": "dashboard/app.js",
-        "line": 4571,
+        "line": 4578,
         "snippet": "const r = await api('/api/linkedin/auth', { method: 'POST' });"
       }
     ],
     "/api/linkedin/campaigns": [
       {
         "file": "dashboard/app.js",
-        "line": 4696,
+        "line": 4703,
         "snippet": "const data = await api('/api/linkedin/campaigns?limit=50');"
       }
     ],
     "/api/linkedin/campaigns/connect": [
       {
         "file": "dashboard/app.js",
-        "line": 5570,
+        "line": 5577,
         "snippet": "const r = await api('/api/linkedin/campaigns/connect', {"
       }
     ],
     "/api/linkedin/campaigns/view": [
       {
         "file": "dashboard/app.js",
-        "line": 5545,
+        "line": 5552,
         "snippet": "const r = await api('/api/linkedin/campaigns/view', {"
       }
     ],
     "/api/linkedin/campaigns/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 4588,
+        "line": 4595,
         "snippet": "const r = await api(`/api/linkedin/campaigns/${type}`, {"
       }
     ],
     "/api/linkedin/campaigns/{param}/cancel": [
       {
         "file": "dashboard/app.js",
-        "line": 4473,
+        "line": 4480,
         "snippet": "const r = await api(`/api/linkedin/campaigns/${campaignId}/cancel`, { method: 'POST' });"
       }
     ],
     "/api/linkedin/campaigns/{param}/dismiss-error": [
       {
         "file": "dashboard/app.js",
-        "line": 5793,
+        "line": 5800,
         "snippet": "api(`/api/linkedin/campaigns/${id}/dismiss-error`, { method: 'POST' })"
       }
     ],
     "/api/linkedin/campaigns/{param}/log": [
       {
         "file": "dashboard/app.js",
-        "line": 5849,
+        "line": 5856,
         "snippet": "const data = await api(`/api/linkedin/campaigns/${campaignId}/log`);"
       }
     ],
     "/api/linkedin/campaigns/{param}/stop": [
       {
         "file": "dashboard/app.js",
-        "line": 5800,
+        "line": 5807,
         "snippet": "api(`/api/linkedin/campaigns/${id}/stop`, { method: 'POST' })"
       },
       {
         "file": "dashboard/app.js",
-        "line": 5934,
+        "line": 5941,
         "snippet": "await api(`/api/linkedin/campaigns/${_liActiveCampaignId}/stop`, { method: 'POST' });"
       }
     ],
@@ -398,6 +401,26 @@
       }
     ],
     "/api/linkedin/cobaia/metrics": [
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 81,
+        "snippet": "_api('/api/linkedin/cobaia/metrics?days=7')"
+      },
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 153,
+        "snippet": "var metricsP  = _api('/api/linkedin/cobaia/metrics?days=7').catch(function () { return null; });"
+      },
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 197,
+        "snippet": "_api('/api/linkedin/cobaia/metrics?days=7').then(function (d) {"
+      },
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 242,
+        "snippet": "var metricsP  = _api('/api/linkedin/cobaia/metrics?days=7').catch(function () { return null; });"
+      },
       {
         "file": "dashboard/components/cobaia_studio.js",
         "line": 97,
@@ -412,7 +435,7 @@
     "/api/linkedin/cobaia/pause": [
       {
         "file": "dashboard/app.js",
-        "line": 6027,
+        "line": 6034,
         "snippet": "try { await api('/api/linkedin/cobaia/pause', { method: 'POST' }); toast('Cobaia pausada', 'warning'); }"
       },
       {
@@ -424,7 +447,7 @@
     "/api/linkedin/cobaia/resume": [
       {
         "file": "dashboard/app.js",
-        "line": 6034,
+        "line": 6041,
         "snippet": "try { await api('/api/linkedin/cobaia/resume', { method: 'POST' }); toast('Cobaia retomada', 'success'); }"
       },
       {
@@ -447,6 +470,31 @@
     ],
     "/api/linkedin/cobaia/status": [
       {
+        "file": "dashboard/components/cobaia_day_countdown.js",
+        "line": 80,
+        "snippet": "_apiFetch('/api/linkedin/cobaia/status').then(function (s) { _render(s); }).catch(function () {});"
+      },
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 71,
+        "snippet": "_api('/api/linkedin/cobaia/status')"
+      },
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 152,
+        "snippet": "var statusP   = _api('/api/linkedin/cobaia/status').catch(function () { return null; });"
+      },
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 241,
+        "snippet": "var statusP   = _api('/api/linkedin/cobaia/status').catch(function () { return null; });"
+      },
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 306,
+        "snippet": "_api('/api/linkedin/cobaia/status').then(function (status) {"
+      },
+      {
         "file": "dashboard/components/cobaia_status_card.js",
         "line": 138,
         "snippet": "_state = await apiGet('/api/linkedin/cobaia/status');"
@@ -459,6 +507,26 @@
     ],
     "/api/linkedin/cobaia/timeline": [
       {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 75,
+        "snippet": "_api('/api/linkedin/cobaia/timeline')"
+      },
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 154,
+        "snippet": "var timelineP = _api('/api/linkedin/cobaia/timeline').catch(function () { return null; });"
+      },
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 194,
+        "snippet": "_api('/api/linkedin/cobaia/timeline').then(function (d) {"
+      },
+      {
+        "file": "dashboard/components/cobaia_operator.js",
+        "line": 243,
+        "snippet": "var timelineP = _api('/api/linkedin/cobaia/timeline').catch(function () { return null; });"
+      },
+      {
         "file": "dashboard/components/cobaia_studio.js",
         "line": 89,
         "snippet": "_apiFetch('/api/linkedin/cobaia/timeline')"
@@ -469,38 +537,50 @@
         "snippet": "const timelineP = _apiFetch('/api/linkedin/cobaia/timeline').catch(() => null);"
       }
     ],
+    "/api/linkedin/cobaia/today-queue": [
+      {
+        "file": "dashboard/components/cobaia_today_queue.js",
+        "line": 128,
+        "snippet": "_apiFetch('/api/linkedin/cobaia/today-queue')"
+      },
+      {
+        "file": "dashboard/components/cobaia_today_queue.js",
+        "line": 135,
+        "snippet": "_apiPost('/api/linkedin/cobaia/today-queue/' + id + '/skip')"
+      }
+    ],
     "/api/linkedin/comment/delete": [
       {
         "file": "dashboard/app.js",
-        "line": 5660,
+        "line": 5667,
         "snippet": "const r = await api('/api/linkedin/comment/delete', {"
       }
     ],
     "/api/linkedin/comment/edit": [
       {
         "file": "dashboard/app.js",
-        "line": 5649,
+        "line": 5656,
         "snippet": "const r = await api('/api/linkedin/comment/edit', {"
       }
     ],
     "/api/linkedin/health": [
       {
         "file": "dashboard/app.js",
-        "line": 4140,
+        "line": 4147,
         "snippet": "api('/api/linkedin/health').catch(() => ({state: 'unknown'})),"
       }
     ],
     "/api/linkedin/profiles": [
       {
         "file": "dashboard/app.js",
-        "line": 5721,
+        "line": 5728,
         "snippet": "const cached = await api('/api/linkedin/profiles?url=' + encodeURIComponent(profileUrl));"
       }
     ],
     "/api/linkedin/status": [
       {
         "file": "dashboard/app.js",
-        "line": 4139,
+        "line": 4146,
         "snippet": "api('/api/linkedin/status'),"
       }
     ],
@@ -566,7 +646,7 @@
     "/api/onboarding/state": [
       {
         "file": "dashboard/app.js",
-        "line": 6170,
+        "line": 6177,
         "snippet": "const r = await api('/api/onboarding/state');"
       },
       {
@@ -583,31 +663,31 @@
     "/api/outreach/generate/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 1707,
+        "line": 1714,
         "snippet": "const result = await api(`/api/outreach/generate/${currentProspect.id}`, { method: 'POST' });"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2885,
+        "line": 2892,
         "snippet": "const result = await api(`/api/outreach/generate/${id}`, { method: 'POST' });"
       }
     ],
     "/api/pipeline-executions/active": [
       {
         "file": "dashboard/app.js",
-        "line": 989,
+        "line": 996,
         "snippet": "const data = await api('/api/pipeline-executions/active');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2358,
+        "line": 2365,
         "snippet": "const data = await api('/api/pipeline-executions/active');"
       }
     ],
     "/api/pipeline-executions/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 2688,
+        "line": 2695,
         "snippet": "const exec = await api(`/api/pipeline-executions/${execId}`);"
       }
     ],
@@ -659,175 +739,175 @@
     "/api/pipelines": [
       {
         "file": "dashboard/app.js",
-        "line": 2080,
+        "line": 2087,
         "snippet": "const data = await api('/api/pipelines');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2279,
+        "line": 2286,
         "snippet": "await api('/api/pipelines', { method: 'POST', body: JSON.stringify(payload) });"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2753,
+        "line": 2760,
         "snippet": "const allPipelines = pipelinesData.length ? pipelinesData : (await api('/api/pipelines')).pipelines || [];"
       },
       {
         "file": "dashboard/app.js",
-        "line": 3492,
+        "line": 3499,
         "snippet": "const pipelines = await api('/api/pipelines');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 3539,
+        "line": 3546,
         "snippet": "await api('/api/pipelines', {"
       }
     ],
     "/api/pipelines/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 2276,
+        "line": 2283,
         "snippet": "await api(`/api/pipelines/${editId}`, { method: 'PATCH', body: JSON.stringify(payload) });"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2293,
+        "line": 2300,
         "snippet": "const data = await api(`/api/pipelines/${id}`);"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2301,
+        "line": 2308,
         "snippet": "await api(`/api/pipelines/${id}`, { method: 'DELETE' });"
       }
     ],
     "/api/pipelines/{param}/execute": [
       {
         "file": "dashboard/app.js",
-        "line": 2309,
+        "line": 2316,
         "snippet": "const result = await api(`/api/pipelines/${id}/execute`, { method: 'POST', body: JSON.stringify({ template_id: id }) });"
       }
     ],
     "/api/pipelines/{param}/executions": [
       {
         "file": "dashboard/app.js",
-        "line": 2713,
+        "line": 2720,
         "snippet": "const data = await api(`/api/pipelines/${id}/executions`);"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2756,
+        "line": 2763,
         "snippet": "const data = await api(`/api/pipelines/${p.id}/executions?limit=10`);"
       }
     ],
     "/api/prospects": [
       {
         "file": "dashboard/app.js",
-        "line": 904,
+        "line": 911,
         "snippet": "const highData = await api('/api/prospects?min_score=70&limit=1&offset=0');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 940,
+        "line": 947,
         "snippet": "const data = await api('/api/prospects?limit=10&min_score=60');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 1422,
+        "line": 1429,
         "snippet": "const data = await api(`/api/prospects?${params}`);"
       },
       {
         "file": "dashboard/app.js",
-        "line": 1801,
+        "line": 1808,
         "snippet": "const data = await api(`/api/prospects?${params}`);"
       },
       {
         "file": "dashboard/app.js",
-        "line": 1895,
+        "line": 1902,
         "snippet": "const prospectsData = await api('/api/prospects?min_score=70&limit=1&offset=0');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2001,
+        "line": 2008,
         "snippet": "const data = await api('/api/prospects?stage=audited&limit=30&offset=0');"
       }
     ],
     "/api/prospects/bulk": [
       {
         "file": "dashboard/app.js",
-        "line": 1507,
+        "line": 1514,
         "snippet": "const result = await api('/api/prospects/bulk', {"
       }
     ],
     "/api/prospects/categories": [
       {
         "file": "dashboard/app.js",
-        "line": 1362,
+        "line": 1369,
         "snippet": "api('/api/prospects/categories')"
       }
     ],
     "/api/prospects/cities": [
       {
         "file": "dashboard/app.js",
-        "line": 1361,
+        "line": 1368,
         "snippet": "api('/api/prospects/cities'),"
       }
     ],
     "/api/prospects/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 1538,
+        "line": 1545,
         "snippet": "const p = await api(`/api/prospects/${id}`);"
       },
       {
         "file": "dashboard/app.js",
-        "line": 1679,
+        "line": 1686,
         "snippet": "await api(`/api/prospects/${currentProspect.id}`, { method: 'PATCH', body: JSON.stringify({ stage }) });"
       },
       {
         "file": "dashboard/app.js",
-        "line": 1751,
+        "line": 1758,
         "snippet": "await api(`/api/prospects/${currentProspect.id}`, { method: 'PATCH', body: JSON.stringify(data) });"
       }
     ],
     "/api/prospects/{param}/strategy": [
       {
         "file": "dashboard/app.js",
-        "line": 1767,
+        "line": 1774,
         "snippet": "const result = await api(`/api/prospects/${currentProspect.id}/strategy`, { method: 'POST' });"
       }
     ],
     "/api/scraper/parse-prompt": [
       {
         "file": "dashboard/app.js",
-        "line": 1284,
+        "line": 1291,
         "snippet": "const res = await api('/api/scraper/parse-prompt', {"
       }
     ],
     "/api/scraper/start": [
       {
         "file": "dashboard/app.js",
-        "line": 1340,
+        "line": 1347,
         "snippet": "const res = await api('/api/scraper/start', { method: 'POST', body: JSON.stringify(body) });"
       }
     ],
     "/api/scraper/status": [
       {
         "file": "dashboard/app.js",
-        "line": 1146,
+        "line": 1153,
         "snippet": "const data = await api('/api/scraper/status');"
       }
     ],
     "/api/scraper/stop": [
       {
         "file": "dashboard/app.js",
-        "line": 1199,
+        "line": 1206,
         "snippet": "await api('/api/scraper/stop', { method: 'POST' });"
       }
     ],
     "/api/server/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 801,
+        "line": 808,
         "snippet": "const r = await api(`/api/server/${action}`, { method: 'POST' });"
       }
     ],
@@ -880,40 +960,40 @@
     "/api/tasks": [
       {
         "file": "dashboard/app.js",
-        "line": 954,
+        "line": 961,
         "snippet": "const data = await api('/api/tasks?limit=5&status=pending');"
       },
       {
         "file": "dashboard/app.js",
-        "line": 2962,
+        "line": 2969,
         "snippet": "await api('/api/tasks', { method: 'POST', body: JSON.stringify({ title, description, priority, assigned_to: assigned_to "
       }
     ],
     "/api/tasks/{param}": [
       {
         "file": "dashboard/app.js",
-        "line": 2971,
+        "line": 2978,
         "snippet": "await api(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });"
       }
     ],
     "/api/tasks/{param}/send-to-claude": [
       {
         "file": "dashboard/app.js",
-        "line": 2978,
+        "line": 2985,
         "snippet": "await api(`/api/tasks/${id}/send-to-claude`, { method: 'POST' });"
       }
     ],
     "/api/tunnel/control": [
       {
         "file": "dashboard/app.js",
-        "line": 779,
+        "line": 786,
         "snippet": "const r = await api('/api/tunnel/control', {"
       }
     ],
     "/api/tunnel/status": [
       {
         "file": "dashboard/app.js",
-        "line": 760,
+        "line": 767,
         "snippet": "const t = await api('/api/tunnel/status');"
       }
     ],
@@ -932,14 +1012,14 @@
     "/api/workqueue": [
       {
         "file": "dashboard/app.js",
-        "line": 2798,
+        "line": 2805,
         "snippet": "const data = await api('/api/workqueue?limit=30');"
       }
     ],
     "/ws": [
       {
         "file": "dashboard/app.js",
-        "line": 3178,
+        "line": 3185,
         "snippet": "ws = new WebSocket(`${protocol}//${host}/ws?token=${encodeURIComponent(token)}`);"
       }
     ]

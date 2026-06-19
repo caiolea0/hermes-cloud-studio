@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-19 12:53 UTC
+- **last_updated**: 2026-06-19 14:08 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 222 (172 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 132 (60.8% of public)
-- **orphans**: 85
+- **routes_total**: 224 (174 PC + 50 VM, 5 internal-only excluded)
+- **consumed**: 133 (60.7% of public)
+- **orphans**: 86
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **222** rotas FastAPI (172 PC, 50 VM)
+- Total: **224** rotas FastAPI (174 PC, 50 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -21,7 +21,7 @@
 |---|---|
 | `vm_api/routes.py` | 46 |
 | `api/linkedin.py` | 21 |
-| `api/cobaia.py` | 17 |
+| `api/cobaia.py` | 19 |
 | `api/pipeline_studio.py` | 13 |
 | `api/skills.py` | 13 |
 | `api/daemon.py` | 12 |
@@ -57,16 +57,19 @@
 | `hermes_api_v2.py` | 1 |
 | `vm_api/mcp_jobs.py` | 1 |
 
-## §2 Mapa consumo (app.js + 47 components)
+## §2 Mapa consumo (app.js + 50 components)
 
-- Endpoints únicos consumidos: **132**
-- Total fetch/api calls: 141
-- Fontes escaneadas: 48 arquivos (app.js + components/*.js + HTML inline)
+- Endpoints únicos consumidos: **133**
+- Total fetch/api calls: 156
+- Fontes escaneadas: 51 arquivos (app.js + components/*.js + HTML inline)
 - Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, skill-proposals, skills, tasks
 
 | Endpoint | Chamadas | Fontes |
 |---|---|---|
+| `/api/linkedin/cobaia/status` | 7 | cobaia_day_countdown.js, cobaia_operator.js, cobaia_status_card.js |
 | `/api/dashboard` | 6 | app.js |
+| `/api/linkedin/cobaia/metrics` | 6 | cobaia_operator.js, cobaia_studio.js |
+| `/api/linkedin/cobaia/timeline` | 6 | cobaia_operator.js, cobaia_studio.js |
 | `/api/prospects` | 6 | app.js |
 | `/api/skills/proposals` | 6 | skill_proposals_modal.js, skill_proposals_studio.js |
 | `/api/pipelines` | 5 | app.js |
@@ -82,12 +85,9 @@
 | `/api/hermes/status` | 2 | app.js |
 | `/api/lab/runs/{param}` | 2 | lab_cockpit.js |
 | `/api/linkedin/campaigns/{param}/stop` | 2 | app.js |
-| `/api/linkedin/cobaia/metrics` | 2 | cobaia_studio.js |
 | `/api/linkedin/cobaia/pause` | 2 | app.js, cobaia_status_card.js |
-| `/api/linkedin/cobaia/status` | 2 | cobaia_status_card.js, cobaia_studio.js |
-| `/api/linkedin/cobaia/timeline` | 2 | cobaia_studio.js |
 
-## §3 Órfãos — 85 endpoints sem UI
+## §3 Órfãos — 86 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -115,6 +115,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1216` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | pc | `api/linkedin.py:399` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | vm | `vm_api/routes.py:1107` | token |
+| `POST` | `/api/linkedin/cobaia/today-queue/{item_id}/skip` | pc | `api/cobaia.py:820` | token |
 | `POST` | `/api/linkedin/connection/refresh` | pc | `api/linkedin.py:483` | token |
 | `POST` | `/api/linkedin/connection/refresh` | vm | `vm_api/routes.py:1708` | token |
 | `POST` | `/api/linkedin/detect-account-type` | pc | `api/linkedin.py:463` | token |

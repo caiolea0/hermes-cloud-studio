@@ -6,3 +6,4 @@
 ## New orphans (regressões / backend novo sem UI)
 
 - 🆕 `GET /`
+- 🆕 `POST /api/linkedin/cobaia/today-queue/{item_id}/skip`

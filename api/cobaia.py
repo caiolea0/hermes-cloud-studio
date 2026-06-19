@@ -783,3 +783,59 @@ async def cobaia_hunter_usage():
     finally:
         await verifier.aclose()
     return usage
+
+
+# ── F8-A — Cobaia Today's Queue (Operator Mode widget) ───────────────────────
+
+
+@router.get("/api/linkedin/cobaia/today-queue")
+async def cobaia_today_queue():
+    """Return today's planned warmup actions for the Operator Mode queue widget.
+
+    Idempotent: returns empty list if cobaia_warmup_schedule table is missing
+    (warmup not yet started / lurking phase with no scheduled actions).
+
+    Returns: {queue: [{id, action, eta, description, completed}]}
+    """
+    from datetime import datetime, date, timedelta
+    from core.state import get_db
+
+    try:
+        conn = get_db()
+        today_start = datetime.combine(date.today(), datetime.min.time()).isoformat()
+        tomorrow = (date.today() + timedelta(days=1)).isoformat()
+        rows = conn.execute(
+            "SELECT id, action, eta, description, completed FROM cobaia_warmup_schedule"
+            " WHERE eta >= ? AND eta < ? AND completed = 0 AND skipped = 0"
+            " ORDER BY eta LIMIT 10",
+            (today_start, tomorrow),
+        ).fetchall()
+        conn.close()
+        return {"queue": [dict(r) for r in rows]}
+    except Exception as exc:
+        logger.debug("cobaia today-queue: %s (table likely missing — returning empty)", exc)
+        return {"queue": []}
+
+
+@router.post("/api/linkedin/cobaia/today-queue/{item_id}/skip")
+async def cobaia_today_queue_skip(item_id: int):
+    """Mark a scheduled warmup action as skipped (completed=1, skipped=1).
+
+    Idempotent: returns ok=True even if table is missing or item not found.
+    """
+    from core.state import get_db
+
+    try:
+        conn = get_db()
+        conn.execute(
+            "UPDATE cobaia_warmup_schedule"
+            " SET skipped=1, completed=1, completed_at=datetime('now') WHERE id=?",
+            (item_id,),
+        )
+        conn.commit()
+        conn.close()
+    except Exception as exc:
+        logger.debug("cobaia today-queue skip id=%s: %s (table likely missing)", item_id, exc)
+
+    _sentry_breadcrumb("cobaia.queue_skip", {"item_id": item_id})
+    return {"ok": True, "id": item_id}

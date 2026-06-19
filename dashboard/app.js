@@ -595,9 +595,16 @@ function navigate(page) {
         cobaia: 'Cobaia Live Ops',
     };
     if (page === 'cobaia') {
-        if (window.CobaiaStudio) window.CobaiaStudio.mount();
-    } else if (window.CobaiaStudio) {
-        window.CobaiaStudio.unmount();
+        // F8-A — CobaiaOperator replaces CobaiaStudio (dynamic layout with mode toggle)
+        if (window.CobaiaOperator) {
+            var _opContainer = document.getElementById('cobaia-page-container');
+            if (_opContainer) window.CobaiaOperator.mount(_opContainer);
+        } else if (window.CobaiaStudio) {
+            window.CobaiaStudio.mount(); // fallback if operator not loaded
+        }
+    } else {
+        if (window.CobaiaOperator) window.CobaiaOperator.unmount();
+        else if (window.CobaiaStudio) window.CobaiaStudio.unmount();
     }
     if (page === 'linkedin') {
         loadLinkedInPage();

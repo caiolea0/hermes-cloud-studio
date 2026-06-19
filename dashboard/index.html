@@ -70,6 +70,10 @@
 <script src="/dashboard/components/cobaia_kpi_cards.js" defer></script>
 <script src="/dashboard/components/cobaia_activity_feed.js" defer></script>
 <script src="/dashboard/components/cobaia_studio.js" defer></script>
+<!-- F8-A — Cobaia Operator Mode + Day Countdown + Today Queue -->
+<script src="/dashboard/components/cobaia_day_countdown.js" defer></script>
+<script src="/dashboard/components/cobaia_today_queue.js" defer></script>
+<script src="/dashboard/components/cobaia_operator.js" defer></script>
 <!-- UX-RM-F2-A — Breadcrumb bar -->
 <script src="/dashboard/components/breadcrumbs.js" defer></script>
 <!-- UX-RM-F2-B — Keyboard Shortcuts + Filter Persistence (EAGER: needed at startup) -->
@@ -2354,35 +2358,11 @@
     </div>
 </div>
 
-<!-- ========================== PAGE: COBAIA LIVE OPS (F.7 C3) ========================== -->
+<!-- ========================== PAGE: COBAIA LIVE OPS (F8-A — dynamic via CobaiaOperator) ========================== -->
 <div class="page" id="page-cobaia">
     <div class="cobaia-page" role="main" aria-label="Cobaia Live Ops">
-        <!-- Header + Emergency Stop -->
-        <section class="cobaia-section cobaia-section--header" aria-label="Status cobaia">
-            <div class="cobaia-header">
-                <h2 class="cobaia-header-title">Cobaia Live Ops</h2>
-                <div id="cobaia-header-mount" class="cobaia-header-meta" aria-live="polite"></div>
-            </div>
-            <div id="cobaia-emergency-stop-mount"></div>
-        </section>
-
-        <!-- 14-day Warmup Timeline -->
-        <section class="cobaia-section" aria-label="Timeline warmup 14 dias">
-            <h3 class="cobaia-section-title">Warmup Timeline</h3>
-            <div id="cobaia-timeline-mount"></div>
-        </section>
-
-        <!-- KPI Cards -->
-        <section class="cobaia-section" aria-label="KPIs cobaia">
-            <h3 class="cobaia-section-title">KPIs — 7 dias</h3>
-            <div id="cobaia-kpi-mount"></div>
-        </section>
-
-        <!-- Activity Feed -->
-        <section class="cobaia-section cobaia-section--feed" aria-label="Feed de atividade cobaia">
-            <h3 class="cobaia-section-title">Atividade em Tempo Real</h3>
-            <div id="cobaia-feed-mount" class="cobaia-feed-wrap"></div>
-        </section>
+        <!-- F8-A: CobaiaOperator.mount() dynamically renders Studio or Operator layout here -->
+        <div id="cobaia-page-container" class="cobaia-page-dynamic"></div>
     </div>
 </div>
 

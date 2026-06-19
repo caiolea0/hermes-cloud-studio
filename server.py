@@ -161,6 +161,17 @@ async def lifespan(app: FastAPI):
             logger.info("F.7 C1 cobaia warmup migration applied")
     except Exception as e:
         logger.warning(f"F.7 C1 cobaia migration failed: {e}")
+    # F8-A — Cobaia warmup schedule table (operator mode today's queue)
+    try:
+        mig_path = PROJECT_ROOT / "migrations" / "2026_06_cobaia_warmup_schedule.sql"
+        if mig_path.exists():
+            conn = get_db()
+            conn.executescript(mig_path.read_text(encoding="utf-8"))
+            conn.commit()
+            conn.close()
+            logger.info("F8-A cobaia_warmup_schedule migration applied")
+    except Exception as e:
+        logger.warning(f"F8-A cobaia_warmup_schedule migration failed: {e}")
     # F.7 P5 — Hunter.io email verifier cache (idempotent)
     try:
         mig_path = PROJECT_ROOT / "migrations" / "2026_06_hunter_email_cache.sql"

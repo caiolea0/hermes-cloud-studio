@@ -328,6 +328,7 @@ See `issues.json` for full machine-readable list. Summary counts:
   - Mobile-friendly (Caio checks from phone)
 - **Cobaia-blocking**: SOFT
 - **Deps**: F1, F2
+- **F8-A DONE** 2026-06-19 — cobaia_operator.js + cobaia_day_countdown.js + cobaia_today_queue.js + today-queue API + operator CSS grid + mode toggle (localStorage) + migration cobaia_warmup_schedule. 393 pytest PASS. BLACKLIST R2 INTACTO 59 SS. Browser smoke OK (both modes). commit feat(UX-RM-F8-A). F8-B NEXT.
 
 ---
 
