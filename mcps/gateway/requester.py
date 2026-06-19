@@ -44,6 +44,7 @@ def derive_requester(
     request_body: Any,
     per_role_map: dict[str, str],
     shared_bearer: str,
+    strict_bearer: bool = False,
 ) -> tuple[Optional[str], str]:
     """Derive (requester, trust_mode) from Authorization header.
 
@@ -51,6 +52,11 @@ def derive_requester(
       'trusted'            -- per-role bearer matched; requester is server-authoritative.
       'fallback_spoofable' -- shared bearer; requester from body (client-claimed, R5_FALLBACK).
       'denied'             -- invalid or missing bearer.
+      'denied_strict'      -- shared bearer presented but strict_bearer=True rejects it (R5-PHASE3).
+
+    R5-PHASE3: strict_bearer=True rejects shared bearer with 'denied_strict' instead of
+    fallback_spoofable. Controlled by HERMES_GATEWAY_STRICT_BEARER env flag (default False).
+    Activate AFTER confirming 7d zero R5_FALLBACK warnings in gateway audit log.
     """
     if not authorization_header.startswith("Bearer "):
         return None, "denied"
@@ -62,6 +68,9 @@ def derive_requester(
         return per_role_map[bearer], "trusted"
 
     if shared_bearer and secrets.compare_digest(bearer, shared_bearer):
+        if strict_bearer:
+            # R5-PHASE3 kill switch: shared bearer no longer accepted
+            return None, "denied_strict"
         requester_claimed = (
             request_body.get("requester")
             if isinstance(request_body, dict)

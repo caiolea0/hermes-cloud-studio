@@ -182,6 +182,12 @@ def build_app(config_path: Path | None = None) -> FastAPI:
     shared_bearer = os.getenv("HERMES_GATEWAY_OAUTH_SECRET", "")
     logger.info("R5 per_role_map: %d per-role bearers configured", len(per_role_map))
 
+    # R5 PHASE 3 — kill switch: reject shared bearer entirely (opt-in, default False)
+    # Activate AFTER 7d zero R5_FALLBACK warnings: set HERMES_GATEWAY_STRICT_BEARER=true + restart
+    _strict_bearer = os.getenv("HERMES_GATEWAY_STRICT_BEARER", "false").lower() in ("true", "1", "yes")
+    if _strict_bearer:
+        logger.info("R5_STRICT_BEARER active: shared bearer will be rejected (per-role only)")
+
     @app.on_event("shutdown")
     async def _shutdown_close_pool():
         # F.5.3 evita zombie subprocess VM quando uvicorn termina
@@ -346,7 +352,20 @@ def build_app(config_path: Path | None = None) -> FastAPI:
 
         # R5 PHASE 1 — server-trusted requester via bearer (not client-claimed body.requester)
         authz_header = request.headers.get("Authorization", "")
-        requester, trust_mode = derive_requester(authz_header, body, per_role_map, shared_bearer)
+        requester, trust_mode = derive_requester(
+            authz_header, body, per_role_map, shared_bearer, strict_bearer=_strict_bearer
+        )
+        if trust_mode == "denied_strict":
+            logger.warning(
+                "R5_STRICT_DENIED requester_claimed=%s target=%s/%s -- shared bearer REJECTED "
+                "(strict mode active, migrate to per-role bearer)",
+                (body.get("requester") if isinstance(body, dict) else None) or "?",
+                server_name, tool_name,
+            )
+            raise HTTPException(
+                status_code=401,
+                detail={"error": "shared_bearer_rejected_strict", "hint": "use per-role bearer (HERMES_GATEWAY_BEARER_*)"},
+            )
         if requester is None:
             raise HTTPException(status_code=401, detail={"error": "unauthorized_no_valid_bearer"})
         if trust_mode == "fallback_spoofable":

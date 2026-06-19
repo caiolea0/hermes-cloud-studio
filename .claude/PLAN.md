@@ -3638,7 +3638,7 @@ Total wall-clock: ~15-20h spread 4 sessões.
 
 ### 📋 Phase 3 R5 — Kill switch shared bearer (FUTURE, ~30min)
 
-- [ ] **R5-PHASE3** (Task #8) — Remove fallback shared bearer suporte completo. Trigger: 7 dias consecutivos zero R5_FALLBACK logs.
+- [x] **R5-PHASE3** (Task #8) — Kill switch shared bearer via ENV flag opt-in reversível. **DONE 2026-06-19** — requester.py `strict_bearer` param + `denied_strict` trust_mode + server.py `_strict_bearer` flag (HERMES_GATEWAY_STRICT_BEARER) + denied_strict 401 handling + .env.example procedure + 6 tests. 502 pytest PASS. BLACKLIST R2 INTACTO 68 SS. Default FALSE (back-compat). Ativação: owner sets `HERMES_GATEWAY_STRICT_BEARER=true` em VM `~/.hermes/.env` + restart gateway APÓS confirmar 7d zero R5_FALLBACK (após Jun 25).
 
 ### 📋 WARN remediation (R4+R7+R8+R9+R10+R11+R12+R13)
 
