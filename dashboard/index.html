@@ -381,6 +381,7 @@
                     <li><a href="#proposals" class="nav-sub-item" data-page="proposals" onclick="navigate('proposals'); return false;" aria-label="Propostas"><svg><use href="#i-send"/></svg><span>Propostas</span></a></li>
                     <li><a href="#audit" class="nav-sub-item" data-page="audit" onclick="navigate('audit'); return false;" aria-label="Auditoria"><svg><use href="#i-clipboard"/></svg><span>Auditoria</span></a></li>
                     <li><a href="#linkedin" class="nav-sub-item" data-page="linkedin" onclick="navigate('linkedin'); return false;" aria-label="LinkedIn"><svg><use href="#i-linkedin"/></svg><span>LinkedIn</span></a></li>
+                    <li><a href="#sequences" class="nav-sub-item" data-page="sequences" onclick="navigate('sequences'); return false;" aria-label="Sequences"><svg><use href="#i-git-branch"/></svg><span>Sequences</span></a></li>
                 </ul>
             </div>
 
@@ -2412,6 +2413,20 @@
             <button class="btn btn-ghost" onclick="liCloseBatchConnectModal()">Cancelar</button>
             <button class="btn btn-primary" onclick="liConfirmBatchConnect()">Enviar</button>
         </div>
+    </div>
+</div>
+
+<!-- ========================== PAGE: SEQUENCES (UX-RM-F6-A — canvas sequence builder) ========================== -->
+<div class="page" id="page-sequences">
+    <h1 class="sr-only">Sequences</h1>
+    <div class="page-header">
+        <span style="font-size:18px;font-weight:700;color:var(--text-1,var(--text))">Sequences</span>
+        <button class="btn btn-primary btn-sm" onclick="if(window.sequenceCanvas) window.sequenceCanvas.newSequence();" aria-label="Criar nova sequencia">
+            <svg style="width:13px;height:13px"><use href="#i-plus"/></svg> Nova Sequencia
+        </button>
+    </div>
+    <div class="seq-page-body">
+        <div id="seq-canvas-container" style="flex:1;overflow:hidden"></div>
     </div>
 </div>
 

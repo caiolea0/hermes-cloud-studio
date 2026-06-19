@@ -1,7 +1,7 @@
 {
-  "generated_at": 1781891480.537679,
-  "total": 225,
-  "pc_count": 175,
+  "generated_at": 1781893284.0266228,
+  "total": 230,
+  "pc_count": 180,
   "vm_count": 50,
   "ws_count": 1,
   "internal_count": 5,
@@ -1452,6 +1452,56 @@
       "file": "api/scraper.py",
       "line": 110,
       "function": "stop_scraper",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/sequences",
+      "file": "api/sequences.py",
+      "line": 112,
+      "function": "list_sequences",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/sequences",
+      "file": "api/sequences.py",
+      "line": 125,
+      "function": "create_sequence",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/sequences/{seq_id}",
+      "file": "api/sequences.py",
+      "line": 195,
+      "function": "delete_sequence",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/sequences/{seq_id}",
+      "file": "api/sequences.py",
+      "line": 142,
+      "function": "get_sequence",
+      "side": "pc",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "PUT",
+      "path": "/api/sequences/{seq_id}",
+      "file": "api/sequences.py",
+      "line": 165,
+      "function": "update_sequence",
       "side": "pc",
       "internal_only": false,
       "rate_limited": false

@@ -381,6 +381,8 @@ from api.onboarding import router as onboarding_router
 app.include_router(onboarding_router)  # UX-RM-F3-A — /api/onboarding/* + /api/channels/*
 from api.icp import router as icp_router
 app.include_router(icp_router)  # UX-RM-F3-B — /api/icp/profile + /api/icp/presets
+from api.sequences import router as sequences_router
+app.include_router(sequences_router)  # UX-RM-F6-A — /api/sequences/* canvas builder CRUD
 
 
 if __name__ == "__main__":

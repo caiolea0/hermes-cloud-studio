@@ -5839,3 +5839,275 @@ button.li-chip:focus-visible {
     letter-spacing: 0.5px;
     margin-bottom: 8px;
 }
+
+/* ============================================================
+   UX-RM-F6-A — Sequence Canvas
+   ============================================================ */
+.seq-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border, var(--s4));
+    flex-wrap: wrap;
+    background: var(--s1);
+}
+.seq-tb-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+}
+.seq-tb-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--s4);
+    flex-shrink: 0;
+}
+.seq-tb-spacer { flex: 1; min-width: 8px; }
+
+.seq-layout {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    height: calc(100vh - var(--topbar-h, 56px) - 45px);
+    overflow: hidden;
+    position: relative;
+}
+.seq-canvas-wrap {
+    position: relative;
+    overflow: hidden;
+    background: var(--s1);
+    cursor: default;
+}
+.seq-canvas-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+}
+.seq-canvas-svg:active { cursor: grabbing; }
+
+/* Nodes */
+.seq-node { cursor: move; }
+.seq-node:focus { outline: none; }
+.seq-node:focus .seq-node-rect {
+    stroke: var(--accent);
+    stroke-width: 2;
+}
+.seq-node-rect {
+    fill: var(--s2);
+    stroke: var(--s4);
+    stroke-width: 1;
+    transition: stroke 0.15s var(--ease, ease), filter 0.15s var(--ease, ease);
+}
+.seq-node:hover .seq-node-rect {
+    stroke: var(--accent-l, var(--accent));
+    filter: drop-shadow(0 2px 8px var(--s3));
+}
+.seq-node.selected .seq-node-rect {
+    stroke: var(--accent);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 8px oklch(from var(--accent) l c h / 0.35));
+}
+
+/* Color bar on left */
+.seq-node-bar { pointer-events: none; border-radius: 8px 0 0 8px; }
+
+/* ForeignObject content */
+.seq-node-fo { pointer-events: none; overflow: hidden; }
+.seq-node-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    padding: 0;
+}
+.seq-node-icon {
+    flex-shrink: 0;
+    color: var(--text-2);
+    display: flex;
+    align-items: center;
+}
+.seq-node-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+}
+.seq-node-text strong {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-1, var(--text));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.seq-node-text small {
+    font-size: 11px;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono, monospace);
+}
+
+/* Connection ports */
+.seq-port {
+    fill: var(--accent);
+    stroke: var(--s2);
+    stroke-width: 2;
+    transition: r 0.1s var(--ease, ease);
+}
+.seq-port-out { cursor: crosshair; }
+.seq-port-out:hover { r: 8; }
+.seq-port:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Edges */
+.seq-edge {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    opacity: 0.7;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+/* Zoom controls */
+.seq-zoom {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 10;
+}
+.seq-zoom-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 6px;
+    background: var(--s2);
+    border: 1px solid var(--s4);
+    cursor: pointer;
+    color: var(--text-1, var(--text));
+}
+.seq-zoom-btn:hover { background: var(--s3); }
+
+/* Inspector panel */
+.seq-inspector {
+    border-left: 1px solid var(--border, var(--s4));
+    background: var(--s1);
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.seq-inspector-empty {
+    color: var(--text-2);
+    font-size: 13px;
+    text-align: center;
+    margin-top: 32px;
+}
+.seq-inspector-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-1, var(--text));
+    margin: 0;
+}
+.seq-inspector-meta {
+    font-size: 12px;
+    color: var(--text-2);
+    margin: 0;
+}
+.seq-inspector-note {
+    font-size: 11px;
+    color: var(--text-3, var(--text-2));
+    font-style: italic;
+    margin: 0;
+    padding: 8px;
+    background: var(--s2);
+    border-radius: 6px;
+}
+.seq-inspector-remove {
+    margin-top: auto;
+    color: var(--red, #ef4444);
+    width: 100%;
+    justify-content: center;
+    gap: 6px;
+}
+
+/* Form fields inside inspector */
+.seq-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.seq-field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.seq-field-input {
+    background: var(--s2);
+    border: 1px solid var(--s4);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: var(--text-1, var(--text));
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease;
+}
+.seq-field-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* Page layout */
+#page-sequences .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border, var(--s4));
+}
+#page-sequences .page-header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-1, var(--text));
+    margin: 0;
+}
+#page-sequences .seq-page-body {
+    height: calc(100vh - var(--topbar-h, 56px) - 53px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Screen reader only utility (if not already declared) */
+.seq-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Responsive: collapse inspector on small screens */
+@media (max-width: 640px) {
+    .seq-layout { grid-template-columns: 1fr; }
+    .seq-inspector { display: none; }
+}

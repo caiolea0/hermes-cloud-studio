@@ -496,7 +496,7 @@ _bindAudioGesture();
    ============================================================ */
 const _PAGE_TO_GROUP = {
     control: 'operations', cobaia: 'operations', 'pipeline-studio': 'operations', tasks: 'operations',
-    prospects: 'outreach', proposals: 'outreach', audit: 'outreach', linkedin: 'outreach',
+    prospects: 'outreach', proposals: 'outreach', audit: 'outreach', linkedin: 'outreach', sequences: 'outreach',
     skills: 'intelligence', 'skill-proposals': 'intelligence', lab: 'intelligence', memory: 'intelligence',
     claude: 'devtools', 'mcp-gateway': 'devtools',
 };
@@ -593,6 +593,7 @@ function navigate(page) {
         'pipeline-studio': 'Pipeline Studio',
         'skill-proposals': 'Skill Proposals',
         cobaia: 'Cobaia Live Ops',
+        sequences: 'Sequences',
     };
     if (page === 'cobaia') {
         // F8-A — CobaiaOperator replaces CobaiaStudio (dynamic layout with mode toggle)
@@ -706,6 +707,20 @@ function navigate(page) {
         } else if (window.SkillProposalsStudio && typeof window.SkillProposalsStudio.init === 'function') {
             try { window.SkillProposalsStudio.init('[data-component="skill-proposals-studio"]'); }
             catch (e) { console.warn('SkillProposalsStudio init failed', e); }
+        }
+    } else if (page === 'sequences') {
+        // UX-RM-F6-A: lazy-load canvas on first navigate to sequences.
+        var _seqContainer = document.getElementById('seq-canvas-container');
+        if (!window.HermesSequenceCanvas && window.loadComponent) {
+            window.loadComponent('sequence_canvas').then(function () {
+                if (window.sequenceCanvas && _seqContainer) {
+                    window.sequenceCanvas.mount(_seqContainer);
+                }
+            }).catch(function (e) {
+                if (window.hermesToast) window.hermesToast.error('Falha ao carregar Sequence Canvas');
+            });
+        } else if (window.sequenceCanvas && _seqContainer) {
+            window.sequenceCanvas.mount(_seqContainer);
         }
     }
 }
@@ -6017,6 +6032,7 @@ function _registerHermesCommands() {
         { id: 'go-proposals',       label: 'Ir para Propostas',        group: 'Outreach',     shortcut: 'g o', action: () => navigate('proposals') },
         { id: 'go-audit',           label: 'Ir para Auditoria',        group: 'Outreach',                     action: () => navigate('audit') },
         { id: 'go-linkedin',        label: 'Ir para LinkedIn',         group: 'Outreach',     shortcut: 'g l', action: () => navigate('linkedin') },
+        { id: 'go-sequences',       label: 'Ir para Sequences',        group: 'Outreach',                     action: () => navigate('sequences') },
         { id: 'go-skills',          label: 'Ir para Skills',           group: 'Inteligencia', shortcut: 'g s', action: () => navigate('skills') },
         { id: 'go-skill-proposals', label: 'Ir para Skill Proposals',  group: 'Inteligencia',                 action: () => navigate('skill-proposals') },
         { id: 'go-lab',             label: 'Ir para Lab Stealth',      group: 'Inteligencia',                 action: () => navigate('lab') },

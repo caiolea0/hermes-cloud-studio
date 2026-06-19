@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-19 17:51 UTC
+- **last_updated**: 2026-06-19 18:21 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 225 (175 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 136 (61.8% of public)
-- **orphans**: 84
+- **routes_total**: 230 (180 PC + 50 VM, 5 internal-only excluded)
+- **consumed**: 138 (61.3% of public)
+- **orphans**: 87
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **225** rotas FastAPI (175 PC, 50 VM)
+- Total: **230** rotas FastAPI (180 PC, 50 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -33,6 +33,7 @@
 | `api/onboarding.py` | 5 |
 | `api/lab.py` | 5 |
 | `api/scraper.py` | 5 |
+| `api/sequences.py` | 5 |
 | `api/tasks.py` | 5 |
 | `api/audit.py` | 4 |
 | `api/server_ctrl.py` | 4 |
@@ -57,12 +58,12 @@
 | `hermes_api_v2.py` | 1 |
 | `vm_api/mcp_jobs.py` | 1 |
 
-## §2 Mapa consumo (app.js + 55 components)
+## §2 Mapa consumo (app.js + 56 components)
 
-- Endpoints únicos consumidos: **136**
-- Total fetch/api calls: 160
-- Fontes escaneadas: 56 arquivos (app.js + components/*.js + HTML inline)
-- Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, skill-proposals, skills, tasks
+- Endpoints únicos consumidos: **138**
+- Total fetch/api calls: 161
+- Fontes escaneadas: 57 arquivos (app.js + components/*.js + HTML inline)
+- Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, sequences, skill-proposals, skills, tasks
 
 | Endpoint | Chamadas | Fontes |
 |---|---|---|
@@ -87,7 +88,7 @@
 | `/api/lab/runs/{param}` | 2 | lab_cockpit.js |
 | `/api/linkedin/campaigns/{param}/stop` | 2 | app.js |
 
-## §3 Órfãos — 84 endpoints sem UI
+## §3 Órfãos — 87 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -133,6 +134,8 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/pipeline-studio/runs/{run_id}/abort` | pc | `api/pipeline_studio.py:748` | token |
 | `POST` | `/api/pipeline/execute` | vm | `vm_api/routes.py:824` | token |
 | `POST` | `/api/prospects/{prospect_id}/outreach` | vm | `vm_api/routes.py:738` | token |
+| `DELETE` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:195` | token |
+| `PUT` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:165` | token |
 | `POST` | `/api/server/restart-all` | pc | `api/server_ctrl.py:80` | rate-limited |
 | `POST` | `/api/server/restart-local` | pc | `api/server_ctrl.py:22` | rate-limited |
 | `POST` | `/api/server/restart-vm` | pc | `api/server_ctrl.py:54` | rate-limited |
@@ -172,6 +175,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/pipeline-studio/runs/{run_id}` | pc | `api/pipeline_studio.py:529` | token |
 | `GET` | `/api/scraper/history` | pc | `api/scraper.py:123` | token |
 | `GET` | `/api/scraper/history` | vm | `vm_api/routes.py:530` | token |
+| `GET` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:142` | token |
 | `GET` | `/api/skills/health` | pc | `api/skills.py:335` | token |
 | `GET` | `/api/skills/proposals-pending-verify` | pc | `api/skills.py:485` | token |
 | `GET` | `/api/skills/proposals/{proposal_id}` | pc | `api/skills.py:137` | token |
