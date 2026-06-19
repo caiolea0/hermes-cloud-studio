@@ -231,6 +231,33 @@ See `issues.json` for full machine-readable list. Summary counts:
 - **Cobaia-blocking**: NO (cosmetic, but builds trust)
 - **Deps**: F2
 
+#### UX-RM-F4-C: Liquid Glass seletivo + micro-interactions + motion patterns ✅ DONE 2026-06-19
+- glass.css NEW: 3 primitives (glass-chrome/overlay/floating) + @supports oklch() variants + light theme overrides + @media prefers-reduced-transparency (backdrop-filter: none fallback)
+- interactions.css NEW: btn-base (lift -1px + shadow-md + instant active), card-interactive (lift -2px + accent-l border + shadow-lg), :focus-visible global (2px solid accent + offset), input focus glow, status-dot.live pulse, tab underline slide-in, @media (hover:none) touch fix
+- motion.css: +.motion-slide-right (drawer enter) + .motion-scale-in (modal enter) using --duration-slow + --ease-emphasis
+- styles.css: cmd-palette-dialog + brain-sidebar-panel get glass-floating backdrop-filter; brain-sidebar transition migrated to --duration-slow/--ease-emphasis tokens
+- toast.js: glass-floating (backdrop-filter blur 16px saturate 1.4 + shadow-xl upgrade)
+- index.html: +2 link tags (glass.css + interactions.css after motion.css)
+- Backdrop-filter audit: 10 existing locations ALL preserved (none on data-dense surfaces); 3 new surfaces get glass-floating (cmd-palette-dialog, toast, brain-sidebar-panel)
+- 10 new tests, 460 pytest PASS, reviewer PASS-WITH-NOTES 0 BLOCKERs (4 WARNs F.future), BLACKLIST R2 INTACTO 64 SS
+- commit 731ef8a
+
+#### UX-RM-F4 ✅ 100% COMPLETE — F4-A (12h) + F4-B (12h) + F4-C (12h) = 36h
+
+#### UX-RM-F4-B: Lucide icons full pass + light theme OKLCH + motion tokens ✅ DONE 2026-06-19
+- icon.js NEW: window.icon(name,opts) helper, SVG <use href="#i-*"> inline sprite, zero CDN, aria-hidden default
+- index.html: +14 SVG <symbol> entries (alert-triangle, pause, lock, moon, hourglass, hammer, scale, database + 6 more)
+- 25 emoji replaced across 13 components + app.js: textContent=emoji → innerHTML=window.icon() with guard
+- light.css FULL REWRITE: hex fallback block + @supports(oklch) block, surface s0-s5 (inverted), text-1..4 WCAG AA, accent darker for contrast on light bg, all semantic palette + borders + shadows
+- theme_toggle.js NEW: HermesThemeToggle class, 3-mode auto/dark/light, localStorage 'hermes.theme', hermes:theme-changed event, system matchMedia listener
+- FOUC script key corrected: hermes_theme → hermes.theme (matches STORAGE_KEY)
+- motion.css NEW: --duration-instant/fast/normal/slow/slower/slowest + --ease-* tokens, fade/slide/spin/pulse/bounce-in classes, .status-dot variants, prefers-reduced-motion hard-zero
+- pref_panel.js: reads 'hermes.theme' canonical key, delegates to HermesThemeToggle.setTheme() (BLOCKER fix)
+- Cmd+K palette: 4 theme commands (cycle, dark, light, auto)
+- CSS refactors: observability.css (3) + onboarding.css (13) + skill-proposals.css (4) hardcoded ms → --duration-* tokens
+- 440 pytest PASS (22 new), frontend-ux-reviewer PASS-WITH-NOTES 0 BLOCKERs (after fix), BLACKLIST R2 INTACTO 63 SS
+- UX-RM-F4 100% COMPLETE (F4-A + F4-B + F4-C)
+
 #### UX-RM-F4-A: OKLCH tokens + Geist typography + scale system ✅ DONE 2026-06-19
 - tokens.css REWRITTEN: hex fallback :root{} + @supports(oklch) enhancement block; 30+ OKLCH tokens
 - All surface/text/accent/semantic/dim colors migrated to OKLCH (Chrome 111+/Safari 15.4+/Firefox 113+)
@@ -276,14 +303,31 @@ See `issues.json` for full machine-readable list. Summary counts:
 ### UX-RM-F6: Multi-Channel Campaign Editor (Lemlist-style)
 - **Goal**: Single drag-drop canvas mixing LI DM + email + WhatsApp + manual task with conditional branching.
 - **Effort**: 48h
-- **Files**: new `dashboard/pages/sequences.html`, new `dashboard/components/sequence_canvas.js`, `api/outreach.py`, `daemon/orchestrator.py` (sequence_enrollments)
-- **Acceptance**:
-  - Visual flow with channel icons + delay nodes + branching diamonds
-  - AI variables with side-by-side per-prospect preview
-  - Template gallery (Cuiabá tech recruiters, retail audit, follow-up)
-  - Unified inbox merging replies across channels per prospect
 - **Cobaia-blocking**: NO (cobaia uses LI-only initially)
 - **Deps**: F1, F2, F3
+
+#### UX-RM-F6-A: Canvas SVG + Backend CRUD + Sequences Page ✅ DONE 2026-06-19
+- migrations/2026_06_sequences.sql: sequences + sequence_nodes + sequence_edges (FK CASCADE + indexes)
+- api/sequences.py: 5 CRUD endpoints GET/POST/PUT/DELETE, Pydantic v2 EdgePayload alias 'from'
+- server.py: include sequences_router
+- dashboard/components/sequence_canvas.js: HermesSequenceCanvas IIFE — SVG drag-drop, 7-button toolbar (LI Connect/Mensagem/Email/WhatsApp/Delay/Condition/Save), node select + inspector, keyboard nav (Tab/Enter/Delete/Arrows), save/load round-trip, zero deps
+- dashboard/index.html: page-sequences + sequences nav in Outreach group
+- dashboard/app.js: sequences in _PAGE_TO_GROUP + titles + navigate(lazy) + Cmd+K
+- dashboard/styles.css: seq-* CSS all tokens WCAG AA
+- 12 tests, 472 pytest PASS, BLACKLIST R2 INTACTO 65 SS, frontend-ux-reviewer PASS-WITH-NOTES 0 BLOCKERs
+- commit 3c530bf, F6: 33% (16h/48h)
+
+#### UX-RM-F6-B: Templates + Variables System ✅ DONE 2026-06-19
+- core/template_renderer.py: {{var}} interpolation + {spintax: a|b|c} (legit anti-spam variation)
+- api/templates.py: CRUD + /render + /presets (5 B2B Cuiabá-MT), inline migration, VALID_VARIABLES whitelist
+- dashboard/components/template_editor.js: modal editor + live preview, variable chip insert at cursor, focus trap, aria-modal+aria-live, roving-tabindex
+- sequence_canvas.js inspector: template selector per channel, onSave assigns template_id to node config, "+ Novo template"
+- dashboard/index.html: Canvas | Templates tablist + tabpanel tabindex="0" + gallery panel
+- dashboard/app.js: _seqInitTabs + _seqLoadGallery + _seqLoadPresets
+- dashboard/styles.css: .tpl-* + .seq-tpl-* WCAG AA (--accent-l chip/email badge, light.css --accent-d override)
+- 12 tests (484 total PASS), BLACKLIST R2 INTACTO 66 SS
+- frontend-ux-reviewer: NEEDS-FIXES → fixed (B1 chip contrast, B2 email badge, W1 toast, W2+W3 a11y roving)
+- commit 8366e63, F6: 67% (32h/48h)
 
 ### UX-RM-F7: Performance + Accessibility Polish
 - **Goal**: WCAG 2.1 AA pass, axe-core green, FCP <1.5s, TTI <3s.
