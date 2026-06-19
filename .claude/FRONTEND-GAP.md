@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-18 22:43 UTC
+- **last_updated**: 2026-06-19 12:53 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 222 (172 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 132 (60.8% of public)
@@ -57,11 +57,11 @@
 | `hermes_api_v2.py` | 1 |
 | `vm_api/mcp_jobs.py` | 1 |
 
-## §2 Mapa consumo (app.js + 44 components)
+## §2 Mapa consumo (app.js + 47 components)
 
 - Endpoints únicos consumidos: **132**
-- Total fetch/api calls: 140
-- Fontes escaneadas: 45 arquivos (app.js + components/*.js + HTML inline)
+- Total fetch/api calls: 141
+- Fontes escaneadas: 48 arquivos (app.js + components/*.js + HTML inline)
 - Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, skill-proposals, skills, tasks
 
 | Endpoint | Chamadas | Fontes |
@@ -78,6 +78,7 @@
 | `/api/activities` | 2 | app.js |
 | `/api/audit/status` | 2 | app.js |
 | `/api/hermes/memory` | 2 | app.js |
+| `/api/hermes/skills/{param}` | 2 | app.js |
 | `/api/hermes/status` | 2 | app.js |
 | `/api/lab/runs/{param}` | 2 | lab_cockpit.js |
 | `/api/linkedin/campaigns/{param}/stop` | 2 | app.js |
@@ -85,7 +86,6 @@
 | `/api/linkedin/cobaia/pause` | 2 | app.js, cobaia_status_card.js |
 | `/api/linkedin/cobaia/status` | 2 | cobaia_status_card.js, cobaia_studio.js |
 | `/api/linkedin/cobaia/timeline` | 2 | cobaia_studio.js |
-| `/api/observability/costs` | 2 | observability_costs.js |
 
 ## §3 Órfãos — 85 endpoints sem UI
 

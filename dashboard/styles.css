@@ -4620,6 +4620,53 @@ select option { background: var(--s2); color: var(--text); }
     border: 0;
 }
 
+/* ============================================================
+   UX-RM-F7-B — Button reset: semantic HTML for clickable divs
+   Preserves all class-specific visual rules; resets only browser
+   button defaults that would break layout/font/appearance.
+   ============================================================ */
+button.nav-item, button.topbar-status, button.list-row,
+button.pl-role-chip, button.hl-exec-card, button.li-section-header,
+button.li-campaign-card-header, button.li-chip {
+    border: none;
+    font: inherit;
+    color: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+}
+button.nav-item, button.list-row, button.li-section-header {
+    width: 100%;
+    text-align: left;
+}
+button.hl-exec-card { width: 100%; text-align: left; background: transparent; }
+button.topbar-status { background: transparent; }
+button.pl-role-chip { background: var(--s2); }
+button.li-campaign-card-header { width: 100%; text-align: left; background: transparent; }
+
+/* UX-RM-F7-B — H1 per page (screen-reader visible; sr-only keeps visual design intact) */
+.page-h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+/* UX-RM-F7-B — Error boundary fallback */
+.error-boundary {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 20px;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: var(--r);
+    margin: 12px;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .mcp-badge { transition: none; }
 }
@@ -5520,4 +5567,50 @@ select option { background: var(--s2); color: var(--text); }
 
 @media (prefers-reduced-motion: reduce) {
     .brain-sidebar-panel { transition: none; }
+}
+
+/* ============================================================
+   UX-RM-F7-B — Fixes for li-campaign-card-top + button resets
+   ============================================================ */
+
+/* B2 fix: campaign card header + actions are flex siblings */
+.li-campaign-card-top {
+    display: flex;
+    align-items: center;
+}
+.li-campaign-card-top > button.li-campaign-card-header {
+    flex: 1;
+    min-width: 0;
+    /* Remove the 9th (actions) column — actions are now a sibling */
+    grid-template-columns: 20px auto auto auto auto 1fr auto auto;
+}
+@media (max-width: 1100px) {
+    .li-campaign-card-top > button.li-campaign-card-header {
+        grid-template-columns: 20px auto auto 1fr;
+    }
+}
+.li-campaign-card-top > .li-campaign-card-actions {
+    flex-shrink: 0;
+    padding-right: 8px;
+}
+
+/* W7 fix: preserve dashed border for li-chip-custom even as <button> */
+button.li-chip.li-chip-custom {
+    border: 1px dashed var(--border);
+}
+button.li-chip.li-chip-custom:hover {
+    border-color: var(--accent);
+}
+
+/* W5 fix: consistent focus-visible ring for converted button classes */
+button.nav-item:focus-visible,
+button.topbar-status:focus-visible,
+button.list-row:focus-visible,
+button.hl-exec-card:focus-visible,
+button.li-section-header:focus-visible,
+button.li-campaign-card-header:focus-visible,
+button.pl-role-chip:focus-visible,
+button.li-chip:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }

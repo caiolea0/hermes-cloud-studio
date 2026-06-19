@@ -26,13 +26,14 @@
     "use strict";
 
     var REFRESH_INTERVAL_MS = 60000;
-    var TAB_KEYS = ["costs", "perf", "errors", "decisions", "mcp-coverage"];
+    var TAB_KEYS = ["costs", "perf", "errors", "decisions", "mcp-coverage", "a11y"];
     var TAB_TO_COMPONENT = {
         costs: "ObservabilityCosts",
         perf: "ObservabilityPerf",
         errors: "ObservabilityErrors",
         decisions: "ObservabilityDecisions",
         "mcp-coverage": "ObservabilityMcpCoverage",
+        "a11y": "ObservabilityA11y",
     };
 
     var state = {

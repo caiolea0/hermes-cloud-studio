@@ -26,6 +26,18 @@ function escapeHtml(str) {
     return d.innerHTML;
 }
 
+function _ensurePageH1(pageId, title) {
+    const page = document.getElementById('page-' + pageId);
+    if (!page) return;
+    let h1 = page.querySelector(':scope > h1.page-h1');
+    if (!h1) {
+        h1 = document.createElement('h1');
+        h1.className = 'page-h1';
+        page.insertBefore(h1, page.firstChild);
+    }
+    h1.textContent = title;
+}
+
 /* ============================================================
    MERGED-019 — XSS sanitization (DOMPurify)
    Allowlist restritivo pra markdown render do Claude (renderMarkdownTerminal).
@@ -128,6 +140,14 @@ function animateGridChildren(containerSelector) {
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('.btn, .wq-action-btn, .nav-item');
     if (btn) addRipple(e);
+});
+
+// UX-RM-F7-B: backdrop-click-to-dismiss via data-dismiss-fn (replaces inline onclick on overlay divs)
+document.addEventListener('click', function(e) {
+    const overlay = e.target.closest('[data-dismiss-fn]');
+    if (!overlay || e.target !== overlay) return;
+    const fn = overlay.dataset.dismissFn;
+    if (fn && typeof window[fn] === 'function') window[fn]();
 });
 
 /* ============================================================
@@ -590,6 +610,7 @@ function navigate(page) {
         _liStopLiveTickers();
     }
     document.getElementById('topbar-title').textContent = titles[page] || page;
+    _ensurePageH1(page, titles[page] || page);
     window.location.hash = page;
 
     clearInterval(dashboardInterval);
@@ -920,11 +941,11 @@ async function loadDashboardTopProspects() {
         const items = data.prospects || data.items || data || [];
         const c = document.getElementById('dash-top-prospects');
         if (!items.length) { c.innerHTML = '<div class="empty-state"><svg><use href="#i-users"/></svg><span>Nenhum prospect com score alto</span></div>'; return; }
-        c.innerHTML = items.map(p => `<div class="list-row" style="padding:8px 12px" onclick="openProspectPanel('${p.id}')">
+        c.innerHTML = items.map(p => `<button type="button" class="list-row" style="padding:8px 12px" onclick="openProspectPanel('${p.id}')" aria-label="Abrir ${escapeHtml(p.name || p.business_name)}">
             <div class="photo-thumb">${p.photo_ref ? `<img src="${photoUrl(p.photo_ref)}" onerror="this.parentElement.innerHTML='<svg><use href=\\'#i-store\\'/></svg>'">` : `<svg><use href="#i-store"/></svg>`}</div>
             <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name || p.business_name)}</div><div style="font-size:10px;color:var(--text-3)">${escapeHtml(p.category || '')} - ${escapeHtml(p.city || '')}</div></div>
             <span class="score-badge ${scoreClass(p.score)}">${p.score ?? '--'}</span>
-        </div>`).join('');
+        </button>`).join('');
     } catch { document.getElementById('dash-top-prospects').innerHTML = '<div class="empty-state"><svg><use href="#i-users"/></svg><span>Erro ao carregar</span></div>'; }
 }
 
@@ -2450,10 +2471,10 @@ async function refreshPipelineLive() {
                     const duration = ex.started_at && ex.completed_at ? Math.floor((new Date(ex.completed_at) - new Date(ex.started_at)) / 1000) : 0;
                     const dmm = String(Math.floor(duration / 60)).padStart(2, '0');
                     const dss = String(duration % 60).padStart(2, '0');
-                    return `<div class="hl-exec-card" style="cursor:pointer" onclick="loadExecIntoFeed(${ex.id})">
+                    return `<button type="button" class="hl-exec-card" onclick="loadExecIntoFeed(${ex.id})" aria-label="Ver execucao ${escapeHtml(ex.pipeline_name || String(ex.id))}">
                         <div style="display:flex;justify-content:space-between;align-items:center">
                             <div style="display:flex;align-items:center;gap:10px">
-                                <svg style="width:14px;height:14px;stroke:${statusColor}"><use href="${meta.icon}"/></svg>
+                                <svg style="width:14px;height:14px;stroke:${statusColor}" aria-hidden="true"><use href="${meta.icon}"/></svg>
                                 <span style="font-size:12px;font-weight:500;color:var(--text-2)">${escapeHtml(ex.pipeline_name || '')}</span>
                             </div>
                             <div style="display:flex;align-items:center;gap:8px">
@@ -2463,7 +2484,7 @@ async function refreshPipelineLive() {
                             </div>
                         </div>
                         ${logs.length ? `<div style="font-size:10px;color:var(--text-3);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(logs[logs.length-1].msg.substring(0,100))}</div>` : ''}
-                    </div>`;
+                    </button>`;
                 }).join('');
 
                 const resultsContainer = document.getElementById('pl-results-container');
@@ -2548,14 +2569,14 @@ function renderLinkedInResults(r, exec) {
         </div>
 
         <div class="pl-role-breakdown">
-            <div class="pl-role-chip ${plResultsFilter === 'all' ? 'active' : ''}" onclick="filterProfiles('all')">
+            <button type="button" class="pl-role-chip ${plResultsFilter === 'all' ? 'active' : ''}" onclick="filterProfiles('all')" aria-pressed="${plResultsFilter === 'all'}">
                 Todos <span class="pl-role-chip-count">${profiles.length}</span>
-            </div>
+            </button>
             ${Object.entries(byRole).map(([role, count]) => {
                 const rc = roleColors[role] || { cls: '', color: 'var(--text-1)' };
-                return `<div class="pl-role-chip ${plResultsFilter === role ? 'active' : ''}" onclick="filterProfiles('${escapeHtml(role)}')">
+                return `<button type="button" class="pl-role-chip ${plResultsFilter === role ? 'active' : ''}" onclick="filterProfiles('${escapeHtml(role)}')" aria-pressed="${plResultsFilter === role}">
                     ${escapeHtml(role)} <span class="pl-role-chip-count">${count}</span>
-                </div>`;
+                </button>`;
             }).join('')}
         </div>
 
@@ -2709,8 +2730,8 @@ function renderHistoryRow(e, pipelineName) {
     const dmm = String(Math.floor(duration / 60)).padStart(2, '0');
     const dss = String(duration % 60).padStart(2, '0');
     const name = pipelineName || e._pipeline_name || '';
-    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''" onclick="loadExecIntoFeed(${e.id})">
-        <div style="width:8px;height:8px;border-radius:50%;background:${statusColor};flex-shrink:0"></div>
+    return `<button type="button" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border);border-left:none;border-right:none;border-top:none;cursor:pointer;transition:background 0.15s;width:100%;text-align:left;background:transparent;font:inherit;color:inherit" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''" onclick="loadExecIntoFeed(${e.id})" aria-label="Ver execucao ${escapeHtml(name)} #${e.id}">
+        <div style="width:8px;height:8px;border-radius:50%;background:${statusColor};flex-shrink:0" aria-hidden="true"></div>
         <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:8px">
                 <span style="font-size:12px;color:var(--text-1);font-weight:600">${escapeHtml(name)}</span>
@@ -2723,7 +2744,7 @@ function renderHistoryRow(e, pipelineName) {
             <div style="font-size:11px;color:var(--text-2);font-family:monospace">${dmm}:${dss}</div>
             <div style="font-size:10px;color:var(--text-3)">${e.started_at ? new Date(e.started_at).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--'}</div>
         </div>
-    </div>`;
+    </button>`;
 }
 
 async function loadExecutionHistory() {
@@ -3065,10 +3086,10 @@ function renderClaudeHistory() {
         c.innerHTML = '<div class="empty-state"><svg><use href="#i-clock"/></svg><span>Nenhum comando executado</span></div>';
         return;
     }
-    c.innerHTML = claudeHistory.slice(0, 20).map(h => `<div class="list-row" style="padding:6px 12px;cursor:pointer" onclick="document.getElementById('claude-input').value='${escapeHtml(h.cmd)}';document.getElementById('claude-input').focus()">
-        <svg style="width:14px;height:14px;stroke:var(--text-3);flex-shrink:0"><use href="#i-chevron-right"/></svg>
+    c.innerHTML = claudeHistory.slice(0, 20).map(h => `<button type="button" class="list-row" style="padding:6px 12px" onclick="document.getElementById('claude-input').value='${escapeHtml(h.cmd)}';document.getElementById('claude-input').focus()" aria-label="Reutilizar comando: ${escapeHtml(h.cmd)}">
+        <svg style="width:14px;height:14px;stroke:var(--text-3);flex-shrink:0" aria-hidden="true"><use href="#i-chevron-right"/></svg>
         <div style="flex:1;min-width:0"><div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(h.cmd)}</div><div style="font-size:10px;color:var(--text-3)">${formatDate(h.time)} ${formatTime(h.time)}</div></div>
-    </div>`).join('');
+    </button>`).join('');
 }
 
 function clearClaudeHistory() {
@@ -3384,12 +3405,23 @@ async function loadSkills() {
 }
 
 async function toggleSkill(name, active) {
-    try {
-        await api(`/api/hermes/skills/${name}`, { method: 'PATCH', body: JSON.stringify({ active }) });
-        toast(`Skill ${name} ${active ? 'ativada' : 'desativada'}`, 'success');
-        loadSkills();
-    } catch (e) {
-        toast('Erro ao alterar skill', 'error');
+    const checkbox = document.querySelector(`input[onchange*="toggleSkill('${name}"]`);
+    if (window.optimisticMutation && checkbox) {
+        await window.optimisticMutation.mutate({
+            optimisticUpdate: () => { checkbox.checked = active; },
+            apiCall: () => api(`/api/hermes/skills/${name}`, { method: 'PATCH', body: JSON.stringify({ active }) }),
+            rollback: () => { checkbox.checked = !active; },
+            successToast: `Skill ${name} ${active ? 'ativada' : 'desativada'}`,
+            liveRegionMsg: `Skill ${name} ${active ? 'ativada' : 'desativada'}`,
+        }).then(() => loadSkills()).catch(() => {});
+    } else {
+        try {
+            await api(`/api/hermes/skills/${name}`, { method: 'PATCH', body: JSON.stringify({ active }) });
+            toast(`Skill ${name} ${active ? 'ativada' : 'desativada'}`, 'success');
+            loadSkills();
+        } catch (e) {
+            toast('Erro ao alterar skill', 'error');
+        }
     }
 }
 
@@ -4774,9 +4806,9 @@ function _renderLiSection(type, campaigns) {
     const bodyHtml = campaigns.map(c => _renderLiCampaignDetail(c)).join('');
 
     return `<div class="li-section ${isCollapsed ? 'collapsed' : ''}" data-type="${type}">
-        <div class="li-section-header" onclick="liToggleSection('${type}')">
-            <svg class="li-section-chevron"><use href="#i-chevron-right"/></svg>
-            <div class="li-section-icon-wrap" style="background:${color}22">
+        <button type="button" class="li-section-header" onclick="liToggleSection('${type}')" aria-expanded="${!isCollapsed}" aria-controls="li-section-body-${type}">
+            <svg class="li-section-chevron" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+            <div class="li-section-icon-wrap" style="background:${color}22" aria-hidden="true">
                 <svg style="width:14px;height:14px;stroke:${color}"><use href="${icon}"/></svg>
             </div>
             <div class="li-section-title">${escapeHtml(_liTypeName(type))}</div>
@@ -4784,8 +4816,8 @@ function _renderLiSection(type, campaigns) {
                 ${runningDot}
                 <span>${campaigns.length} ${campaigns.length === 1 ? 'campanha' : 'campanhas'}${runningCount ? ` · ${runningCount} ativa${runningCount > 1 ? 's' : ''}` : ''}</span>
             </div>
-        </div>
-        <div class="li-section-body">${bodyHtml}</div>
+        </button>
+        <div class="li-section-body" id="li-section-body-${type}">${bodyHtml}</div>
     </div>`;
 }
 
@@ -4837,18 +4869,21 @@ function _renderLiCampaignDetail(c) {
     const phaseChip = (c.status === 'running') ? _liPhaseChip(c) : '';
     const cfgSummary = _liConfigSummary(c);
 
-    const header = `<div class="li-campaign-card-header" onclick="liToggleCampaignCard(${c.id})">
-        <svg class="li-campaign-card-chevron"><use href="#i-chevron-right"/></svg>
-        ${_liStatusBadge(c.status)}
-        <span class="li-campaign-card-id">#${c.id}</span>
-        <span class="li-campaign-card-time" title="${escapeHtml(_liFmtTime(c.started_at))}">
-            <svg><use href="#i-eye"/></svg>${timeStr}
-        </span>
-        ${phaseChip}
-        <div class="li-campaign-card-cfg">${cfgSummary}</div>
-        <div class="li-campaign-card-inline-stats">${_liInlineStats(c)}</div>
-        ${progressEl}
-        <div class="li-campaign-card-actions" onclick="event.stopPropagation()">
+    // B2 fix: actions are siblings of the toggle button — no nested interactive elements inside <button>
+    const header = `<div class="li-campaign-card-top">
+        <button type="button" class="li-campaign-card-header" onclick="liToggleCampaignCard(${c.id})" aria-expanded="${!isCollapsed}" aria-controls="li-campaign-body-${c.id}" aria-label="Campanha #${c.id} ${c.type}">
+            <svg class="li-campaign-card-chevron" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+            ${_liStatusBadge(c.status)}
+            <span class="li-campaign-card-id">#${c.id}</span>
+            <span class="li-campaign-card-time" title="${escapeHtml(_liFmtTime(c.started_at))}">
+                <svg aria-hidden="true"><use href="#i-eye"/></svg>${timeStr}
+            </span>
+            ${phaseChip}
+            <div class="li-campaign-card-cfg">${cfgSummary}</div>
+            <div class="li-campaign-card-inline-stats">${_liInlineStats(c)}</div>
+            ${progressEl}
+        </button>
+        <div class="li-campaign-card-actions">
             <button class="btn btn-ghost btn-sm" onclick="openLiLogModal(${c.id},'${c.type}')" title="Ver log">
                 <svg style="width:13px;height:13px"><use href="#i-message-circle"/></svg>
             </button>
@@ -4921,7 +4956,7 @@ function _renderLiCampaignDetail(c) {
 
     return `<div class="li-campaign-card ${isCollapsed ? 'collapsed' : ''} ${stateClass}" data-campaign-id="${c.id}">
         ${header}
-        <div class="li-campaign-card-body">${content}</div>
+        <div class="li-campaign-card-body" id="li-campaign-body-${c.id}">${content}</div>
     </div>`;
 }
 
@@ -5092,10 +5127,11 @@ function liToggleCampaignCard(id) {
     const card = document.querySelector(`.li-campaign-card[data-campaign-id="${id}"]`);
     if (!card) return;
     card.classList.toggle('collapsed');
-    localStorage.setItem(
-        `li_campaign_collapsed_${id}`,
-        card.classList.contains('collapsed') ? '1' : '0'
-    );
+    const collapsed = card.classList.contains('collapsed');
+    localStorage.setItem(`li_campaign_collapsed_${id}`, collapsed ? '1' : '0');
+    // B1 fix: keep aria-expanded in sync with DOM state
+    const btn = card.querySelector('.li-campaign-card-header');
+    if (btn) btn.setAttribute('aria-expanded', String(!collapsed));
 }
 
 function _liFmtTime(iso) {

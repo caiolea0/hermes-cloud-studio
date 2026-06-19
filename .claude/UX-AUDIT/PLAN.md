@@ -282,6 +282,28 @@ See `issues.json` for full machine-readable list. Summary counts:
 - **Cobaia-blocking**: NO
 - **Deps**: F4
 
+#### UX-RM-F7-B: axe-core + H1 hierarchy + div→button + Optimistic UI + Error Boundary ✅ DONE 2026-06-19
+- dashboard/components/axe_runner.js NEW: HermesAxeRunner + ObservabilityA11y tab adapter (17 pages, wcag2a+wcag2aa+wcag21aa)
+- dashboard/components/optimistic_mutations.js NEW: HermesOptimisticMutation (optimisticUpdate + rollback sync + aria-live announce)
+- dashboard/components/error_boundary.js NEW: window.error scoped to [data-component] + _renderFallback + telemetry POST
+- dashboard/app.js: _ensurePageH1() sr-only injection per page + called from navigate()
+- dashboard/app.js: div→button 7 conversions (list-row, hl-exec-card, pl-role-chip, renderHistoryRow, claude history, li-section-header, li-campaign-card-header)
+- dashboard/app.js: B2 fix — li-campaign-card-top wrapper; actions extracted as sibling of toggle button (no nested buttons)
+- dashboard/app.js: B1 fix — aria-expanded="${!isCollapsed}" + liToggleCampaignCard() syncs aria-expanded on toggle
+- dashboard/app.js: data-dismiss-fn event delegation replaces all 4 inline onclick on modal-overlay divs
+- dashboard/app.js: toggleSkill wired to window.optimisticMutation with rollback
+- dashboard/index.html: 2 sidebar nav-items + topbar-status + li-chip-custom → semantic button
+- dashboard/index.html: 4 modal-overlay divs: onclick removed, data-dismiss-fn + role/aria-labelledby added
+- dashboard/index.html: A11y tab added to Observability tabnav; axe-runner-panel mount point
+- dashboard/styles.css: button reset block (border:none; font:inherit; appearance:none) for all 8 converted classes
+- dashboard/styles.css: .page-h1 sr-only, .error-boundary fallback, focus-visible ring, li-chip-custom border fix, li-campaign-card-top flex layout
+- observability_shell.js: TAB_KEYS + TAB_TO_COMPONENT extended with a11y → ObservabilityA11y
+- frontend-ux-reviewer: NEEDS-FIXES → fixed (B1 aria-expanded, B2 nested buttons, W1 escapeHtml, W5 focus-visible, W6 aria-labelledby, W7 li-chip dashed border)
+- 12 tests (385 PASS total), BLACKLIST R2 INTACTO 58 SS
+- H1: 0 → 17 H1s (1 per page section, sr-only)
+- div onclick: 8 → 0 in index.html; 7 dynamic templates in app.js converted to button
+- UX-RM-F7 100% COMPLETE (F7-A + F7-B)
+
 #### UX-RM-F7-A: Bundle Splitting + Skeleton Patterns + WS Reconnect Badge ✅ DONE 2026-06-18
 - dashboard/loader.js NEW: window.loadComponent(name, subdir) + BUNDLE_VERSION cache-busting + in-flight dedup
 - dashboard/components/skeleton_patterns.js NEW: 4 presets table/card_grid/kpi_strip/timeline with aria-busy + tokens
