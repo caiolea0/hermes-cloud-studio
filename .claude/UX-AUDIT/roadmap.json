@@ -1,0 +1,262 @@
+{
+  "audit_sealed": "2026-06-18",
+  "project": "hermes-cloud-studio",
+  "cobaia_eta_days": 14,
+  "total_phases": 8,
+  "total_effort_hours": 248,
+  "cobaia_blocking_phases": ["UX-RM-F1", "UX-RM-F2"],
+  "cobaia_blocking_effort_hours": 72,
+  "phases": [
+    {
+      "id": "UX-RM-F1",
+      "title": "Mock Kill + Real Backend Wire-Up",
+      "goal": "Zero fake-data in execution paths. 100% real backend before Day 14.",
+      "effort_hours": 40,
+      "cobaia_blocking": true,
+      "priority": "critical",
+      "files": [
+        "api/pipelines.py",
+        "linkedin/cobaia_warmup.py",
+        "daemon/orchestrator.py",
+        "dashboard/app.js",
+        "brain/safety.py",
+        "brain/_react.py",
+        "brain/_smoke.py",
+        "intelligence/",
+        "api/linkedin.py"
+      ],
+      "issues_addressed": ["C1", "C2", "H1", "H2", "H3a", "H3b", "H3c", "H3d", "H3e", "H13", "M1", "M2", "M3", "L1", "L6", "L14"],
+      "acceptance_criteria": [
+        "grep -rE 'random\\.(randint|choice)' api/ linkedin/ daemon/ returns zero in production paths",
+        "stub_execute_skill deleted, _exec_cobaia_warmup calls real LI MCP",
+        "Comment edit/delete endpoints either complete or hidden from UI",
+        "LI_USE_MOCK flag removed from dashboard/app.js entirely",
+        "All n/c channels either inline-configurable or removed",
+        "Daemon TODOs 548 (Telegram STOP), 906 (inbox), 911 (sequence due), 948 (channel send) closed",
+        "intelligence/scoring.py implemented OR /api/daemon/recalc-scoring returns 501",
+        "MockDispatcher production guard logs loudly if activated",
+        "CONFIDENCE_THRESHOLD configurable via pref/env",
+        "MAX_REACT_ITERATIONS configurable per intent type"
+      ],
+      "deps": ["VM linkedin MCP healthy"]
+    },
+    {
+      "id": "UX-RM-F2",
+      "title": "IA Consolidation + Cmd+K Command Palette",
+      "goal": "Reduce sidebar 17 to 8 items. Add Cmd+K palette via kbar. Breadcrumb trail.",
+      "effort_hours": 32,
+      "cobaia_blocking": true,
+      "priority": "critical",
+      "files": [
+        "dashboard/index.html",
+        "dashboard/app.js",
+        "dashboard/components/command_palette.js",
+        "dashboard/components/breadcrumb.js"
+      ],
+      "issues_addressed": ["C3", "C4", "H8", "H10", "H11", "H12", "M11"],
+      "acceptance_criteria": [
+        "Primary sidebar: Control, Cobaia, Pipeline, Outreach (merged Prospects+Propostas+Auditoria), Skills, Observability, AI Terminal, Settings",
+        "Collapsible Advanced section: Lab, MCP Gateway, Skill Proposals, Memory, Missions",
+        "Cmd+K opens kbar with fuzzy search of all pages + entities + actions",
+        "Breadcrumb trail: Dashboard > Outreach > [Business Name] > Audit",
+        "Keyboard shortcuts: Cmd+N/G/R/A/Shift+S + Tab/Shift+Tab navigation",
+        "Filter state persisted in sessionStorage/URL params + Smart View save",
+        "Modal-heavy create flows replaced with dedicated pages or step wizards"
+      ],
+      "deps": ["UX-RM-F1"]
+    },
+    {
+      "id": "UX-RM-F3",
+      "title": "Onboarding Wizard 5min",
+      "goal": "Caio Day 0 to working cobaia in less than 5min without docs.",
+      "effort_hours": 20,
+      "cobaia_blocking": false,
+      "soft_blocking": true,
+      "priority": "high",
+      "files": [
+        "dashboard/pages/onboarding.html",
+        "api/cobaia.py"
+      ],
+      "issues_addressed": [],
+      "acceptance_criteria": [
+        "5-step wizard: 1) Cookies LI, 2) Email warmup setup, 3) ICP filters (Cuiaba), 4) First sequence template, 5) Launch confirm",
+        "cobaia_preflight all-green required to enable Launch",
+        "Replaces scattered Configuracoes modal flow"
+      ],
+      "deps": ["UX-RM-F1", "UX-RM-F2"]
+    },
+    {
+      "id": "UX-RM-F4",
+      "title": "Visual Redesign (tokens + typography + motion)",
+      "goal": "Tremor-aligned cockpit feel. Pro typography. Motion budget enforced.",
+      "effort_hours": 36,
+      "cobaia_blocking": false,
+      "priority": "high",
+      "files": [
+        "dashboard/styles/tokens.css",
+        "dashboard/styles/typography.css",
+        "dashboard/styles/motion.css",
+        "all dashboard/components/*.js"
+      ],
+      "issues_addressed": ["H4", "H9", "L9", "L13"],
+      "acceptance_criteria": [
+        "OKLCH color system with semantic tokens (success/warning/danger/info)",
+        "Light/dark/auto runtime toggle persisted in localStorage",
+        "Geist Sans + Geist Mono loaded with preload, Inter Tight fallback",
+        "All animations within 200/250/300/350ms budget, ESLint no-motion-over-500ms rule",
+        "WCAG AA contrast 4.5:1 minimum across all text (text-3 fix)",
+        "Lucide icons replacing inline emoji + scattered svg",
+        "Universal WS-based real-time updates with syncing badge + 'refreshed Xs ago' timestamps"
+      ],
+      "deps": ["UX-RM-F2"]
+    },
+    {
+      "id": "UX-RM-F5",
+      "title": "AI Command Bar + Streaming Brain Sidebar",
+      "goal": "Cmd+K accepts natural language to Brain.decide. Streaming ReAct trace sidebar.",
+      "effort_hours": 28,
+      "cobaia_blocking": false,
+      "priority": "medium",
+      "files": [
+        "dashboard/components/command_palette.js",
+        "dashboard/components/brain_sidebar.js",
+        "api/brain.py",
+        "brain/_react.py"
+      ],
+      "issues_addressed": ["M4", "L7", "L11", "L12"],
+      "acceptance_criteria": [
+        "Cmd+K natural language: 'pause LinkedIn 1h' triggers Brain plans + confirm card",
+        "Brain sidebar streams ReAct trace token-by-token for any prospect/deal row",
+        "Citation pills on enriched fields (Hunter/Apollo/Firecrawl/LinkedIn) with freshness timestamp",
+        "Skill proposals persistence (F.4 table) complete with owner review workflow",
+        "Brain replay endpoint implemented or marked 501 explicitly"
+      ],
+      "deps": ["UX-RM-F1", "UX-RM-F2"]
+    },
+    {
+      "id": "UX-RM-F6",
+      "title": "Multi-Channel Campaign Editor (Lemlist-style)",
+      "goal": "Single drag-drop canvas mixing LI DM + email + WhatsApp + manual task with conditional branching.",
+      "effort_hours": 48,
+      "cobaia_blocking": false,
+      "priority": "medium",
+      "files": [
+        "dashboard/pages/sequences.html",
+        "dashboard/components/sequence_canvas.js",
+        "dashboard/components/unified_inbox.js",
+        "api/outreach.py",
+        "daemon/orchestrator.py"
+      ],
+      "issues_addressed": ["M5", "M6", "M7", "M8", "M9", "M10"],
+      "acceptance_criteria": [
+        "Visual flow canvas with channel icons + delay nodes + conditional branching diamonds",
+        "AI personalization variables with side-by-side per-prospect preview before activation",
+        "Template gallery (Cuiaba tech recruiters, retail audit, follow-up sequences)",
+        "Unified inbox merging replies across LI + email + WhatsApp per prospect",
+        "sequence_enrollments table + due-action query + execution pipeline implemented",
+        "Per-channel sending wired (SMTP + LinkedIn MCP + WhatsApp MCP)",
+        "Brain-powered auto-reply generation behind safety gates",
+        "Enrichment waterfall via MCP gateway (apollo/hunter/firecrawl)"
+      ],
+      "deps": ["UX-RM-F1", "UX-RM-F2", "UX-RM-F3"]
+    },
+    {
+      "id": "UX-RM-F7",
+      "title": "Performance + Accessibility Polish",
+      "goal": "WCAG 2.1 AA pass. axe-core green. FCP under 1.5s. TTI under 3s.",
+      "effort_hours": 20,
+      "cobaia_blocking": false,
+      "priority": "medium",
+      "files": [
+        "all dashboard/components/*.js",
+        "dashboard/index.html",
+        "dashboard/app.js",
+        "tests/a11y/*.spec.js"
+      ],
+      "issues_addressed": ["H5", "H6", "H7", "L2", "L3", "L4", "L5", "L8", "L10"],
+      "acceptance_criteria": [
+        "axe-core CI passing zero violations",
+        "All interactive divs converted to buttons or role/tabindex/aria-label + onkeydown(Enter/Space) handlers",
+        "H1 per page via navigate() with aria-labelledby on main",
+        "Form labels associated via for/id pairs",
+        "Live regions (aria-live) for real-time updates (decisions, activity feed, KPI changes)",
+        "Focus-visible 3:1 contrast outline on all interactive elements",
+        "Deprecated events_jsonl_path column removed",
+        "skills_webhook.py archived (moved to VM)",
+        "intelligence/, task_queue/, channels/ stub modules implemented or removed",
+        "_health_ep.py registered or moved to api/",
+        "rate-limit @limiter.limit on all POST endpoints in server_ctrl.py"
+      ],
+      "deps": ["UX-RM-F4"]
+    },
+    {
+      "id": "UX-RM-F8",
+      "title": "Cobaia Operator Mode",
+      "goal": "1-screen cockpit for Caio during live ops with pause/resume + deliverability + Brain queue + today actions.",
+      "effort_hours": 24,
+      "cobaia_blocking": false,
+      "soft_blocking": true,
+      "priority": "medium",
+      "files": [
+        "dashboard/pages/operator.html",
+        "dashboard/components/operator_cockpit.js",
+        "dashboard/components/cobaia_*.js"
+      ],
+      "issues_addressed": [],
+      "acceptance_criteria": [
+        "Single screen showing: cobaia health (green/amber/red) + warmup day + Brain queue count + today outreach count + LI rate-limit gauge + email reputation + emergency pause",
+        "Optional voice-to-action via Whisper ('pause cobaia', 'what is today hit rate')",
+        "Mobile-friendly responsive layout (Caio checks from phone)",
+        "Deliverability health score 0-100 with placement-per-provider tiles (Gmail/Outlook/Yahoo inbox vs spam)"
+      ],
+      "deps": ["UX-RM-F1", "UX-RM-F2"]
+    }
+  ],
+  "cobaia_day14_gate": {
+    "blocking_criteria": [
+      "UX-RM-F1 100% complete - zero mocks in execution paths",
+      "UX-RM-F2 100% complete - Cmd+K + 8-item sidebar",
+      "Brain confirmation drawer required for ALL destructive intents (send_outreach, accept_connect, send_email, send_whatsapp)",
+      "LI_USE_MOCK = false removed entirely (not just disabled)",
+      "Comment edit/delete: backend complete OR UI hidden",
+      "Daemon TODOs 548, 906, 911, 948 closed",
+      "All n/c channels either inline-configurable or hidden",
+      "intelligence/scoring.py implemented OR /api/daemon/recalc-scoring returns 501",
+      "cobaia_preflight green-light required to start warmup",
+      "Manual smoke: schedule fake LI campaign -> confirm flow -> real execution OR confirmed no-op",
+      "Sentry breadcrumbs flowing for all cobaia events",
+      "WCAG AA text-3 contrast fix"
+    ],
+    "soft_criteria": [
+      "UX-RM-F3 onboarding wizard",
+      "UX-RM-F4 visual redesign",
+      "UX-RM-F5 streaming sidebar",
+      "UX-RM-F7 full a11y pass",
+      "UX-RM-F8 operator mode"
+    ]
+  },
+  "persistence_protocol": {
+    "tasks_to_create": [
+      "TaskCreate UX-RM-F1 priority=critical effort=40h",
+      "TaskCreate UX-RM-F2 priority=critical effort=32h",
+      "TaskCreate UX-RM-F3 priority=high effort=20h",
+      "TaskCreate UX-RM-F4 priority=high effort=36h",
+      "TaskCreate UX-RM-F5 priority=medium effort=28h",
+      "TaskCreate UX-RM-F6 priority=medium effort=48h",
+      "TaskCreate UX-RM-F7 priority=medium effort=20h",
+      "TaskCreate UX-RM-F8 priority=medium effort=24h"
+    ],
+    "memory_save": {
+      "type": "architecture",
+      "content": "Hermes UX-AUDIT 2026-06-18 sealed. 8 phases UX-RM-F1..F8 (248h total). F1+F2 cobaia-blocking (72h). Stack 2026: shadcn+Tailwind v4 OKLCH+Motion 12+Geist+Lucide+Tremor+kbar Cmd+K. Critical mocks: api/pipelines.py:354 + linkedin/cobaia_warmup.py:357. PLAN+issues.json+roadmap.json at .claude/UX-AUDIT/",
+      "concepts": ["hermes", "ux-audit", "cobaia", "mock-kill", "cmd-k", "shadcn", "oklch", "brain-confirm"],
+      "files": [".claude/UX-AUDIT/PLAN.md", ".claude/UX-AUDIT/issues.json", ".claude/UX-AUDIT/roadmap.json"]
+    },
+    "chapter_marker": {
+      "title": "UX-AUDIT Sealed",
+      "summary": "8 phases roadmap UX-RM-F1..F8 sealed 2026-06-18, F1+F2 cobaia-blocking, mocks identified, stack 2026 chosen"
+    },
+    "slash_command": "/hermes-ux-start <N> (mirror /forge-be-start) reading .claude/UX-AUDIT/PHASES/UX-RM-F[N].md + GUARDRAILS + memory",
+    "reaudit_cadence": "After every 2 phases (F2, F4, F6, F8). Snapshots at .claude/UX-AUDIT/_snapshots/2026-XX-XX.json"
+  }
+}
