@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-20 00:29 UTC
+- **last_updated**: 2026-06-20 01:40 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 239 (189 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 141 (60.3% of public)
@@ -135,10 +135,10 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/pipeline-studio/runs/{run_id}/abort` | pc | `api/pipeline_studio.py:748` | token |
 | `POST` | `/api/pipeline/execute` | vm | `vm_api/routes.py:824` | token |
 | `POST` | `/api/prospects/{prospect_id}/outreach` | vm | `vm_api/routes.py:738` | token |
-| `DELETE` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:199` | token |
-| `PUT` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:169` | token |
-| `POST` | `/api/sequences/{seq_id}/dry-run` | pc | `api/sequences.py:329` | token |
-| `POST` | `/api/sequences/{seq_id}/enroll` | pc | `api/sequences.py:250` | token |
+| `DELETE` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:203` | token |
+| `PUT` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:173` | token |
+| `POST` | `/api/sequences/{seq_id}/dry-run` | pc | `api/sequences.py:333` | token |
+| `POST` | `/api/sequences/{seq_id}/enroll` | pc | `api/sequences.py:254` | token |
 | `POST` | `/api/server/restart-all` | pc | `api/server_ctrl.py:80` | rate-limited |
 | `POST` | `/api/server/restart-local` | pc | `api/server_ctrl.py:22` | rate-limited |
 | `POST` | `/api/server/restart-vm` | pc | `api/server_ctrl.py:54` | rate-limited |
@@ -181,7 +181,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/pipeline-studio/runs/{run_id}` | pc | `api/pipeline_studio.py:529` | token |
 | `GET` | `/api/scraper/history` | pc | `api/scraper.py:123` | token |
 | `GET` | `/api/scraper/history` | vm | `vm_api/routes.py:530` | token |
-| `GET` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:146` | token |
+| `GET` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:150` | token |
 | `GET` | `/api/skills/health` | pc | `api/skills.py:335` | token |
 | `GET` | `/api/skills/proposals-pending-verify` | pc | `api/skills.py:485` | token |
 | `GET` | `/api/skills/proposals/{proposal_id}` | pc | `api/skills.py:137` | token |

@@ -219,8 +219,8 @@ class HermesDaemon:
 
             CREATE TABLE IF NOT EXISTS sequence_nodes (
                 id TEXT PRIMARY KEY,
-                sequence_id INTEGER NOT NULL DEFAULT 0,
-                node_type TEXT NOT NULL DEFAULT 'action',
+                sequence_id INTEGER NOT NULL,
+                node_type TEXT NOT NULL,
                 channel TEXT,
                 action_type TEXT,
                 position_x REAL NOT NULL DEFAULT 0,
@@ -230,7 +230,7 @@ class HermesDaemon:
 
             CREATE TABLE IF NOT EXISTS sequence_edges (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                sequence_id INTEGER NOT NULL DEFAULT 0,
+                sequence_id INTEGER NOT NULL,
                 from_node TEXT NOT NULL,
                 to_node TEXT NOT NULL,
                 edge_type TEXT NOT NULL DEFAULT 'default'

@@ -65,7 +65,7 @@ class SequenceUpdate(BaseModel):
 
 
 def _apply_migration(conn):
-    """Ensure sequence tables exist (idempotent)."""
+    """Ensure sequence tables exist (idempotent fallback — canonical source: migrations/2026_06_sequences.sql)."""
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS sequences (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,15 +84,19 @@ def _apply_migration(conn):
             action_type TEXT,
             position_x REAL NOT NULL DEFAULT 0,
             position_y REAL NOT NULL DEFAULT 0,
-            config_json TEXT NOT NULL DEFAULT '{}'
+            config_json TEXT NOT NULL DEFAULT '{}',
+            FOREIGN KEY (sequence_id) REFERENCES sequences(id) ON DELETE CASCADE
         );
         CREATE TABLE IF NOT EXISTS sequence_edges (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sequence_id INTEGER NOT NULL,
             from_node TEXT NOT NULL,
             to_node TEXT NOT NULL,
-            edge_type TEXT NOT NULL DEFAULT 'default'
+            edge_type TEXT NOT NULL DEFAULT 'default',
+            FOREIGN KEY (sequence_id) REFERENCES sequences(id) ON DELETE CASCADE
         );
+        CREATE INDEX IF NOT EXISTS idx_sequence_nodes_seq ON sequence_nodes(sequence_id);
+        CREATE INDEX IF NOT EXISTS idx_sequence_edges_seq ON sequence_edges(sequence_id);
     """)
     conn.commit()
 

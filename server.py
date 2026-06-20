@@ -183,6 +183,27 @@ async def lifespan(app: FastAPI):
             logger.info("F.7 P5 hunter_email_cache migration applied")
     except Exception as e:
         logger.warning(f"F.7 P5 hunter migration failed: {e}")
+    # PA-F3: UX-RM migrations centralized (idempotent — lazy-init in modules remains as fallback)
+    _PA_F3_MIGRATIONS = (
+        "2026_06_sequences.sql",           # UX-RM-F6-A canvas builder
+        "2026_06_templates.sql",           # UX-RM-F6-B template editor
+        "2026_06_daemon_sequence_inbox.sql",  # UX-RM-F1-B daemon tables
+        "2026_06_onboarding_state.sql",    # UX-RM-F3-A onboarding wizard
+        "2026_06_icp_profile.sql",         # UX-RM-F3-B ICP profile
+    )
+    for _mig in _PA_F3_MIGRATIONS:
+        try:
+            _mig_path = PROJECT_ROOT / "migrations" / _mig
+            if _mig_path.exists():
+                conn = get_db()
+                try:
+                    conn.executescript(_mig_path.read_text(encoding="utf-8"))
+                    conn.commit()
+                    logger.info("PA-F3 migration applied: %s", _mig)
+                finally:
+                    conn.close()
+        except Exception as e:
+            logger.warning("PA-F3 migration %s failed: %s", _mig, e)
     # Restaurar globals persistidos em runtime_state (MERGED-004 / MERGED-016)
     state._LI_SESSION_LAST_OK = get_runtime_state("li_session_last_ok", True)
     state._LI_SESSION_LAST_NOTIFIED = get_runtime_state("li_session_last_notified", 0.0)
