@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import sqlite3
 import tempfile
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -250,7 +250,11 @@ def test_auto_pause_triggers_at_3_consecutive_errors(tmp_db, mgr):
     conn.commit()
     conn.close()
 
-    result = mgr.daily_check()
+    # Mock to weekday so weekend gate doesn't fire before auto-pause check
+    _mock_tuesday = datetime(2026, 6, 17, 12, 0, tzinfo=timezone.utc)
+    with patch("linkedin.cobaia_warmup.datetime") as mock_dt:
+        mock_dt.now.return_value = _mock_tuesday
+        result = mgr.daily_check()
     assert result.get("auto_paused") is True
     status = mgr.get_status()
     assert status["phase"] == "paused"

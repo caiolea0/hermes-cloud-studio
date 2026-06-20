@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, date, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any, Tuple
 
@@ -215,7 +215,7 @@ class CobaiaWarmupManager:
             ).fetchone()
             if not row:
                 return {"exists": False, "account_handle": handle}
-            today = date.today().isoformat()
+            today = datetime.now(timezone.utc).date().isoformat()
             metrics_row = conn.execute(
                 "SELECT * FROM cobaia_daily_metrics WHERE date = ? AND account_handle = ?",
                 (today, handle)
@@ -262,7 +262,7 @@ class CobaiaWarmupManager:
                 return {"skipped": True, "reason": "no_state"}
             if row["phase"] == "paused":
                 return {"skipped": True, "reason": "paused"}
-            today = date.today().isoformat()
+            today = datetime.now(timezone.utc).date().isoformat()
             # idempotent: if last_check_at is today, skip increment
             last_check = row["last_check_at"]
             if last_check and last_check[:10] == today:
@@ -274,8 +274,7 @@ class CobaiaWarmupManager:
                 }
             # weekend gate
             if not self.cfg.weekends_enabled:
-                from datetime import date as _date
-                wd = _date.today().weekday()
+                wd = datetime.now(timezone.utc).weekday()
                 if wd >= 5:
                     return {"skipped": True, "reason": f"weekend weekday={wd}"}
             # increment day

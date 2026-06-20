@@ -187,7 +187,11 @@ def test_auto_pause_3_consecutive_errors(mgr, tmp_db):
     )
     conn.commit()
     conn.close()
-    result = mgr.daily_check()
+    # Mock to weekday so weekend gate doesn't fire before auto-pause check
+    _mock_tuesday = datetime(2026, 6, 17, 12, 0, tzinfo=timezone.utc)
+    with patch("linkedin.cobaia_warmup.datetime") as mock_dt:
+        mock_dt.now.return_value = _mock_tuesday
+        result = mgr.daily_check()
     assert result.get("auto_paused") is True
     state = mgr.get_status()
     assert state["phase"] == "paused"
@@ -198,9 +202,15 @@ def test_auto_pause_3_consecutive_errors(mgr, tmp_db):
 
 def test_daily_check_idempotent_same_day(mgr):
     mgr.start_warmup()
-    # First call on a fresh state (no last_check_at) — advances
-    result1 = mgr.daily_check()
-    # Second call same day — skips
-    result2 = mgr.daily_check()
+    # Mock to weekday so both calls see the same "today" regardless of real date
+    _mock_tuesday = datetime(2026, 6, 17, 12, 0, tzinfo=timezone.utc)
+    with patch("linkedin.cobaia_warmup.datetime") as mock_dt:
+        mock_dt.now.return_value = _mock_tuesday
+        # First call on a fresh state (no last_check_at) — advances
+        result1 = mgr.daily_check()
+    with patch("linkedin.cobaia_warmup.datetime") as mock_dt:
+        mock_dt.now.return_value = _mock_tuesday
+        # Second call same day — skips
+        result2 = mgr.daily_check()
     assert result2.get("skipped") is True
     assert result2.get("reason") == "already_checked_today"

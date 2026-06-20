@@ -145,6 +145,13 @@ Cobaia Day 14 can proceed **without** completing these. Recommended ordering:
 - **Fix**: 9 orphan tokens added (--text-3xs→--text-3xl-alt) + 7 --glass-blur-* vars + 2 overlay-bg tokens. Python script replaced 664 font-size:Xpx → var(--text-TOKEN) across 14 files. 16 logical backdrop-filter migrated: CSS files use var(--glass-blur-*); JS overlay divs use .modal-scrim class; panel-close HTML uses .panel-close-glass class. 6 new tests. 535 pytest PASS, BLACKLIST R2 INTACTO 73 SS. frontend-ux-reviewer PASS-WITH-NOTES 0 BLOCKERs.
 - **Note**: emoji→icon() portion deferred (out of scope for PA-F4). Zero visual change (Opção A). All token values exact to original px.
 
+### ✅ PA-F5.1 — Wall-clock flaky fix + sweep — **RESOLVED commit TBD 2026-06-21**
+- **Scope**: Fix 3 weekend-flaky tests + consolidate datetime source in cobaia_warmup + sweep 6 wall-clock sites.
+- **Root cause**: `cobaia_warmup.daily_check()` used `date.today().weekday()` (unmockable local import) and `date.today().isoformat()` (unmockable). Weekend gate fired before auto-pause check on Sat/Sun → `auto_paused` never returned.
+- **Fix**: Consolidated ALL time usage to `datetime.now(timezone.utc)` (mockable). Removed `date` from imports. Removed inline `from datetime import date as _date`. 3 tests wrapped with `patch("linkedin.cobaia_warmup.datetime")` → Tuesday mock (weekday=1).
+- **Sweep verdict**: 6 wall-clock sites in tests. All deterministic or already mocked — no additional flaky sites found.
+- **Tests**: 547 pytest PASS, 0 FAIL. BLACKLIST R2 INTACTO 75 SS. Determinism: 3 prev-flaky tests × 3 runs = 9/9 PASS.
+
 ### ✅ PA-F5 — Test debt + dead code (hygiene) — **RESOLVED commit a9cf0d1 2026-06-19**
 - **Scope**: Test daemon run() loop + brain queue-stats/list_intents; remove `"stub":True` cargo-cult; dedupe indices; triage orphan endpoints.
 - **Fix**: `cobaia_intent.py` stub:True REMOVED (dead field, orchestrator never reads args key). `hermes-skills/server.py` stub:True KEPT with descriptive comment (semantic LLM metadata, not cargo-cult). `orchestrator.py` dup indices documented (idempotent, safe). Orphan endpoints (/brain/decide /brain/replay /brain/intents /templates/render DELETE /sequences) all documented with caller context — none removed. New tests: `test_pa_f5_cleanup.py` +8 (run_forever x2, list_intents, stub triage x2, dup index x2, orphan triage). 543 pytest PASS, BLACKLIST R2 INTACTO 74 SS. **PA-F1..F5 100% COMPLETE.**
