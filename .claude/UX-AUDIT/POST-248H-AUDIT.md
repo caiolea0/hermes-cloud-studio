@@ -59,7 +59,7 @@ The 248h work is **substantially real**. Mock kill is genuine, BLACKLIST R2 is p
 - **Fix**: Delete line 109 of index.html (or create the file if a separate gallery was intended). **Recommend delete** — `template_editor.js` covers template CRUD.
 - **Effort**: 2 min.
 
-### 🟠 NEW_DEBT-2 (high) — 3 orphan WebSocket listeners silently never fire
+### ✅ NEW_DEBT-2 (high) — 3 orphan WebSocket listeners — **RESOLVED PA-F2 commit b8c0467**
 - **Files / evidence**:
   - `cobaia_today_queue.js:160` listens for `cobaia.queue_updated` — **zero backend emit** (grep across all `*.py` = 0). Widget IS mounted (`cobaia_operator.js:347`).
   - `cobaia_sentry_banner.js:136` listens for `sentry.issue_new` — **zero backend emit**.
@@ -99,7 +99,7 @@ Sorted by severity × effort:
 |---|---|---|---|---|
 | ND-1 | crit | `template_gallery.js` broken script ref (404) | index.html:109 | 2 min |
 | ND-2 | high | 3 orphan WS listeners (queue_updated, issue_new, sequence.enrolled) | see §2 ND-2 | 2-3h / 20min |
-| CG-1 | med | WS field split: `api/brain.py` emits `type`; `sequences.py`/`skills.py` emit `event_type`. Dashboard fan-out (`app.js:3375`) only re-dispatches events with `event_type` → **brain.* events never reach component fan-out**, only `handleWSEvent`'s `type` branch | brain.py:110 vs sequences.py:310 | 1-2h |
+| ~~CG-1~~ | ~~med~~ | ~~WS field split: brain.py type vs sequences.py event_type~~ | **RESOLVED PA-F2** brain.py + cobaia.py + scheduler + skills_webhook all → event_type. BrainConfirmDrawer handler updated. | DONE |
 | ND-3 | crit→deferred | 4 UX-RM migrations NOT in server.py lifespan (only cobaia_warmup_schedule applied). **Mitigated**: API modules self-apply via `_apply_migration()`/`_ensure_table()` on first request (verified `sequences.py:67,120,133,150,173`). Centralized startup guarantee lost; lazy-init compensates | server.py:88 | 1h |
 | ND-4 | high | `sequence_nodes` schema divergence: migration has no DEFAULT for sequence_id/node_type; daemon adds `DEFAULT 0`/`DEFAULT 'action'`. IF NOT EXISTS hides it → first-creator wins | 2026_06_sequences.sql:16 vs orchestrator.py:220 | 1h |
 | ND-5 | high | FK constraints in migration (`ON DELETE CASCADE`) absent from daemon init → cascade-delete availability depends on init order | orchestrator.py:220 | 1h |
@@ -129,10 +129,9 @@ Cobaia Day 14 can proceed **without** completing these. Recommended ordering:
 - **hermes-hunter VM deploy**: SCP `mcps/hunter/server.py` → VM. Idempotent Python append to `~/.hermes/mcps/gateway/config.yaml`. Restarted `hermes-mcps-gateway` (systemctl --user). Smoke: `POST /dispatch/hermes-hunter/check_account_usage` → `{"status":"ok","plan_name":"Free","calls_used":0,"calls_available":75}`. Hunter.io key valid, free tier active.
 - **Pytest**: 510 PASS, 0 FAIL. BLACKLIST R2 INTACTO 70 SS.
 
-### PA-F2 — WS wiring + broken script ref (real-time operator UX)
-- **Scope**: (a) Delete `template_gallery.js` script ref. (b) Add backend emits for `cobaia.queue_updated` + `sentry.issue_new`, OR remove dead listeners. (c) Standardize WS field to `event_type` across all routers (fix `api/brain.py:110` `type`→`event_type`, or make fan-out accept both). (d) Add `sequence.enrolled` listener.
-- **Effort**: 4-5h
-- **Cobaia-blocking?**: **No** — poll fallback keeps cobaia observable. But this is the operator surface; fix soon after launch.
+### ✅ PA-F2 — WS wiring + real-time operator UX — **DONE commit b8c0467 2026-06-19**
+- **Scope**: (a) WS event_type standardized: brain.py + cobaia.py + cobaia_warmup_scheduler + skills_webhook (4 files). (b) cobaia.queue_updated emits added in 3 paths (enroll/advance/skip). (c) sentry.issue_new Option A: capture_exception emits WS on error/fatal. (d) sequence.enrolled listener in app.js + CobaiaTodayQueue.refresh exported. BrainConfirmDrawer handler updated to event.event_type. cobaia.py _ws_emit json.dumps bug fixed.
+- **Tests**: +7 tests_pa_f2_ws_wiring + 1 fix ux_rm_f5a. 517 PASS. BLACKLIST R2 INTACTO 71 SS. Reviewer PASS-WITH-NOTES 0 BLOCKERs.
 
 ### PA-F3 — Migration centralization + schema reconciliation
 - **Scope**: Apply 4 UX-RM migrations in server.py lifespan; reconcile sequence_nodes DEFAULTs + FK constraints between migration and daemon; collapse dual schema source-of-truth.
