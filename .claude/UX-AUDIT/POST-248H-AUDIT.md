@@ -133,10 +133,11 @@ Cobaia Day 14 can proceed **without** completing these. Recommended ordering:
 - **Scope**: (a) WS event_type standardized: brain.py + cobaia.py + cobaia_warmup_scheduler + skills_webhook (4 files). (b) cobaia.queue_updated emits added in 3 paths (enroll/advance/skip). (c) sentry.issue_new Option A: capture_exception emits WS on error/fatal. (d) sequence.enrolled listener in app.js + CobaiaTodayQueue.refresh exported. BrainConfirmDrawer handler updated to event.event_type. cobaia.py _ws_emit json.dumps bug fixed.
 - **Tests**: +7 tests_pa_f2_ws_wiring + 1 fix ux_rm_f5a. 517 PASS. BLACKLIST R2 INTACTO 71 SS. Reviewer PASS-WITH-NOTES 0 BLOCKERs.
 
-### PA-F3 — Migration centralization + schema reconciliation
+### ✅ PA-F3 — Migration centralization + schema reconciliation — **RESOLVED commit 95f937a**
 - **Scope**: Apply 4 UX-RM migrations in server.py lifespan; reconcile sequence_nodes DEFAULTs + FK constraints between migration and daemon; collapse dual schema source-of-truth.
 - **Effort**: 3-4h
 - **Cobaia-blocking?**: **No** — lazy-init `_apply_migration()` compensates today.
+- **Fix**: server.py PA-F3 block centralizes 5 migrations (sequences, templates, daemon_sequence_inbox, onboarding_state, icp_profile). Created `migrations/2026_06_templates.sql` as canonical. Removed `DEFAULT 0`/`DEFAULT 'action'` drift from `daemon/orchestrator.py:sequence_nodes`. Aligned `api/sequences.py` lazy-init with FK constraints + indices. Lazy-init fallback preserved (defense-in-depth). 12 tests (idempotency 2x, drift, fallback presence). 529 pytest PASS, BLACKLIST R2 INTACTO 72 SS.
 
 ### PA-F4 — Design consistency cleanup (polish)
 - **Scope**: Tokenize 128+ px font-sizes; replace 23 emoji w/ `icon()` helper; move inline backdrop-filter to glass classes.
