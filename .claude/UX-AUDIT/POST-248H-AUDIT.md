@@ -124,11 +124,10 @@ Cobaia Day 14 can proceed **without** completing these. Recommended ordering:
 - **Effort**: 45 min
 - **Cobaia-blocking?**: **Partially** — `hermes-hunter` (email verify in prospecting) and `hermes-llm` (brain reasoning) are both in the cobaia path. Not a crash, but degrades. **Strongly recommend before Day 14 if cobaia uses brain LLM routing or email verification.**
 
-### ⏳ PA-F1.5 — hermes-hunter VM deploy + telegram flaky fix — **PARTIAL 2026-06-19**
-- **Telegram fix**: ✅ DONE — `tests/test_telegram_integration.py:92` `_last_threshold_alert = 0.0` → `float('-inf')`. Root cause: `time.monotonic()` uptime-relative; if uptime < 3600s cooldown window, test failed. `float('-inf')` ensures since_last is always huge. Verified 3/3 deterministic. +2 tests `test_pa_f15_closeout.py`.
-- **hermes-hunter VM deploy**: ⏳ **BLOCKED** — `HUNTER_API_KEY` NOT SET in VM `~/.hermes/.env` (grep -c returned 0). PC `mcps/hunter/server.py` + `config.yaml` entry already exist (R7). VM SCP + gateway restart + smoke test pending owner setting the key.
-- **Owner action required**: SSH to VM → `echo 'HUNTER_API_KEY=<your_key>' >> ~/.hermes/.env` then notify to resume PA-F1.5 VM deploy.
-- **Pytest**: 510 PASS, 0 FAIL (was 272+1 FAIL). Telegram deterministic. BLACKLIST R2 INTACTO 70 SS.
+### ✅ PA-F1.5 — hermes-hunter VM deploy + telegram flaky fix — **DONE 2026-06-19**
+- **Telegram fix**: `tests/test_telegram_integration.py:92` `_last_threshold_alert = float('-inf')` (was `0.0`). Root cause: `time.monotonic()` uptime-relative; if uptime < 3600s cooldown window, test failed. Verified 3/3 deterministic. +2 tests `test_pa_f15_closeout.py`.
+- **hermes-hunter VM deploy**: SCP `mcps/hunter/server.py` → VM. Idempotent Python append to `~/.hermes/mcps/gateway/config.yaml`. Restarted `hermes-mcps-gateway` (systemctl --user). Smoke: `POST /dispatch/hermes-hunter/check_account_usage` → `{"status":"ok","plan_name":"Free","calls_used":0,"calls_available":75}`. Hunter.io key valid, free tier active.
+- **Pytest**: 510 PASS, 0 FAIL. BLACKLIST R2 INTACTO 70 SS.
 
 ### PA-F2 — WS wiring + broken script ref (real-time operator UX)
 - **Scope**: (a) Delete `template_gallery.js` script ref. (b) Add backend emits for `cobaia.queue_updated` + `sentry.issue_new`, OR remove dead listeners. (c) Standardize WS field to `event_type` across all routers (fix `api/brain.py:110` `type`→`event_type`, or make fan-out accept both). (d) Add `sequence.enrolled` listener.

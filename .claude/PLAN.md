@@ -3712,6 +3712,6 @@ Add hermes-llm + hermes-hunter to access_matrix.json allow-lists. REGRESSION-1+2
 ### ⏳ PA-F1.5 — hermes-hunter VM deploy + telegram flaky — **PARTIAL 2026-06-19**
 
 - [x] **Telegram flaky** — `_last_threshold_alert = float('-inf')` fix (was 0.0, broke when uptime < 3600s). 3/3 deterministic. +2 tests `test_pa_f15_closeout.py`. **510 PASS, 0 FAIL, BLACKLIST R2 INTACTO 70 SS**.
-- [⏳] **hermes-hunter VM deploy** — BLOCKED: `HUNTER_API_KEY` not set in VM `~/.hermes/.env`. Action required: owner SSH → `echo 'HUNTER_API_KEY=<key>' >> ~/.hermes/.env`. Once set, SCP mcps/hunter/ + append gateway config.yaml VM + restart hermes-mcps-gateway + smoke check_account_usage.
+- [x] **hermes-hunter VM deploy** — SCP mcps/hunter/ + idempotent Python append `~/.hermes/mcps/gateway/config.yaml` + restart hermes-mcps-gateway → smoke `check_account_usage` 200 `{"plan_name":"Free","calls_available":75}`. Hunter.io key valid.
 
-**G2**: 510 PASS 0 FAIL ✅ | **G3**: telegram 3/3 ✅ | **G4-G7**: pending VM key
+**G1** BLACKLIST R2 INTACTO 70 SS ✅ | **G2** 510 PASS 0 FAIL ✅ | **G3** telegram 3/3 ✅ | **G4** hermes-hunter registered ✅ | **G5** check_account_usage 200 ✅ | **G6** commit `de96358` ✅ | **G7** docs ✅ — **PA-F1.5 COMPLETE**
