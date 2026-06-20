@@ -239,6 +239,7 @@ class HermesDaemon:
             CREATE INDEX IF NOT EXISTS idx_daemon_log_ts ON daemon_log(timestamp DESC);
             CREATE INDEX IF NOT EXISTS idx_daemon_log_cat ON daemon_log(category);
             CREATE INDEX IF NOT EXISTS idx_daemon_decisions_ts ON daemon_decisions(timestamp DESC);
+            -- also defined in migrations/2026_06_daemon_sequence_inbox.sql (idempotent — safe dup)
             CREATE INDEX IF NOT EXISTS idx_inbox_replies_handled ON inbox_replies(handled, received_at);
             CREATE INDEX IF NOT EXISTS idx_seq_enrollments_due ON sequence_enrollments(completed, next_action_at);
 

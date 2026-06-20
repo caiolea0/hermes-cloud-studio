@@ -202,6 +202,9 @@ async def update_sequence(seq_id: int, body: SequenceUpdate):
 
 @router.delete("/api/sequences/{seq_id}")
 async def delete_sequence(seq_id: int):
+    """Soft-delete (archive) a sequence. No dashboard SPA caller today.
+    Dashboard uses PUT archive pattern; this DELETE is reserved for CLI/admin use.
+    """
     conn = get_db()
     try:
         _apply_migration(conn)

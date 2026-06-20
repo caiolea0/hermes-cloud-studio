@@ -191,6 +191,10 @@ async def brain_decide(req: BrainDecideRequest, bg: BackgroundTasks) -> BrainDec
     """F.6.2: invokes real LLM via mcp.hermes-llm.route per intent config + ReAct loop.
     F.6.3: persists run + per-transition decisions; opt-in agentmemory MCP save async.
     F.6.4: WS broadcast brain.run_awaiting_confirm fire-and-forget se requires_confirm.
+
+    Caller: daemon/orchestrator.py _cobaia_run_warmup_action (via brain_decide_via_gateway),
+    pipeline_engine.py route_skill_run fast-path, and internal HTTP calls from server.py.
+    No dashboard SPA caller — this is a backend-to-backend endpoint.
     """
     brain = Brain()
     result = await brain.decide(req.intent, req.context, requester=req.requester)
@@ -224,7 +228,9 @@ async def get_run(run_id: str) -> JSONResponse:
 
 @router.post("/replay/{run_id}")
 async def post_replay(run_id: str, mode: str = Query(default="show_recorded")) -> JSONResponse:
-    """F.6.3 REAL — POST replay (semantic: explicit action)."""
+    """F.6.3 REAL — POST replay (semantic: explicit action).
+    Admin/debug endpoint — no dashboard SPA caller. Used by CLI and brain test skill.
+    """
     result = await replay_run(run_id, mode=mode)
     if not result.get("ok"):
         if result.get("error") == "run_not_found":
@@ -346,7 +352,9 @@ async def brain_queue_stats() -> dict[str, Any]:
 
 @router.get("/intents")
 async def list_intents() -> dict[str, Any]:
-    """F.6.1 utility — list registered intents + metadata (UI dashboard F.6.4 will consume)."""
+    """F.6.1 utility — list registered intents + metadata.
+    Admin/debug endpoint — no dashboard SPA caller today. Future F.6.4 UI may consume.
+    """
     return {
         "count": len(INTENT_REGISTRY),
         "intents": [

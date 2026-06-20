@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-20 03:03 UTC
+- **last_updated**: 2026-06-20 03:21 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 239 (189 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 141 (60.3% of public)
@@ -99,13 +99,13 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/daemon/pause` | pc | `api/daemon.py:73` | token |
 | `POST` | `/api/daemon/resume` | pc | `api/daemon.py:84` | token |
 | `POST` | `/api/agent-zero/chat` | pc | `api/agent_zero.py:43` | token |
-| `POST` | `/api/brain/confirm/{run_id}` | pc | `api/brain.py:236` | token |
+| `POST` | `/api/brain/confirm/{run_id}` | pc | `api/brain.py:242` | token |
 | `POST` | `/api/brain/decide` | pc | `api/brain.py:189` | token |
-| `POST` | `/api/brain/replay/{run_id}` | pc | `api/brain.py:225` | token |
+| `POST` | `/api/brain/replay/{run_id}` | pc | `api/brain.py:229` | token |
 | `POST` | `/api/prospects/{prospect_id}/resolve-conflict` | pc | `api/prospects.py:156` | token |
 | `GET` | `/api/agent-zero/status` | pc | `api/agent_zero.py:15` | token |
-| `GET` | `/api/brain/intents` | pc | `api/brain.py:347` | token |
-| `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:214` | token |
+| `GET` | `/api/brain/intents` | pc | `api/brain.py:353` | token |
+| `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:218` | token |
 | `GET` | `/api/linkedin/visited` | pc | `api/linkedin.py:445` | token |
 | `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1528` | token |
 | `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:701` | token |
@@ -137,8 +137,8 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/prospects/{prospect_id}/outreach` | vm | `vm_api/routes.py:738` | token |
 | `DELETE` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:203` | token |
 | `PUT` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:173` | token |
-| `POST` | `/api/sequences/{seq_id}/dry-run` | pc | `api/sequences.py:333` | token |
-| `POST` | `/api/sequences/{seq_id}/enroll` | pc | `api/sequences.py:254` | token |
+| `POST` | `/api/sequences/{seq_id}/dry-run` | pc | `api/sequences.py:336` | token |
+| `POST` | `/api/sequences/{seq_id}/enroll` | pc | `api/sequences.py:257` | token |
 | `POST` | `/api/server/restart-all` | pc | `api/server_ctrl.py:80` | rate-limited |
 | `POST` | `/api/server/restart-local` | pc | `api/server_ctrl.py:22` | rate-limited |
 | `POST` | `/api/server/restart-vm` | pc | `api/server_ctrl.py:54` | rate-limited |

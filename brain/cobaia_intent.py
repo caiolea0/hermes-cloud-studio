@@ -101,7 +101,7 @@ def decide_cobaia_warmup_action(context: dict[str, Any]) -> dict[str, Any]:
     return {
         "action": action,
         "skill_name": skill_name,
-        "args": {"phase": phase, "day": current_day, "stub": True},
+        "args": {"phase": phase, "day": current_day},
         "requires_confirm": False,
         "low_conf": False,
         "status": "action_selected",

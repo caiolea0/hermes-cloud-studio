@@ -258,6 +258,9 @@ async def delete_template(template_id: int):
 
 @router.post("/api/templates/render")
 async def render_template(req: RenderRequest):
+    """Render a template with prospect data. Internal/preview API — no dashboard SPA caller.
+    Future use: template preview panel (F.6-C template_editor preview button).
+    """
     conn = get_db()
     try:
         _apply_migration(conn)

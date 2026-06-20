@@ -417,7 +417,7 @@ async def test_skill_dryrun(
         "mode": "mock_llm",
         "input_validated": list(input_keys),
         "llm_response": {
-            "stub": True,
+            "stub": True,  # descriptive: LLM was NOT invoked (mock_llm mode)
             "would_invoke": skill["yaml_data"].get("model"),
             "provider": skill["yaml_data"].get("provider"),
             "system_prompt_chars": len(skill["yaml_data"].get("system_prompt") or ""),
