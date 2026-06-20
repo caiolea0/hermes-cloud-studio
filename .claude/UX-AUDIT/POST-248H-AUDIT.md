@@ -139,10 +139,11 @@ Cobaia Day 14 can proceed **without** completing these. Recommended ordering:
 - **Cobaia-blocking?**: **No** — lazy-init `_apply_migration()` compensates today.
 - **Fix**: server.py PA-F3 block centralizes 5 migrations (sequences, templates, daemon_sequence_inbox, onboarding_state, icp_profile). Created `migrations/2026_06_templates.sql` as canonical. Removed `DEFAULT 0`/`DEFAULT 'action'` drift from `daemon/orchestrator.py:sequence_nodes`. Aligned `api/sequences.py` lazy-init with FK constraints + indices. Lazy-init fallback preserved (defense-in-depth). 12 tests (idempotency 2x, drift, fallback presence). 529 pytest PASS, BLACKLIST R2 INTACTO 72 SS.
 
-### PA-F4 — Design consistency cleanup (polish)
-- **Scope**: Tokenize 128+ px font-sizes; replace 23 emoji w/ `icon()` helper; move inline backdrop-filter to glass classes.
-- **Effort**: 6-8h
-- **Cobaia-blocking?**: **No** — pure consistency/polish.
+### PA-F4 — Design consistency cleanup (polish) ✅ RESOLVED
+- **Scope**: Tokenize 664 px font-sizes; move inline backdrop-filter to glass vars/classes.
+- **Status**: RESOLVED — commit 5e14256.
+- **Fix**: 9 orphan tokens added (--text-3xs→--text-3xl-alt) + 7 --glass-blur-* vars + 2 overlay-bg tokens. Python script replaced 664 font-size:Xpx → var(--text-TOKEN) across 14 files. 16 logical backdrop-filter migrated: CSS files use var(--glass-blur-*); JS overlay divs use .modal-scrim class; panel-close HTML uses .panel-close-glass class. 6 new tests. 535 pytest PASS, BLACKLIST R2 INTACTO 73 SS. frontend-ux-reviewer PASS-WITH-NOTES 0 BLOCKERs.
+- **Note**: emoji→icon() portion deferred (out of scope for PA-F4). Zero visual change (Opção A). All token values exact to original px.
 
 ### PA-F5 — Test debt + dead code (hygiene)
 - **Scope**: Test daemon run() loop + brain queue-stats/list_intents; remove `"stub":True` cargo-cult; dedupe indices; triage orphan endpoints.
