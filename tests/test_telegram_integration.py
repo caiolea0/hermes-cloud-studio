@@ -88,8 +88,9 @@ def test_telegram_alert_threshold_fires_at_5_errors():
     mock_client.send_alert.return_value = True
     listener = CobaiaAlertListener(client=mock_client)
 
-    # Force last_threshold_alert to old value so cooldown doesn't block
-    listener._last_threshold_alert = 0.0
+    # Force last_threshold_alert to distant past so cooldown doesn't block
+    # (0.0 fails when time.monotonic() uptime < _THRESHOLD_ALERT_COOLDOWN=3600)
+    listener._last_threshold_alert = float('-inf')
 
     # Send 4 errors — no threshold alert yet
     for i in range(4):

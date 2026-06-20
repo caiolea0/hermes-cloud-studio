@@ -3697,7 +3697,21 @@ Total wall-clock: ~12-15h spread 5-6 sessões + 2 defer F.future.
 
 Cobaia warmup pode iniciar APENAS quando:
 1. ✅ R1 fixed (Brain via gateway works) — DONE
-2. ⏳ R5-PHASE1 OR R5-PHASE2 done (per-role bearers reduce spoofability)
-3. ⏳ R7 fixed (Hunter via gateway OR Plan B exception documented)
-4. ⏳ R9 fixed (cobaia WS broadcast functional pra observability dashboard)
-5. ⏳ Phase 5 owner_verified gate (per-skill mcp_allowlist + owner manual review skill prompts)
+2. ✅ R5-PHASE1 OR R5-PHASE2 done (per-role bearers reduce spoofability) — DONE
+3. ✅ R7 fixed (Hunter via gateway OR Plan B exception documented) — DONE
+4. ✅ R9 fixed (cobaia WS broadcast functional pra observability dashboard) — DONE
+5. ✅ Phase 5 owner_verified gate (per-skill mcp_allowlist + owner manual review skill prompts) — DONE
+
+---
+
+## 🛡️ POST-248H-AUDIT RESIDUALS (PA-F1.x) — 2026-06-19
+
+### ✅ PA-F1 — Gateway access-matrix fix — **DONE commit 0605d7c 2026-06-19**
+Add hermes-llm + hermes-hunter to access_matrix.json allow-lists. REGRESSION-1+2 RESOLVED.
+
+### ⏳ PA-F1.5 — hermes-hunter VM deploy + telegram flaky — **PARTIAL 2026-06-19**
+
+- [x] **Telegram flaky** — `_last_threshold_alert = float('-inf')` fix (was 0.0, broke when uptime < 3600s). 3/3 deterministic. +2 tests `test_pa_f15_closeout.py`. **510 PASS, 0 FAIL, BLACKLIST R2 INTACTO 70 SS**.
+- [⏳] **hermes-hunter VM deploy** — BLOCKED: `HUNTER_API_KEY` not set in VM `~/.hermes/.env`. Action required: owner SSH → `echo 'HUNTER_API_KEY=<key>' >> ~/.hermes/.env`. Once set, SCP mcps/hunter/ + append gateway config.yaml VM + restart hermes-mcps-gateway + smoke check_account_usage.
+
+**G2**: 510 PASS 0 FAIL ✅ | **G3**: telegram 3/3 ✅ | **G4-G7**: pending VM key
