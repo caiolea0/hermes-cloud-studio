@@ -456,7 +456,7 @@
                 <input type="text" placeholder="Buscar..." id="global-search" onkeydown="if(event.key==='Enter'){navigate('prospects');document.getElementById('prospect-search').value=this.value;loadProspects();}">
             </div>
             <div class="topbar-actions">
-                <button class="btn btn-green btn-sm" onclick="openScraperModal()" style="font-size:11px;padding:5px 12px;gap:5px">
+                <button class="btn btn-green btn-sm" onclick="openScraperModal()" style="font-size: var(--text-xs);padding:5px 12px;gap:5px">
                     <svg style="width:13px;height:13px"><use href="#i-search"/></svg> Novo Scraping
                 </button>
                 <button class="topbar-btn" onclick="refreshCurrentPage()" title="Atualizar">
@@ -665,10 +665,10 @@
                             <div class="hermes-live-pulse idle" id="hl-pulse"></div>
                             <svg style="width:16px;height:16px;stroke:var(--accent-l)"><use href="#i-zap"/></svg>
                             Hermes Live
-                            <span id="hl-status-text" style="font-size:11px;font-weight:500;color:var(--text-3);text-transform:none;letter-spacing:0">Nenhuma atividade</span>
+                            <span id="hl-status-text" style="font-size: var(--text-xs);font-weight:500;color:var(--text-3);text-transform:none;letter-spacing:0">Nenhuma atividade</span>
                         </div>
                         <div style="display:flex;gap:8px;align-items:center">
-                            <span id="hl-exec-count" style="font-size:11px;color:var(--text-3)"></span>
+                            <span id="hl-exec-count" style="font-size: var(--text-xs);color:var(--text-3)"></span>
                             <button class="btn btn-ghost btn-sm" onclick="navigate('pipeline')" data-tip="Abrir Pipeline Builder">
                                 <svg><use href="#i-layers"/></svg>
                             </button>
@@ -722,7 +722,7 @@
                         <div style="display:flex;align-items:center;gap:10px">
                             <span class="card-title">Scraper Monitor</span>
                             <span class="status-dot" id="scraper-status-dot"></span>
-                            <span style="font-size:11px;color:var(--text-2)" id="scraper-status-label">Offline</span>
+                            <span style="font-size: var(--text-xs);color:var(--text-2)" id="scraper-status-label">Offline</span>
                         </div>
                         <div style="display:flex;gap:8px">
                             <button class="btn btn-green btn-sm" id="btn-scraper-start" onclick="openScraperModal()">
@@ -735,12 +735,12 @@
                     </div>
                     <div id="scraper-info">
                         <div style="display:flex;gap:24px;margin-bottom:12px;flex-wrap:wrap">
-                            <div><span style="font-size:10px;color:var(--text-3);text-transform:uppercase">Cidade</span><br><span style="font-size:13px;font-weight:600" id="scraper-city">--</span></div>
-                            <div><span style="font-size:10px;color:var(--text-3);text-transform:uppercase">Categorias</span><br><span style="font-size:13px;font-weight:600" id="scraper-categories">--</span></div>
-                            <div><span style="font-size:10px;color:var(--text-3);text-transform:uppercase">Novos</span><br><span style="font-size:13px;font-weight:600;color:var(--green)" id="scraper-new">0</span></div>
-                            <div><span style="font-size:10px;color:var(--text-3);text-transform:uppercase">Com Site</span><br><span style="font-size:13px;font-weight:600;color:var(--blue)" id="scraper-site">0</span></div>
-                            <div><span style="font-size:10px;color:var(--text-3);text-transform:uppercase">Sem Site</span><br><span style="font-size:13px;font-weight:600;color:var(--amber)" id="scraper-nosite">0</span></div>
-                            <div><span style="font-size:10px;color:var(--text-3);text-transform:uppercase">Erros</span><br><span style="font-size:13px;font-weight:600;color:var(--red)" id="scraper-errors">0</span></div>
+                            <div><span style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase">Cidade</span><br><span style="font-size: var(--text-sm);font-weight:600" id="scraper-city">--</span></div>
+                            <div><span style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase">Categorias</span><br><span style="font-size: var(--text-sm);font-weight:600" id="scraper-categories">--</span></div>
+                            <div><span style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase">Novos</span><br><span style="font-size: var(--text-sm);font-weight:600;color:var(--green)" id="scraper-new">0</span></div>
+                            <div><span style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase">Com Site</span><br><span style="font-size: var(--text-sm);font-weight:600;color:var(--blue)" id="scraper-site">0</span></div>
+                            <div><span style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase">Sem Site</span><br><span style="font-size: var(--text-sm);font-weight:600;color:var(--amber)" id="scraper-nosite">0</span></div>
+                            <div><span style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase">Erros</span><br><span style="font-size: var(--text-sm);font-weight:600;color:var(--red)" id="scraper-errors">0</span></div>
                         </div>
                         <div class="progress-bar" style="margin-bottom:12px"><div class="progress-fill" id="scraper-progress" style="width:0%"></div></div>
                         <div class="log-console" id="scraper-log"><div class="log-line" style="color:var(--text-3)">Aguardando dados do scraper...</div></div>
@@ -753,19 +753,19 @@
                         <div style="display:flex;align-items:center;gap:10px">
                             <span class="card-title">Audit Monitor</span>
                             <span class="status-dot" id="dash-audit-dot" style="background:var(--text-3)"></span>
-                            <span style="font-size:11px;color:var(--text-2)" id="dash-audit-label">Idle</span>
+                            <span style="font-size: var(--text-xs);color:var(--text-2)" id="dash-audit-label">Idle</span>
                         </div>
                         <div style="display:flex;gap:8px;align-items:center">
-                            <span style="font-size:11px;color:var(--text-3)" id="dash-audit-stats"></span>
+                            <span style="font-size: var(--text-xs);color:var(--text-3)" id="dash-audit-stats"></span>
                             <button class="btn btn-ghost btn-sm" onclick="navigate('audit')">
                                 <svg><use href="#i-clipboard"/></svg> Abrir
                             </button>
                         </div>
                     </div>
                     <div style="display:flex;gap:24px;flex-wrap:wrap">
-                        <div><span style="font-size:10px;color:var(--text-3);text-transform:uppercase">Pendentes</span><br><span style="font-size:15px;font-weight:700;color:var(--amber)" id="dash-audit-pending">--</span></div>
-                        <div><span style="font-size:10px;color:var(--text-3);text-transform:uppercase">Auditados</span><br><span style="font-size:15px;font-weight:700;color:var(--blue)" id="dash-audit-done">--</span></div>
-                        <div><span style="font-size:10px;color:var(--text-3);text-transform:uppercase">Alta Prioridade</span><br><span style="font-size:15px;font-weight:700;color:var(--green)" id="dash-audit-high">--</span></div>
+                        <div><span style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase">Pendentes</span><br><span style="font-size: var(--text-sm-plus);font-weight:700;color:var(--amber)" id="dash-audit-pending">--</span></div>
+                        <div><span style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase">Auditados</span><br><span style="font-size: var(--text-sm-plus);font-weight:700;color:var(--blue)" id="dash-audit-done">--</span></div>
+                        <div><span style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase">Alta Prioridade</span><br><span style="font-size: var(--text-sm-plus);font-weight:700;color:var(--green)" id="dash-audit-high">--</span></div>
                     </div>
                 </div>
 
@@ -783,29 +783,29 @@
                         <div style="display:flex;align-items:center;gap:8px">
                             <span class="status-dot" id="ai-az-dot" style="background:var(--text-3)"></span>
                             <div>
-                                <span style="font-size:11px;font-weight:600">Agent Zero</span><br>
-                                <span style="font-size:10px;color:var(--text-3)" id="ai-az-info">--</span>
+                                <span style="font-size: var(--text-xs);font-weight:600">Agent Zero</span><br>
+                                <span style="font-size: var(--text-2xs);color:var(--text-3)" id="ai-az-info">--</span>
                             </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:8px">
                             <span class="status-dot" id="ai-ollama-dot" style="background:var(--text-3)"></span>
                             <div>
-                                <span style="font-size:11px;font-weight:600">Ollama LLM</span><br>
-                                <span style="font-size:10px;color:var(--text-3)" id="ai-ollama-info">--</span>
+                                <span style="font-size: var(--text-xs);font-weight:600">Ollama LLM</span><br>
+                                <span style="font-size: var(--text-2xs);color:var(--text-3)" id="ai-ollama-info">--</span>
                             </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:8px">
                             <span class="status-dot" id="ai-mem-dot" style="background:var(--text-3)"></span>
                             <div>
-                                <span style="font-size:11px;font-weight:600">AgentMemory</span><br>
-                                <span style="font-size:10px;color:var(--text-3)" id="ai-mem-info">--</span>
+                                <span style="font-size: var(--text-xs);font-weight:600">AgentMemory</span><br>
+                                <span style="font-size: var(--text-2xs);color:var(--text-3)" id="ai-mem-info">--</span>
                             </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:8px">
                             <span class="status-dot" id="ai-vm-dot" style="background:var(--text-3)"></span>
                             <div>
-                                <span style="font-size:11px;font-weight:600">Hermes VM</span><br>
-                                <span style="font-size:10px;color:var(--text-3)" id="ai-vm-info">--</span>
+                                <span style="font-size: var(--text-xs);font-weight:600">Hermes VM</span><br>
+                                <span style="font-size: var(--text-2xs);color:var(--text-3)" id="ai-vm-info">--</span>
                             </div>
                         </div>
                     </div>
@@ -869,7 +869,7 @@
                 <!-- Bulk Actions Bar -->
                 <div id="bulk-bar" style="display:none;margin-bottom:12px;padding:10px 16px;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.25);border-radius:var(--r-sm);animation:fade-in 0.2s var(--ease) both">
                     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-                        <span style="font-size:12px;font-weight:600;color:var(--accent-l)" id="bulk-count">0 selecionados</span>
+                        <span style="font-size: var(--text-xxs);font-weight:600;color:var(--accent-l)" id="bulk-count">0 selecionados</span>
                         <div style="width:1px;height:20px;background:var(--border)"></div>
                         <select class="stage-select" id="bulk-stage" style="background:var(--s3)">
                             <option value="">Mudar Estagio...</option>
@@ -893,14 +893,14 @@
                             <thead>
                                 <tr style="border-bottom:1px solid var(--border)">
                                     <th style="padding:10px 8px 10px 16px;width:32px"><input type="checkbox" id="bulk-select-all" onchange="toggleSelectAll(this.checked)" style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer"></th>
-                                    <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px"></th>
-                                    <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Nome</th>
-                                    <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Categoria</th>
-                                    <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Cidade</th>
-                                    <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Score</th>
-                                    <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Estagio</th>
-                                    <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Telefone</th>
-                                    <th style="padding:10px 16px;text-align:right;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Acoes</th>
+                                    <th style="padding:10px 8px;text-align:left;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px"></th>
+                                    <th style="padding:10px 8px;text-align:left;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Nome</th>
+                                    <th style="padding:10px 8px;text-align:left;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Categoria</th>
+                                    <th style="padding:10px 8px;text-align:left;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Cidade</th>
+                                    <th style="padding:10px 8px;text-align:center;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Score</th>
+                                    <th style="padding:10px 8px;text-align:left;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Estagio</th>
+                                    <th style="padding:10px 8px;text-align:left;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Telefone</th>
+                                    <th style="padding:10px 16px;text-align:right;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px">Acoes</th>
                                 </tr>
                             </thead>
                             <tbody id="prospects-tbody"></tbody>
@@ -936,7 +936,7 @@
                         <svg><use href="#i-filter"/></svg>
                         <select id="proposal-filter-sent" onchange="renderProposals()"><option value="">Todos</option><option value="sent">Enviados</option><option value="unsent">Nao Enviados</option></select>
                     </div>
-                    <span style="font-size:12px;color:var(--text-2)" id="proposal-count">0 propostas</span>
+                    <span style="font-size: var(--text-xxs);color:var(--text-2)" id="proposal-count">0 propostas</span>
                 </div>
 
                 <!-- Proposal Grid -->
@@ -955,7 +955,7 @@
                             <div style="display:flex;align-items:center;gap:10px">
                                 <span class="card-title">Auditoria de Presenca Digital</span>
                                 <span class="status-dot" id="audit-status-dot"></span>
-                                <span style="font-size:11px;color:var(--text-2)" id="audit-status-label">Idle</span>
+                                <span style="font-size: var(--text-xs);color:var(--text-2)" id="audit-status-label">Idle</span>
                             </div>
                             <div style="display:flex;gap:8px">
                                 <button class="btn btn-primary btn-sm" id="btn-audit-start" onclick="startAudit()">
@@ -963,13 +963,13 @@
                                 </button>
                             </div>
                         </div>
-                        <div style="margin-bottom:16px;font-size:12px;color:var(--text-2)">
+                        <div style="margin-bottom:16px;font-size: var(--text-xxs);color:var(--text-2)">
                             Analisa website, SSL, mobile, velocidade, redes sociais e calcula score de oportunidade para cada prospect.
                         </div>
                         <!-- Audit Config -->
                         <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">
                             <div>
-                                <label style="font-size:10px;color:var(--text-3);text-transform:uppercase;display:block;margin-bottom:4px">Estagio Alvo</label>
+                                <label style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;display:block;margin-bottom:4px">Estagio Alvo</label>
                                 <div class="input-wrap" style="width:160px">
                                     <select id="audit-target-stage">
                                         <option value="discovered">Discovered</option>
@@ -979,7 +979,7 @@
                                 </div>
                             </div>
                             <div>
-                                <label style="font-size:10px;color:var(--text-3);text-transform:uppercase;display:block;margin-bottom:4px">Tamanho do Lote</label>
+                                <label style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;display:block;margin-bottom:4px">Tamanho do Lote</label>
                                 <div class="input-wrap" style="width:100px">
                                     <input type="number" id="audit-batch-size" value="50" min="1" max="500">
                                 </div>
@@ -988,8 +988,8 @@
                         <!-- Progress -->
                         <div id="audit-progress-section" style="display:none">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                                <span style="font-size:12px;color:var(--text-2)" id="audit-progress-text">0 / 0 auditados</span>
-                                <span style="font-size:12px;font-weight:600" id="audit-progress-pct">0%</span>
+                                <span style="font-size: var(--text-xxs);color:var(--text-2)" id="audit-progress-text">0 / 0 auditados</span>
+                                <span style="font-size: var(--text-xxs);font-weight:600" id="audit-progress-pct">0%</span>
                             </div>
                             <div class="progress-bar" style="margin-bottom:12px"><div class="progress-fill" id="audit-progress-bar" style="width:0%;background:var(--blue)"></div></div>
                         </div>
@@ -1002,19 +1002,19 @@
                     <!-- Audit Stats Sidebar -->
                     <div style="display:flex;flex-direction:column;gap:16px">
                         <div class="card" style="text-align:center">
-                            <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Pendentes de Auditoria</div>
-                            <div style="font-size:32px;font-weight:800;color:var(--amber)" id="audit-stat-pending">--</div>
-                            <div style="font-size:11px;color:var(--text-2);margin-top:4px">prospects sem auditoria</div>
+                            <div style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Pendentes de Auditoria</div>
+                            <div style="font-size: var(--text-3xl-alt);font-weight:800;color:var(--amber)" id="audit-stat-pending">--</div>
+                            <div style="font-size: var(--text-xs);color:var(--text-2);margin-top:4px">prospects sem auditoria</div>
                         </div>
                         <div class="card" style="text-align:center">
-                            <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Ja Auditados</div>
-                            <div style="font-size:32px;font-weight:800;color:var(--blue)" id="audit-stat-done">--</div>
-                            <div style="font-size:11px;color:var(--text-2);margin-top:4px">com score calculado</div>
+                            <div style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Ja Auditados</div>
+                            <div style="font-size: var(--text-3xl-alt);font-weight:800;color:var(--blue)" id="audit-stat-done">--</div>
+                            <div style="font-size: var(--text-xs);color:var(--text-2);margin-top:4px">com score calculado</div>
                         </div>
                         <div class="card" style="text-align:center">
-                            <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Alta Prioridade</div>
-                            <div style="font-size:32px;font-weight:800;color:var(--green)" id="audit-stat-high">--</div>
-                            <div style="font-size:11px;color:var(--text-2);margin-top:4px">score >= 70</div>
+                            <div style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;margin-bottom:8px">Alta Prioridade</div>
+                            <div style="font-size: var(--text-3xl-alt);font-weight:800;color:var(--green)" id="audit-stat-high">--</div>
+                            <div style="font-size: var(--text-xs);color:var(--text-2);margin-top:4px">score >= 70</div>
                         </div>
                     </div>
                 </div>
@@ -1029,14 +1029,14 @@
                         <table style="width:100%;border-collapse:collapse">
                             <thead>
                                 <tr style="border-bottom:1px solid var(--border)">
-                                    <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase">Nome</th>
-                                    <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase">Categoria</th>
-                                    <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase">Website</th>
-                                    <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase">SSL</th>
-                                    <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase">Mobile</th>
-                                    <th style="padding:10px 8px;text-align:center;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase">Score</th>
-                                    <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase">Estagio</th>
-                                    <th style="padding:10px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase">Problemas</th>
+                                    <th style="padding:10px 16px;text-align:left;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase">Nome</th>
+                                    <th style="padding:10px 8px;text-align:left;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase">Categoria</th>
+                                    <th style="padding:10px 8px;text-align:center;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase">Website</th>
+                                    <th style="padding:10px 8px;text-align:center;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase">SSL</th>
+                                    <th style="padding:10px 8px;text-align:center;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase">Mobile</th>
+                                    <th style="padding:10px 8px;text-align:center;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase">Score</th>
+                                    <th style="padding:10px 8px;text-align:left;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase">Estagio</th>
+                                    <th style="padding:10px 8px;text-align:left;font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase">Problemas</th>
                                 </tr>
                             </thead>
                             <tbody id="audit-results-tbody"></tbody>
@@ -1053,8 +1053,8 @@
                 <!-- Header -->
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
                     <div>
-                        <h2 style="font-size:20px;font-weight:700;color:var(--text-1);margin:0">Pipeline Builder</h2>
-                        <p style="font-size:12px;color:var(--text-3);margin:4px 0 0">Configure, agende e dispare pipelines para o Hermes executar</p>
+                        <h2 style="font-size: var(--text-xl);font-weight:700;color:var(--text-1);margin:0">Pipeline Builder</h2>
+                        <p style="font-size: var(--text-xxs);color:var(--text-3);margin:4px 0 0">Configure, agende e dispare pipelines para o Hermes executar</p>
                     </div>
                     <div style="display:flex;gap:8px">
                         <button class="btn btn-ghost" onclick="syncHermes()"><svg><use href="#i-refresh"/></svg> Sync Hermes</button>
@@ -1069,10 +1069,10 @@
                             <div class="hermes-live-pulse idle" id="pl-pulse"></div>
                             <svg style="width:16px;height:16px;stroke:var(--accent-l)"><use href="#i-zap"/></svg>
                             Command Center
-                            <span id="pl-live-status" style="font-size:11px;font-weight:500;color:var(--text-3);text-transform:none;letter-spacing:0">Todos os sistemas idle</span>
+                            <span id="pl-live-status" style="font-size: var(--text-xs);font-weight:500;color:var(--text-3);text-transform:none;letter-spacing:0">Todos os sistemas idle</span>
                         </div>
                         <div style="display:flex;gap:8px;align-items:center">
-                            <span id="pl-live-timer" style="font-size:10px;color:var(--text-3);font-family:monospace"></span>
+                            <span id="pl-live-timer" style="font-size: var(--text-2xs);color:var(--text-3);font-family:monospace"></span>
                             <button class="btn btn-ghost btn-sm" onclick="refreshPipelineLive()"><svg><use href="#i-refresh"/></svg></button>
                         </div>
                     </div>
@@ -1111,20 +1111,20 @@
                         <!-- Stats Row when active -->
                         <div id="pl-live-stats" style="display:none;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
                             <div style="background:var(--s2);border-radius:var(--r-sm);padding:12px;text-align:center">
-                                <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Itens Processados</div>
-                                <div style="font-size:22px;font-weight:700;color:var(--lime)" id="pl-stat-processed">0</div>
+                                <div style="font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Itens Processados</div>
+                                <div style="font-size: var(--text-xl-plus);font-weight:700;color:var(--lime)" id="pl-stat-processed">0</div>
                             </div>
                             <div style="background:var(--s2);border-radius:var(--r-sm);padding:12px;text-align:center">
-                                <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Total Alvos</div>
-                                <div style="font-size:22px;font-weight:700;color:var(--text-1)" id="pl-stat-total">0</div>
+                                <div style="font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Total Alvos</div>
+                                <div style="font-size: var(--text-xl-plus);font-weight:700;color:var(--text-1)" id="pl-stat-total">0</div>
                             </div>
                             <div style="background:var(--s2);border-radius:var(--r-sm);padding:12px;text-align:center">
-                                <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Pipelines Ativos</div>
-                                <div style="font-size:22px;font-weight:700;color:var(--accent-l)" id="pl-stat-active">0</div>
+                                <div style="font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Pipelines Ativos</div>
+                                <div style="font-size: var(--text-xl-plus);font-weight:700;color:var(--accent-l)" id="pl-stat-active">0</div>
                             </div>
                             <div style="background:var(--s2);border-radius:var(--r-sm);padding:12px;text-align:center">
-                                <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Tempo Decorrido</div>
-                                <div style="font-size:22px;font-weight:700;color:var(--amber);font-family:monospace" id="pl-stat-elapsed">00:00</div>
+                                <div style="font-size: var(--text-2xs);font-weight:600;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Tempo Decorrido</div>
+                                <div style="font-size: var(--text-xl-plus);font-weight:700;color:var(--amber);font-family:monospace" id="pl-stat-elapsed">00:00</div>
                             </div>
                         </div>
 
@@ -1143,8 +1143,8 @@
 
                 <!-- ====== Pipeline Templates Grid ====== -->
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                    <h3 style="font-size:14px;font-weight:600;color:var(--text-2);margin:0">Pipelines Salvos</h3>
-                    <span style="font-size:11px;color:var(--text-3)" id="pl-templates-count"></span>
+                    <h3 style="font-size: var(--text-base);font-weight:600;color:var(--text-2);margin:0">Pipelines Salvos</h3>
+                    <span style="font-size: var(--text-xs);color:var(--text-3)" id="pl-templates-count"></span>
                 </div>
                 <div id="pipeline-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;margin-bottom:24px">
                     <div class="empty-state" style="grid-column:1/-1"><svg><use href="#i-layers"/></svg><span>Carregando pipelines...</span></div>
@@ -1173,7 +1173,7 @@
                         <input type="hidden" id="pl-edit-id" value="">
                         <!-- Type selector -->
                         <div>
-                            <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Tipo do Pipeline</label>
+                            <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Tipo do Pipeline</label>
                             <div style="display:flex;gap:8px;flex-wrap:wrap" id="pl-type-selector">
                                 <button class="wq-tab active" data-pltype="linkedin_viewer" onclick="selectPipelineType('linkedin_viewer',this)">
                                     <svg style="width:14px;height:14px"><use href="#i-linkedin"/></svg> LinkedIn Viewer
@@ -1205,26 +1205,26 @@
                         <!-- Prompt / Demand -->
                         <div class="input-wrap">
                             <label>Demanda (o que voce quer que o Hermes faca)</label>
-                            <textarea id="pl-prompt" rows="4" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-1);padding:10px;font-size:12px;font-family:inherit;resize:vertical" placeholder="Descreva o que voce quer. Ex: Encontre recrutadores tech no LinkedIn em SP e RJ, visite o perfil de cada um..."></textarea>
+                            <textarea id="pl-prompt" rows="4" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-1);padding:10px;font-size: var(--text-xxs);font-family:inherit;resize:vertical" placeholder="Descreva o que voce quer. Ex: Encontre recrutadores tech no LinkedIn em SP e RJ, visite o perfil de cada um..."></textarea>
                         </div>
                         <!-- Targets Config (dynamic based on type) -->
                         <div id="pl-targets-section">
-                            <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Configuracao de Alvos</label>
+                            <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Configuracao de Alvos</label>
                             <div id="pl-targets-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                                 <!-- Filled dynamically -->
                             </div>
                         </div>
                         <!-- Schedule Config -->
                         <div>
-                            <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Agendamento</label>
+                            <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Agendamento</label>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                                 <div class="input-wrap">
                                     <label>Horario de inicio</label>
-                                    <input type="time" id="pl-schedule-time" value="02:00" style="background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-1);padding:8px 10px;font-size:12px">
+                                    <input type="time" id="pl-schedule-time" value="02:00" style="background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-1);padding:8px 10px;font-size: var(--text-xxs)">
                                 </div>
                                 <div class="input-wrap">
                                     <label>Repeticoes</label>
-                                    <select id="pl-schedule-repeat" style="background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-1);padding:8px 10px;font-size:12px">
+                                    <select id="pl-schedule-repeat" style="background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-1);padding:8px 10px;font-size: var(--text-xxs)">
                                         <option value="once">Uma vez</option>
                                         <option value="daily">Diario</option>
                                         <option value="weekdays">Dias uteis</option>
@@ -1234,7 +1234,7 @@
                                 </div>
                             </div>
                             <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap" id="pl-schedule-days">
-                                <label style="font-size:11px;font-weight:600;color:var(--text-2);width:100%;margin-bottom:2px">Dias da semana</label>
+                                <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);width:100%;margin-bottom:2px">Dias da semana</label>
                                 <button class="wq-tab" data-day="mon" onclick="toggleScheduleDay(this)">Seg</button>
                                 <button class="wq-tab" data-day="tue" onclick="toggleScheduleDay(this)">Ter</button>
                                 <button class="wq-tab" data-day="wed" onclick="toggleScheduleDay(this)">Qua</button>
@@ -1269,7 +1269,7 @@
                                 <svg style="width:14px;height:14px;stroke:var(--blue)"><use href="#i-clipboard"/></svg> Auditar
                             </button>
                         </div>
-                        <span style="font-size:12px;color:var(--text-2)" id="wq-count">0 itens</span>
+                        <span style="font-size: var(--text-xxs);color:var(--text-2)" id="wq-count">0 itens</span>
                     </div>
                     <div style="display:flex;gap:8px">
                         <button class="btn btn-ghost btn-sm" onclick="loadWorkQueue()"><svg><use href="#i-refresh"/></svg> Atualizar</button>
@@ -1280,20 +1280,20 @@
                 <!-- Summary Stats -->
                 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
                     <div class="card" style="padding:14px;text-align:center">
-                        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Gerar Proposta</div>
-                        <div style="font-size:24px;font-weight:800;color:var(--green)" id="wq-stat-generate">0</div>
+                        <div style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Gerar Proposta</div>
+                        <div style="font-size: var(--text-2xl);font-weight:800;color:var(--green)" id="wq-stat-generate">0</div>
                     </div>
                     <div class="card" style="padding:14px;text-align:center">
-                        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Enviar Outreach</div>
-                        <div style="font-size:24px;font-weight:800;color:var(--lime)" id="wq-stat-send">0</div>
+                        <div style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Enviar Outreach</div>
+                        <div style="font-size: var(--text-2xl);font-weight:800;color:var(--lime)" id="wq-stat-send">0</div>
                     </div>
                     <div class="card" style="padding:14px;text-align:center">
-                        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Auditar</div>
-                        <div style="font-size:24px;font-weight:800;color:var(--blue)" id="wq-stat-audit">0</div>
+                        <div style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Auditar</div>
+                        <div style="font-size: var(--text-2xl);font-weight:800;color:var(--blue)" id="wq-stat-audit">0</div>
                     </div>
                     <div class="card" style="padding:14px;text-align:center">
-                        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Total Fila</div>
-                        <div style="font-size:24px;font-weight:800;color:var(--text)" id="wq-stat-total">0</div>
+                        <div style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Total Fila</div>
+                        <div style="font-size: var(--text-2xl);font-weight:800;color:var(--text)" id="wq-stat-total">0</div>
                     </div>
                 </div>
 
@@ -1335,7 +1335,7 @@
                             <div class="empty-state"><svg><use href="#i-database"/></svg><span>Carregando memoria...</span></div>
                         </div>
                         <div style="margin-top:12px;display:flex;gap:8px">
-                            <input type="text" id="memory-new-fact" placeholder="Adicionar novo fato..." style="flex:1;padding:8px 12px;background:var(--s3);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size:12px">
+                            <input type="text" id="memory-new-fact" placeholder="Adicionar novo fato..." style="flex:1;padding:8px 12px;background:var(--s3);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size: var(--text-xxs)">
                             <button class="btn btn-primary btn-sm" onclick="addMemoryItem('fact',document.getElementById('memory-new-fact').value)"><svg><use href="#i-plus"/></svg></button>
                         </div>
                     </div>
@@ -1360,7 +1360,7 @@
                         <div style="display:flex;align-items:center;gap:8px">
                             <svg style="width:18px;height:18px;stroke:var(--accent-l)"><use href="#i-calendar"/></svg>
                             <span class="card-title">Missoes da Semana</span>
-                            <span id="missions-count" style="font-size:11px;color:var(--text-3)"></span>
+                            <span id="missions-count" style="font-size: var(--text-xs);color:var(--text-3)"></span>
                         </div>
                         <button class="btn btn-primary btn-sm" onclick="openMissionModal()"><svg><use href="#i-plus"/></svg> Nova Missao</button>
                     </div>
@@ -1428,7 +1428,7 @@
                             <span class="li-health-badge" id="li-health-badge" title="Estado do LinkedIn (probe a cada 1-3 min)" style="display:none">
                                 <span class="status-dot" id="li-health-dot" style="width:7px;height:7px"></span>
                                 <span id="li-health-label">–</span>
-                                <span id="li-health-retry" style="color:var(--text-3);font-size:10px"></span>
+                                <span id="li-health-retry" style="color:var(--text-3);font-size: var(--text-2xs)"></span>
                             </span>
                             <span class="li-health-badge" id="li-hours-badge" title="Horário comercial configurado" style="display:none">
                                 <span class="status-dot" id="li-hours-dot" style="width:7px;height:7px"></span>
@@ -1440,7 +1440,7 @@
                             </span>
                         </div>
                         <div class="li-warmup-row" id="li-warmup-row">
-                            <span style="font-size:11px;color:var(--text-2)">Warm-up:</span>
+                            <span style="font-size: var(--text-xs);color:var(--text-2)">Warm-up:</span>
                             <div class="li-warmup-bar">
                                 <div class="li-warmup-fill" id="li-warmup-fill" style="width:0%"></div>
                             </div>
@@ -1734,7 +1734,7 @@
                         <!-- stats summary -->
                         <div id="li-log-summary" style="display:flex;gap:16px;padding:12px 16px;background:var(--s1);border-bottom:1px solid var(--border)"></div>
                         <!-- log stream -->
-                        <div id="li-log-stream" style="max-height:320px;overflow-y:auto;padding:12px 16px;font-family:monospace;font-size:12px;display:flex;flex-direction:column;gap:4px"></div>
+                        <div id="li-log-stream" style="max-height:320px;overflow-y:auto;padding:12px 16px;font-family:monospace;font-size: var(--text-xxs);display:flex;flex-direction:column;gap:4px"></div>
                         <!-- profiles list -->
                         <div id="li-log-profiles" style="max-height:200px;overflow-y:auto;padding:0 16px 12px"></div>
                     </div>
@@ -1781,7 +1781,7 @@
                             <div class="empty-state"><svg><use href="#i-clock"/></svg><span>Nenhum comando executado</span></div>
                         </div>
                         <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
-                            <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">Comandos Rapidos:</div>
+                            <div style="font-size: var(--text-xs);color:var(--text-3);margin-bottom:8px">Comandos Rapidos:</div>
                             <div style="display:flex;gap:6px;flex-wrap:wrap">
                                 <button class="btn btn-ghost btn-sm" onclick="quickClaudeCmd('status')"><svg><use href="#i-eye"/></svg> Status</button>
                                 <button class="btn btn-ghost btn-sm" onclick="quickClaudeCmd('audit pending')"><svg><use href="#i-check-square"/></svg> Auditar</button>
@@ -2066,7 +2066,7 @@
     <div id="panel-hero" style="position:relative;width:100%;height:180px;background:linear-gradient(135deg,var(--s3),var(--s4));overflow:hidden;flex-shrink:0">
         <img id="panel-hero-img" style="width:100%;height:100%;object-fit:cover;display:none" onerror="this.style.display='none'">
         <svg id="panel-hero-fallback" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;stroke:var(--text-3);opacity:0.3"><use href="#i-store"/></svg>
-        <button class="panel-close" onclick="closePanel()" style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border-radius:var(--r-xs)"><svg><use href="#i-x"/></svg></button>
+        <button class="panel-close panel-close-glass" onclick="closePanel()" style="position:absolute;top:12px;right:12px;border-radius:var(--r-xs)"><svg><use href="#i-x"/></svg></button>
     </div>
 
     <div class="panel-header" style="border-bottom:none;padding-bottom:0">
@@ -2076,10 +2076,10 @@
             </div>
             <div style="min-width:0;flex:1">
                 <div style="display:flex;align-items:center;gap:8px">
-                    <span style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="panel-name">--</span>
+                    <span style="font-size: var(--text-sm-plus);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="panel-name">--</span>
                     <button class="btn-icon" style="width:24px;height:24px;border:none" onclick="togglePanelEdit()" data-tip="Editar"><svg style="width:14px;height:14px"><use href="#i-edit"/></svg></button>
                 </div>
-                <div style="font-size:11px;color:var(--text-2)" id="panel-catcity">--</div>
+                <div style="font-size: var(--text-xs);color:var(--text-2)" id="panel-catcity">--</div>
             </div>
         </div>
     </div>
@@ -2133,28 +2133,28 @@
         <div id="panel-tab-overview">
             <div style="display:flex;flex-direction:column;gap:12px">
                 <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-                    <span style="font-size:11px;color:var(--text-3)">Endereco</span>
-                    <span style="font-size:12px;text-align:right;max-width:60%" id="panel-address">--</span>
+                    <span style="font-size: var(--text-xs);color:var(--text-3)">Endereco</span>
+                    <span style="font-size: var(--text-xxs);text-align:right;max-width:60%" id="panel-address">--</span>
                 </div>
                 <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-                    <span style="font-size:11px;color:var(--text-3)">Telefone</span>
-                    <span style="font-size:12px" id="panel-phone">--</span>
+                    <span style="font-size: var(--text-xs);color:var(--text-3)">Telefone</span>
+                    <span style="font-size: var(--text-xxs)" id="panel-phone">--</span>
                 </div>
                 <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-                    <span style="font-size:11px;color:var(--text-3)">Website</span>
-                    <span style="font-size:12px" id="panel-website">--</span>
+                    <span style="font-size: var(--text-xs);color:var(--text-3)">Website</span>
+                    <span style="font-size: var(--text-xxs)" id="panel-website">--</span>
                 </div>
                 <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-                    <span style="font-size:11px;color:var(--text-3)">Descoberto em</span>
-                    <span style="font-size:12px" id="panel-discovered">--</span>
+                    <span style="font-size: var(--text-xs);color:var(--text-3)">Descoberto em</span>
+                    <span style="font-size: var(--text-xxs)" id="panel-discovered">--</span>
                 </div>
                 <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-                    <span style="font-size:11px;color:var(--text-3)">Fonte</span>
-                    <span style="font-size:12px" id="panel-source">--</span>
+                    <span style="font-size: var(--text-xs);color:var(--text-3)">Fonte</span>
+                    <span style="font-size: var(--text-xxs)" id="panel-source">--</span>
                 </div>
                 <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-                    <span style="font-size:11px;color:var(--text-3)">Google Maps</span>
-                    <a style="font-size:12px;color:var(--blue);display:flex;align-items:center;gap:4px" id="panel-maps-link" href="#" target="_blank"><svg style="width:14px;height:14px;stroke:var(--blue)"><use href="#i-external-link"/></svg> Abrir</a>
+                    <span style="font-size: var(--text-xs);color:var(--text-3)">Google Maps</span>
+                    <a style="font-size: var(--text-xxs);color:var(--blue);display:flex;align-items:center;gap:4px" id="panel-maps-link" href="#" target="_blank"><svg style="width:14px;height:14px;stroke:var(--blue)"><use href="#i-external-link"/></svg> Abrir</a>
                 </div>
             </div>
         </div>
@@ -2197,17 +2197,17 @@
         <div class="modal-body">
             <div style="display:flex;flex-direction:column;gap:16px">
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">API URL</label>
+                    <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">API URL</label>
                     <div class="input-wrap"><svg><use href="#i-globe"/></svg><input type="text" id="config-api-url" placeholder="http://localhost:8000 ou vazio para mesma origem"></div>
-                    <span style="font-size:10px;color:var(--text-3)">Deixe vazio para usar mesma origem do dashboard</span>
+                    <span style="font-size: var(--text-2xs);color:var(--text-3)">Deixe vazio para usar mesma origem do dashboard</span>
                 </div>
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Token de Acesso</label>
+                    <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Token de Acesso</label>
                     <div class="input-wrap"><svg><use href="#i-code"/></svg><input type="password" id="config-token" placeholder="Token de autenticacao (opcional)"></div>
                 </div>
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Intervalo de Sync</label>
-                    <div style="font-size:13px;color:var(--text)">Dashboard: 30s | Scraper: 10s</div>
+                    <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Intervalo de Sync</label>
+                    <div style="font-size: var(--text-sm);color:var(--text)">Dashboard: 30s | Scraper: 10s</div>
                 </div>
             </div>
         </div>
@@ -2230,22 +2230,22 @@
         <div class="modal-body">
             <div style="display:flex;flex-direction:column;gap:16px">
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Titulo</label>
+                    <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Titulo</label>
                     <div class="input-wrap"><input type="text" id="task-title" placeholder="Titulo da tarefa"></div>
                 </div>
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Descricao</label>
-                    <textarea id="task-desc" rows="3" style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;font-size:12px;resize:vertical;color:var(--text)" placeholder="Descreva a tarefa..."></textarea>
+                    <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Descricao</label>
+                    <textarea id="task-desc" rows="3" style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;font-size: var(--text-xxs);resize:vertical;color:var(--text)" placeholder="Descreva a tarefa..."></textarea>
                 </div>
                 <div style="display:flex;gap:12px">
                     <div style="flex:1">
-                        <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Prioridade</label>
+                        <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Prioridade</label>
                         <div class="input-wrap">
                             <select id="task-priority"><option value="low">Baixa</option><option value="medium" selected>Media</option><option value="high">Alta</option></select>
                         </div>
                     </div>
                     <div style="flex:1">
-                        <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Atribuir a</label>
+                        <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Atribuir a</label>
                         <div class="input-wrap"><input type="text" id="task-assigned" placeholder="claude / manual"></div>
                     </div>
                 </div>
@@ -2276,7 +2276,7 @@
         <div class="modal-body" id="scraper-tab-manual">
             <div style="display:flex;flex-direction:column;gap:16px">
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:8px;display:block">Preset</label>
+                    <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:8px;display:block">Preset</label>
                     <div style="display:flex;gap:8px;flex-wrap:wrap">
                         <button class="btn btn-ghost btn-sm scraper-preset active" data-preset="all" onclick="scraperPreset('all')">Todas (16 cidades)</button>
                         <button class="btn btn-ghost btn-sm scraper-preset" data-preset="cuiaba" onclick="scraperPreset('cuiaba')">Apenas Cuiaba</button>
@@ -2285,7 +2285,7 @@
                     </div>
                 </div>
                 <div id="scraper-cities-section" style="display:none">
-                    <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:8px;display:block">Cidades</label>
+                    <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:8px;display:block">Cidades</label>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:200px;overflow-y:auto;padding:8px;background:var(--s1);border-radius:var(--r-sm);border:1px solid var(--border)">
                         <label class="scraper-city-check"><input type="checkbox" value="Cuiaba" checked> Cuiaba</label>
                         <label class="scraper-city-check"><input type="checkbox" value="Varzea Grande"> Varzea Grande</label>
@@ -2305,17 +2305,17 @@
                         <label class="scraper-city-check"><input type="checkbox" value="Santo Antonio de Leverger"> Sto Antonio de Leverger</label>
                     </div>
                     <div style="margin-top:6px;display:flex;gap:8px">
-                        <button class="btn btn-ghost btn-sm" onclick="scraperCitiesToggle(true)" style="font-size:10px">Selecionar Todas</button>
-                        <button class="btn btn-ghost btn-sm" onclick="scraperCitiesToggle(false)" style="font-size:10px">Limpar</button>
+                        <button class="btn btn-ghost btn-sm" onclick="scraperCitiesToggle(true)" style="font-size: var(--text-2xs)">Selecionar Todas</button>
+                        <button class="btn btn-ghost btn-sm" onclick="scraperCitiesToggle(false)" style="font-size: var(--text-2xs)">Limpar</button>
                     </div>
                 </div>
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Categorias: <span style="color:var(--text)">111 categorias</span></label>
-                    <span style="font-size:11px;color:var(--text-3)">Todas as 111 categorias serao incluidas (pet shop, restaurante, barbearia, etc)</span>
+                    <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Categorias: <span style="color:var(--text)">111 categorias</span></label>
+                    <span style="font-size: var(--text-xs);color:var(--text-3)">Todas as 111 categorias serao incluidas (pet shop, restaurante, barbearia, etc)</span>
                 </div>
                 <div id="scraper-summary" style="padding:12px;background:var(--s1);border-radius:var(--r-sm);border:1px solid var(--border)">
-                    <div style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:4px">Resumo da Tarefa</div>
-                    <div style="font-size:12px;color:var(--text)" id="scraper-summary-text">16 cidades x 111 categorias = ~1,776 buscas</div>
+                    <div style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:4px">Resumo da Tarefa</div>
+                    <div style="font-size: var(--text-xxs);color:var(--text)" id="scraper-summary-text">16 cidades x 111 categorias = ~1,776 buscas</div>
                 </div>
             </div>
         </div>
@@ -2323,8 +2323,8 @@
         <div class="modal-body" id="scraper-tab-nlp" style="display:none">
             <div style="display:flex;flex-direction:column;gap:16px">
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Descreva o que quer buscar</label>
-                    <textarea id="scraper-nl-input" rows="3" style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;font-size:13px;resize:vertical;color:var(--text);font-family:inherit" placeholder="Ex: Encontre restaurantes e bares sem site em Cuiaba e cidades proximas..."></textarea>
+                    <label style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:6px;display:block">Descreva o que quer buscar</label>
+                    <textarea id="scraper-nl-input" rows="3" style="width:100%;background:var(--s1);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;font-size: var(--text-sm);resize:vertical;color:var(--text);font-family:inherit" placeholder="Ex: Encontre restaurantes e bares sem site em Cuiaba e cidades proximas..."></textarea>
                 </div>
                 <button class="btn btn-primary" id="scraper-nl-parse-btn" onclick="parseScraperPrompt()">
                     <svg><use href="#i-lightbulb"/></svg> Interpretar com Claude
@@ -2332,19 +2332,19 @@
                 <!-- Parsed result (hidden until parsed) -->
                 <div id="scraper-nl-result" style="display:none">
                     <div style="padding:12px;background:var(--s1);border-radius:var(--r-sm);border:1px solid var(--accent);border-left:3px solid var(--accent)">
-                        <div style="font-size:11px;font-weight:600;color:var(--accent-l);margin-bottom:8px">Claude interpretou:</div>
-                        <div style="font-size:12px;color:var(--text);margin-bottom:8px" id="scraper-nl-explanation"></div>
+                        <div style="font-size: var(--text-xs);font-weight:600;color:var(--accent-l);margin-bottom:8px">Claude interpretou:</div>
+                        <div style="font-size: var(--text-xxs);color:var(--text);margin-bottom:8px" id="scraper-nl-explanation"></div>
                         <div style="display:flex;flex-direction:column;gap:6px">
-                            <div style="font-size:11px;color:var(--text-2)">Termos de busca:</div>
+                            <div style="font-size: var(--text-xs);color:var(--text-2)">Termos de busca:</div>
                             <div id="scraper-nl-terms" style="display:flex;gap:4px;flex-wrap:wrap"></div>
-                            <div style="font-size:11px;color:var(--text-2);margin-top:4px">Cidades:</div>
-                            <div id="scraper-nl-cities" style="font-size:12px;color:var(--text)"></div>
-                            <div id="scraper-nl-filter" style="font-size:11px;color:var(--amber);margin-top:4px"></div>
+                            <div style="font-size: var(--text-xs);color:var(--text-2);margin-top:4px">Cidades:</div>
+                            <div id="scraper-nl-cities" style="font-size: var(--text-xxs);color:var(--text)"></div>
+                            <div id="scraper-nl-filter" style="font-size: var(--text-xs);color:var(--amber);margin-top:4px"></div>
                         </div>
                     </div>
                     <div style="padding:10px;background:var(--s1);border-radius:var(--r-sm);margin-top:8px;border:1px solid var(--border)">
-                        <div style="font-size:11px;font-weight:600;color:var(--text-2);margin-bottom:4px">Resumo</div>
-                        <div style="font-size:12px;color:var(--text)" id="scraper-nl-summary"></div>
+                        <div style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin-bottom:4px">Resumo</div>
+                        <div style="font-size: var(--text-xxs);color:var(--text)" id="scraper-nl-summary"></div>
                     </div>
                 </div>
             </div>
@@ -2405,7 +2405,7 @@
             </button>
         </div>
         <div class="modal-body">
-            <p style="margin:0 0 12px;font-size:13px;color:var(--text-2)">
+            <p style="margin:0 0 12px;font-size: var(--text-sm);color:var(--text-2)">
                 Você está prestes a enviar <strong id="li-batch-connect-count">0</strong> solicitações de conexão.
             </p>
             <label class="li-toggle-row" style="margin-bottom:12px">
@@ -2413,7 +2413,7 @@
                 Enviar nota personalizada (IA)
             </label>
             <textarea id="li-batch-connect-template"
-                style="width:100%;height:80px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--s1);color:var(--text);font-size:12px;font-family:inherit;resize:vertical"
+                style="width:100%;height:80px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--s1);color:var(--text);font-size: var(--text-xxs);font-family:inherit;resize:vertical"
                 placeholder="Template (use {nome} e {empresa})">Olá {nome}, vi seu trabalho em {empresa} e adoraria conectar para trocar ideias. Abraço!</textarea>
         </div>
         <div class="modal-footer">
@@ -2427,7 +2427,7 @@
 <div class="page" id="page-sequences">
     <h1 class="sr-only">Sequences</h1>
     <div class="page-header">
-        <span style="font-size:18px;font-weight:700;color:var(--text-1,var(--text))">Sequences</span>
+        <span style="font-size: var(--text-lg-plus);font-weight:700;color:var(--text-1,var(--text))">Sequences</span>
         <div style="display:flex;gap:8px;align-items:center">
             <button class="btn btn-ghost btn-sm" id="seq-load-presets-btn" aria-label="Carregar templates pre-definidos B2B">
                 <svg style="width:13px;height:13px"><use href="#i-plus"/></svg> Presets B2B

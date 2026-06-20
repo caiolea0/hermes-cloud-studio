@@ -73,14 +73,14 @@
             if (!el) return;
             el.innerHTML = `
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-                    <h2 style="margin:0;font-size:15px;font-weight:700;color:var(--text-1)">A11y Audit</h2>
+                    <h2 style="margin:0;font-size: var(--text-sm-plus);font-weight:700;color:var(--text-1)">A11y Audit</h2>
                     <button type="button" class="btn btn-ghost btn-sm" id="axe-run-btn">
                         <svg style="width:13px;height:13px"><use href="#i-refresh"/></svg> Run Audit
                     </button>
                     <button type="button" class="btn btn-ghost btn-sm" id="axe-export-btn" style="display:none">
                         Export CSV
                     </button>
-                    <span id="axe-status" style="font-size:11px;color:var(--text-3)"></span>
+                    <span id="axe-status" style="font-size: var(--text-xs);color:var(--text-3)"></span>
                 </div>
                 <div id="axe-summary-table"></div>
                 <div id="axe-detail-panel" style="display:none;margin-top:16px"></div>
@@ -117,22 +117,22 @@
         _renderSummaryTable(summary, report) {
             const tbody = summary.map(r => `
                 <tr style="cursor:pointer" onclick="window.axeRunner._showDetail('${r.page}')">
-                    <td style="padding:8px 12px;font-size:12px;font-weight:500">${r.page}</td>
-                    <td style="padding:8px 12px;font-size:12px;text-align:center">
+                    <td style="padding:8px 12px;font-size: var(--text-xxs);font-weight:500">${r.page}</td>
+                    <td style="padding:8px 12px;font-size: var(--text-xxs);text-align:center">
                         <span style="color:${r.count === 0 ? 'var(--green)' : 'var(--red)'};font-weight:700">${r.count}</span>
                     </td>
-                    <td style="padding:8px 12px;font-size:11px;color:${_impactColor(r.maxImpact)}">${r.maxImpact || 'none'}</td>
+                    <td style="padding:8px 12px;font-size: var(--text-xs);color:${_impactColor(r.maxImpact)}">${r.maxImpact || 'none'}</td>
                 </tr>
             `).join('');
             const table = document.getElementById('axe-summary-table');
             if (table) {
                 table.innerHTML = `
-                    <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <table style="width:100%;border-collapse:collapse;font-size: var(--text-xxs)">
                         <thead>
                             <tr style="border-bottom:1px solid var(--border)">
-                                <th style="padding:8px 12px;text-align:left;color:var(--text-3);font-size:11px">Page</th>
-                                <th style="padding:8px 12px;text-align:center;color:var(--text-3);font-size:11px">Violations</th>
-                                <th style="padding:8px 12px;text-align:left;color:var(--text-3);font-size:11px">Max Impact</th>
+                                <th style="padding:8px 12px;text-align:left;color:var(--text-3);font-size: var(--text-xs)">Page</th>
+                                <th style="padding:8px 12px;text-align:center;color:var(--text-3);font-size: var(--text-xs)">Violations</th>
+                                <th style="padding:8px 12px;text-align:left;color:var(--text-3);font-size: var(--text-xs)">Max Impact</th>
                             </tr>
                         </thead>
                         <tbody>${tbody}</tbody>
@@ -148,23 +148,23 @@
             const violations = this._currentReport[page] || [];
             if (!violations.length) {
                 detail.style.display = '';
-                detail.innerHTML = `<div style="padding:12px;color:var(--green);font-size:12px">No violations on ${page}</div>`;
+                detail.innerHTML = `<div style="padding:12px;color:var(--green);font-size: var(--text-xxs)">No violations on ${page}</div>`;
                 return;
             }
             const rows = violations.map(v => `
                 <div style="padding:12px;border-bottom:1px solid var(--border)">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                        <span style="font-size:11px;font-weight:700;padding:2px 6px;border-radius:3px;background:${_impactBg(v.impact)};color:${_impactColor(v.impact)}">${escapeHtml(v.impact || '')}</span>
-                        <code style="font-size:11px;color:var(--text-2)">${escapeHtml(v.id || '')}</code>
-                        <a href="${/^https?:\/\//.test(v.helpUrl) ? v.helpUrl : '#'}" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent-l)">${escapeHtml(v.help || v.id || '')}</a>
+                        <span style="font-size: var(--text-xs);font-weight:700;padding:2px 6px;border-radius:3px;background:${_impactBg(v.impact)};color:${_impactColor(v.impact)}">${escapeHtml(v.impact || '')}</span>
+                        <code style="font-size: var(--text-xs);color:var(--text-2)">${escapeHtml(v.id || '')}</code>
+                        <a href="${/^https?:\/\//.test(v.helpUrl) ? v.helpUrl : '#'}" target="_blank" rel="noopener" style="font-size: var(--text-xs);color:var(--accent-l)">${escapeHtml(v.help || v.id || '')}</a>
                     </div>
-                    <div style="font-size:11px;color:var(--text-3)">${v.nodes.length} element${v.nodes.length > 1 ? 's' : ''} affected</div>
-                    ${v.nodes.slice(0, 2).map(n => `<pre style="font-size:10px;overflow:auto;max-width:100%;padding:6px;background:var(--s2);border-radius:4px;margin-top:4px">${escapeHtml(n.html)}</pre>`).join('')}
+                    <div style="font-size: var(--text-xs);color:var(--text-3)">${v.nodes.length} element${v.nodes.length > 1 ? 's' : ''} affected</div>
+                    ${v.nodes.slice(0, 2).map(n => `<pre style="font-size: var(--text-2xs);overflow:auto;max-width:100%;padding:6px;background:var(--s2);border-radius:4px;margin-top:4px">${escapeHtml(n.html)}</pre>`).join('')}
                 </div>
             `).join('');
             detail.style.display = '';
             detail.innerHTML = `
-                <h3 style="font-size:13px;font-weight:600;margin:0 0 12px;color:var(--text-1)">${page} — ${violations.length} violation${violations.length > 1 ? 's' : ''}</h3>
+                <h3 style="font-size: var(--text-sm);font-weight:600;margin:0 0 12px;color:var(--text-1)">${page} — ${violations.length} violation${violations.length > 1 ? 's' : ''}</h3>
                 ${rows}
             `;
         }

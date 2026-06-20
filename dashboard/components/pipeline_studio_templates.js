@@ -104,10 +104,10 @@
         var header = document.createElement("div");
         header.style.cssText = "margin-bottom:16px";
         var h3 = document.createElement("h3");
-        h3.style.cssText = "margin:0 0 4px;font-size:15px;font-weight:600;color:var(--text-1)";
+        h3.style.cssText = "margin:0 0 4px;font-size: var(--text-sm-plus);font-weight:600;color:var(--text-1)";
         h3.textContent = "Templates de Pipeline";
         var sub = document.createElement("p");
-        sub.style.cssText = "margin:0;font-size:12px;color:var(--text-3)";
+        sub.style.cssText = "margin:0;font-size: var(--text-xxs);color:var(--text-3)";
         sub.textContent = "Clone um template como ponto de partida e edite no Builder.";
         header.appendChild(h3);
         header.appendChild(sub);
@@ -140,7 +140,7 @@
 
             var tags = (tpl.tags || []);
             var tagsEl = document.createElement("span");
-            tagsEl.style.cssText = "font-size:10px;color:var(--text-3)";
+            tagsEl.style.cssText = "font-size: var(--text-2xs);color:var(--text-3)";
             tagsEl.textContent = tags.length ? tags.join(", ") : "";
 
             metaEl.appendChild(stepsEl);

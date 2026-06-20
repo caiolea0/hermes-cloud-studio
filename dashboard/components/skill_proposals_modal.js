@@ -396,7 +396,7 @@
                 '</header>' +
                 '<div class="sp-modal-body">' +
                     '<p class="sp-section-title">Como executar (PATH 1)</p>' +
-                    '<ol style="margin:0;padding-left:20px;font-size:12px;line-height:1.6;color:var(--text-2,#8b8b98);">' +
+                    '<ol style="margin:0;padding-left:20px;font-size: var(--text-xxs);line-height:1.6;color:var(--text-2,#8b8b98);">' +
                         '<li>Clique <strong>Copiar prompt</strong> abaixo.</li>' +
                         '<li>Abra Claude Code (PC) numa sessão.</li>' +
                         '<li>Cole o prompt e execute — o Workflow MCP roda local.</li>' +
@@ -566,7 +566,7 @@
                     '<h3 class="sp-modal-title" id="sp-verify-title">Verificar skill: ' + _escape(proposal.name || "") + '</h3>' +
                 '</header>' +
                 '<div class="sp-modal-body">' +
-                    '<p style="font-size:12px;color:var(--text-2,#8b8b98);margin:0 0 12px;">' +
+                    '<p style="font-size: var(--text-xxs);color:var(--text-2,#8b8b98);margin:0 0 12px;">' +
                         'Após verificar, F.4 auto-skill loop pode criar o PR no GitHub. ' +
                         'Selecione apenas MCPs que esta skill realmente precisa chamar.' +
                     '</p>' +

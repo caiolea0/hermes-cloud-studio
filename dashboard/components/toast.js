@@ -47,8 +47,8 @@
             }
             .hermes-toast {
                 background: var(--color-bg-2);
-                backdrop-filter: blur(16px) saturate(1.4);
-                -webkit-backdrop-filter: blur(16px) saturate(1.4);
+                backdrop-filter: var(--glass-blur-xl);
+                -webkit-backdrop-filter: var(--glass-blur-xl);
                 color: var(--color-fg);
                 border: 1px solid var(--color-border);
                 border-left: 4px solid var(--color-info);

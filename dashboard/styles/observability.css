@@ -411,7 +411,7 @@
     position: absolute;
     inset: 0;
     background: color-mix(in srgb, var(--color-bg) 70%, transparent);
-    backdrop-filter: blur(4px);
+    backdrop-filter: var(--glass-blur-xs);
 }
 
 .observability-modal-panel {

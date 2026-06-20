@@ -319,7 +319,7 @@
             '    <div class="ps-yaml-header">',
             '      <span class="ps-yaml-title">YAML Preview</span>',
             '      <button class="ps-btn ps-btn-ghost" id="ps-copy-yaml-btn" type="button"',
-            '              style="padding:4px 10px;font-size:12px"',
+            '              style="padding:4px 10px;font-size: var(--text-xxs)"',
             '              aria-label="Copiar YAML para clipboard">Copiar</button>',
             '    </div>',
             '    <pre class="ps-yaml-pre"><code id="ps-yaml-code"></code></pre>',

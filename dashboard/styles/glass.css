@@ -52,7 +52,18 @@
     }
 }
 
+/* ── Modal scrim — JS-injected overlay backdrop (blur-xs, zero visual change) ── */
+.modal-scrim {
+    background: var(--overlay-scrim);
+    backdrop-filter: var(--glass-blur-xs);
+    -webkit-backdrop-filter: var(--glass-blur-xs);
+}
+
 /* ── Light theme overrides ── */
+:root[data-theme="light"] .modal-scrim {
+    background: rgba(0, 0, 0, 0.45);
+}
+
 :root[data-theme="light"] .glass-chrome {
     background: rgb(248 248 252 / 0.82);
 }

@@ -24,7 +24,7 @@
 
 /* ─── Global base ─── */
 html {
-    font-size: 13px;
+    font-size: var(--text-sm);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;

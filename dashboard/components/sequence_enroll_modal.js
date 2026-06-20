@@ -47,9 +47,9 @@
         overlay.setAttribute("role", "dialog");
         overlay.setAttribute("aria-modal", "true");
         overlay.setAttribute("aria-labelledby", "seq-enroll-title");
+        overlay.classList.add("modal-scrim");
         overlay.style.cssText = [
             "position:fixed;inset:0;z-index:9100;display:none",
-            "background:rgba(0,0,0,.55);backdrop-filter:blur(4px)",
             "align-items:center;justify-content:center",
         ].join(";");
 

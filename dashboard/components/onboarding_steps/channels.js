@@ -72,7 +72,7 @@
                             '<div class="wiz-channel-header" role="button" tabindex="0"' +
                             ' aria-expanded="false" aria-controls="wiz-ch-body-' + ch.id + '">' +
                                 '<div class="wiz-channel-title">' +
-                                    '<span aria-hidden="true" style="font-size:11px;font-weight:700;color:var(--text-3)">' + ch.icon + '</span>' +
+                                    '<span aria-hidden="true" style="font-size: var(--text-xs);font-weight:700;color:var(--text-3)">' + ch.icon + '</span>' +
                                     ' ' + _escHtml(ch.label) +
                                 '</div>' +
                                 '<span class="wiz-channel-badge' + (isOk ? ' wiz-badge-ok' : '') + '">' +
@@ -97,10 +97,10 @@
                                     '<button class="wiz-test-btn" data-ch="' + ch.id + '">' +
                                         'Testar conexao' +
                                     '</button>' +
-                                    '<button class="btn-primary" style="font-size:13px;padding:7px 14px" data-save-ch="' + ch.id + '">' +
+                                    '<button class="btn-primary" style="font-size: var(--text-sm);padding:7px 14px" data-save-ch="' + ch.id + '">' +
                                         'Salvar' +
                                     '</button>' +
-                                    '<span class="wiz-ch-status" id="wiz-ch-status-' + ch.id + '" aria-live="polite" style="font-size:12px;color:var(--text-3)"></span>' +
+                                    '<span class="wiz-ch-status" id="wiz-ch-status-' + ch.id + '" aria-live="polite" style="font-size: var(--text-xxs);color:var(--text-3)"></span>' +
                                 '</div>' +
                             '</div>' +
                         '</div>'

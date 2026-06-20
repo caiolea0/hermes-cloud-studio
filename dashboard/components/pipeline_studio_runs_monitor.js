@@ -270,7 +270,7 @@
         wsIndicator.appendChild(wsText);
 
         var title = document.createElement("h3");
-        title.style.cssText = "margin:0;font-size:14px;font-weight:600;color:var(--text-1)";
+        title.style.cssText = "margin:0;font-size: var(--text-base);font-weight:600;color:var(--text-1)";
         title.textContent = "Execuções Ativas";
 
         header.appendChild(title);

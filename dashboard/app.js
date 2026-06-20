@@ -186,15 +186,15 @@ function showLoginScreen() {
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
         <div style="background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:40px;width:380px;text-align:center;">
-            <div style="font-size:32px;margin-bottom:8px;">H</div>
-            <h2 style="font-size:18px;font-weight:600;margin-bottom:4px;">Hermes Command Center</h2>
-            <p style="color:var(--text-2);font-size:12px;margin-bottom:24px;">Insira o token de acesso</p>
+            <div style="font-size: var(--text-3xl-alt);margin-bottom:8px;">H</div>
+            <h2 style="font-size: var(--text-lg-plus);font-weight:600;margin-bottom:4px;">Hermes Command Center</h2>
+            <p style="color:var(--text-2);font-size: var(--text-xxs);margin-bottom:24px;">Insira o token de acesso</p>
             <input id="login-token" type="password" placeholder="Token de acesso"
-                style="width:100%;padding:10px 14px;background:var(--s3);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size:13px;margin-bottom:16px;">
-            <button id="login-btn" style="width:100%;padding:10px;background:var(--accent);color:white;border-radius:var(--r-sm);font-weight:600;font-size:13px;cursor:pointer;">
+                style="width:100%;padding:10px 14px;background:var(--s3);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-size: var(--text-sm);margin-bottom:16px;">
+            <button id="login-btn" style="width:100%;padding:10px;background:var(--accent);color:white;border-radius:var(--r-sm);font-weight:600;font-size: var(--text-sm);cursor:pointer;">
                 Entrar
             </button>
-            <p id="login-error" style="color:var(--red);font-size:11px;margin-top:12px;display:none;"></p>
+            <p id="login-error" style="color:var(--red);font-size: var(--text-xs);margin-top:12px;display:none;"></p>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -1120,7 +1120,7 @@ async function loadDashboardActivities() {
             const icon = a.type === 'scraper' ? '#i-search' : a.type === 'audit' ? '#i-check-square' : a.type === 'outreach' ? '#i-send' : '#i-clock';
             return `<div class="list-row" style="cursor:default;padding:8px 12px">
                 <svg style="width:16px;height:16px;stroke:var(--text-3);flex-shrink:0"><use href="${icon}"/></svg>
-                <div style="flex:1;min-width:0"><div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.description || a.message || a.title || '--')}</div><div style="font-size:10px;color:var(--text-3)">${formatDate(a.created_at || a.timestamp)} ${formatTime(a.created_at || a.timestamp)}</div></div>
+                <div style="flex:1;min-width:0"><div style="font-size: var(--text-xxs);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.description || a.message || a.title || '--')}</div><div style="font-size: var(--text-2xs);color:var(--text-3)">${formatDate(a.created_at || a.timestamp)} ${formatTime(a.created_at || a.timestamp)}</div></div>
             </div>`;
         }).join('');
     } catch { document.getElementById('dash-activities').innerHTML = '<div class="empty-state"><svg><use href="#i-clock"/></svg><span>Erro ao carregar atividades</span></div>'; }
@@ -1134,7 +1134,7 @@ async function loadDashboardTopProspects() {
         if (!items.length) { c.innerHTML = '<div class="empty-state"><svg><use href="#i-users"/></svg><span>Nenhum prospect com score alto</span></div>'; return; }
         c.innerHTML = items.map(p => `<button type="button" class="list-row" style="padding:8px 12px" onclick="openProspectPanel('${p.id}')" aria-label="Abrir ${escapeHtml(p.name || p.business_name)}">
             <div class="photo-thumb">${p.photo_ref ? `<img src="${photoUrl(p.photo_ref)}" onerror="this.parentElement.innerHTML='<svg><use href=\\'#i-store\\'/></svg>'">` : `<svg><use href="#i-store"/></svg>`}</div>
-            <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name || p.business_name)}</div><div style="font-size:10px;color:var(--text-3)">${escapeHtml(p.category || '')} - ${escapeHtml(p.city || '')}</div></div>
+            <div style="flex:1;min-width:0"><div style="font-size: var(--text-xxs);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name || p.business_name)}</div><div style="font-size: var(--text-2xs);color:var(--text-3)">${escapeHtml(p.category || '')} - ${escapeHtml(p.city || '')}</div></div>
             <span class="score-badge ${scoreClass(p.score)}">${p.score ?? '--'}</span>
         </button>`).join('');
     } catch { document.getElementById('dash-top-prospects').innerHTML = '<div class="empty-state"><svg><use href="#i-users"/></svg><span>Erro ao carregar</span></div>'; }
@@ -1149,7 +1149,7 @@ async function loadDashboardTasks() {
         if (!items.length) { c.innerHTML = '<div class="empty-state" style="padding:24px"><svg><use href="#i-check-square"/></svg><span>Nenhuma tarefa pendente</span></div>'; return; }
         c.innerHTML = items.map(t => `<div class="list-row" style="padding:8px 12px;cursor:default">
             <svg style="width:14px;height:14px;stroke:var(--amber);flex-shrink:0"><use href="#i-clock"/></svg>
-            <div style="flex:1;min-width:0"><div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</div></div>
+            <div style="flex:1;min-width:0"><div style="font-size: var(--text-xxs);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.title)}</div></div>
         </div>`).join('');
     } catch { /* silent */ }
 }
@@ -1211,11 +1211,11 @@ async function refreshHermesLive() {
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                         <div style="display:flex;align-items:center;gap:8px">
                             <svg style="width:14px;height:14px;stroke:${typeColor}"><use href="${typeIcon}"/></svg>
-                            <span style="font-size:12px;font-weight:600;color:var(--text-1)">${escapeHtml(ex.pipeline_name || 'Pipeline #' + ex.id)}</span>
+                            <span style="font-size: var(--text-xxs);font-weight:600;color:var(--text-1)">${escapeHtml(ex.pipeline_name || 'Pipeline #' + ex.id)}</span>
                         </div>
-                        <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--r-xs);background:rgba(209,254,23,0.12);color:var(--lime)">${ex.status}</span>
+                        <span style="font-size: var(--text-2xs);font-weight:600;padding:2px 8px;border-radius:var(--r-xs);background:rgba(209,254,23,0.12);color:var(--lime)">${ex.status}</span>
                     </div>
-                    <div style="display:flex;gap:16px;font-size:11px;color:var(--text-3);margin-bottom:8px">
+                    <div style="display:flex;gap:16px;font-size: var(--text-xs);color:var(--text-3);margin-bottom:8px">
                         <span>${ex.processed_items || 0}/${ex.total_items || '?'} itens</span>
                         <span>${pct}%</span>
                         <span>${ex.started_at ? new Date(ex.started_at).toLocaleTimeString() : '--'}</span>
@@ -1262,11 +1262,11 @@ async function refreshHermesLive() {
                         <div style="display:flex;justify-content:space-between;align-items:center">
                             <div style="display:flex;align-items:center;gap:8px">
                                 <svg style="width:14px;height:14px;stroke:${statusColor}"><use href="${typeIcon}"/></svg>
-                                <span style="font-size:12px;font-weight:500;color:var(--text-2)">${escapeHtml(ex.pipeline_name || '')}</span>
+                                <span style="font-size: var(--text-xxs);font-weight:500;color:var(--text-2)">${escapeHtml(ex.pipeline_name || '')}</span>
                             </div>
                             <div style="display:flex;align-items:center;gap:8px">
-                                <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--r-xs);background:${ex.status === 'completed' ? 'rgba(52,211,153,0.12)' : 'rgba(251,113,133,0.12)'};color:${statusColor}">${ex.status}</span>
-                                <span style="font-size:10px;color:var(--text-3)">${ex.completed_at ? new Date(ex.completed_at).toLocaleTimeString() : ''}</span>
+                                <span style="font-size: var(--text-2xs);font-weight:600;padding:2px 8px;border-radius:var(--r-xs);background:${ex.status === 'completed' ? 'rgba(52,211,153,0.12)' : 'rgba(251,113,133,0.12)'};color:${statusColor}">${ex.status}</span>
+                                <span style="font-size: var(--text-2xs);color:var(--text-3)">${ex.completed_at ? new Date(ex.completed_at).toLocaleTimeString() : ''}</span>
                             </div>
                         </div>
                     </div>`;
@@ -1626,12 +1626,12 @@ async function loadProspects() {
             tbody.innerHTML = items.map(p => `<tr style="border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''" onclick="openProspectPanel('${p.id}')">
                 <td style="padding:8px 8px 8px 16px" onclick="event.stopPropagation()"><input type="checkbox" class="bulk-check" data-id="${p.id}" onchange="toggleBulkItem(${p.id},this.checked)" style="accent-color:var(--accent);width:14px;height:14px;cursor:pointer"></td>
                 <td style="padding:8px"><div class="photo-thumb">${p.photo_ref ? `<img src="${photoUrl(p.photo_ref)}" onerror="this.parentElement.innerHTML='<svg><use href=\\'#i-store\\'/></svg>'">` : `<svg><use href="#i-store"/></svg>`}</div></td>
-                <td style="padding:8px"><div style="font-size:12px;font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name || p.business_name)}</div></td>
-                <td style="padding:8px"><span style="font-size:11px;color:var(--text-2)">${escapeHtml(p.category || '--')}</span></td>
-                <td style="padding:8px"><span style="font-size:11px;color:var(--text-2)">${escapeHtml(p.city || '--')}</span></td>
+                <td style="padding:8px"><div style="font-size: var(--text-xxs);font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name || p.business_name)}</div></td>
+                <td style="padding:8px"><span style="font-size: var(--text-xs);color:var(--text-2)">${escapeHtml(p.category || '--')}</span></td>
+                <td style="padding:8px"><span style="font-size: var(--text-xs);color:var(--text-2)">${escapeHtml(p.city || '--')}</span></td>
                 <td style="padding:8px;text-align:center"><span class="score-badge ${scoreClass(p.score)}">${p.score ?? '--'}</span></td>
                 <td style="padding:8px">${stageBadge(p.stage)}</td>
-                <td style="padding:8px"><span style="font-size:11px;color:var(--text-2)">${escapeHtml(p.phone || '--')}</span></td>
+                <td style="padding:8px"><span style="font-size: var(--text-xs);color:var(--text-2)">${escapeHtml(p.phone || '--')}</span></td>
                 <td style="padding:8px 16px;text-align:right" onclick="event.stopPropagation()">
                     <div style="display:flex;gap:4px;justify-content:flex-end">
                         ${p.phone ? `<button class="btn-icon" title="WhatsApp" onclick="window.open('https://wa.me/${(p.phone||'').replace(/\\D/g,'')}','_blank')"><svg><use href="#i-message-circle"/></svg></button>` : ''}
@@ -1783,15 +1783,15 @@ async function openProspectPanel(id) {
             auditEl.innerHTML = `
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
                     <div style="background:var(--s3);border-radius:var(--r-sm);padding:10px;text-align:center">
-                        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Website</div>
+                        <div style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Website</div>
                         <svg style="width:20px;height:20px;stroke:${hasWebsite ? 'var(--green)' : 'var(--red)'}"><use href="${hasWebsite ? '#i-check' : '#i-x'}"/></svg>
                     </div>
                     <div style="background:var(--s3);border-radius:var(--r-sm);padding:10px;text-align:center">
-                        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Score</div>
-                        <span class="score-badge ${scoreClass(p.score)}" style="font-size:14px;width:auto;padding:2px 10px">${p.score ?? '--'}</span>
+                        <div style="font-size: var(--text-2xs);color:var(--text-3);text-transform:uppercase;margin-bottom:4px">Score</div>
+                        <span class="score-badge ${scoreClass(p.score)}" style="font-size: var(--text-base);width:auto;padding:2px 10px">${p.score ?? '--'}</span>
                     </div>
                 </div>
-                <div style="font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--text-2);background:var(--s3);border-radius:var(--r-sm);padding:12px;max-height:200px;overflow-y:auto">${escapeHtml(a)}</div>`;
+                <div style="font-size: var(--text-xxs);line-height:1.7;white-space:pre-wrap;color:var(--text-2);background:var(--s3);border-radius:var(--r-sm);padding:12px;max-height:200px;overflow-y:auto">${escapeHtml(a)}</div>`;
         } else {
             auditEl.innerHTML = '<div class="empty-state"><svg><use href="#i-check-square"/></svg><span>Nenhum dado de auditoria disponivel</span></div>';
         }
@@ -1801,7 +1801,7 @@ async function openProspectPanel(id) {
         const msg = p.outreach_message || p.message;
         if (msg) {
             outreachEl.innerHTML = `<div style="background:var(--s3);border-radius:var(--r-sm);padding:14px;margin-bottom:12px">
-                <div style="font-size:12px;line-height:1.6;white-space:pre-wrap;color:var(--text-2)">${escapeHtml(msg)}</div>
+                <div style="font-size: var(--text-xxs);line-height:1.6;white-space:pre-wrap;color:var(--text-2)">${escapeHtml(msg)}</div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn btn-ghost btn-sm" onclick="copyOutreach()"><svg><use href="#i-copy"/></svg> Copiar</button>
@@ -1830,9 +1830,9 @@ async function openProspectPanel(id) {
                         <svg style="width:16px;height:16px;stroke:var(--text-2)"><use href="#i-${a.type === 'audit' ? 'clipboard' : a.type === 'outreach' ? 'send' : a.type === 'scraping' ? 'search' : 'clock'}"/></svg>
                     </div>
                     <div style="flex:1;min-width:0">
-                        <div style="font-size:12px;font-weight:600">${escapeHtml(a.title || a.type)}</div>
-                        ${a.description ? `<div style="font-size:11px;color:var(--text-2);margin-top:2px">${escapeHtml(a.description)}</div>` : ''}
-                        <div style="font-size:10px;color:var(--text-3);margin-top:4px">${formatDate(a.created_at)} ${formatTime(a.created_at)}</div>
+                        <div style="font-size: var(--text-xxs);font-weight:600">${escapeHtml(a.title || a.type)}</div>
+                        ${a.description ? `<div style="font-size: var(--text-xs);color:var(--text-2);margin-top:2px">${escapeHtml(a.description)}</div>` : ''}
+                        <div style="font-size: var(--text-2xs);color:var(--text-3);margin-top:4px">${formatDate(a.created_at)} ${formatTime(a.created_at)}</div>
                     </div>
                 </div>`).join('');
             }
@@ -1960,7 +1960,7 @@ async function requestStrategy() {
         if (result.strategy || result.data) {
             const auditEl = document.getElementById('panel-audit-content');
             const content = result.strategy || result.data;
-            auditEl.innerHTML = `<div style="font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--text-2)">${escapeHtml(typeof content === 'string' ? content : JSON.stringify(content, null, 2))}</div>`;
+            auditEl.innerHTML = `<div style="font-size: var(--text-xxs);line-height:1.7;white-space:pre-wrap;color:var(--text-2)">${escapeHtml(typeof content === 'string' ? content : JSON.stringify(content, null, 2))}</div>`;
             switchPanelTab('audit', document.querySelectorAll('.slide-panel .tab-btn')[1]);
         }
     } catch (e) { toast('Erro: ' + e.message, 'error'); }
@@ -2019,16 +2019,16 @@ function renderProposals() {
             <div class="photo-large">${p.photo_ref ? `<img src="${photoUrl(p.photo_ref)}" onerror="this.parentElement.innerHTML='<svg><use href=\\'#i-store\\'/></svg>'">` : `<svg><use href="#i-store"/></svg>`}</div>
             <div style="padding:16px">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
-                    <div style="font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${escapeHtml(p.name || p.business_name)}</div>
+                    <div style="font-size: var(--text-sm-plus);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${escapeHtml(p.name || p.business_name)}</div>
                     <span class="score-badge ${scoreClass(p.score)}">${p.score ?? '--'}</span>
                 </div>
-                <div style="font-size:11px;color:var(--text-2);margin-bottom:10px">${escapeHtml(p.category || '')} - ${escapeHtml(p.city || '')}</div>
+                <div style="font-size: var(--text-xs);color:var(--text-2);margin-bottom:10px">${escapeHtml(p.category || '')} - ${escapeHtml(p.city || '')}</div>
                 <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
                     ${hasWebsite ? '<span class="badge badge-blue">Com site</span>' : '<span class="badge badge-amber">Sem site</span>'}
                     ${stageBadge(p.stage)}
                     ${isSent ? '<span class="badge badge-green">Enviado</span>' : ''}
                 </div>
-                ${msg ? `<details style="margin-bottom:12px"><summary style="font-size:11px;color:var(--text-2);cursor:pointer;margin-bottom:6px">Ver mensagem</summary><div style="font-size:12px;color:var(--text-2);line-height:1.5;background:var(--s3);border-radius:var(--r-sm);padding:10px;max-height:150px;overflow-y:auto;white-space:pre-wrap">${escapeHtml(msg)}</div></details>` : ''}
+                ${msg ? `<details style="margin-bottom:12px"><summary style="font-size: var(--text-xs);color:var(--text-2);cursor:pointer;margin-bottom:6px">Ver mensagem</summary><div style="font-size: var(--text-xxs);color:var(--text-2);line-height:1.5;background:var(--s3);border-radius:var(--r-sm);padding:10px;max-height:150px;overflow-y:auto;white-space:pre-wrap">${escapeHtml(msg)}</div></details>` : ''}
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
                     ${msg ? `<button class="btn btn-ghost btn-sm" onclick="copyText('${p.id}')"><svg><use href="#i-copy"/></svg> Copiar</button>` : ''}
                     ${p.phone ? `<button class="btn btn-ghost btn-sm" onclick="window.open('https://wa.me/${(p.phone||'').replace(/\\D/g,'')}${msg ? '?text=' + encodeURIComponent(msg) : ''}','_blank')"><svg><use href="#i-send"/></svg> WhatsApp</button>` : ''}
@@ -2220,14 +2220,14 @@ async function loadAuditResults() {
             const stageColors = {discovered:'var(--text-3)',qualified:'var(--lime)',audited:'var(--blue)',outreach:'var(--green)',converted:'var(--accent-l)'};
 
             return `<tr style="border-bottom:1px solid var(--border);transition:background 0.15s" onmouseover="this.style.background='var(--s3)'" onmouseout="this.style.background=''">
-                <td style="padding:8px 16px;font-size:12px;font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.business_name || p.name)}</td>
-                <td style="padding:8px;font-size:11px;color:var(--text-2)">${escapeHtml(p.category || '--')}</td>
+                <td style="padding:8px 16px;font-size: var(--text-xxs);font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.business_name || p.name)}</td>
+                <td style="padding:8px;font-size: var(--text-xs);color:var(--text-2)">${escapeHtml(p.category || '--')}</td>
                 <td style="padding:8px;text-align:center"><span style="color:var(--${hasWebsite ? 'green' : 'red'})">${hasWebsite ? '<svg style="width:14px;height:14px"><use href="#i-check"/></svg>' : '<svg style="width:14px;height:14px"><use href="#i-x"/></svg>'}</span></td>
                 <td style="padding:8px;text-align:center"><span style="color:var(--${hasSSL ? 'green' : 'red'})">${hasSSL ? '<svg style="width:14px;height:14px"><use href="#i-check"/></svg>' : '<svg style="width:14px;height:14px"><use href="#i-x"/></svg>'}</span></td>
                 <td style="padding:8px;text-align:center"><span style="color:var(--${hasMobile ? 'green' : 'amber'})">${hasMobile ? '<svg style="width:14px;height:14px"><use href="#i-check"/></svg>' : '<svg style="width:14px;height:14px"><use href="#i-x"/></svg>'}</span></td>
-                <td style="padding:8px;text-align:center"><span class="badge" style="background:var(--${scoreColor}-dim);color:var(--${scoreColor});font-size:11px;font-weight:700">${p.score}</span></td>
-                <td style="padding:8px"><span class="badge" style="background:rgba(255,255,255,0.06);color:${stageColors[p.stage] || 'var(--text-2)'};font-size:10px">${p.stage}</span></td>
-                <td style="padding:8px;font-size:11px;color:var(--text-2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${issues.join(', ') || '<span style="color:var(--green)">Nenhum</span>'}</td>
+                <td style="padding:8px;text-align:center"><span class="badge" style="background:var(--${scoreColor}-dim);color:var(--${scoreColor});font-size: var(--text-xs);font-weight:700">${p.score}</span></td>
+                <td style="padding:8px"><span class="badge" style="background:rgba(255,255,255,0.06);color:${stageColors[p.stage] || 'var(--text-2)'};font-size: var(--text-2xs)">${p.stage}</span></td>
+                <td style="padding:8px;font-size: var(--text-xs);color:var(--text-2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${issues.join(', ') || '<span style="color:var(--green)">Nenhum</span>'}</td>
             </tr>`;
         }).join('');
     } catch { /* silent */ }
@@ -2283,7 +2283,7 @@ async function loadPipeline() {
             const sched = p.schedule_config || {};
             const schedText = sched.repeat === 'daily' ? 'Diario' : sched.repeat === 'weekdays' ? 'Dias uteis' : sched.repeat === 'weekly' ? 'Semanal' : sched.repeat === 'custom' ? (sched.days||[]).join(', ') : 'Uma vez';
             const lastExec = p.last_execution;
-            const statusBadge = lastExec ? `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--r-xs);background:${lastExec.status === 'completed' ? 'rgba(52,211,153,0.12)' : lastExec.status === 'running' ? 'rgba(209,254,23,0.12)' : 'rgba(251,113,133,0.12)'};color:${lastExec.status === 'completed' ? 'var(--green)' : lastExec.status === 'running' ? 'var(--lime)' : 'var(--pink)'}">${lastExec.status}</span>` : '';
+            const statusBadge = lastExec ? `<span style="font-size: var(--text-2xs);font-weight:600;padding:2px 8px;border-radius:var(--r-xs);background:${lastExec.status === 'completed' ? 'rgba(52,211,153,0.12)' : lastExec.status === 'running' ? 'rgba(209,254,23,0.12)' : 'rgba(251,113,133,0.12)'};color:${lastExec.status === 'completed' ? 'var(--green)' : lastExec.status === 'running' ? 'var(--lime)' : 'var(--pink)'}">${lastExec.status}</span>` : '';
             return `<div class="card pipeline-card" style="cursor:default;position:relative;overflow:hidden" data-pipeline-id="${p.id}">
                 <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${meta.color};opacity:0.6"></div>
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;padding-top:6px">
@@ -2292,8 +2292,8 @@ async function loadPipeline() {
                             <svg style="width:18px;height:18px;stroke:${meta.color}"><use href="${meta.icon}"/></svg>
                         </div>
                         <div>
-                            <div style="font-size:14px;font-weight:600;color:var(--text-1)">${escapeHtml(p.name)}</div>
-                            <div style="font-size:11px;color:var(--text-3)">${meta.label} ${statusBadge}</div>
+                            <div style="font-size: var(--text-base);font-weight:600;color:var(--text-1)">${escapeHtml(p.name)}</div>
+                            <div style="font-size: var(--text-xs);color:var(--text-3)">${meta.label} ${statusBadge}</div>
                         </div>
                     </div>
                     <div style="display:flex;gap:4px">
@@ -2301,9 +2301,9 @@ async function loadPipeline() {
                         <button class="btn btn-ghost btn-sm" onclick="deletePipeline(${p.id})" data-tip="Excluir"><svg><use href="#i-trash"/></svg></button>
                     </div>
                 </div>
-                ${p.description ? `<div style="font-size:12px;color:var(--text-2);margin-bottom:12px;line-height:1.5">${escapeHtml(p.description)}</div>` : ''}
-                ${p.prompt ? `<div style="font-size:11px;color:var(--text-3);background:var(--s2);border-radius:var(--r-xs);padding:8px 10px;margin-bottom:12px;max-height:60px;overflow:hidden;line-height:1.4">${escapeHtml(p.prompt.substring(0, 150))}${p.prompt.length > 150 ? '...' : ''}</div>` : ''}
-                <div style="display:flex;gap:12px;font-size:11px;color:var(--text-3);margin-bottom:14px;flex-wrap:wrap">
+                ${p.description ? `<div style="font-size: var(--text-xxs);color:var(--text-2);margin-bottom:12px;line-height:1.5">${escapeHtml(p.description)}</div>` : ''}
+                ${p.prompt ? `<div style="font-size: var(--text-xs);color:var(--text-3);background:var(--s2);border-radius:var(--r-xs);padding:8px 10px;margin-bottom:12px;max-height:60px;overflow:hidden;line-height:1.4">${escapeHtml(p.prompt.substring(0, 150))}${p.prompt.length > 150 ? '...' : ''}</div>` : ''}
+                <div style="display:flex;gap:12px;font-size: var(--text-xs);color:var(--text-3);margin-bottom:14px;flex-wrap:wrap">
                     <span style="display:flex;align-items:center;gap:4px"><svg style="width:12px;height:12px"><use href="#i-clock"/></svg> ${sched.time || '--:--'}</span>
                     <span style="display:flex;align-items:center;gap:4px"><svg style="width:12px;height:12px"><use href="#i-repeat"/></svg> ${schedText}</span>
                     <span style="display:flex;align-items:center;gap:4px"><svg style="width:12px;height:12px"><use href="#i-zap"/></svg> ${p.total_runs || 0} runs</span>
@@ -2406,7 +2406,7 @@ function renderTargetFields(type, existing) {
         `;
     } else {
         container.innerHTML = `<div class="input-wrap" style="grid-column:1/-1"><label>Parametros JSON (opcional)</label>
-            <textarea id="pl-t-custom" rows="3" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-1);padding:8px;font-size:11px;font-family:monospace;resize:vertical">${JSON.stringify(data, null, 2)}</textarea>
+            <textarea id="pl-t-custom" rows="3" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-1);padding:8px;font-size: var(--text-xs);font-family:monospace;resize:vertical">${JSON.stringify(data, null, 2)}</textarea>
         </div>`;
     }
 }
@@ -2593,27 +2593,27 @@ async function refreshPipelineLive() {
                                 <svg style="width:16px;height:16px;stroke:${meta.color}"><use href="${meta.icon}"/></svg>
                             </div>
                             <div>
-                                <div style="font-size:13px;font-weight:600;color:var(--text-1)">${escapeHtml(ex.pipeline_name || 'Pipeline')}</div>
-                                <div style="font-size:10px;color:var(--text-3)">${meta.label} · Iniciado ${ex.started_at ? new Date(ex.started_at).toLocaleTimeString() : '--'}</div>
+                                <div style="font-size: var(--text-sm);font-weight:600;color:var(--text-1)">${escapeHtml(ex.pipeline_name || 'Pipeline')}</div>
+                                <div style="font-size: var(--text-2xs);color:var(--text-3)">${meta.label} · Iniciado ${ex.started_at ? new Date(ex.started_at).toLocaleTimeString() : '--'}</div>
                             </div>
                         </div>
                         <div style="display:flex;align-items:center;gap:8px">
-                            <span style="font-size:12px;font-weight:700;color:var(--lime);font-family:monospace">${emm}:${ess}</span>
-                            <span style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:var(--r-xs);background:rgba(209,254,23,0.12);color:var(--lime);text-transform:uppercase">${ex.status}</span>
+                            <span style="font-size: var(--text-xxs);font-weight:700;color:var(--lime);font-family:monospace">${emm}:${ess}</span>
+                            <span style="font-size: var(--text-2xs);font-weight:600;padding:3px 10px;border-radius:var(--r-xs);background:rgba(209,254,23,0.12);color:var(--lime);text-transform:uppercase">${ex.status}</span>
                         </div>
                     </div>
                     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
                         <div style="background:var(--s3);border-radius:var(--r-xs);padding:8px;text-align:center">
-                            <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;font-weight:600">Processados</div>
-                            <div style="font-size:16px;font-weight:700;color:var(--lime)">${ex.processed_items || 0}</div>
+                            <div style="font-size: var(--text-3xs);color:var(--text-3);text-transform:uppercase;font-weight:600">Processados</div>
+                            <div style="font-size: var(--text-lg);font-weight:700;color:var(--lime)">${ex.processed_items || 0}</div>
                         </div>
                         <div style="background:var(--s3);border-radius:var(--r-xs);padding:8px;text-align:center">
-                            <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;font-weight:600">Total</div>
-                            <div style="font-size:16px;font-weight:700;color:var(--text-1)">${ex.total_items || '?'}</div>
+                            <div style="font-size: var(--text-3xs);color:var(--text-3);text-transform:uppercase;font-weight:600">Total</div>
+                            <div style="font-size: var(--text-lg);font-weight:700;color:var(--text-1)">${ex.total_items || '?'}</div>
                         </div>
                         <div style="background:var(--s3);border-radius:var(--r-xs);padding:8px;text-align:center">
-                            <div style="font-size:9px;color:var(--text-3);text-transform:uppercase;font-weight:600">Progresso</div>
-                            <div style="font-size:16px;font-weight:700;color:var(--accent-l)">${pct}%</div>
+                            <div style="font-size: var(--text-3xs);color:var(--text-3);text-transform:uppercase;font-weight:600">Progresso</div>
+                            <div style="font-size: var(--text-lg);font-weight:700;color:var(--accent-l)">${pct}%</div>
                         </div>
                     </div>
                     <div style="height:4px;background:var(--s3);border-radius:2px;overflow:hidden">
@@ -2666,15 +2666,15 @@ async function refreshPipelineLive() {
                         <div style="display:flex;justify-content:space-between;align-items:center">
                             <div style="display:flex;align-items:center;gap:10px">
                                 <svg style="width:14px;height:14px;stroke:${statusColor}" aria-hidden="true"><use href="${meta.icon}"/></svg>
-                                <span style="font-size:12px;font-weight:500;color:var(--text-2)">${escapeHtml(ex.pipeline_name || '')}</span>
+                                <span style="font-size: var(--text-xxs);font-weight:500;color:var(--text-2)">${escapeHtml(ex.pipeline_name || '')}</span>
                             </div>
                             <div style="display:flex;align-items:center;gap:8px">
-                                <span style="font-size:10px;color:var(--text-3);font-family:monospace">${dmm}:${dss}</span>
-                                <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:var(--r-xs);background:${statusBg};color:${statusColor}">${ex.status}</span>
-                                <span style="font-size:10px;color:var(--text-3)">${ex.completed_at ? new Date(ex.completed_at).toLocaleTimeString() : ''}</span>
+                                <span style="font-size: var(--text-2xs);color:var(--text-3);font-family:monospace">${dmm}:${dss}</span>
+                                <span style="font-size: var(--text-2xs);font-weight:600;padding:2px 8px;border-radius:var(--r-xs);background:${statusBg};color:${statusColor}">${ex.status}</span>
+                                <span style="font-size: var(--text-2xs);color:var(--text-3)">${ex.completed_at ? new Date(ex.completed_at).toLocaleTimeString() : ''}</span>
                             </div>
                         </div>
-                        ${logs.length ? `<div style="font-size:10px;color:var(--text-3);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(logs[logs.length-1].msg.substring(0,100))}</div>` : ''}
+                        ${logs.length ? `<div style="font-size: var(--text-2xs);color:var(--text-3);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(logs[logs.length-1].msg.substring(0,100))}</div>` : ''}
                     </button>`;
                 }).join('');
 
@@ -2734,7 +2734,7 @@ function renderLinkedInResults(r, exec) {
                 <svg style="width:18px;height:18px;stroke:var(--accent-l)"><use href="#i-linkedin"/></svg>
                 Perfis Visitados
             </div>
-            <span style="font-size:11px;color:var(--text-3)">${exec.completed_at ? new Date(exec.completed_at).toLocaleString('pt-BR') : ''}</span>
+            <span style="font-size: var(--text-xs);color:var(--text-3)">${exec.completed_at ? new Date(exec.completed_at).toLocaleString('pt-BR') : ''}</span>
         </div>
 
         <div class="pl-results-stats">
@@ -2807,7 +2807,7 @@ function renderProfileCards(profiles) {
             </div>
             <svg style="width:14px;height:14px;stroke:var(--text-3);flex-shrink:0;align-self:center"><use href="#i-external-link"/></svg>
         </a>`;
-    }).join('') + (filtered.length > 100 ? `<div style="padding:12px;text-align:center;font-size:11px;color:var(--text-3);grid-column:1/-1">Mostrando 100 de ${filtered.length} perfis</div>` : '');
+    }).join('') + (filtered.length > 100 ? `<div style="padding:12px;text-align:center;font-size: var(--text-xs);color:var(--text-3);grid-column:1/-1">Mostrando 100 de ${filtered.length} perfis</div>` : '');
 }
 
 function filterProfiles(role) {
@@ -2851,7 +2851,7 @@ function renderGenericResults(r, exec) {
                 `<div class="pl-rstat"><div class="pl-rstat-value" style="color:var(--text-1)">${r[k]}</div><div class="pl-rstat-label">${escapeHtml(k.replace(/_/g,' '))}</div></div>`
             ).join('')}
         </div>
-        ${typeof r === 'object' ? `<pre style="background:var(--s2);border-radius:var(--r-sm);padding:12px;font-size:11px;color:var(--text-2);max-height:200px;overflow:auto;white-space:pre-wrap">${escapeHtml(JSON.stringify(r, null, 2).substring(0, 2000))}</pre>` : ''}
+        ${typeof r === 'object' ? `<pre style="background:var(--s2);border-radius:var(--r-sm);padding:12px;font-size: var(--text-xs);color:var(--text-2);max-height:200px;overflow:auto;white-space:pre-wrap">${escapeHtml(JSON.stringify(r, null, 2).substring(0, 2000))}</pre>` : ''}
     </div>`;
 }
 
@@ -2925,15 +2925,15 @@ function renderHistoryRow(e, pipelineName) {
         <div style="width:8px;height:8px;border-radius:50%;background:${statusColor};flex-shrink:0" aria-hidden="true"></div>
         <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:12px;color:var(--text-1);font-weight:600">${escapeHtml(name)}</span>
-                <span style="font-size:10px;color:var(--text-3)">#${e.id}</span>
-                <span style="font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;background:${statusBg};color:${statusColor}">${e.status}</span>
+                <span style="font-size: var(--text-xxs);color:var(--text-1);font-weight:600">${escapeHtml(name)}</span>
+                <span style="font-size: var(--text-2xs);color:var(--text-3)">#${e.id}</span>
+                <span style="font-size: var(--text-3xs);font-weight:600;padding:2px 6px;border-radius:3px;background:${statusBg};color:${statusColor}">${e.status}</span>
             </div>
-            <div style="font-size:11px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">${escapeHtml(lastLog.substring(0, 100))}</div>
+            <div style="font-size: var(--text-xs);color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">${escapeHtml(lastLog.substring(0, 100))}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:11px;color:var(--text-2);font-family:monospace">${dmm}:${dss}</div>
-            <div style="font-size:10px;color:var(--text-3)">${e.started_at ? new Date(e.started_at).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--'}</div>
+            <div style="font-size: var(--text-xs);color:var(--text-2);font-family:monospace">${dmm}:${dss}</div>
+            <div style="font-size: var(--text-2xs);color:var(--text-3)">${e.started_at ? new Date(e.started_at).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '--'}</div>
         </div>
     </button>`;
 }
@@ -3041,14 +3041,14 @@ function renderWorkQueue() {
             ${hasPhoto ? `<img class="wq-photo" src="${photoUrl(p.photo_ref)}" onerror="this.style.display='none'" alt="">` : ''}
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
                 <div style="min-width:0;flex:1">
-                    <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.business_name || p.name)}</div>
-                    <div style="font-size:11px;color:var(--text-2);margin-top:2px">${escapeHtml(p.category || '')} · ${escapeHtml(p.city || '')}</div>
+                    <div style="font-size: var(--text-sm);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.business_name || p.name)}</div>
+                    <div style="font-size: var(--text-xs);color:var(--text-2);margin-top:2px">${escapeHtml(p.category || '')} · ${escapeHtml(p.city || '')}</div>
                 </div>
-                <span class="badge" style="background:var(--${color}-dim);color:var(--${color});font-size:10px;white-space:nowrap;flex-shrink:0">
+                <span class="badge" style="background:var(--${color}-dim);color:var(--${color});font-size: var(--text-2xs);white-space:nowrap;flex-shrink:0">
                     <svg style="width:12px;height:12px"><use href="${icon}"/></svg> ${escapeHtml(p.action_label)}
                 </span>
             </div>
-            <div style="font-size:11px;color:var(--text-2);margin-bottom:12px">${escapeHtml(p.reason)}</div>
+            <div style="font-size: var(--text-xs);color:var(--text-2);margin-bottom:12px">${escapeHtml(p.reason)}</div>
             <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
                 ${p.google_rating ? `<span class="badge badge-ghost"><svg style="width:12px;height:12px;stroke:var(--amber)"><use href="#i-star"/></svg> ${p.google_rating}/5</span>` : ''}
                 ${p.google_reviews ? `<span class="badge badge-ghost">${p.google_reviews} reviews</span>` : ''}
@@ -3190,7 +3190,7 @@ function renderMarkdownTerminal(text) {
     for (const line of lines) {
         if (line.startsWith('```')) {
             if (inCodeBlock) {
-                html += `<div class="log-line" style="background:var(--s3);border-radius:var(--r-sm);padding:8px 12px;margin:4px 0;font-family:monospace;font-size:11px;white-space:pre-wrap;border-left:3px solid var(--lime)">${codeLines.map(l => escapeHtml(l)).join('\n')}</div>`;
+                html += `<div class="log-line" style="background:var(--s3);border-radius:var(--r-sm);padding:8px 12px;margin:4px 0;font-family:monospace;font-size: var(--text-xs);white-space:pre-wrap;border-left:3px solid var(--lime)">${codeLines.map(l => escapeHtml(l)).join('\n')}</div>`;
                 codeLines = [];
                 inCodeBlock = false;
             } else {
@@ -3202,11 +3202,11 @@ function renderMarkdownTerminal(text) {
         if (inCodeBlock) { codeLines.push(line); continue; }
         // Headers
         if (line.startsWith('### ')) {
-            html += `<div class="log-line" style="color:var(--accent-l);font-weight:700;font-size:12px;margin-top:6px">${escapeHtml(line.slice(4))}</div>`;
+            html += `<div class="log-line" style="color:var(--accent-l);font-weight:700;font-size: var(--text-xxs);margin-top:6px">${escapeHtml(line.slice(4))}</div>`;
         } else if (line.startsWith('## ')) {
-            html += `<div class="log-line" style="color:var(--lime);font-weight:700;font-size:13px;margin-top:8px">${escapeHtml(line.slice(3))}</div>`;
+            html += `<div class="log-line" style="color:var(--lime);font-weight:700;font-size: var(--text-sm);margin-top:8px">${escapeHtml(line.slice(3))}</div>`;
         } else if (line.startsWith('# ')) {
-            html += `<div class="log-line" style="color:var(--lime);font-weight:800;font-size:14px;margin-top:8px">${escapeHtml(line.slice(2))}</div>`;
+            html += `<div class="log-line" style="color:var(--lime);font-weight:800;font-size: var(--text-base);margin-top:8px">${escapeHtml(line.slice(2))}</div>`;
         } else if (line.startsWith('- ') || line.startsWith('* ')) {
             html += `<div class="log-line" style="padding-left:12px"><span style="color:var(--lime);margin-right:6px">•</span>${formatInline(line.slice(2))}</div>`;
         } else if (/^\d+\.\s/.test(line)) {
@@ -3219,7 +3219,7 @@ function renderMarkdownTerminal(text) {
         }
     }
     if (inCodeBlock && codeLines.length) {
-        html += `<div class="log-line" style="background:var(--s3);border-radius:var(--r-sm);padding:8px 12px;margin:4px 0;font-family:monospace;font-size:11px;white-space:pre-wrap;border-left:3px solid var(--lime)">${codeLines.map(l => escapeHtml(l)).join('\n')}</div>`;
+        html += `<div class="log-line" style="background:var(--s3);border-radius:var(--r-sm);padding:8px 12px;margin:4px 0;font-family:monospace;font-size: var(--text-xs);white-space:pre-wrap;border-left:3px solid var(--lime)">${codeLines.map(l => escapeHtml(l)).join('\n')}</div>`;
     }
     // MERGED-019: defesa em profundidade — sanitize final antes do innerHTML.
     return sanitizeClaudeHtml(html);
@@ -3227,7 +3227,7 @@ function renderMarkdownTerminal(text) {
 
 function formatInline(text) {
     const html = escapeHtml(text)
-        .replace(/`([^`]+)`/g, '<code style="background:var(--s3);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--lime)">$1</code>')
+        .replace(/`([^`]+)`/g, '<code style="background:var(--s3);padding:1px 5px;border-radius:3px;font-size: var(--text-xs);color:var(--lime)">$1</code>')
         .replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--text);font-weight:700">$1</strong>')
         .replace(/\*([^*]+)\*/g, '<em style="color:var(--text-2)">$1</em>');
     return sanitizeClaudeHtml(html);
@@ -3257,7 +3257,7 @@ async function sendClaudeCommand() {
         const providerLabel = provider === 'agent_zero' ? 'Agent Zero' : provider === 'claude_cli' ? 'Claude CLI' : provider;
         const providerColor = provider === 'agent_zero' ? 'var(--accent-l)' : 'var(--lime)';
         const text = result.output || result.result || JSON.stringify(result, null, 2);
-        output.innerHTML += `<div class="log-line" style="color:var(--text-3)"><span class="log-time">${now()}</span><span style="background:${providerColor};color:var(--bg);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600">${providerLabel}</span></div>`;
+        output.innerHTML += `<div class="log-line" style="color:var(--text-3)"><span class="log-time">${now()}</span><span style="background:${providerColor};color:var(--bg);padding:1px 6px;border-radius:3px;font-size: var(--text-2xs);font-weight:600">${providerLabel}</span></div>`;
         output.innerHTML += renderMarkdownTerminal(text);
     } catch (e) {
         output.querySelector('.typing-indicator')?.remove();
@@ -3279,7 +3279,7 @@ function renderClaudeHistory() {
     }
     c.innerHTML = claudeHistory.slice(0, 20).map(h => `<button type="button" class="list-row" style="padding:6px 12px" onclick="document.getElementById('claude-input').value='${escapeHtml(h.cmd)}';document.getElementById('claude-input').focus()" aria-label="Reutilizar comando: ${escapeHtml(h.cmd)}">
         <svg style="width:14px;height:14px;stroke:var(--text-3);flex-shrink:0" aria-hidden="true"><use href="#i-chevron-right"/></svg>
-        <div style="flex:1;min-width:0"><div style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(h.cmd)}</div><div style="font-size:10px;color:var(--text-3)">${formatDate(h.time)} ${formatTime(h.time)}</div></div>
+        <div style="flex:1;min-width:0"><div style="font-size: var(--text-xxs);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(h.cmd)}</div><div style="font-size: var(--text-2xs);color:var(--text-3)">${formatDate(h.time)} ${formatTime(h.time)}</div></div>
     </button>`).join('');
 }
 
@@ -3586,8 +3586,8 @@ async function loadSkills() {
             <div class="card" style="padding:14px;border:1px solid ${s.active ? 'var(--lime)' : 'var(--border)'}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
                     <div>
-                        <div style="font-size:13px;font-weight:700;color:var(--text)">${s.name}</div>
-                        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${s.description || ''}</div>
+                        <div style="font-size: var(--text-sm);font-weight:700;color:var(--text)">${s.name}</div>
+                        <div style="font-size: var(--text-xs);color:var(--text-3);margin-top:2px">${s.description || ''}</div>
                     </div>
                     <label class="toggle-switch" style="cursor:pointer">
                         <input type="checkbox" ${s.active ? 'checked' : ''} onchange="toggleSkill('${s.name}', this.checked)" style="display:none">
@@ -3647,15 +3647,15 @@ async function loadMemory() {
 
         factsEl.innerHTML = facts.length ? facts.map(f => `
             <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--s3);border-radius:var(--r-sm)">
-                <span style="flex:1;font-size:12px;color:var(--text)">${f.content}</span>
+                <span style="flex:1;font-size: var(--text-xxs);color:var(--text)">${f.content}</span>
                 <button class="btn-icon" onclick="deleteMemoryItem('${f.id}')" style="opacity:0.5"><svg style="width:14px;height:14px"><use href="#i-x"/></svg></button>
             </div>
         `).join('') : '<div class="empty-state"><svg><use href="#i-database"/></svg><span>Nenhum fato salvo</span></div>';
 
         prefsEl.innerHTML = [...prefs, ...patterns].length ? [...prefs, ...patterns].map(p => `
             <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--s3);border-radius:var(--r-sm)">
-                <span class="badge ${p.type === 'preference' ? 'badge-blue' : 'badge-accent'}" style="font-size:9px">${p.type || 'pattern'}</span>
-                <span style="flex:1;font-size:12px;color:var(--text)">${p.content}</span>
+                <span class="badge ${p.type === 'preference' ? 'badge-blue' : 'badge-accent'}" style="font-size: var(--text-3xs)">${p.type || 'pattern'}</span>
+                <span style="flex:1;font-size: var(--text-xxs);color:var(--text)">${p.content}</span>
                 <button class="btn-icon" onclick="deleteMemoryItem('${p.id}')" style="opacity:0.5"><svg style="width:14px;height:14px"><use href="#i-x"/></svg></button>
             </div>
         `).join('') : '<div class="empty-state"><svg><use href="#i-user"/></svg><span>Nenhuma preferencia salva</span></div>';
@@ -3705,14 +3705,14 @@ async function loadMissions() {
             const dayMissions = scheduled.filter(p => (p.schedule_config.days || []).includes(d));
             return `
                 <div style="min-height:200px">
-                    <div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${dayNames[i]}</div>
+                    <div style="font-size: var(--text-2xs);font-weight:700;color:var(--text-3);text-transform:uppercase;text-align:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${dayNames[i]}</div>
                     ${dayMissions.length ? dayMissions.map(m => `
                         <div style="padding:8px;background:var(--s3);border-radius:var(--r-sm);margin-bottom:6px;border-left:3px solid var(--accent-l)">
-                            <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:4px">${m.name || m.type}</div>
-                            <span class="${typeColors[m.type] || 'badge-ghost'} badge" style="font-size:9px">${m.type}</span>
-                            ${m.schedule_config.time ? `<span style="font-size:9px;color:var(--text-3);margin-left:4px">${m.schedule_config.time}</span>` : ''}
+                            <div style="font-size: var(--text-xs);font-weight:600;color:var(--text);margin-bottom:4px">${m.name || m.type}</div>
+                            <span class="${typeColors[m.type] || 'badge-ghost'} badge" style="font-size: var(--text-3xs)">${m.type}</span>
+                            ${m.schedule_config.time ? `<span style="font-size: var(--text-3xs);color:var(--text-3);margin-left:4px">${m.schedule_config.time}</span>` : ''}
                         </div>
-                    `).join('') : '<div style="font-size:10px;color:var(--text-3);text-align:center;padding:20px 0">—</div>'}
+                    `).join('') : '<div style="font-size: var(--text-2xs);color:var(--text-3);text-align:center;padding:20px 0">—</div>'}
                 </div>
             `;
         }).join('');
@@ -3938,8 +3938,8 @@ function updateChannelCard(event) {
     if (event.status === 'not_configured' || event.health === null || event.health === undefined) {
         health.innerHTML = Array.from({length: 5}, () =>
             `<span class="dot-off">●</span>`
-        ).join('') + '<span style="font-size:10px;color:var(--text-3);margin-left:4px">n/c</span>' +
-        '<a href="javascript:void(0)" onclick="navigate(\'skills\')" style="font-size:10px;color:var(--accent);margin-left:6px;text-decoration:none" title="Configurar canal">Configurar</a>';
+        ).join('') + '<span style="font-size: var(--text-2xs);color:var(--text-3);margin-left:4px">n/c</span>' +
+        '<a href="javascript:void(0)" onclick="navigate(\'skills\')" style="font-size: var(--text-2xs);color:var(--accent);margin-left:6px;text-decoration:none" title="Configurar canal">Configurar</a>';
     } else {
         const h = event.health;
         const dots = Math.round(h * 5);
@@ -3997,7 +3997,7 @@ async function loadDaemonDecisions() {
     try {
         const data = await api('/api/daemon/decisions');
         if (!data || !data.length) {
-            document.getElementById('decisions-list').innerHTML = '<div style="font-size:11px;color:var(--text-3);padding:12px;text-align:center">Nenhuma decisao registrada</div>';
+            document.getElementById('decisions-list').innerHTML = '<div style="font-size: var(--text-xs);color:var(--text-3);padding:12px;text-align:center">Nenhuma decisao registrada</div>';
             return;
         }
         const _di = typeof window.icon === 'function' ? window.icon : () => '';
@@ -4029,7 +4029,7 @@ async function loadDaemonFeed() {
     try {
         const data = await api('/api/daemon/log?limit=30');
         if (!data || !data.length) {
-            document.getElementById('feed-list').innerHTML = '<div style="font-size:11px;color:var(--text-3);padding:20px;text-align:center">Nenhum evento registrado</div>';
+            document.getElementById('feed-list').innerHTML = '<div style="font-size: var(--text-xs);color:var(--text-3);padding:20px;text-align:center">Nenhum evento registrado</div>';
             return;
         }
         document.getElementById('feed-list').innerHTML = data
@@ -5105,11 +5105,11 @@ function _renderLiCampaignDetail(c) {
         const showTech = friendly !== c.error;
         content += `<div class="li-campaign-error-msg">
             ${typeof window.icon === 'function' ? window.icon('alert-triangle', {size:14}) : '⚠'} ${escapeHtml(friendly)}
-            ${showTech ? `<details style="margin-top:6px;font-size:11px;opacity:.6">
+            ${showTech ? `<details style="margin-top:6px;font-size: var(--text-xs);opacity:.6">
                 <summary style="cursor:pointer">Ver erro técnico</summary>
                 <code style="display:block;white-space:pre-wrap;padding:6px;background:rgba(0,0,0,.2);border-radius:4px;margin-top:4px">${escapeHtml(c.error)}</code>
             </details>` : ''}
-            <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:11px"
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size: var(--text-xs)"
                 onclick="liDismissError(${c.id})" title="Dismiss error — permite sync sobrescrever estado">
                 Dismiss error
             </button>
@@ -5129,15 +5129,15 @@ function _renderLiCampaignDetail(c) {
         const targetMs = target.getTime();
         content += `<div class="li-campaign-error-msg li-scheduled-banner" data-target-ms="${targetMs}" data-cid="${c.id}"
                          style="background:rgba(59,130,246,.1);color:#3b82f6;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <span style="font-size:14px">📅</span>
+            <span style="font-size: var(--text-base)">📅</span>
             <div style="flex:1;min-width:200px">
-                <div style="font-weight:600;font-size:13px">Agendada — iniciará em
+                <div style="font-weight:600;font-size: var(--text-sm)">Agendada — iniciará em
                     <span class="li-sched-countdown" style="font-variant-numeric:tabular-nums">calculando…</span>
                 </div>
-                <div style="font-size:11px;opacity:.85;margin-top:2px">
+                <div style="font-size: var(--text-xs);opacity:.85;margin-top:2px">
                     ${escapeHtml(c.schedule_reason || 'Aguardando condições')}
                 </div>
-                <div style="font-size:10px;opacity:.6;margin-top:1px">
+                <div style="font-size: var(--text-2xs);opacity:.6;margin-top:1px">
                     Data: ${target.toLocaleString('pt-BR')}
                 </div>
             </div>
@@ -5429,17 +5429,17 @@ function _renderLiProfileRow(p, source, campaignId) {
         <td>
             <div class="li-company-cell">
                 ${p.company_logo ? `<img class="li-company-logo" src="${p.company_logo}" alt="" loading="lazy" onerror="this.outerHTML='<span class=&quot;li-company-logo-fallback&quot;>&#8226;</span>'">` : '<span class="li-company-logo-fallback">·</span>'}
-                <span style="font-size:12px;color:var(--text-2)">${escapeHtml(p.current_company||'')}</span>
+                <span style="font-size: var(--text-xxs);color:var(--text-2)">${escapeHtml(p.current_company||'')}</span>
             </div>
         </td>
-        <td style="font-size:12px;color:var(--text-2)">${escapeHtml(p.location||'–')}</td>
+        <td style="font-size: var(--text-xxs);color:var(--text-2)">${escapeHtml(p.location||'–')}</td>
         <td>
             <span class="li-mutual-badge">
                 <svg style="width:11px;height:11px"><use href="#i-users"/></svg>
                 ${p.mutual_count || 0}
             </span>
         </td>
-        <td style="font-size:11px;color:var(--text-3)">${visitedAt}</td>
+        <td style="font-size: var(--text-xs);color:var(--text-3)">${visitedAt}</td>
         <td>
             <a class="li-profile-link-btn" href="${p.profile_url}" target="_blank" rel="noopener" title="Abrir no LinkedIn">
                 <svg style="width:13px;height:13px"><use href="#i-external-link"/></svg>
@@ -5613,16 +5613,16 @@ function _renderLiConnectRow(p, campaignId) {
         <td>
             <div class="li-company-cell">
                 ${p.company_logo ? `<img class="li-company-logo" src="${p.company_logo}" alt="" loading="lazy">` : ''}
-                <span style="font-size:12px;color:var(--text-2)">${escapeHtml(p.current_company||'')}</span>
+                <span style="font-size: var(--text-xxs);color:var(--text-2)">${escapeHtml(p.current_company||'')}</span>
             </div>
         </td>
         <td><span class="li-status-pill ${p.status}">${statusLabels[p.status] || p.status}</span></td>
         <td>
             ${p.note_sent ? `<span class="li-note-cell"><svg><use href="#i-message-circle"/></svg>
                 <span class="li-note-tooltip">${escapeHtml(p.note_sent)}</span>
-            </span>` : '<span style="color:var(--text-3);font-size:11px">—</span>'}
+            </span>` : '<span style="color:var(--text-3);font-size: var(--text-xs)">—</span>'}
         </td>
-        <td style="font-size:11px;color:var(--text-3)">${p.sent_at ? _liFmtTime(p.sent_at) : '–'}</td>
+        <td style="font-size: var(--text-xs);color:var(--text-3)">${p.sent_at ? _liFmtTime(p.sent_at) : '–'}</td>
         <td>
             <a class="li-profile-link-btn" href="${p.profile_url}" target="_blank" rel="noopener" title="Abrir no LinkedIn">
                 <svg style="width:13px;height:13px"><use href="#i-external-link"/></svg>
@@ -5656,7 +5656,7 @@ function _renderLiDiscoverCampaign(c) {
                     <div class="li-discover-company-count">${profiles.length} ${profiles.length === 1 ? 'recrutador encontrado' : 'recrutadores encontrados'}</div>
                 </div>
                 <div class="li-discover-company-actions">
-                    <label class="li-toggle-row" style="font-size:11px;color:var(--text-2)">
+                    <label class="li-toggle-row" style="font-size: var(--text-xs);color:var(--text-2)">
                         <input type="checkbox" class="li-check" ${allSelected ? 'checked' : ''} onchange="liSelectAllInCompany(this, ${c.id}, '${escapeHtml(companyName)}')">
                         Selecionar todos
                     </label>
@@ -5804,12 +5804,12 @@ function liEditComment(campaignId, postId) {
     _liCommentAction = { type: 'edit', campaignId, postId };
     document.getElementById('li-comment-modal-title').textContent = 'Editar Comentário';
     document.getElementById('li-comment-modal-body').innerHTML = `
-        <p style="font-size:13px;color:var(--text-2);margin:0 0 10px">
+        <p style="font-size: var(--text-sm);color:var(--text-2);margin:0 0 10px">
             <strong>Funcionalidade em desenvolvimento</strong> — o endpoint da VM para edição de comentários está em construção.
             O frontend já está pronto.
         </p>
-        <label style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Comentário atual</label>
-        <textarea style="width:100%;height:80px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--s1);color:var(--text);font-size:13px;font-family:inherit;resize:vertical;margin-top:4px" id="li-comment-edit-text">${escapeHtml(po.comment_generated)}</textarea>
+        <label style="font-size: var(--text-xs);color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Comentário atual</label>
+        <textarea style="width:100%;height:80px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--s1);color:var(--text);font-size: var(--text-sm);font-family:inherit;resize:vertical;margin-top:4px" id="li-comment-edit-text">${escapeHtml(po.comment_generated)}</textarea>
     `;
     document.getElementById('li-comment-modal-confirm').textContent = 'Salvar (placeholder)';
     document.getElementById('li-comment-modal').style.display = 'flex';
@@ -5819,10 +5819,10 @@ function liDeleteComment(campaignId, postId) {
     _liCommentAction = { type: 'delete', campaignId, postId };
     document.getElementById('li-comment-modal-title').textContent = 'Excluir Comentário';
     document.getElementById('li-comment-modal-body').innerHTML = `
-        <p style="font-size:13px;color:var(--text-2);margin:0">
+        <p style="font-size: var(--text-sm);color:var(--text-2);margin:0">
             <strong>Funcionalidade em desenvolvimento</strong> — o endpoint da VM para exclusão de comentários está em construção.
         </p>
-        <p style="font-size:13px;color:var(--text-2);margin:10px 0 0">
+        <p style="font-size: var(--text-sm);color:var(--text-2);margin:10px 0 0">
             Quando ativo, isso vai navegar até o post no LinkedIn (via Patchright stealth) e remover o comentário.
         </p>
     `;
@@ -6092,10 +6092,10 @@ function _renderLiLog(data) {
         const showRaw = isErr && friendly !== raw;
         return `<div style="display:flex;gap:8px;align-items:flex-start">
             <span style="color:var(--text-3);flex-shrink:0;width:52px">${time}</span>
-            <span style="color:${color};flex-shrink:0;width:80px;font-size:11px">[${entry.phase||'info'}]</span>
+            <span style="color:${color};flex-shrink:0;width:80px;font-size: var(--text-xs)">[${entry.phase||'info'}]</span>
             <span style="color:var(--text);flex:1">
                 ${escapeHtml(friendly)}
-                ${showRaw ? `<details style="margin-top:4px;opacity:.55;font-size:10px">
+                ${showRaw ? `<details style="margin-top:4px;opacity:.55;font-size: var(--text-2xs)">
                     <summary style="cursor:pointer">técnico</summary>
                     <code style="display:block;white-space:pre-wrap;padding:4px;background:rgba(0,0,0,.2);border-radius:3px">${escapeHtml(raw)}</code>
                 </details>` : ''}
@@ -6114,18 +6114,18 @@ function _renderLiLog(data) {
         if (r.connections_sent != null) items.push(`<strong>${r.connections_sent}</strong> conexões enviadas`);
         if (r.found != null) items.push(`<strong>${r.found}</strong> perfis encontrados`);
         summary.innerHTML = items.map(i =>
-            `<div style="background:var(--s2);border-radius:6px;padding:6px 12px;font-size:12px;color:var(--text)">${i}</div>`
+            `<div style="background:var(--s2);border-radius:6px;padding:6px 12px;font-size: var(--text-xxs);color:var(--text)">${i}</div>`
         ).join('');
 
         // profiles list
         const profileList = r.profiles || r.connections || r.engagements || [];
         if (profileList.length) {
-            profiles.innerHTML = `<div style="font-size:11px;font-weight:600;color:var(--text-2);margin:8px 0 6px">Perfis</div>` +
+            profiles.innerHTML = `<div style="font-size: var(--text-xs);font-weight:600;color:var(--text-2);margin:8px 0 6px">Perfis</div>` +
                 profileList.slice(0, 50).map(p => `
                     <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
                         <div style="flex:1;min-width:0">
-                            <div style="font-size:12px;color:var(--text);font-weight:500">${escapeHtml(p.name || p.author || '–')}</div>
-                            <div style="font-size:11px;color:var(--text-2)">${escapeHtml(p.title || p.comment_text || p.post_url || '')}</div>
+                            <div style="font-size: var(--text-xxs);color:var(--text);font-weight:500">${escapeHtml(p.name || p.author || '–')}</div>
+                            <div style="font-size: var(--text-xs);color:var(--text-2)">${escapeHtml(p.title || p.comment_text || p.post_url || '')}</div>
                         </div>
                         ${p.url ? `<a href="${p.url}" target="_blank" class="btn btn-ghost btn-sm" style="padding:3px 6px">
                             <svg style="width:11px;height:11px"><use href="#i-external-link"/></svg>

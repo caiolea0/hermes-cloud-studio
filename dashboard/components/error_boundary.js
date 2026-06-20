@@ -9,8 +9,8 @@
                     <use href="#i-alert-triangle"/>
                 </svg>
                 <div>
-                    <h3 style="font-size:13px;font-weight:700;color:var(--text-1);margin:0 0 4px">Componente ${_esc(name)} falhou</h3>
-                    <p style="font-size:12px;color:var(--text-3);margin:0 0 8px">Erro inesperado ao renderizar este painel.</p>
+                    <h3 style="font-size: var(--text-sm);font-weight:700;color:var(--text-1);margin:0 0 4px">Componente ${_esc(name)} falhou</h3>
+                    <p style="font-size: var(--text-xxs);color:var(--text-3);margin:0 0 8px">Erro inesperado ao renderizar este painel.</p>
                     <button type="button" class="btn btn-ghost btn-sm" onclick="location.reload()">Recarregar</button>
                 </div>
             </div>
