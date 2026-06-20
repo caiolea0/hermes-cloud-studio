@@ -145,9 +145,9 @@ Cobaia Day 14 can proceed **without** completing these. Recommended ordering:
 - **Fix**: 9 orphan tokens added (--text-3xs→--text-3xl-alt) + 7 --glass-blur-* vars + 2 overlay-bg tokens. Python script replaced 664 font-size:Xpx → var(--text-TOKEN) across 14 files. 16 logical backdrop-filter migrated: CSS files use var(--glass-blur-*); JS overlay divs use .modal-scrim class; panel-close HTML uses .panel-close-glass class. 6 new tests. 535 pytest PASS, BLACKLIST R2 INTACTO 73 SS. frontend-ux-reviewer PASS-WITH-NOTES 0 BLOCKERs.
 - **Note**: emoji→icon() portion deferred (out of scope for PA-F4). Zero visual change (Opção A). All token values exact to original px.
 
-### PA-F5 — Test debt + dead code (hygiene)
+### ✅ PA-F5 — Test debt + dead code (hygiene) — **RESOLVED commit a9cf0d1 2026-06-19**
 - **Scope**: Test daemon run() loop + brain queue-stats/list_intents; remove `"stub":True` cargo-cult; dedupe indices; triage orphan endpoints.
-- **Effort**: 3-4h
+- **Fix**: `cobaia_intent.py` stub:True REMOVED (dead field, orchestrator never reads args key). `hermes-skills/server.py` stub:True KEPT with descriptive comment (semantic LLM metadata, not cargo-cult). `orchestrator.py` dup indices documented (idempotent, safe). Orphan endpoints (/brain/decide /brain/replay /brain/intents /templates/render DELETE /sequences) all documented with caller context — none removed. New tests: `test_pa_f5_cleanup.py` +8 (run_forever x2, list_intents, stub triage x2, dup index x2, orphan triage). 543 pytest PASS, BLACKLIST R2 INTACTO 74 SS. **PA-F1..F5 100% COMPLETE.**
 - **Cobaia-blocking?**: **No**.
 
 ---
