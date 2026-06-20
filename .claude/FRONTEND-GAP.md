@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-19 23:42 UTC
+- **last_updated**: 2026-06-20 00:29 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 239 (189 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 141 (60.3% of public)
@@ -110,14 +110,14 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1528` | token |
 | `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:701` | token |
 | `POST` | `/api/channels/configure` | pc | `api/onboarding.py:131` | token |
-| `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:427` | token |
-| `POST` | `/api/cobaia/verify-email` | pc | `api/cobaia.py:751` | token |
+| `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:425` | token |
+| `POST` | `/api/cobaia/verify-email` | pc | `api/cobaia.py:749` | token |
 | `POST` | `/api/icp/profile` | pc | `api/icp.py:85` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | pc | `api/linkedin.py:411` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1216` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | pc | `api/linkedin.py:399` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | vm | `vm_api/routes.py:1107` | token |
-| `POST` | `/api/linkedin/cobaia/today-queue/{item_id}/skip` | pc | `api/cobaia.py:821` | token |
+| `POST` | `/api/linkedin/cobaia/today-queue/{item_id}/skip` | pc | `api/cobaia.py:819` | token |
 | `POST` | `/api/linkedin/connection/refresh` | pc | `api/linkedin.py:483` | token |
 | `POST` | `/api/linkedin/connection/refresh` | vm | `vm_api/routes.py:1708` | token |
 | `POST` | `/api/linkedin/detect-account-type` | pc | `api/linkedin.py:463` | token |
@@ -137,7 +137,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/prospects/{prospect_id}/outreach` | vm | `vm_api/routes.py:738` | token |
 | `DELETE` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:199` | token |
 | `PUT` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:169` | token |
-| `POST` | `/api/sequences/{seq_id}/dry-run` | pc | `api/sequences.py:322` | token |
+| `POST` | `/api/sequences/{seq_id}/dry-run` | pc | `api/sequences.py:329` | token |
 | `POST` | `/api/sequences/{seq_id}/enroll` | pc | `api/sequences.py:250` | token |
 | `POST` | `/api/server/restart-all` | pc | `api/server_ctrl.py:80` | rate-limited |
 | `POST` | `/api/server/restart-local` | pc | `api/server_ctrl.py:22` | rate-limited |
@@ -159,14 +159,14 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/` | pc | `api/dashboard.py:14` | token |
 | `GET` | `/api/_ping` | vm | `hermes_api_v2.py:157` | token |
 | `GET` | `/api/channels/{channel}/test` | pc | `api/onboarding.py:146` | token |
-| `GET` | `/api/cobaia/autotune-history` | pc | `api/cobaia.py:369` | token |
-| `GET` | `/api/cobaia/autotune-status` | pc | `api/cobaia.py:401` | token |
-| `GET` | `/api/cobaia/bug-export` | pc | `api/cobaia.py:268` | token |
-| `GET` | `/api/cobaia/f7-report` | pc | `api/cobaia.py:635` | token |
-| `GET` | `/api/cobaia/health-score` | pc | `api/cobaia.py:296` | token |
-| `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:777` | token |
-| `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:496` | token |
-| `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:353` | token |
+| `GET` | `/api/cobaia/autotune-history` | pc | `api/cobaia.py:367` | token |
+| `GET` | `/api/cobaia/autotune-status` | pc | `api/cobaia.py:399` | token |
+| `GET` | `/api/cobaia/bug-export` | pc | `api/cobaia.py:266` | token |
+| `GET` | `/api/cobaia/f7-report` | pc | `api/cobaia.py:633` | token |
+| `GET` | `/api/cobaia/health-score` | pc | `api/cobaia.py:294` | token |
+| `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:775` | token |
+| `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:494` | token |
+| `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:351` | token |
 | `GET` | `/api/icp/presets` | pc | `api/icp.py:92` | token |
 | `GET` | `/api/icp/profile` | pc | `api/icp.py:78` | token |
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:457` | token |
@@ -244,11 +244,11 @@ Endpoints que F.2 deve consumir com canais WS dedicados:
 
 ### WS events backend vs handlers `dashboard/app.js`
 
-- Handlers no frontend: 18 (activity, alert, audit_done, channel_update, daemon_state, decision, error, final, linkedin_campaign_created, linkedin_campaign_done, linkedin_health, linkedin_progress, pipeline_progress, reply_received, scraper_update, string, sync, thought)
+- Handlers no frontend: 17 (activity, alert, audit_done, channel_update, daemon_state, decision, error, final, linkedin_campaign_created, linkedin_campaign_done, linkedin_health, linkedin_progress, pipeline_progress, reply_received, scraper_update, sync, thought)
 - Broadcasts no backend: 10 (activity, channel_update, daemon_state, decision, linkedin_account_type_updated, linkedin_campaign_created, linkedin_health, linkedin_progress, linkedin_session_rotated, sync)
 - ✅ Matched (emitido + handler): activity, channel_update, daemon_state, decision, linkedin_campaign_created, linkedin_health, linkedin_progress, sync
 - ⚠️ Orphan broadcasts (emitido sem handler): linkedin_account_type_updated, linkedin_session_rotated
-- 🪦 Dead handlers (handler sem emitter local): alert, audit_done, error, final, linkedin_campaign_done, pipeline_progress, reply_received, scraper_update, string, thought
+- 🪦 Dead handlers (handler sem emitter local): alert, audit_done, error, final, linkedin_campaign_done, pipeline_progress, reply_received, scraper_update, thought
 
 ---
 

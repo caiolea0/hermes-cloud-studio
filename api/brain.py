@@ -107,7 +107,7 @@ async def _emit_ws_event(event_type: str, payload: dict[str, Any]) -> None:
     try:
         # Lazy import — evita circular core.state ↔ api.brain
         from core.state import ws_manager
-        await ws_manager.broadcast({"type": event_type, **payload})
+        await ws_manager.broadcast({"event_type": event_type, **payload})
     except Exception:  # noqa: BLE001 — WS non-critical
         from core.sentry_via_gateway import capture_exception as _sentry_capture
         _sentry_capture(requester="brain-core")
@@ -171,7 +171,7 @@ async def stream_decide(body: BrainStreamRequest, bg: BackgroundTasks) -> Stream
             from core.state import ws_manager
             intent_resolved = last_event.get("intent", body.intent_hint or "answer_owner")
             await ws_manager.broadcast({
-                "type": "brain.ai_query_used",
+                "event_type": "brain.ai_query_used",
                 "prompt_length": len(body.prompt),
                 "intent": intent_resolved,
                 "status": last_event.get("status", "unknown") if last_event.get("type") == "final" else "incomplete",

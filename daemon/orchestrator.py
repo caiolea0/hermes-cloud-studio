@@ -1065,6 +1065,8 @@ class HermesDaemon:
             )
             conn.commit()
             logger.debug("[advance_enrollment] id=%s → node=%s at %s", enrollment_id, next_node["id"], next_at_str)
+            # PA-F2 ITEM 2B — real-time cobaia queue refresh after step advance
+            await self._broadcast({"event_type": "cobaia.queue_updated", "reason": "advance", "enrollment_id": enrollment_id})
         finally:
             conn.close()
 

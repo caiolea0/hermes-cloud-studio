@@ -65,11 +65,9 @@ def _ws_emit(event_type: str, data: dict):
     try:
         from core.state import ws_manager
         import asyncio
-        import json
-        payload = json.dumps({"type": event_type, **data})
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            asyncio.ensure_future(ws_manager.broadcast(payload))
+            asyncio.ensure_future(ws_manager.broadcast({"event_type": event_type, **data}))
     except Exception:
         pass  # WS emit is best-effort
 
@@ -839,4 +837,6 @@ async def cobaia_today_queue_skip(item_id: int):
         logger.debug("cobaia today-queue skip id=%s: %s (table likely missing)", item_id, exc)
 
     _sentry_breadcrumb("cobaia.queue_skip", {"item_id": item_id})
+    # PA-F2 ITEM 2C — real-time today-queue refresh after skip
+    _ws_emit("cobaia.queue_updated", {"reason": "skip", "item_id": item_id})
     return {"ok": True, "id": item_id}

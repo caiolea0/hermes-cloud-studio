@@ -168,5 +168,5 @@
         _mount = null;
     }
 
-    window.CobaiaTodayQueue = { mount: mount, destroy: destroy };
+    window.CobaiaTodayQueue = { mount: mount, destroy: destroy, refresh: _refresh };
 })();

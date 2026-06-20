@@ -306,9 +306,16 @@ async def enroll_prospects(seq_id: int, body: EnrollRequest):
         try:
             from core.state import ws_manager
             import asyncio
-            asyncio.get_event_loop().create_task(
+            loop = asyncio.get_event_loop()
+            loop.create_task(
                 ws_manager.broadcast({"event_type": "sequence.enrolled",
                                       "sequence_id": seq_id,
+                                      "count": len(enrolled)})
+            )
+            # PA-F2 ITEM 2A — real-time cobaia today-queue refresh on enroll
+            loop.create_task(
+                ws_manager.broadcast({"event_type": "cobaia.queue_updated",
+                                      "reason": "enroll",
                                       "count": len(enrolled)})
             )
         except Exception:

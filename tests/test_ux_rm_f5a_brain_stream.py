@@ -189,7 +189,8 @@ async def test_ai_events_logged_brain_decisions_table():
     # Give async tasks a tick to fire if needed.
     await asyncio.sleep(0.05)
 
-    ai_query_events = [e for e in broadcast_calls if e.get("type") == "brain.ai_query_used"]
+    # PA-F2: brain.* WS broadcasts use event_type (not type) after standardization
+    ai_query_events = [e for e in broadcast_calls if e.get("event_type") == "brain.ai_query_used"]
     assert len(ai_query_events) >= 1, (
         f"Expected brain.ai_query_used broadcast. Got: {broadcast_calls}"
     )

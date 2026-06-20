@@ -278,7 +278,7 @@ async def webhook_pr_merged(request: Request) -> JSONResponse:
     # D6 — WS broadcast
     try:
         await ws_manager.broadcast({
-            "type": "brain.skill_sync_completed",
+            "event_type": "brain.skill_sync_completed",
             "run_id": run_id,
             "pr_number": pr_number,
             "sync_status": sync_status,

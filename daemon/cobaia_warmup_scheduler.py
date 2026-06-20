@@ -162,7 +162,7 @@ def _ws_emit(event_type: str, data: dict) -> None:
         from core.state import ws_manager
         if _MAIN_LOOP and _MAIN_LOOP.is_running():
             asyncio.run_coroutine_threadsafe(
-                ws_manager.broadcast({"type": event_type, **data}),
+                ws_manager.broadcast({"event_type": event_type, **data}),
                 _MAIN_LOOP,
             )
         else:

@@ -120,6 +120,22 @@ def capture_exception(
             "extra": extra or {},
         })
 
+    # PA-F2 ITEM 3 — broadcast sentry.issue_new for real-time banner (error/fatal only)
+    if level in ("error", "fatal"):
+        try:
+            import asyncio
+            from core.state import ws_manager
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(ws_manager.broadcast({
+                    "event_type": "sentry.issue_new",
+                    "exc_type": exc_type,
+                    "level": level,
+                    "requester": requester,
+                }))
+        except Exception:  # noqa: BLE001 — WS non-critical
+            pass
+
 
 def capture_message(
     message: str,

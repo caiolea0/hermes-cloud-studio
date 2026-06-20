@@ -3517,9 +3517,10 @@ function handleWSEvent(event) {
         catch (e) { console.warn('HermesLabCockpit appendEvent failed', event.type, e); }
     }
 
-    // F.6.4 — Brain Confirm Drawer WS handlers (2 events brain.*).
+    // F.6.4 — Brain Confirm Drawer WS handlers (brain.* events use event_type per PA-F2).
     // UX-RM-F7-A: lazy-load brain_confirm_card + drawer on first brain.* event.
-    if (typeof event.type === 'string' && event.type.indexOf('brain.') === 0) {
+    var _brainEvt = event.event_type || '';
+    if (typeof _brainEvt === 'string' && _brainEvt.indexOf('brain.') === 0) {
         if (!window.BrainConfirmDrawer && window.loadComponent) {
             const _pendingEvent = event;
             window.loadComponent('brain_confirm_card').then(function () {
@@ -3527,12 +3528,24 @@ function handleWSEvent(event) {
             }).then(function () {
                 if (window.BrainConfirmDrawer && typeof window.BrainConfirmDrawer.onWSEvent === 'function') {
                     try { window.BrainConfirmDrawer.onWSEvent(_pendingEvent); }
-                    catch (e) { console.warn('BrainConfirmDrawer onWSEvent failed', _pendingEvent.type, e); }
+                    catch (e) { console.warn('BrainConfirmDrawer onWSEvent failed', _pendingEvent.event_type, e); }
                 }
             }).catch(function () {});
         } else if (window.BrainConfirmDrawer && typeof window.BrainConfirmDrawer.onWSEvent === 'function') {
             try { window.BrainConfirmDrawer.onWSEvent(event); }
-            catch (e) { console.warn('BrainConfirmDrawer onWSEvent failed', event.type, e); }
+            catch (e) { console.warn('BrainConfirmDrawer onWSEvent failed', event.event_type, e); }
+        }
+    }
+
+    // PA-F2 ITEM 4 — sequence.enrolled listener: toast + canvas refresh
+    if (event.event_type === 'sequence.enrolled') {
+        var _cnt = event.count || 0;
+        if (_cnt && window.hermesToast) window.hermesToast.success(_cnt + ' prospectos inscritos na sequência');
+        if (currentPage === 'sequences' && window.SequenceCanvas && typeof window.SequenceCanvas.refresh === 'function') {
+            try { window.SequenceCanvas.refresh(); } catch (_e) {}
+        }
+        if (window.CobaiaTodayQueue && typeof window.CobaiaTodayQueue.refresh === 'function') {
+            try { window.CobaiaTodayQueue.refresh(); } catch (_e) {}
         }
     }
 }

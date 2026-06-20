@@ -1,5 +1,5 @@
 {
-  "generated_at": 1781912565.2928858,
+  "generated_at": 1781915371.364061,
   "handlers_in_frontend": [
     "activity",
     "alert",
@@ -16,7 +16,6 @@
     "pipeline_progress",
     "reply_received",
     "scraper_update",
-    "string",
     "sync",
     "thought"
   ],
@@ -155,7 +154,6 @@
     "pipeline_progress",
     "reply_received",
     "scraper_update",
-    "string",
     "thought"
   ]
 }
