@@ -1,0 +1,149 @@
+{
+  "meta": {
+    "title": "Hermes 2.0 Audit Intelligence Stack",
+    "sealed": "2026-06-21",
+    "market": "Cuiaba / Mato Grosso / Brazil SMBs",
+    "principles": ["$0-first", "anti-snake-oil", "VM-only browser binaries", "extract-then-score (deterministic metrics -> Claude narrative)"],
+    "honesty_legend": {
+      "FACT": "directly measured/observed, reproducible, cite verbatim",
+      "ESTIMATE": "real method but multiplies an unmeasured assumption; ship as range with assumptions visible",
+      "GUESS": "no measured input; never present as a number"
+    },
+    "shared_google_key": "ONE free Google Cloud API key covers PSI API + CrUX API + CrUX BigQuery"
+  },
+  "brains": {
+    "brain1_with_site": {
+      "feasibility": "FEASIBLE_$0_SOLID",
+      "output": "problem-list (severity + pt-BR sentence), not a vague score",
+      "tools": [
+        {"name": "Google PageSpeed Insights API v5", "pillar": "performance", "measures": "Lighthouse score + CWV lab (LCP/INP/CLS/FCP/TBT/SI) + opportunities, 1 call", "cost": "free 25k/day 240/min, free Google key", "url": "https://developers.google.com/speed/docs/insights/v5/get-started"},
+        {"name": "GoogleChrome/lighthouse", "pillar": "performance", "measures": "same engine self-hosted, unlimited, custom throttle", "cost": "free Apache-2.0, Node22+ VM", "url": "https://github.com/GoogleChrome/lighthouse"},
+        {"name": "CrUX API", "pillar": "performance-field", "measures": "real-user CWV origin+URL", "cost": "free 150qpm, same key; often EMPTY for low-traffic SMB", "url": "https://developer.chrome.com/docs/crux/api"},
+        {"name": "extruct", "pillar": "seo", "measures": "JSON-LD/microdata/RDFa/OG (LocalBusiness/Organization schema)", "cost": "free BSD pure-python", "url": "https://github.com/scrapinghub/extruct"},
+        {"name": "advertools", "pillar": "seo", "measures": "sitemap_to_df + robotstxt_to_df", "cost": "free MIT", "url": "https://github.com/eliasdabbas/advertools"},
+        {"name": "BeautifulSoup4 + requests", "pillar": "seo+conversion", "measures": "title/meta/H1/alt/canonical/OG AND conversion elements (wa.me/tel/mailto/form/CTA pt-BR)", "cost": "free MIT", "url": "https://pypi.org/project/beautifulsoup4/"},
+        {"name": "s0md3v/wappalyzer-next", "pillar": "tech-stack", "measures": "CMS/framework/version, outdated jQuery, no analytics/pixel", "cost": "free GPL-3.0, Playwright VM, arms-length CLI if closed-ship", "url": "https://github.com/s0md3v/wappalyzer-next"},
+        {"name": "nabla-c0d3/sslyze", "pillar": "security", "measures": "cert chain/expiry-days/TLS version/known vulns", "cost": "free AGPL", "url": "https://github.com/nabla-c0d3/sslyze"},
+        {"name": "santoru/shcheck", "pillar": "security", "measures": "HTTP security headers CSP/HSTS/XFO", "cost": "free", "url": "https://github.com/santoru/shcheck"},
+        {"name": "testssl.sh", "pillar": "security-crosscheck", "measures": "TLS second opinion", "cost": "free GPLv2", "url": "https://testssl.sh/"},
+        {"name": "dequelabs/axe-core + @axe-core/cli or pa11y", "pillar": "accessibility", "measures": "WCAG violations[] impact+rule+nodes (~30-50% coverage)", "cost": "free", "url": "https://github.com/dequelabs/axe-core"},
+        {"name": "adbar/trafilatura", "pillar": "content", "measures": "body word count, thin-content, readability", "cost": "free Apache/GPL", "url": "https://github.com/adbar/trafilatura"},
+        {"name": "Playwright/Patchright (Python)", "pillar": "render", "measures": "render headless BEFORE conversion detection (else false 'no WhatsApp')", "cost": "free, VM-only", "url": "https://github.com/microsoft/playwright-python"}
+      ],
+      "scaffold_repos": [
+        {"name": "Dingan2218/SEOAUDIT", "use": "check logic + PDF report", "url": "https://github.com/Dingan2218/SEOAUDIT"},
+        {"name": "rkonstadinos/python-based-seo-audit-tool", "use": "pt-BR recommendation templates", "url": "https://github.com/rkonstadinos/python-based-seo-audit-tool"},
+        {"name": "ngstcf/ai-seo-auditor", "use": "extract->LLM architecture (matches Hermes)", "url": "https://github.com/ngstcf/ai-seo-auditor"}
+      ],
+      "data_sources": ["PSI API (lab, geo-agnostic, strategy=mobile)", "CrUX API (field, no BR filter, empty for SMB)", "CrUX BigQuery country='br' (only $0 BR-segmented field CWV, needs GCP+SQL)", "Wappalyzer fingerprints DB", "raw HTML via requests+Playwright (Accept-Language pt-BR)", "HTTP headers (Last-Modified, security)", "live TLS handshake", "XML sitemap + robots.txt"],
+      "honesty": {
+        "FACT": ["Lighthouse/CWV ms (lab reproducible)", "cert days-to-expiry", "TLS version", "schema present y/n", "viewport meta y/n (absent=not mobile-optimized)", "axe violation count", "PRESENCE of conversion element", "body word count", "missing H1/meta", "horizontal scroll at 375px"],
+        "ESTIMATE": ["freshness only as COMPOSITE (copyright year alone lies)"],
+        "GUESS_DANGER": ["ABSENCE of WhatsApp via static HTML = false positive, ALWAYS render-then-parse", "axe ~30-50% WCAG only -> say 'at least N'", "CrUX absent for SMB -> never label lab as real-user", "CrUX API has no Brazil filter"]
+      }
+    },
+    "brain2_no_site": {
+      "feasibility": "FEASIBLE_$0_SOLID",
+      "output": "digital gap vs competitors; strongest = 'you do not exist online'",
+      "tools": [
+        {"name": "gosom/google-maps-scraper", "role": "WORKHORSE GBP+completeness+competitor pack", "returns": "name/address/phone/website/rating/review_count/per-star/hours/lat-lng/category ~120/min; ~300 reviews+timestamps", "cost": "free no-API-key, VM-only", "url": "https://github.com/gosom/google-maps-scraper"},
+        {"name": "Serper.dev", "role": "findability/local-pack, LOWEST ToS risk", "returns": "structured Maps/Local JSON + local-pack position", "cost": "2500 free one-time then ~$1/1k", "url": "https://serper.dev/"},
+        {"name": "SerpApi", "role": "findability backup", "cost": "250/mo 50/hr free", "url": "https://serpapi.com/google-maps-api"},
+        {"name": "serpstack", "role": "findability backup", "cost": "100/mo free", "url": "https://serpstack.com/"},
+        {"name": "instaloader", "role": "Instagram ANONYMOUS", "returns": "followers, mediacount->freq, timestamps, likes/comments->engagement", "cost": "free MIT, low risk single-prospect", "url": "https://instaloader.github.io/"},
+        {"name": "subzeroid/instagrapi", "role": "IG fallback if rate-limited, REQUIRES LOGIN disposable-only", "cost": "free MIT, high ban risk", "url": "https://github.com/subzeroid/instagrapi"},
+        {"name": "kevinzg/facebook-scraper", "role": "Facebook", "returns": "followers/about, post frequency, engagement, no API key", "cost": "free MIT", "url": "https://github.com/kevinzg/facebook-scraper"},
+        {"name": "shaikhsajid1111/facebook_page_scraper", "role": "FB fallback (Selenium)", "cost": "free", "url": "https://github.com/shaikhsajid1111/facebook_page_scraper"},
+        {"name": "Overpass API / OpenStreetMap", "role": "independent map cross-check", "cost": "free no key", "url": "https://overpass-api.de/"},
+        {"name": "LeIA (rafjaa)", "role": "pt-BR review sentiment fast (VADER-pt, CPU)", "cost": "free local", "url": "https://github.com/rafjaa/LeIA"},
+        {"name": "pysentimiento", "role": "pt-BR review sentiment SOTA (BERTabaporu)", "cost": "free local", "url": "https://github.com/pysentimiento/pysentimiento"},
+        {"name": "ReclameAqui internal JSON API", "role": "BR reputation (iosearch/iosite raichu)", "returns": "reputation score, complaint counts, response/resolution rate", "cost": "free undocumented", "url": "https://github.com/acorsza/ResolveAqui/wiki/Reclame-Aqui-Endpoints"},
+        {"name": "Localo / GMBapi / GMB Radar", "role": "no-code geo-grid heatmap visual deliverable", "cost": "free tiers", "url": "https://localo.com/"},
+        {"name": "georgekhananaev/google-reviews-scraper-pro", "role": "pure-python Maps fallback (2026 Limited View)", "cost": "free", "url": "https://github.com/georgekhananaev/google-reviews-scraper-pro"},
+        {"name": "gaspa93/googlemaps-scraper", "role": "pure-python Maps reviews fallback", "cost": "free", "url": "https://github.com/gaspa93/googlemaps-scraper"}
+      ],
+      "data_sources": ["GBP via Maps SERP (location='Cuiaba, State of Mato Grosso, Brazil', hl=pt, gl=br)", "Google Local Pack (pt-BR queries)", "Instagram public profile", "Facebook public page", "OpenStreetMap/Overpass (partial Cuiaba)", "competitor set (same query, top N)", "ReclameAqui internal API (BR-only)"],
+      "tos_risk": "Google Maps/IG/FB forbid scraping in ToS = contract breach not crime (hiQ v LinkedIn backs public-data legality). Enforcement technical: temp IP ban 15-60min; IG account suspension = only costly risk. Mitigate: low volume, 2-5s delays, rotate UA, BR residential IP, isolate IG to throwaway. SERP APIs safest. Browser scrapers VM-only.",
+      "honesty": {
+        "FACT": ["GBP existence", "photo count", "review count+rating+per-star", "hours y/n", "phone/address", "appears-in-local-pack at query+location", "IG/FB followers", "post count", "last-post date", "OSM presence"],
+        "ESTIMATE": ["engagement rate over last ~12 posts (sample)", "completeness 0-100 = your checklist not Google's", "local-pack GRID rank point-dependent ('sampled at N points')"],
+        "GUESS": ["claimed vs unclaimed often not exposed", "Reels play counts not always exposed (gap, never fabricate)", "competitor set = 'top N for query Q' never 'all'"]
+      }
+    },
+    "brain3_estimate_revenue": {
+      "feasibility": "FEASIBLE_$0_RANGE_ONLY",
+      "output": "revenue range (low/median/high) + confidence + assumptions; LEAD with relative-vs-competitor rank",
+      "tools": [
+        {"name": "gosom/google-maps-scraper", "role": "PRIMARY: review_count + per-star + review TIMESTAMPS -> review velocity = best free demand proxy", "url": "https://github.com/gosom/google-maps-scraper"},
+        {"name": "pandas review-velocity model", "role": "CORE IP: reviews/month x review-rate% x avg ticket -> revenue RANGE, every multiplier printed", "url": "https://pandas.pydata.org/"},
+        {"name": "CNPJ porte (BrasilAPI / ReceitaWS / minhareceita)", "role": "legal revenue CEILING band (MEI<=81k, ME<=360k, EPP<=4.8M/yr) - FACT but coarse", "url": "https://brasilapi.com.br/"},
+        {"name": "Serper.dev / SerpApi", "role": "competitor set same pull", "url": "https://serper.dev/"},
+        {"name": "instaloader", "role": "IG followers/freq/engagement = secondary scale signal", "url": "https://instaloader.github.io/"},
+        {"name": "kevinzg/facebook-scraper", "role": "FB tertiary cross-check", "url": "https://github.com/kevinzg/facebook-scraper"},
+        {"name": "SEBRAE / IBGE sector benchmarks", "role": "sector-level ticket/margin as documented assumption band (NOT firm-specific)", "url": "https://www.ibge.gov.br/"}
+      ],
+      "data_sources": ["Google Maps reviews+timestamps -> velocity", "GBP category (drives ticket assumption)", "CNPJ porte band (Receita open data)", "IG/FB follower scale", "competitor set (relative rank)", "SEBRAE/IBGE sector averages"],
+      "not_available_free": ["Receita Federal per-firm declared revenue", "MEI/Simples declared faturamento", "Serasa credit-bureau revenue bands", "Placer.ai paid footfall"],
+      "proxy_model": "reviews/month (FACT) x review-rate assumption ~1-5% (NOT measured) -> customers/month x category avg ticket BRL (assumed) -> revenue RANGE; cross-check ceiling vs CNPJ porte",
+      "honesty": {
+        "FACT_~80pct": ["review_count", "rating", "per-star", "review timestamps->reviews/month", "IG/FB followers", "post frequency", "GBP category", "CNPJ porte band"],
+        "ESTIMATE_~30_40pct_absolute": ["absolute BRL = product of 2 guesses (review-rate% + avg ticket); Luca/HBS supports correlation+star->revenue 5-9% but NO absolute BRL formula"],
+        "RELATIVE_~70pct": ["bottom-quartile review velocity; 1/5 reviews of category leader = LEAD WITH THIS"],
+        "GUESS_FORBIDDEN": ["any single point figure e.g. 'voce fatura R$45k/mes'"]
+      },
+      "anti_snakeoil_rule": "ship transparent range with multipliers exposed; anchor on relative-vs-competitor + CNPJ band; tell owner no free source gives true revenue"
+    },
+    "brain4_project_uplift": {
+      "feasibility": "PARTIAL_RISKY_RANGES_ONLY",
+      "output": "min-median-max scenarios per intervention with premises visible; conservative headline",
+      "tools": [
+        {"name": "Michael Luca (HBS) 'Reviews, Reputation, and Revenue: The Case of Yelp.com'", "role": "ONLY empirical anchor: +1 star ~= +5-9% revenue (US restaurants - extrapolation to BR multi-sector, declare it)", "url": "https://www.hbs.edu/faculty/Pages/item.aspx?num=41233"},
+        {"name": "pandas scenario engine", "role": "min/median/max from measured inputs + parameterized premises, every number traceable", "url": "https://pandas.pydata.org/"},
+        {"name": "Google PageSpeed Insights API", "role": "mobile perf delta (current vs potential) = quantified input for 'fix mobile' projection", "url": "https://developers.google.com/speed/docs/insights/v5/get-started"},
+        {"name": "CrUX BigQuery country='br'", "role": "only $0 BR-segmented CWV benchmark to anchor mobile impact with real BR data", "url": "https://developer.chrome.com/docs/crux/api"},
+        {"name": "Serper.dev", "role": "local-pack rank target+competitors -> 'rank up = +N views/mo' input", "url": "https://serper.dev/"},
+        {"name": "instaloader", "role": "social baseline for presence/leads projection", "url": "https://instaloader.github.io/"}
+      ],
+      "data_sources": ["Google Maps review_count+rating (Luca proxy)", "Luca/HBS coefficient (US, BR=extrapolation)", "PSI lab mobile delta", "CrUX BigQuery country=br", "local-pack rank (Serper)", "competitor benchmark gap (most persuasive+defensible)"],
+      "honesty": {
+        "FACT_input_layer": ["review_count", "rating", "per-star", "local-pack position", "followers", "post frequency", "PSI mobile score", "CWV delta", "numeric gap vs competitor median"],
+        "ESTIMATE_if_exposed": ["review->customer multiplier 1-10% (unmeasured)", "star->R$ via Luca (US extrapolated)", "rank->traffic via CTR-by-position curve (third-party)", "fix-mobile->sales via ticket+conversion (unknown for prospect)"],
+        "GUESS_FORBIDDEN": ["'site novo = +R$Z faturamento' with zero measured business input"]
+      },
+      "golden_rule": "never a single cravado number; always range + premise ('assuming ticket R$X and 3% conversion')",
+      "ethics_br": "CDC forbids guaranteed-result/misleading claims; frame as 'estimated potential'; document assumptions; default to CONSERVATIVE scenario for headline",
+      "weakest_link": "no $0 BR-specific ticket/conversion-by-sector source -> SEBRAE/IBGE benchmark, ask prospect, or editable input"
+    }
+  },
+  "dossier": {
+    "fields": ["identity{name,cnpj,porte,category,bairro}", "brain_routing{has_site}", "brain1{perf,cwv,seo_findings,tech_stack,security,conversion,a11y,problem_list}", "brain2{gbp,local_pack_rank,ig,fb,osm,reputation,competitor_median,gap_summary}", "brain3{revenue_range_low_median_high,confidence,assumptions,relative_rank}", "brain4{uplift_scenarios[{intervention,conservative,likely,optimistic,premises}]}"],
+    "story_order": ["facts first (broken site/invisible/dead social)", "relative gap vs competitors (defensible core)", "honest revenue range", "uplift per intervention (conservative headline)"],
+    "feeds": {
+      "geronimo_sales": "problem_list + gap_summary + relative_rank + conservative uplift -> personalized pt-BR opener",
+      "vuecra_site": "brain1 problem_list + brain2 gaps -> brief for what new site/presence must fix (closes loop)"
+    }
+  },
+  "cost_tiers": {
+    "truly_free_unlimited": ["lighthouse self-hosted", "extruct", "advertools", "BS4", "sslyze", "shcheck", "testssl.sh", "trafilatura", "axe/pa11y", "instaloader-anon", "kevinzg/facebook-scraper", "Overpass", "LeIA/pysentimiento", "pandas", "gosom (compute-bound)"],
+    "free_with_one_google_key": ["PSI API 25k/day", "CrUX API 150qpm", "CrUX BigQuery 1TB/mo"],
+    "finite_free_tiers_cache_reuse": ["Serper.dev 2500 one-time", "SerpApi 250/mo", "serpstack 100/mo"],
+    "free_but_tos_ban_risk": ["gosom", "instaloader", "facebook-scraper", "ReclameAqui (all VM-only, low risk single-prospect)"],
+    "not_free_at_all": ["Receita declared revenue", "Serasa", "Placer.ai footfall (no $0 path exists)"]
+  },
+  "open_decisions": [
+    "single-prospect on-demand vs batch lead-gen (batch raises ToS risk + burns SERP tiers)",
+    "output format: JSON only vs client-facing PDF/heatmap",
+    "GPL contamination: wappalyzer-next + trafilatura GPL -> arms-length CLI if closed-ship",
+    "revenue/uplift posture: ranges-only (research-backed) vs single number (snake-oil); conservative vs optimistic default",
+    "ticket+conversion by sector: SEBRAE/IBGE benchmark vs ask-prospect vs editable",
+    "IG fallback: disposable throwaway vs strictly anonymous-only",
+    "BR residential IP/proxy for VM vs existing VM IP",
+    "Google Cloud key: exists? who provisions? (only external account whole stack needs)"
+  ],
+  "research_gaps": [
+    "roi-projection (brain4) under-researched - no dedicated thread, only Luca anchor + borrowed inputs; CTR curves + BR sector ticket/conversion need own pass",
+    "revenue calibration: no ground-truth; track 5-10 prospects to calibrate multipliers above guess-level",
+    "CrUX BigQuery country=br worth GCP+SQL setup vs lab-only?",
+    "CNPJ porte = legal ceiling band NOT actual revenue - don't overstate precision"
+  ]
+}
