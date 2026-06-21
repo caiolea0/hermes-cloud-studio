@@ -1,0 +1,113 @@
+{
+  "title": "Hermes 2.0 — Multi-Source 24/7 Lead Discovery + Intel Engine",
+  "sealed": "2026-06-21",
+  "vision": "Pivot from LinkedIn-cobaia-outreach (FROZEN) to $0-first multi-source 24/7 lead discovery + enrichment + market intel. Top-of-funnel feeding Geronimo (execution) + Vuecra (site delivery). Migrates to Contabo VPS 30 cohabiting Bolseye + Geronimo. Shares Geronimo LLM 3-layer stack + agentmemory.",
+  "constraints": {
+    "budget": "$0-first, no paid APIs",
+    "host": "Contabo VPS 30 (8vCPU/24GB/200GB) cohabiting Bolseye + Geronimo on geronimo-net 172.28.0.0/16",
+    "linkedin": "FROZEN behind FEATURE_LINKEDIN=off, zero deletion, Patchright VM-only",
+    "geo_first": "Cuiaba municipio 5103403 UF=MT"
+  },
+  "ports": {
+    "hermes-api": 8800,
+    "hermes-discovery-mcp": 8801,
+    "hermes-enrich-mcp": 8802,
+    "hermes-handoff-mcp": 8803,
+    "overpass-selfhost": 12345,
+    "reserved": "8804-8810",
+    "reused": {
+      "postgres": 5432,
+      "nats": 4222,
+      "ollama_mesh": 11434,
+      "agentmemory": 3141,
+      "nim_router": "via NIM_ROUTER_URL tenant_id=hermes"
+    }
+  },
+  "sources_build_order": [
+    {"rank": 1, "name": "self-hosted Overpass (OSM)", "impl": "Docker wiktorn/overpass-api + Geofabrik brazil-latest.osm.pbf + minute diffs", "yields": "name, coords, category; when tagged phone/website/hours/whatsapp/social", "reliability": "high", "legality": "ODbL", "cost": "free", "build_phase": "H2-F1"},
+    {"rank": 2, "name": "Receita Federal CNPJ open data", "impl": "quarterly CSV dumps -> Postgres hermes_cnpj, Cuiaba subset by municipio+CNAE", "yields": "razao social, nome fantasia, CNAE, address, situacao, data abertura, socios", "reliability": "high", "legality": "gov open data + LGPD on PII", "cost": "free", "build_phase": "H2-F2"},
+    {"rank": 3, "name": "BrasilAPI / ReceitaWS", "impl": "no-key per-lookup wrappers", "yields": "CNPJ validation + situacao freshness", "reliability": "high", "legality": "free wrappers", "cost": "free", "build_phase": "H2-F2"},
+    {"rank": 4, "name": "own-website scrape", "impl": "curl_cffi T1 static; Patchright T2 if JS (VM-only); schema.org JSON-LD first", "yields": "phone, email, wa.me, og social, aggregateRating", "reliability": "medium", "legality": "public pages, robots.txt, polite", "cost": "free", "build_phase": "H2-F3"},
+    {"rank": 5, "name": "Google PageSpeed Insights API", "impl": "free key, 25k/day, 240/min", "yields": "Perf/SEO/A11y/BestPractices 0-100 + CWV; anchors qualifier score", "reliability": "high", "legality": "official API", "cost": "free", "build_phase": "H2-F4"}
+  ],
+  "sources_deferred_avoid": [
+    {"name": "Google Maps scraping", "reason": "breaks $0 (paid proxies) + Google ToS + civil-suit risk resold leads"},
+    {"name": "Bing/Azure Maps", "reason": "retired 2025"},
+    {"name": "Foursquare/Overture bulk parquet", "reason": "heavier ingest, phase-2 enrichment only"},
+    {"name": "Apple Maps Server API", "reason": "free 25k/day but ToS caching/display limits, optional cross-check only"},
+    {"name": "Nominatim", "reason": "geocoding gap-fill only, self-host if volume"}
+  ],
+  "data_flow": ["DISCOVER", "NORMALIZE", "DEDUP/MERGE golden record", "CATEGORIZE (CNAE+ICP Ollama)", "ENRICH (CNPJ + website)", "AUDIT/SCORE (web_audit + PageSpeed 0-100)", "MARKET-ANALYZE (signals)", "KNOWLEDGE-BASE (DB + agentmemory)", "HANDOFF (Geronimo NATS + Vuecra REST)"],
+  "daemon_priority_remap": {
+    "P0": "FROZEN cobaia (later market-intel proactive trigger)",
+    "P1": "KEEP replies",
+    "P2": "FROZEN sequence-send -> handoff push",
+    "P3": "REPURPOSE enrichment (CNPJ + website)",
+    "P4": "REPURPOSE discovery (multi-source)",
+    "P5": "KEEP audit + PageSpeed qualifier",
+    "P6": "KEEP scoring",
+    "P6b": "NEW market-intel",
+    "P7": "KEEP reporting -> handoff push"
+  },
+  "integration": {
+    "geronimo": {
+      "status": "lead-ingest API does NOT exist yet - cross-project dependency",
+      "endpoint": "geronimo-entries:8700 POST /api/v1/qualified_leads",
+      "flow": "Envelope(source=hermes_qualified, type=lead.qualified) -> NATS geronimo.in.hermes.qualified_leads -> new hermes-leads-router consumer -> Kanban side=hermes OR HITL",
+      "auth": "X-Internal-Token (HERMES_INTERNAL_TOKEN)",
+      "transport": "Tailscale mesh geronimo-mesh.ts.net (NOT cloudflared)",
+      "hermes_side": "mcps/hermes-geronimo POST /handoff, handoff_jobs table, retries 3x exp-backoff",
+      "gate": "brain handoff_decision intent: score>=threshold + audit_done",
+      "payload": ["lead_id", "business_name", "cnpj", "cnae", "category", "score", "phone", "email", "whatsapp", "website", "has_website", "address", "city", "state", "source_type[]", "market_signals[]", "idempotency_key=hermes:{lead_id}:{discovered_at_epoch}", "tenant_id=hermes"]
+    },
+    "vuecra": {
+      "status": "contract documented in vuecra CROSS-PROJECT-ENV.md + PHASE-HI1/HI2",
+      "schema_migration": "migrations/006_vuecra_stages.py: add site_url, site_delivered_at, site_project_id, idempotency_key, hermes_source; stages site_ready/site_in_progress/site_delivered",
+      "endpoints": ["GET /api/vuecra/queue (ProspectBrief[] order score DESC)", "POST /api/vuecra/{id}/claim", "POST /api/vuecra/{id}/delivered (site_url+project_id)", "POST /api/vuecra/{id}/failed"],
+      "ws_events": ["site.ready", "site.claimed", "site.delivered", "site.failed"],
+      "headers": ["X-Internal-Token", "X-Idempotency-Key=hermes:{prospect_id}:{discovered_at_epoch}", "X-Correlation-Id"],
+      "prospect_brief": ["prospect_id", "business_name", "category", "audit_summary", "score", "phone", "email", "website", "has_website", "photo_ref", "social_instagram", "social_facebook", "address", "city", "state", "marked_at", "hermes_source"],
+      "port_risk": "vuecra assumes Hermes:8500, current config dashboard_port=55000 - pin canonical port in CROSS-PROJECT-ENV.md before HI2"
+    },
+    "shared": {
+      "llm": "nim-router-mcp HTTP tenant_id=hermes separate daily cap; categorize/ICP/dedup on local Ollama T3 $0",
+      "agentmemory": "shared :3111/:3141 session-agnostic"
+    }
+  },
+  "phases": [
+    {"id": "H2-F0", "name": "Foundation + Freeze", "goal": "Prove engine boots clean post-freeze", "scope": ["FEATURE_LINKEDIN=off", "skip daemon P0/P2", "hide cobaia_*.js", "add source_type+cnpj columns", "pin Contabo ports in CROSS-PROJECT-ENV.md", "flag-off smoke test"], "effort_days": "1-2", "depends_on": [], "model": "Sonnet"},
+    {"id": "H2-F1", "name": "Overpass Discovery Backbone", "goal": "Unlimited $0 24/7 discovery", "scope": ["Docker wiktorn/overpass-api + brazil .pbf + minute diffs mem_limit 8g", "scripts/discovery_overpass.py -> Prospect schema", "wire core/pipeline.py discovery stage (drop Google Places)", "daemon P4 multi-source"], "verify": "N Cuiaba POIs ingested + deduped", "effort_days": "3-4", "depends_on": ["H2-F0"], "model": "Sonnet"},
+    {"id": "H2-F2", "name": "CNPJ Authority + Enrich", "goal": "Brazil best free structured layer", "scope": ["load RF dump Cuiaba subset 5103403+CNAE -> Postgres hermes_cnpj", "scripts/enrich_cnpj.py + BrasilAPI validation", "DEDUP/MERGE golden-record (fuzzy name+address+phone+CNPJ)", "daemon P3", "register mcps/hermes-enrich"], "effort_days": "3-5", "depends_on": ["H2-F1"], "model": "Sonnet"},
+    {"id": "H2-F3", "name": "Contact-Enrich (website)", "goal": "Fill OSM contact gap", "scope": ["scripts/scrape_website.py curl_cffi T1 / Patchright T2 VM-only", "schema.org JSON-LD + regex +55 65 phones/emails/wa.me/og-social", "per-domain limiter generalize core/limiter.py", "runs P3 after CNPJ"], "effort_days": "2-3", "depends_on": ["H2-F2"], "model": "Sonnet"},
+    {"id": "H2-F4", "name": "Categorize + ICP + Qualify", "goal": "Score leads 0-100", "scope": ["classify_prospect via local Ollama CNAE->industry/ICP", "extend web_audit.py + PageSpeed qualifier", "daemon P5", "new dedup_merge intent"], "effort_days": "2-3", "depends_on": ["H2-F3"], "model": "Opus/Sonnet"},
+    {"id": "H2-F5", "name": "Vuecra Handoff (HI1+HI2)", "goal": "Unblock Vuecra V4 Inbox", "scope": ["migrations/006_vuecra_stages.py + stages", "GET /api/vuecra/queue + claim/delivered/failed + WS site.* with X-Internal-Token + idempotency"], "verify": "full round-trip site_ready->claim->delivered persists site_url", "effort_days": "3-4", "depends_on": ["H2-F4"], "model": "Sonnet"},
+    {"id": "H2-F6", "name": "Geronimo Handoff (NATS)", "goal": "Push qualified leads", "scope": ["mcps/hermes-geronimo POST /handoff + handoff_jobs + retries", "coordinate Geronimo POST /api/v1/qualified_leads + NATS + hermes-leads-router consumer", "handoff_decision intent gate", "Tailscale transport"], "effort_days": "3-4", "depends_on": ["H2-F4", "geronimo-team-ships-ingest-api"], "model": "Opus"},
+    {"id": "H2-F7", "name": "Market Intelligence", "goal": "Proactive signals", "scope": ["brain/market_analyzer.py aggregate CNAE density + situacao churn + new-reg velocity -> market_signal events", "daemon P6b", "Market-Intel dashboard page heat by category/region", "rule-based first LLM optional"], "effort_days": "3-4", "depends_on": ["H2-F2"], "model": "Sonnet"},
+    {"id": "H2-F8", "name": "Hardening + Observability", "goal": "Production-ready 24/7", "scope": ["extend observability.py scraper/source health + per-source cost", "Source-health dashboard panel", "agentmemory persistence golden records + signals", "per-stage flag rollback verified", "load-test Overpass under 24/7 daemon"], "effort_days": "2-3", "depends_on": ["H2-F1", "H2-F2", "H2-F3", "H2-F4", "H2-F5", "H2-F6", "H2-F7"], "model": "Sonnet"}
+  ],
+  "critical_path": "H2-F0 -> H2-F1 -> H2-F2 -> H2-F3 -> H2-F4 -> (H2-F5 || H2-F6 || H2-F7) -> H2-F8",
+  "total_effort_days": "24-32",
+  "subsystem_disposition": {
+    "KEEP": ["dashboard shell+WS+cards", "server.py", "core/state.py", "core/models.py", "mcps/gateway/", "api/prospects.py", "api/audit.py", "scripts/web_audit.py", "mcps/hunter/", "mcps/hermes-prospects/", "core/persistence.py", "core/observability.py", "loops/sync.py"],
+    "PIVOT": ["core/pipeline.py (multi-source discovery + handoff stage)", "daemon/orchestrator.py (priority remap)", "api/brain.py + brain/intents.py (add market_analysis/dedup_merge/handoff_decision)", "api/sequences.py (geronimo_handoff node)", "linkedin/limiter.py -> core/limiter.py (generalize)"],
+    "FREEZE": ["linkedin/", "linkedin/lab/", "api/cobaia.py", "api/lab.py", "dashboard/components/cobaia_*.js"],
+    "BUILD_NEW": ["scripts/discovery_overpass.py", "scripts/enrich_cnpj.py", "scripts/scrape_website.py", "scripts/business_categorizer.py", "brain/market_analyzer.py", "core/enricher.py", "api/enrichment.py", "mcps/hermes-geronimo/", "migrations/006_vuecra_stages.py", "migrations/2026_07_multi_source_schema.sql", "dashboard/components/market_intelligence.js"]
+  },
+  "owner_decisions": [
+    "Confirm source order Overpass->CNPJ->website",
+    "Full Brazil .pbf vs Mato-Grosso-only (decide at F1 by RAM headroom)",
+    "Approve golden-record KB schema before F2 dedup/merge",
+    "Handoff trigger thresholds: Geronimo (score>=60 + audit_done?), Vuecra site_ready (has_website=false OR score>=70?)",
+    "Geronimo lead-ingest API: coordinate or stub for F6"
+  ],
+  "risks": [
+    {"risk": "Overpass RAM/disk OOM on shared 24GB", "mitigation": "mem_limit 8g, conservative OVERPASS_RATE/TIME/SPACE, MG-only extract if tight"},
+    {"risk": "OSM contact-tag fill LOW ~40% in Cuiaba", "mitigation": "website-scrape F3 + CNPJ F2 MANDATORY not optional"},
+    {"risk": "LGPD PII processing + reselling", "mitigation": "legitimate-interest B2B basis, opt-out, no sensitive storage, route via Geronimo constitution_gates, attribute OSM ODbL"},
+    {"risk": "Port mismatch vuecra 8500 vs config 55000", "mitigation": "pin canonical port in CROSS-PROJECT-ENV.md before HI2"},
+    {"risk": "Geronimo lead-ingest API not built yet", "mitigation": "F6 cross-project dep, coordinate or stub hermes-leads-router"},
+    {"risk": "$0 fragility - Google Maps temptation", "mitigation": "PageSpeed + schema.org aggregateRating cover review signal; Google needs paid proxies + ToS + civil risk"},
+    {"risk": "Frozen-LinkedIn regressions", "mitigation": "flag gate ALL entry points (daemon P0/P2, api/cobaia.py, api/lab.py, dashboard); flag-off smoke test F0"},
+    {"risk": "Solo-founder scope creep", "mitigation": "DEFER Overture/Foursquare/Apple + multi-vendor enrichment; Overpass+CNPJ+website sufficient for Cuiaba"}
+  ]
+}
