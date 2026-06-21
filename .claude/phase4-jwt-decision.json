@@ -1,0 +1,128 @@
+{
+  "phase": "Phase 4 — Per-MCP JWT (B11 root-cause)",
+  "sealed": "2026-06-20",
+  "method": "4-approach adversarial design panel (4 research + 4 designs + 16 multi-lens verdicts)",
+  "status": "APPROVED_FOR_IMPLEMENTATION",
+  "winner": {
+    "name": "Hybrid JWT aud (Approach C enforcement) on static offline-mint substrate (Approach B issuance)",
+    "fusion": "C's additive Branch-0 + dual-layer enforcement (lowest migration risk) implemented via B's offline-mint script with private key OFF the VM (lowest attack surface, best cobaia fit). No live Authorization Server in v1.",
+    "rationale": "Cryptographic per-MCP aud binding fixes B11 root-cause (compromised caller cannot reach other MCPs); signs sub server-authoritative (kills fallback_spoofable); 100% additive migration with instant per-caller rollback; no live runtime service on the dispatch choke point; private key never on VM.",
+    "effort_hours_total": 26
+  },
+  "scores_matrix": {
+    "lenses": ["security", "complexity", "migration_risk", "cobaia_fit"],
+    "approaches": {
+      "A_gateway_as_idp_live_token": {"security": 7, "complexity": 5, "migration_risk": 7, "cobaia_fit": 4, "mean": 5.75, "verdict": "REJECTED_v1_defer_to_F.5.6"},
+      "B_static_offline_mint_jwt": {"security": 6, "complexity": 7, "migration_risk": 8, "cobaia_fit": 7, "mean": 7.00, "verdict": "ADOPTED_as_issuance_substrate"},
+      "C_hybrid_jwt_aud_plus_access_matrix": {"security": 7, "complexity": "6*", "migration_risk": "7*", "cobaia_fit": "7*", "mean": 6.75, "verdict": "ADOPTED_as_enforcement_design", "note": "non-security lenses partially scored (judge transcript truncated)"},
+      "D_mtls_plus_jwt": {"verdict": "REJECTED_mtls_overengineered_jwt_subset_folds_into_BC"}
+    }
+  },
+  "token_format": {
+    "header": {"alg": "EdDSA", "typ": "at+jwt", "kid": "<key-id>"},
+    "claims": {
+      "iss": "hermes-gateway",
+      "sub": "<requester> (signed, server-authoritative)",
+      "aud": "<single MCP id, bare server_name> (RFC 8707 one-resource cryptographic gate)",
+      "exp": "mint + TTL (default 90d, OWNER DECISION)",
+      "nbf": "mint time",
+      "iat": "mint time",
+      "jti": "uuid4 (logged; future denylist)",
+      "scope": "empty v1 (access_matrix gates)"
+    },
+    "algorithm": "EdDSA/Ed25519",
+    "library": "PyJWT>=2.13.0 + cryptography",
+    "aud_convention": "bare MCP id == dispatch path server_name (no URI, no canonicalization layer)"
+  },
+  "key_management": {
+    "private_key": "PC only, .keys/jwt_ed25519_<kid>.pem, gitignored, NEVER on VM",
+    "public_key": "VM mcps/gateway/keys/jwt_pub_<kid>.pem, committed, loaded at build_app()",
+    "jwks_endpoint": "none in v1 (static file verifier)",
+    "rotation": "kid-based; new pubkey deployed alongside old; regen all tokens; retire old kid after grace; rotation == v1 revocation"
+  },
+  "issuance": {
+    "type": "offline static script (NO live endpoint)",
+    "script": "mcps/gateway/scripts/gen_jwt_tokens.py",
+    "input": "access_matrix.json (authoritative caller->MCP map)",
+    "wildcard_expansion": {"rows": ["brain-core", "api"], "inventory": ["sentry", "hermes-linkedin", "hermes-prospects", "hermes-skills", "hermes-llm", "hermes-hunter"], "fail_loud_on_unknown_mcp": true},
+    "output_env_pattern": "HERMES_GATEWAY_JWT_<CALLER>_<MCP>=<jwt>"
+  },
+  "validation": {
+    "location": "gateway dispatch layer (derive_requester Branch 0)",
+    "signature_change": "derive_requester gains server_name param (call site already has it in scope)",
+    "branch_order": ["Branch0_JWT (new)", "Branch1_per_role_bearer (unchanged)", "Branch2_shared_bearer (unchanged, strict-gated)"],
+    "jwt_shape_detection": "2-dot test (dual-accept)",
+    "decode_params": {"algorithms": ["EdDSA"], "audience": "server_name", "issuer": "hermes-gateway", "leeway_s": 30, "require": ["exp", "iat", "nbf", "aud", "iss", "sub"], "typ_check": "at+jwt"},
+    "trust_modes": {"success": "trusted_jwt", "aud_fail": "denied_aud_mismatch", "expired_bad": "denied_jwt_invalid"}
+  },
+  "access_matrix": {"disposition": "KEPT_PERMANENTLY", "role": "Layer 2 defense-in-depth + mint-script input + audit/policy source"},
+  "shared_bearer": {"disposition": "deprecated via existing HERMES_GATEWAY_STRICT_BEARER=true (R5-PHASE3 reuse) in PHASE4-C"},
+  "phases": [
+    {
+      "id": "PHASE4-A",
+      "name": "Infra (issue+validate+dual-accept, dormant)",
+      "effort_hours": 16,
+      "model": "Opus",
+      "cobaia_blocking": false,
+      "flag": "HERMES_GATEWAY_JWT_ENABLED=false",
+      "files": [
+        "NEW mcps/gateway/scripts/gen_jwt_tokens.py",
+        "NEW mcps/gateway/scripts/gen_ed25519_keypair.py",
+        "EDIT mcps/gateway/requester.py (Branch 0 + server_name param + pubkey loader + try_validate_jwt)",
+        "EDIT mcps/gateway/server.py (pass server_name; load pubkey+flag at build_app; log denied_aud_mismatch/denied_jwt_invalid/token_kind/jti/aud)",
+        "NEW mcps/gateway/keys/jwt_pub_<kid>.pem",
+        "EDIT .gitignore (.keys/)",
+        "NEW tests/test_phase4_jwt.py",
+        "EDIT R5 test fixtures (server_name arg)",
+        "EDIT requirements (PyJWT>=2.13.0 + cryptography)"
+      ],
+      "acceptance": "flag-off byte-identical to today (R5 tests green); flag-on: correct-aud dispatches, wrong-aud 403 denied_aud_mismatch, expired 401, none-alg/ID-token/HS256 rejected; validate_implementation.py >=20/22"
+    },
+    {
+      "id": "PHASE4-B",
+      "name": "Migrate callers (dual-accept live)",
+      "effort_hours": 8,
+      "model": "Sonnet",
+      "cobaia_blocking": "partial (cobaia callers migrated LAST, owner GO)",
+      "flag": "HERMES_GATEWAY_JWT_ENABLED=true",
+      "order": ["brain-f8", "breadcrumb", "brain-f4", "brain-core", "brain-f5", "brain-f6", "brain-f9", "brain-f7-cobaia", "brain-f7-cobaia-autotune"],
+      "files": ["brain/dispatch.py", "core/sentry_via_gateway.py", "core/auto_skill_runner.py", "api/observability.py", "vm_api/mcp_coverage.py", "mcps/hermes-linkedin/server.py", "mcps/hermes-prospects/server.py"],
+      "acceptance": "each migrated caller logs trusted_jwt; 7d zero denied_* per tranche; access_matrix allows each sub; cobaia callers last + verified",
+      "rollback": "unset HERMES_GATEWAY_JWT_<CALLER>_<MCP> (instant per-caller fallback) OR JWT_ENABLED=false (global)"
+    },
+    {
+      "id": "PHASE4-C",
+      "name": "Kill old bearer (JWT-primary)",
+      "effort_hours": 2,
+      "model": "Sonnet",
+      "cobaia_blocking": "YES (HARD GATE: 7d clean audit + owner GO + NOT during live cobaia activation)",
+      "flag": "HERMES_GATEWAY_STRICT_BEARER=true (R5-PHASE3 reuse)",
+      "acceptance": "shared bearer -> denied_strict; 7d prior clean audit; rollback STRICT_BEARER=false verified",
+      "rollback": "STRICT_BEARER=false; per-role bearers never removed until final"
+    }
+  ],
+  "risks": [
+    {"risk": "Private-key leak (god-key, mints any sub/aud)", "severity": "HIGH", "mitigation": "PC-only never-VM, gitignored 0600, kid rotation, future jti denylist+HSM"},
+    {"risk": "90d TTL + no native revocation", "severity": "MED-HIGH", "mitigation": "jti logged, rotation=revocation, owner may shorten TTL"},
+    {"risk": "Wildcard mis-expansion in gen_jwt_tokens.py", "severity": "MED", "mitigation": "fail-loud on unknown MCP, explicit inventory, unit test"},
+    {"risk": "Silent fallback drift (env name != access_matrix)", "severity": "MED", "mitigation": "7d legacy-use audit, generator manifest cross-check, warn-log on legacy use"},
+    {"risk": "Key-load failure bricks gateway (fail-closed at choke point)", "severity": "MED", "mitigation": "dual-accept, degrade-to-opaque if JWT_ENABLED=false, CI test key-load before merge"},
+    {"risk": "Clock skew (exp/nbf)", "severity": "LOW", "mitigation": "ntp/chrony, 30s leeway, 90d TTL"}
+  ],
+  "owner_decisions": [
+    {"id": "TTL", "question": "Token TTL", "default": "90 days", "note": "shorten to bound leak window vs rotation frequency"},
+    {"id": "ALG", "question": "Algorithm", "default": "EdDSA/Ed25519", "note": "confirm vs RS256 (HSM only)"},
+    {"id": "DUAL_ACCEPT", "question": "Dual-accept duration / PHASE4-C timing", "default": "7d clean audit per tranche", "note": "PHASE4-C likely after cobaia Day-14 activation"},
+    {"id": "JTI_DENYLIST", "question": "Live revocation denylist now or later", "default": "later (rotation=revocation in v1)", "note": "owner decides scope"},
+    {"id": "KEY_CUSTODY", "question": "Private key custody + backup", "default": ".keys/ on PC gitignored", "note": "lost key = regen all tokens; confirm backup"}
+  ],
+  "blacklist_r2_zero_touch": ["linkedin/stealth.py", "linkedin/human.py", "linkedin/preflight", "linkedin/cooldown.py", "ollama_router", "linkedin_automation", "schedulers", "warmup", "cobaia_activation_path"],
+  "test_strategy": ["issuance+wildcard+fail-loud", "validation happy path (sub from token not body)", "aud-mismatch deny 403", "expired deny 401", "alg/typ/HS256 confusion reject", "bad signature reject", "migration dual-accept (Branch1/2 still work)", "dormant flag-off byte-identical", "defense-in-depth Layer2 backstop", "server_name param fixture update"],
+  "rejected": {
+    "A_gateway_as_idp": "live /oauth/token on dispatch choke point; signing key in runtime VM; 34h; cobaia_fit 4. Defer live-issuance/short-TTL to F.5.6 if public MCP appears.",
+    "D_mtls": "loopback-only + stdio subprocess + SSH tunnel already provide transport security; mTLS = zero added coverage + cert-expiry outage class",
+    "HS256": "shared secret on VM defeats per-target isolation",
+    "python_jose": "unpatched CVE-2024-33663/33664, unmaintained",
+    "remove_access_matrix": "kept as Layer 2 + mint input + audit source"
+  }
+}
