@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Day — Hermes Cloud Studio 2.0</title>
+
+<link rel="stylesheet" href="design-system.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5/index.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+
+<style>
+  /* ============ PAGE-LOCAL: cinematic scroll journey ============ */
+  html { scroll-behavior: smooth; }
+  body { overflow-x: hidden; }
+
+  /* a single dawn-gradient column that the whole journey rides on */
+  .journey { position: relative; z-index: var(--z-content); }
+
+  /* a faint vertical "story thread" running through the whole page behind content */
+  .story-thread {
+    position: fixed; top: 0; bottom: 0; left: 50%; width: 1px; z-index: 1; pointer-events: none;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, transparent, oklch(0.6 0.06 292 / 0.10) 12%, oklch(0.6 0.06 292 / 0.10) 88%, transparent);
+    opacity: .5;
+  }
+  @media (max-width: 980px){ .story-thread { display:none; } }
+
+  /* ---- progress rail — left vertical spine of the morning ritual ---- */
+  .rail {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 72px; z-index: var(--z-sticky);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: var(--sp-4); pointer-events: none;
+  }
+  .rail__track {
+    position: absolute; top: 13vh; bottom: 13vh; left: 35px; width: 2px;
+    background: linear-gradient(180deg, transparent, var(--line-strong) 7%, var(--line-strong) 93%, transparent);
+    border-radius: 2px;
+  }
+  .rail__fill {
+    position: absolute; top: 13vh; left: 34px; width: 4px; height: 0;
+    background: linear-gradient(180deg, var(--purple-hot), var(--lime));
+    box-shadow: 0 0 10px var(--lime), 0 0 22px oklch(0.92 0.21 118 / 0.4);
+    border-radius: 4px;
+    transition: height .12s linear;
+  }
+  /* a small comet that rides the tip of the fill */
+  .rail__comet {
+    position: absolute; left: 32px; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--lime); box-shadow: 0 0 12px 2px var(--lime), 0 0 28px 4px oklch(0.92 0.21 118 / 0.5);
+    transition: top .12s linear; pointer-events: none;
+  }
+  .rail__dot {
+    position: relative; pointer-events: auto; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--bg-3); border: 2px solid var(--line-strong);
+    cursor: pointer; transition: transform var(--d-base) var(--ease-spring), background var(--d-base), border-color var(--d-base), box-shadow var(--d-base);
+    display: grid; place-items: center;
+  }
+  .rail__dot::after {
+    content: attr(data-label); position: absolute; left: 28px; white-space: nowrap;
+    font-size: var(--fs-2xs); font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-hi); opacity: 0; transform: translateX(-6px); transition: all var(--d-base) var(--ease-out);
+    background: var(--glass-tint-deep); padding: 5px 10px; border-radius: var(--r-pill); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(12px) saturate(160%); -webkit-backdrop-filter: blur(12px) saturate(160%);
+    box-shadow: var(--elev-2);
+  }
+  .rail__dot:hover::after, .rail__dot.active::after { opacity: 1; transform: translateX(0); }
+  .rail__dot:hover { border-color: var(--lime); transform: scale(1.15); }
+  .rail__dot.active {
+    background: var(--lime); border-color: var(--lime);
+    box-shadow: 0 0 16px var(--lime), 0 0 34px oklch(0.92 0.21 118 / 0.4); transform: scale(1.3);
+  }
+  .rail__dot.done { background: var(--purple-hot); border-color: var(--purple-hot); box-shadow: 0 0 10px -1px var(--purple-hot); }
+  @media (max-width: 980px){ .rail { display: none; } }
+
+  /* ---- top status bar ---- */
+  .topbar {
+    position: sticky; top: 0; z-index: var(--z-sticky);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-3) var(--sp-5);
+    overflow: hidden; border-bottom: 1px solid var(--line);
+  }
+  .topbar .bar-backdrop { z-index: -1; }
+  .brandmark { display: flex; align-items: center; gap: var(--sp-3); }
+  .brand-logo {
+    width: 36px; height: 36px; border-radius: var(--r-sm); display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--purple-hot), var(--purple));
+    box-shadow: 0 0 20px -2px var(--purple-hot), inset 0 1px 0 oklch(0.99 0.02 292 / 0.4); color: var(--purple-ink);
+  }
+  .greet-time { font-family: var(--font-mono); color: var(--text-mid); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+  .topbar-progress { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--text-dim); letter-spacing:.06em; }
+  .topbar-progress b { color: var(--lime); }
+
+  /* ---- each chapter = a full cinematic section ---- */
+  .chapter {
+    position: relative; min-height: 96vh; display: flex; flex-direction: column; justify-content: center;
+    padding: var(--sp-9) max(var(--sp-7), 6vw); scroll-margin-top: 76px;
+    max-width: 1320px; margin-inline: auto; width: 100%;
+  }
+  /* connective tissue: a glowing line from one chapter into the next */
+  .chapter__link {
+    position: absolute; left: max(var(--sp-7), 6vw); bottom: -2px; width: 1px; height: var(--sp-9);
+    background: linear-gradient(180deg, var(--line-lime), transparent);
+    overflow: visible;
+  }
+  .chapter__link::before {
+    content: ""; position: absolute; left: -2px; top: 0; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--lime); box-shadow: 0 0 10px var(--lime);
+    animation: thread-drop 2.6s var(--ease-inout) infinite;
+  }
+  @keyframes thread-drop { 0%{ top:0; opacity:0 } 12%{opacity:1} 100%{ top: var(--sp-9); opacity:0 } }
+
+  .chapter__kicker {
+    display: inline-flex; align-items: center; gap: var(--sp-2); align-self: flex-start;
+    font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 650; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--lime); margin-bottom: var(--sp-4);
+    padding: 6px 13px; border-radius: var(--r-pill); border: 1px solid var(--line-lime);
+    background: oklch(0.92 0.21 118 / 0.07); box-shadow: 0 0 20px -6px oklch(0.92 0.21 118 / 0.5), inset 0 0 14px -6px oklch(0.92 0.21 118 / 0.4);
+  }
+  .chapter__step-no { color: var(--text-dim); }
+  .chapter__title { max-width: 19ch; margin-bottom: var(--sp-4); }
+  .chapter__sub { max-width: 58ch; margin-bottom: var(--sp-6); }
+
+  /* ---- HERO ---- */
+  .hero {
+    min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+    padding: var(--sp-9) max(var(--sp-7), 6vw) var(--sp-7);
+    position: relative; max-width: 1320px; margin-inline: auto; width: 100%;
+  }
+  .hero__eyebrow { display:flex; align-items:center; gap:var(--sp-3); margin-bottom: var(--sp-5); flex-wrap:wrap; }
+  .hero h1 { position: relative; }
+  /* sunrise arc behind the hero headline — the "morning" motif */
+  .sunrise {
+    position: absolute; left: max(var(--sp-7), 6vw); top: 8vh; width: min(620px, 70vw); height: min(620px, 70vw);
+    border-radius: 50%; pointer-events: none; z-index: 0;
+    background: radial-gradient(closest-side, oklch(0.55 0.18 60 / 0.16), oklch(0.5 0.16 40 / 0.06) 55%, transparent 72%);
+    filter: blur(8px);
+  }
+  .hero__metrics { display: flex; gap: var(--sp-7); flex-wrap: wrap; margin-top: var(--sp-7); }
+  .hero__metrics .stat { position: relative; padding-left: var(--sp-4); }
+  .hero__metrics .stat::before { content:""; position:absolute; left:0; top:2px; bottom:2px; width:2px; border-radius:2px; background: var(--line-strong); }
+  .hero__metrics .stat:nth-child(1)::before { background: linear-gradient(180deg, var(--purple-hot), transparent); }
+  .hero__metrics .stat:nth-child(2)::before { background: linear-gradient(180deg, var(--lime), transparent); }
+  .hero__metrics .stat:nth-child(3)::before { background: linear-gradient(180deg, var(--st-opportunity), transparent); }
+  .hero__metrics .stat__value { font-size: clamp(1.9rem, 1.4rem + 1.8vw, 2.8rem); }
+  .hero__scrollcue {
+    position: absolute; bottom: var(--sp-6); left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+    color: var(--text-dim); font-size: var(--fs-2xs); letter-spacing: .14em; text-transform: uppercase;
+  }
+  .hero__scrollcue i { animation: float-y 2.4s var(--ease-inout) infinite; }
+
+  /* ---- MAP (Surface A mini) ---- */
+  .map-wrap {
+    position: relative; height: clamp(380px, 56vh, 600px); border-radius: var(--r-xl);
+    overflow: hidden; border: 1px solid var(--glass-border);
+    box-shadow: var(--elev-3), 0 0 60px -20px oklch(0.62 0.20 295 / 0.4);
+  }
+  #map { position: absolute; inset: 0; }
+  /* vignette + top scrim so overlays stay legible over the live map */
+  .map-wrap::after {
+    content:""; position:absolute; inset:0; pointer-events:none; border-radius: inherit;
+    box-shadow: inset 0 0 120px -30px oklch(0.10 0.02 292 / 0.9);
+    background: linear-gradient(180deg, oklch(0.12 0.02 292 / 0.55), transparent 22%, transparent 70%, oklch(0.12 0.02 292 / 0.6));
+  }
+  .map-overlay {
+    position: absolute; left: var(--sp-4); top: var(--sp-4); right: var(--sp-4); z-index: 3;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3);
+    pointer-events: none; flex-wrap: wrap;
+  }
+  .map-overlay > * { pointer-events: auto; }
+  .zoomscope { display: flex; gap: 4px; padding: 4px; border-radius: var(--r-pill); }
+  .zoomscope button {
+    padding: .4em 1em; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 600;
+    color: var(--text-mid); transition: all var(--d-fast) var(--ease-out);
+  }
+  .zoomscope button:hover { color: var(--text-hi); }
+  .zoomscope button.active { background: var(--purple); color: var(--purple-ink); box-shadow: 0 0 16px -2px var(--purple-hot); }
+  .map-legend { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md); }
+  .map-stats {
+    position: absolute; left: var(--sp-4); bottom: var(--sp-4); right: var(--sp-4); z-index: 3;
+    display: flex; gap: var(--sp-5); flex-wrap: wrap; align-items: center; padding: var(--sp-3) var(--sp-4);
+    border-radius: var(--r-md);
+  }
+  .filter-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-4); align-items:center; }
+
+  .maplibregl-popup-content {
+    background: var(--glass-tint-deep) !important;
+    backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%);
+    border: 1px solid var(--glass-border); border-radius: var(--r-md) !important;
+    box-shadow: var(--elev-3); color: var(--text); padding: var(--sp-4) !important;
+  }
+  .maplibregl-popup-tip { display: none; }
+  .maplibregl-popup-close-button { color: var(--text-mid); font-size: 18px; padding: 2px 8px; }
+  .maplibregl-ctrl-group { background: var(--glass-tint-deep) !important; border:1px solid var(--glass-border) !important; }
+  .maplibregl-ctrl-group button { filter: invert(1) hue-rotate(180deg); }
+  .pop-head { display:flex; align-items:center; justify-content:space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+  .pop-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+  .pop-grid .stat__value { font-size: var(--fs-h3); }
+
+  /* ---- OPPORTUNITIES surfacing ---- */
+  .opp-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(264px,1fr)); gap: var(--sp-4); }
+  .opp-mini {
+    position: relative; padding: var(--sp-4); border-radius: var(--r-lg); overflow: hidden;
+    cursor: pointer; transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base) var(--ease-out), border-color var(--d-base);
+  }
+  .opp-mini:hover { transform: translateY(-5px); box-shadow: var(--elev-3), 0 0 30px -12px oklch(0.92 0.21 118 / 0.5); border-color: var(--line-strong); }
+  .opp-mini:focus-visible { transform: translateY(-5px); }
+  /* rank ribbon */
+  .opp-mini__rank {
+    position:absolute; top: var(--sp-3); right: var(--sp-3); font-family: var(--font-mono);
+    font-size: var(--fs-2xs); color: var(--text-faint); letter-spacing:.05em;
+  }
+  .opp-mini__bar { height: 7px; border-radius: var(--r-pill); margin-top: var(--sp-3); background: oklch(0.3 0.02 292 / 0.5); overflow: hidden; position:relative; }
+  .opp-mini__bar > i { display:block; height: 100%; width:0; border-radius: inherit; background: linear-gradient(90deg, var(--purple-hot), var(--lime)); box-shadow: 0 0 12px oklch(0.92 0.21 118 / 0.6); }
+  .opp-mini__spark { display:flex; align-items:flex-end; gap:2px; height:24px; margin-top: var(--sp-2); }
+  .opp-mini__spark i { flex:1; background: oklch(0.5 0.06 292 / 0.4); border-radius:2px 2px 0 0; transition: height .8s var(--ease-out); height:10%; }
+  .opp-mini:hover .opp-mini__spark i { background: oklch(0.7 0.12 118 / 0.6); }
+
+  /* ---- LEAD CARD (Surface B mini) ---- */
+  .lead-card { position: relative; padding: var(--sp-5); border-radius: var(--r-lg); overflow: hidden; }
+  .lead-card__top { display: flex; align-items: flex-start; gap: var(--sp-4); margin-bottom: var(--sp-4); }
+  .lead-meta { display: grid; grid-template-columns: repeat(2,1fr); gap: var(--sp-4) var(--sp-5); }
+  .lead-meta > div { padding: var(--sp-3); border-radius: var(--r-sm); background: oklch(0.16 0.02 292 / 0.5); border:1px solid var(--line); }
+  .lead-meta .k { font-size: var(--fs-2xs); letter-spacing:.1em; text-transform:uppercase; color: var(--text-dim); display:flex; align-items:center; gap:6px; }
+  .lead-meta .v { font-family: var(--font-mono); font-size: var(--fs-base); color: var(--text-hi); margin-top:4px; }
+  .channels { display:flex; gap: 6px; }
+  .channels span { width: 28px; height: 28px; border-radius: var(--r-xs); display:grid; place-items:center; background: oklch(0.5 0.03 292 / 0.16); border:1px solid var(--line); color: var(--text-mid); transition: all var(--d-fast); }
+  .channels span.on { color: var(--lime); border-color: var(--line-lime); box-shadow: 0 0 12px -2px var(--lime); }
+  .channels span.weak { color: var(--warn); border-color: oklch(0.83 0.16 85 / 0.35); }
+  .channels span.off { color: var(--st-opp-hot); border-color: oklch(0.74 0.18 38 / 0.35); }
+  .lead-actions { display:flex; gap:var(--sp-2); flex-wrap:wrap; margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--line); }
+  .gap-pill { margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-4); border-radius: var(--r-sm); background: oklch(0.74 0.18 38 / 0.1); border: 1px solid oklch(0.74 0.18 38/.3); font-size: var(--fs-sm); color: var(--st-opp-hot); display:flex; align-items:center; gap:var(--sp-2); }
+
+  /* ---- DOSSIER + RIVALS (Surface C mini) ---- */
+  .dossier-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: var(--sp-5); align-items: stretch; }
+  @media (max-width: 980px){ .dossier-grid { grid-template-columns: 1fr; } }
+  .signal-row { display:flex; flex-wrap:wrap; gap: var(--sp-2); }
+  .signal-chip-static {
+    display:inline-flex; align-items:center; gap:var(--sp-2); padding: .4em .85em; border-radius: var(--r-pill);
+    font-size: var(--fs-xs); background: oklch(0.5 0.03 292 / 0.12); border: 1px solid var(--line); color: var(--text);
+  }
+  .signal-chip-static.good { color: var(--lime); border-color: var(--line-lime); box-shadow: 0 0 14px -6px var(--lime); }
+  .signal-chip-static.gap { color: var(--st-opp-hot); border-color: oklch(0.74 0.18 38/.4); }
+  .rev-block { display:flex; flex-direction:column; gap:var(--sp-2); padding: var(--sp-5); border-radius: var(--r-lg); position:relative; overflow:hidden; }
+  .rev-block .bluf { font-size: clamp(2.2rem,1.6rem+2.5vw,3.4rem); }
+  /* the projection delta arrow */
+  .rev-delta {
+    display:inline-flex; align-items:center; gap:6px; align-self:flex-start; margin-top:var(--sp-2);
+    padding: 3px 10px; border-radius: var(--r-pill); font-family: var(--font-mono); font-size: var(--fs-xs);
+    color: var(--lime); background: oklch(0.92 0.21 118 / 0.1); border:1px solid var(--line-lime);
+  }
+  .vs-table { display:flex; flex-direction:column; gap:var(--sp-3); }
+  .vs-row { display:grid; grid-template-columns: 1fr 30px 1fr; align-items:center; gap:var(--sp-3); }
+  .vs-cell { padding: var(--sp-3); border-radius: var(--r-sm); font-size: var(--fs-sm); line-height:1.4; }
+  .vs-cell.them { background: oklch(0.66 0.15 250 / 0.1); border:1px solid oklch(0.66 0.15 250/.25); color: var(--text); }
+  .vs-cell.you  { background: oklch(0.92 0.21 118 / 0.08); border:1px solid var(--line-lime); color: var(--text-hi); }
+  .vs-x { text-align:center; font-family: var(--font-mono); font-weight:700; }
+  .vs-x.miss { color: var(--st-opp-hot); } .vs-x.win { color: var(--lime); }
+  .echart { width: 100%; height: 240px; }
+
+  /* ---- SERVICES ---- */
+  .svc-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: var(--sp-4); }
+  .svc-card { padding: var(--sp-5); border-radius: var(--r-lg); position:relative; overflow:hidden; transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base) var(--ease-out), border-color var(--d-base); }
+  .svc-card:hover { transform: translateY(-5px); box-shadow: var(--elev-3); border-color: var(--line-strong); }
+  .svc-card__icon { width:46px; height:46px; border-radius:var(--r-md); display:grid; place-items:center; margin-bottom: var(--sp-4); }
+  .svc-card__sister { position:absolute; top:var(--sp-4); right:var(--sp-4); font-size:var(--fs-2xs); font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text-faint); }
+  .svc-price { font-family: var(--font-mono); font-size: var(--fs-h3); color: var(--text-hi); margin-top: var(--sp-4); padding-top: var(--sp-3); border-top:1px solid var(--line); }
+  .svc-total {
+    grid-column: 1/-1; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--sp-4);
+    padding: var(--sp-5); border-radius: var(--r-lg); margin-top: var(--sp-2);
+  }
+
+  /* ---- CONTACT / dispatch ---- */
+  .contact-wrap { display:grid; grid-template-columns: 1.2fr .9fr; gap: var(--sp-6); align-items:stretch; }
+  @media (max-width: 980px){ .contact-wrap { grid-template-columns: 1fr; } }
+  .msg-preview { padding: var(--sp-5); border-radius: var(--r-lg); font-size: var(--fs-base); line-height:1.65; color: var(--text); position:relative; overflow:hidden; }
+  .msg-preview .hl { color: var(--lime); font-weight: 600; }
+  .msg-preview p { margin-bottom: var(--sp-3); }
+  .dispatch-stack { display:flex; flex-direction:column; gap: var(--sp-3); }
+  .dispatch-row { display:flex; align-items:center; gap: var(--sp-3); padding: var(--sp-4); border-radius: var(--r-md); }
+  .dispatch-row .ico { width:42px; height:42px; border-radius:var(--r-sm); display:grid; place-items:center; flex:none; }
+
+  .outro { min-height: 78vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding: var(--sp-9) var(--sp-5); position:relative; max-width: 1320px; margin-inline:auto; }
+  .outro .sunrise { left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(720px,90vw); height: min(720px,90vw); }
+
+  .ico-purple { background: oklch(0.62 0.20 295/.16); color: var(--purple-hot); }
+  .ico-lime { background: oklch(0.92 0.21 118/.12); color: var(--lime); }
+  .ico-opp { background: oklch(0.74 0.18 38/.14); color: var(--st-opp-hot); }
+  .ico-cons { background: oklch(0.66 0.15 250/.14); color: var(--st-consolidated); }
+
+  /* GSAP initial states (only applied when JS+motion run, to avoid FOUC-hidden content) */
+  .js-anim.reveal-pending { opacity: 0; }
+</style>
+</head>
+
+<body>
+<!-- living background -->
+<div class="bg-base"></div>
+<div class="bg-mesh"></div>
+<canvas class="bg-aurora" id="aurora"></canvas>
+<div class="bg-grain"></div>
+<div class="story-thread"></div>
+
+<!-- skip link -->
+<a href="#hero" class="sr-only">Pular para o conteúdo</a>
+
+<!-- progress spine -->
+<nav class="rail" aria-label="Progresso do ritual matinal">
+  <div class="rail__track"></div>
+  <div class="rail__fill" id="railFill"></div>
+  <div class="rail__comet" id="railComet" hidden></div>
+  <a class="rail__dot" href="#hero"     data-label="Bom dia" aria-label="Bom dia"></a>
+  <a class="rail__dot" href="#map"      data-label="Explorar território" aria-label="Explorar território"></a>
+  <a class="rail__dot" href="#opps"     data-label="Oportunidades" aria-label="Oportunidades"></a>
+  <a class="rail__dot" href="#lead"     data-label="Analisar negócio" aria-label="Analisar negócio"></a>
+  <a class="rail__dot" href="#rivals"   data-label="Concorrentes" aria-label="Concorrentes"></a>
+  <a class="rail__dot" href="#dossier"  data-label="Ler dossiê" aria-label="Ler dossiê"></a>
+  <a class="rail__dot" href="#services" data-label="Serviços" aria-label="Serviços"></a>
+  <a class="rail__dot" href="#contact"  data-label="Contatar" aria-label="Contatar"></a>
+</nav>
+
+<!-- topbar -->
+<header class="topbar glass">
+  <div class="bar-backdrop"></div>
+  <div class="brandmark">
+    <div class="brand-logo"><i data-lucide="orbit" style="width:21px;height:21px"></i></div>
+    <div>
+      <div style="font-weight:700; letter-spacing:-.02em; line-height:1">Hermes <span class="t-dim" style="font-weight:500">Cloud Studio</span></div>
+      <div class="t-label" style="margin:0">My Day · ritual matinal</div>
+    </div>
+  </div>
+  <div class="row" style="gap:var(--sp-4)">
+    <span class="topbar-progress" id="topProgress">Passo <b>0</b>/7</span>
+    <span class="greet-time" id="clock">—</span>
+    <span class="row" style="gap:6px"><span class="live-dot"></span><span class="t-xs t-mid">Motor 24/7 ativo</span></span>
+  </div>
+</header>
+
+<main class="journey">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="hero">
+    <div class="sunrise" aria-hidden="true"></div>
+    <div class="hero__eyebrow text-scrim">
+      <span class="chip chip--purple active" style="cursor:default"><span class="chip-dot"></span>Cuiabá · Mato Grosso</span>
+      <span class="t-sm t-dim" id="dateLabel">—</span>
+    </div>
+    <h1 class="t-display text-scrim js-anim" style="max-width:17ch">Bom dia, Caio.<br><span class="t-gradient">O motor varreu a noite toda.</span></h1>
+    <p class="t-lead text-scrim js-anim" style="max-width:56ch; margin-top:var(--sp-4)">
+      Enquanto você dormia, Hermes auditou negócios em 7 bairros, projetou receita real e separou
+      as oportunidades que valem seu tempo. Role para baixo — uma jornada, sete passos, do mapa ao cliente pronto pra fechar.
+    </p>
+
+    <div class="hero__metrics text-scrim js-anim">
+      <div class="stat">
+        <span class="stat__label">Negócios escaneados</span>
+        <span class="stat__value tglow-purple countup" data-to="1284">0</span>
+        <span class="stat__delta stat__delta--up"><i data-lucide="arrow-up-right" style="width:13px;height:13px;vertical-align:-2px"></i> +142 esta noite</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Oportunidades quentes</span>
+        <span class="stat__value tglow-energy countup" data-to="38">0</span>
+        <span class="stat__delta stat__delta--up"><i data-lucide="flame" style="width:13px;height:13px;vertical-align:-2px"></i> 9 prontas p/ contato</span>
+      </div>
+      <div class="stat">
+        <span class="stat__label">Receita projetada no pipeline</span>
+        <span class="stat__value revenue countup" data-to="487" data-prefix="R$ " data-suffix="k">0</span>
+        <span class="stat__delta t-dim"><span class="tag-projected">projetado</span></span>
+      </div>
+    </div>
+
+    <div class="hero__scrollcue"><span>Comece a jornada</span><i data-lucide="chevron-down" style="width:20px;height:20px"></i></div>
+  </section>
+
+  <!-- ============ 1. MAP — explore território ============ -->
+  <section class="chapter" id="map">
+    <span class="chapter__kicker js-anim"><span class="chapter__step-no">01 /</span> Explorar o território varrido</span>
+    <h2 class="t-h1 chapter__title text-scrim js-anim">Onde o motor já passou — e onde tem ouro.</h2>
+    <p class="t-lead chapter__sub text-scrim js-anim">
+      Zonas <b style="color:var(--st-opportunity)">coral</b> = alta oportunidade. <b style="color:var(--st-consolidated)">Azul</b> = já consolidado (site + marketing).
+      <b class="tglow-energy">Lime</b> = nicho raro. <b class="t-dim">Cinza</b> = inexplorado, esperando varredura. Clique numa zona pra cair pra dentro.
+    </p>
+
+    <div class="map-wrap js-anim">
+      <div id="map" role="img" aria-label="Mapa de Cuiabá com zonas de oportunidade pintadas por status"></div>
+      <div class="map-overlay">
+        <div class="zoomscope glass" role="group" aria-label="Escopo de zoom">
+          <button data-scope="city" class="active">Cidade</button>
+          <button data-scope="state">Estado</button>
+          <button data-scope="country">País</button>
+        </div>
+        <div class="map-legend glass-deep glass">
+          <div class="legend">
+            <span class="legend__item"><span class="legend__swatch legend__swatch--opportunity"></span>Oportunidade</span>
+            <span class="legend__item"><span class="legend__swatch legend__swatch--consolidated"></span>Consolidado</span>
+            <span class="legend__item"><span class="legend__swatch legend__swatch--niche"></span>Nicho</span>
+            <span class="legend__item"><span class="legend__swatch legend__swatch--unexplored"></span>Inexplorado</span>
+          </div>
+        </div>
+      </div>
+      <div class="map-stats glass-deep glass" id="mapStats">
+        <div class="stat"><span class="stat__label">Zona em foco</span><span class="t-mono t-h3" id="zoneName" style="color:var(--text-hi)">Cuiabá (todos)</span></div>
+        <div class="stat"><span class="stat__label">Negócios</span><span class="stat__value" style="font-size:var(--fs-h3)" id="zoneBiz">1.284</span></div>
+        <div class="stat"><span class="stat__label">Oportunidades</span><span class="stat__value tglow-energy" style="font-size:var(--fs-h3)" id="zoneOpp">38</span></div>
+        <div class="grow"></div>
+        <button class="btn btn-energy" id="sweepBtn"><i data-lucide="radar"></i> Varrer nova área</button>
+      </div>
+    </div>
+
+    <div class="filter-row js-anim" id="mapFilters">
+      <span class="t-label" style="margin:0; align-self:center">Recolorir mapa por:</span>
+      <button class="chip active" data-filter="status"><span class="chip-dot"></span>Status</button>
+      <button class="chip" data-filter="revenue">Potencial de receita</button>
+      <button class="chip" data-filter="nosite">Sem site</button>
+      <button class="chip" data-filter="age">5+ anos de operação</button>
+      <button class="chip" data-filter="reviews">Movimento (reviews)</button>
+    </div>
+    <div class="chapter__link" aria-hidden="true"></div>
+  </section>
+
+  <!-- ============ 2. OPPORTUNITIES surface ============ -->
+  <section class="chapter" id="opps">
+    <span class="chapter__kicker js-anim"><span class="chapter__step-no">02 /</span> As oportunidades sobem à tona</span>
+    <h2 class="t-h1 chapter__title text-scrim js-anim">9 negócios gritando por você hoje.</h2>
+    <p class="t-lead chapter__sub text-scrim js-anim">
+      O motor ranqueou por sinal honesto: tempo de operação, volume de vendas, reviews no Maps — <b class="tglow-energy">menos</b> presença digital.
+      Quanto maior a barra, maior o salto de receita que seus serviços destravam.
+    </p>
+
+    <div class="opp-strip" id="oppStrip"></div>
+    <div class="chapter__link" aria-hidden="true"></div>
+  </section>
+
+  <!-- ============ 3. ANALYZE business (lead card) ============ -->
+  <section class="chapter" id="lead">
+    <span class="chapter__kicker js-anim"><span class="chapter__step-no">03 /</span> Analisar um negócio</span>
+    <h2 class="t-h1 chapter__title text-scrim js-anim">Churrascaria do Gaúcho.</h2>
+    <p class="t-lead chapter__sub text-scrim js-anim">Tudo que importa numa olhada — score, nicho, porte, receita esperada, canais e estimativa de anúncios. O resto fica num clique.</p>
+
+    <div class="lead-card card card-hot js-anim" style="max-width:780px">
+      <div class="lead-card__top">
+        <div class="score-ring score-ring--high" style="--pct:88; width:76px; height:76px">
+          <span class="score-val" style="font-size:var(--fs-lg)">88</span>
+        </div>
+        <div class="grow">
+          <div class="row-between" style="align-items:flex-start">
+            <div>
+              <h3 class="t-h3" style="margin-bottom:4px">Churrascaria do Gaúcho</h3>
+              <div class="row" style="gap:var(--sp-3); flex-wrap:wrap">
+                <span class="t-sm t-mid"><i data-lucide="utensils" style="width:14px;height:14px;vertical-align:-2px"></i> Churrascaria · Restaurante</span>
+                <span class="t-sm t-dim"><i data-lucide="map-pin" style="width:13px;height:13px;vertical-align:-2px"></i> Jardim Cuiabá</span>
+              </div>
+            </div>
+            <span class="badge badge--ready">Pronto p/ contato</span>
+          </div>
+          <div class="channels" style="margin-top:var(--sp-3)" aria-label="Canais sociais">
+            <span class="on" title="Instagram ativo"><i data-lucide="instagram" style="width:15px;height:15px"></i></span>
+            <span class="weak" title="Facebook fraco"><i data-lucide="facebook" style="width:15px;height:15px"></i></span>
+            <span class="off" title="Sem site"><i data-lucide="globe" style="width:15px;height:15px"></i></span>
+            <span class="on" title="WhatsApp ativo"><i data-lucide="message-circle" style="width:15px;height:15px"></i></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="lead-meta">
+        <div><div class="k"><i data-lucide="users" style="width:13px;height:13px"></i> Porte</div><div class="v">12 funcionários</div></div>
+        <div><div class="k"><i data-lucide="trending-up" style="width:13px;height:13px"></i> Receita esperada/mês <span class="tag-projected"></span></div><div class="v revenue">R$ 180k</div></div>
+        <div><div class="k"><i data-lucide="megaphone" style="width:13px;height:13px"></i> Anúncios estimados</div><div class="v">~0 ativos</div></div>
+        <div><div class="k"><i data-lucide="image" style="width:13px;height:13px"></i> Posts / mês</div><div class="v">8 (orgânico)</div></div>
+      </div>
+
+      <div class="gap-pill"><i data-lucide="alert-triangle" style="width:16px;height:16px"></i> <span><b>Lacuna principal:</b> 6 anos operando, 1.4k reviews 4.7★, sem site e zero tráfego pago.</span></div>
+
+      <div class="lead-actions">
+        <button class="btn btn-sm btn-primary" data-jump="dossier"><i data-lucide="file-text"></i> Gerar dossiê</button>
+        <button class="btn btn-sm" data-jump="rivals"><i data-lucide="swords"></i> Comparar concorrentes</button>
+        <button class="btn btn-sm"><i data-lucide="refresh-cw"></i> Re-auditar</button>
+        <button class="btn btn-sm"><i data-lucide="search"></i> SEO / SEM</button>
+        <button class="btn btn-sm"><i data-lucide="check"></i> Marcar contatado</button>
+        <button class="btn btn-sm"><i data-lucide="send"></i> Enviar p/ Geronimo</button>
+      </div>
+    </div>
+    <div class="chapter__link" aria-hidden="true"></div>
+  </section>
+
+  <!-- ============ 4. COMPETITORS ============ -->
+  <section class="chapter" id="rivals">
+    <span class="chapter__kicker js-anim"><span class="chapter__step-no">04 /</span> Ver os concorrentes</span>
+    <h2 class="t-h1 chapter__title text-scrim js-anim">O que eles fazem que ele não faz.</h2>
+    <p class="t-lead chapter__sub text-scrim js-anim">Diretos e indiretos lado a lado. Cada lacuna coral é uma porta aberta — e um argumento de venda pronto.</p>
+
+    <div class="dossier-grid js-anim">
+      <div class="card glass">
+        <div class="row-between" style="margin-bottom:var(--sp-4)">
+          <h3 class="t-h3">Eles (concorrência) <span class="t-sm t-dim">vs.</span> <span class="tglow-energy">você</span></h3>
+          <span class="badge badge--audited">3 diretos auditados</span>
+        </div>
+        <div class="vs-table">
+          <div class="vs-row"><div class="vs-cell them">Espeto de Ouro tem site + delivery próprio</div><div class="vs-x miss">×</div><div class="vs-cell you">Gaúcho não tem site</div></div>
+          <div class="vs-row"><div class="vs-cell them">Fogo Nativo roda Meta Ads R$3k/mês</div><div class="vs-x miss">×</div><div class="vs-cell you">Gaúcho: R$0 em tráfego pago</div></div>
+          <div class="vs-row"><div class="vs-cell them">Brasa Viva ranqueia "churrasco Cuiabá"</div><div class="vs-x miss">×</div><div class="vs-cell you">Gaúcho invisível no Google</div></div>
+          <div class="vs-row"><div class="vs-cell them">Concorrentes: 600–900 reviews</div><div class="vs-x win">✓</div><div class="vs-cell you"><b>Gaúcho lidera: 1.4k reviews</b></div></div>
+        </div>
+        <p class="t-sm t-dim" style="margin-top:var(--sp-4)"><i data-lucide="lightbulb" style="width:14px;height:14px;color:var(--lime);vertical-align:-2px"></i> Já é o mais amado do bairro — só falta ser <b style="color:var(--text)">encontrável</b>.</p>
+      </div>
+
+      <div class="card glass">
+        <h3 class="t-h3" style="margin-bottom:var(--sp-3)">Domínio de mercado vs. concorrência</h3>
+        <p class="t-sm t-dim" style="margin-bottom:var(--sp-3)">Reputação <b class="tglow-energy">medida</b> (sólido) × presença digital projetada (translúcido)</p>
+        <div id="rivalChart" class="echart"></div>
+      </div>
+    </div>
+    <div class="chapter__link" aria-hidden="true"></div>
+  </section>
+
+  <!-- ============ 5. DOSSIER (the report) ============ -->
+  <section class="chapter" id="dossier">
+    <span class="chapter__kicker js-anim"><span class="chapter__step-no">05 /</span> Ler o dossiê de vendas</span>
+    <h2 class="t-h1 chapter__title text-scrim js-anim">A história em números honestos.</h2>
+    <p class="t-lead chapter__sub text-scrim js-anim">Sólido = <b class="tglow-energy">medido</b>. Translúcido = <b class="t-dim">projetado</b>. Nunca fingimos precisão. Receita é um número assumido, com faixa opcional.</p>
+
+    <div class="dossier-grid js-anim">
+      <div class="col" style="gap:var(--sp-4)">
+        <div class="card is-measured">
+          <span class="t-label">Sinais medidos</span>
+          <div class="signal-row" style="margin-top:var(--sp-3)">
+            <span class="signal-chip-static good"><i data-lucide="calendar" style="width:14px;height:14px"></i> 6 anos operando</span>
+            <span class="signal-chip-static good"><i data-lucide="star" style="width:14px;height:14px"></i> 1.4k reviews · 4.7★</span>
+            <span class="signal-chip-static good"><i data-lucide="trending-up" style="width:14px;height:14px"></i> +18% movimento Maps</span>
+            <span class="signal-chip-static gap"><i data-lucide="globe" style="width:14px;height:14px"></i> sem site</span>
+            <span class="signal-chip-static gap"><i data-lucide="megaphone" style="width:14px;height:14px"></i> R$0 tráfego pago</span>
+            <span class="signal-chip-static gap"><i data-lucide="search-x" style="width:14px;height:14px"></i> SEO inexistente</span>
+          </div>
+          <hr class="divider">
+          <p class="t-sm t-mid">O padrão de ouro do Caio: <b style="color:var(--text-hi)">negócio maduro, com movimento real e reputação, mas digitalmente invisível</b> = maior salto de receita possível com seus serviços.</p>
+        </div>
+
+        <div class="card glass">
+          <span class="t-label">O que falta para estimar receita atual</span>
+          <div class="col" style="gap:var(--sp-3); margin-top:var(--sp-3)">
+            <div class="row" style="gap:var(--sp-3)"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--ok);flex:none"></i><span class="t-sm">Ticket médio (cruzado com cardápio público): <b class="t-mono">R$ 95</b></span></div>
+            <div class="row" style="gap:var(--sp-3)"><i data-lucide="check-circle" style="width:18px;height:18px;color:var(--ok);flex:none"></i><span class="t-sm">Fluxo estimado por reviews/mês: <b class="t-mono">~1.900 clientes</b></span></div>
+            <div class="row" style="gap:var(--sp-3)"><i data-lucide="circle-dashed" style="width:18px;height:18px;color:var(--text-dim);flex:none"></i><span class="t-sm t-dim">Falta: confirmar capacidade do salão (visita/contato)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col" style="gap:var(--sp-4)">
+        <div class="rev-block is-measured pool-lime">
+          <span class="t-label">Receita atual estimada / mês <span class="tag-measured">medido*</span></span>
+          <span class="bluf revenue countup" data-to="180" data-prefix="R$ " data-suffix="k">0</span>
+          <span class="t-xs t-dim">*derivado de sinais públicos medidos · faixa R$ 165k–195k</span>
+        </div>
+        <div class="rev-block is-projected">
+          <span class="t-label">Receita com os serviços do Caio <span class="tag-projected">projetado</span></span>
+          <span class="bluf" style="color:var(--lime)"><span class="countup" data-to="295" data-prefix="R$ " data-suffix="k">0</span></span>
+          <span class="rev-delta"><i data-lucide="arrow-up-right" style="width:14px;height:14px"></i> +R$ 115k/mês · faixa R$ 250k–340k</span>
+          <span class="t-xs t-dim">site + tráfego pago + SEO local</span>
+        </div>
+        <div class="card glass" style="display:flex; align-items:center; gap:var(--sp-4)">
+          <div class="gauge" style="--val:64" aria-label="Confiança da projeção: 64%"></div>
+          <div>
+            <div class="t-h3 t-mono" style="color:var(--lime)"><span class="countup" data-to="64" data-suffix="%">0</span></div>
+            <div class="t-sm t-dim">confiança da projeção<br>(sobe com dados confirmados)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="chapter__link" aria-hidden="true"></div>
+  </section>
+
+  <!-- ============ 6. SERVICES to offer ============ -->
+  <section class="chapter" id="services">
+    <span class="chapter__kicker js-anim"><span class="chapter__step-no">06 /</span> Os serviços que você oferece</span>
+    <h2 class="t-h1 chapter__title text-scrim js-anim">A oferta já montada, com números reais.</h2>
+    <p class="t-lead chapter__sub text-scrim js-anim">Cada serviço puxa de uma irmã do ecossistema. Vuecra gera o site. Geronimo cuida do marketing e da software house. Você só apresenta.</p>
+
+    <div class="svc-grid js-anim">
+      <div class="svc-card card glass">
+        <div class="svc-card__icon ico-purple"><i data-lucide="layout-template"></i></div>
+        <span class="svc-card__sister">Vuecra</span>
+        <h3 class="t-h3">Site institucional + cardápio</h3>
+        <p class="t-sm t-dim" style="margin-top:var(--sp-2)">Gerado pela Vuecra em 48h. Reservas + delivery integrado.</p>
+        <div class="svc-price revenue">R$ 4.800<span class="t-sm t-dim"> setup</span></div>
+      </div>
+      <div class="svc-card card glass">
+        <div class="svc-card__icon ico-lime"><i data-lucide="megaphone"></i></div>
+        <span class="svc-card__sister">Geronimo</span>
+        <h3 class="t-h3">Tráfego pago local</h3>
+        <p class="t-sm t-dim" style="margin-top:var(--sp-2)">Geronimo: Meta + Google Ads, raio 8km de Cuiabá.</p>
+        <div class="svc-price revenue">R$ 2.500<span class="t-sm t-dim">/mês</span></div>
+      </div>
+      <div class="svc-card card glass">
+        <div class="svc-card__icon ico-cons"><i data-lucide="search"></i></div>
+        <span class="svc-card__sister">Geronimo</span>
+        <h3 class="t-h3">SEO local + Google Maps</h3>
+        <p class="t-sm t-dim" style="margin-top:var(--sp-2)">Ranquear "churrasco Cuiabá". Otimização do perfil 4.7★.</p>
+        <div class="svc-price revenue">R$ 1.800<span class="t-sm t-dim">/mês</span></div>
+      </div>
+      <div class="svc-card card glass">
+        <div class="svc-card__icon ico-opp"><i data-lucide="bot"></i></div>
+        <span class="svc-card__sister">Geronimo</span>
+        <h3 class="t-h3">Atendimento WhatsApp IA</h3>
+        <p class="t-sm t-dim" style="margin-top:var(--sp-2)">Software house Geronimo: agente de reservas 24/7.</p>
+        <div class="svc-price revenue">R$ 3.200<span class="t-sm t-dim"> setup</span></div>
+      </div>
+
+      <div class="svc-total card is-measured">
+        <div>
+          <span class="t-label">Pacote completo · entrada + recorrência</span>
+          <div class="row" style="gap:var(--sp-4); margin-top:var(--sp-2); flex-wrap:wrap">
+            <span class="t-mono t-h3" style="color:var(--text-hi)">R$ 8.000 <span class="t-sm t-dim">setup</span></span>
+            <span class="t-dim">+</span>
+            <span class="t-mono t-h3" style="color:var(--text-hi)">R$ 4.300 <span class="t-sm t-dim">/mês</span></span>
+          </div>
+        </div>
+        <div class="row" style="gap:var(--sp-3)">
+          <div style="text-align:right">
+            <div class="t-label" style="margin:0">retorno projetado</div>
+            <div class="revenue t-h3"><span class="tag-projected"></span>+R$ 115k/mês</div>
+          </div>
+          <span class="badge badge--ready">ROI &gt; 9×</span>
+        </div>
+      </div>
+    </div>
+    <div class="chapter__link" aria-hidden="true"></div>
+  </section>
+
+  <!-- ============ 7. CONTACT — everything ready ============ -->
+  <section class="chapter" id="contact">
+    <span class="chapter__kicker js-anim"><span class="chapter__step-no">07 /</span> Contatar com tudo pronto</span>
+    <h2 class="t-h1 chapter__title text-scrim js-anim">Impacto visual na primeira mensagem.</h2>
+    <p class="t-lead chapter__sub text-scrim js-anim">O dossiê vira proposta. A proposta vira mensagem. Você dispara — e as irmãs já começam a trabalhar em paralelo.</p>
+
+    <div class="contact-wrap js-anim">
+      <div class="msg-preview card glass glass-spec">
+        <div class="row" style="margin-bottom:var(--sp-4); justify-content:space-between"><span class="badge badge--ready">Mensagem montada</span><span class="t-xs t-dim"><i data-lucide="message-circle" style="width:13px;height:13px;vertical-align:-2px"></i> WhatsApp · personalizada</span></div>
+        <p>Olá! Vi que a <span class="hl">Churrascaria do Gaúcho</span> tem <span class="hl">1.4k avaliações 4.7★</span> — é a mais amada do Jardim Cuiabá. 🔥</p>
+        <p>Mas notei que vocês <span class="hl">ainda não têm site</span> e não aparecem quando alguém pesquisa "churrasco em Cuiabá". Seus 3 maiores concorrentes já fazem isso.</p>
+        <p>Montei uma projeção: com site + presença digital, dá pra ir de <span class="hl">R$180k → ~R$295k/mês</span>. Posso te mostrar o relatório completo em 10 min?</p>
+        <div class="row" style="margin-top:var(--sp-5); gap:var(--sp-2); flex-wrap:wrap">
+          <button class="btn btn-energy"><i data-lucide="send"></i> Enviar agora</button>
+          <button class="btn btn-ghost"><i data-lucide="pencil"></i> Editar</button>
+          <button class="btn btn-ghost"><i data-lucide="paperclip"></i> Anexar dossiê</button>
+        </div>
+      </div>
+
+      <div class="dispatch-stack">
+        <span class="t-label">Em paralelo, dispare as irmãs</span>
+        <div class="dispatch-row card glass lift">
+          <div class="ico ico-purple"><i data-lucide="layout-template"></i></div>
+          <div class="grow"><div style="font-weight:600">Vuecra · gerar site</div><div class="t-xs t-dim">Preview pronto antes da reunião</div></div>
+          <button class="btn btn-sm btn-primary">Disparar</button>
+        </div>
+        <div class="dispatch-row card glass lift">
+          <div class="ico ico-lime"><i data-lucide="brain-circuit"></i></div>
+          <div class="grow"><div style="font-weight:600">Geronimo · estratégia de marketing</div><div class="t-xs t-dim">40+ agentes · diretor monta o plano</div></div>
+          <button class="btn btn-sm">Disparar</button>
+        </div>
+        <div class="dispatch-row card glass lift">
+          <div class="ico ico-cons"><i data-lucide="bot"></i></div>
+          <div class="grow"><div style="font-weight:600">Geronimo · software house</div><div class="t-xs t-dim">Agente WhatsApp de reservas</div></div>
+          <button class="btn btn-sm">Disparar</button>
+        </div>
+        <div class="card glass" style="text-align:center; padding:var(--sp-4)">
+          <span class="t-label">Status do dia</span>
+          <div class="row" style="justify-content:center; gap:var(--sp-5); margin-top:var(--sp-2)">
+            <div><div class="t-h3 t-mono tglow-energy">9</div><div class="t-2xs t-dim">prontas</div></div>
+            <div><div class="t-h3 t-mono tglow-purple">3</div><div class="t-2xs t-dim">contatadas</div></div>
+            <div><div class="t-h3 t-mono" style="color:var(--st-opportunity)">1</div><div class="t-2xs t-dim">fechando</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OUTRO -->
+  <section class="outro">
+    <div class="sunrise" aria-hidden="true"></div>
+    <span class="chapter__kicker"><i data-lucide="sunrise" style="width:14px;height:14px"></i> Ritual completo</span>
+    <h2 class="t-h1 text-scrim" style="max-width:20ch">Sete passos. Uma jornada. <span class="t-gradient">Do mapa ao fechamento.</span></h2>
+    <p class="t-lead text-scrim" style="max-width:48ch; margin-top:var(--sp-4)">O motor já está varrendo o próximo bairro. Amanhã, mais ouro na superfície.</p>
+    <div class="row" style="margin-top:var(--sp-6); gap:var(--sp-3); flex-wrap:wrap; justify-content:center">
+      <a href="#hero" class="btn btn-primary"><i data-lucide="rotate-ccw"></i> Recomeçar a jornada</a>
+      <a href="#map" class="btn btn-ghost"><i data-lucide="map"></i> Voltar ao mapa</a>
+    </div>
+  </section>
+</main>
+
+<!-- toast mount -->
+<div id="toastMount"></div>
+
+<!-- ============ LIBS ============ -->
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/countup.js@2.10.0/dist/countUp.umd.js"></script>
+
+<script>
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- icons + clock ---------- */
+function icons(){ if(window.lucide) lucide.createIcons(); }
+window.addEventListener('DOMContentLoaded', icons);
+
+const fmtDate = new Intl.DateTimeFormat('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+function tick(){
+  const c=document.getElementById('clock');
+  if(c) c.textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  const d=document.getElementById('dateLabel'); if(d) d.textContent=fmtDate.format(new Date()).replace(/^\w/,c=>c.toUpperCase());
+  tick(); setInterval(tick,30000);
+});
+
+/* ---------- toast ---------- */
+function toast(msg, hot){
+  const m=document.getElementById('toastMount');
+  const t=document.createElement('div'); t.className='toast'+(hot?' glow-energy':'');
+  t.setAttribute('role','status');
+  t.innerHTML=`<span class="row" style="gap:8px"><span class="live-dot"></span>${msg}</span>`;
+  m.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .4s,transform .4s'; t.style.opacity='0'; t.style.transform='translateY(10px)'; setTimeout(()=>t.remove(),420); }, 2600);
+}
+
+/* ---------- count-up (honest numbers) ---------- */
+function runCount(el){
+  const to=parseFloat(el.dataset.to);
+  const opts={duration:REDUCED?0:1.8, prefix:el.dataset.prefix||'', suffix:el.dataset.suffix||'', separator:'.'};
+  if(window.countUp){ new countUp.CountUp(el, to, opts).start(); }
+  else el.textContent=(el.dataset.prefix||'')+to+(el.dataset.suffix||'');
+}
+const countObs=new IntersectionObserver((ents)=>{
+  ents.forEach(e=>{ if(e.isIntersecting){ runCount(e.target); countObs.unobserve(e.target);} });
+},{threshold:.5});
+window.addEventListener('DOMContentLoaded',()=>document.querySelectorAll('.countup').forEach(el=>countObs.observe(el)));
+
+/* ============ SCROLL SPINE / progress rail + topbar progress ============ */
+const dots=[...document.querySelectorAll('.rail__dot')];
+const SECT_IDS=['hero','map','opps','lead','rivals','dossier','services','contact'];
+const sections=SECT_IDS.map(id=>document.getElementById(id));
+const topProgress=document.getElementById('topProgress');
+const comet=document.getElementById('railComet');
+function railGeom(){
+  const fill=document.getElementById('railFill');
+  if(!fill) return null;
+  return fill;
+}
+function updateRail(){
+  const sc=window.scrollY, h=document.documentElement.scrollHeight-window.innerHeight;
+  const pct=Math.min(1,Math.max(0,h>0?sc/h:0));
+  const fill=document.getElementById('railFill');
+  const railH=window.innerHeight*0.74; // 100vh - 13vh top - 13vh bottom
+  if(fill){
+    const fh=railH*pct;
+    fill.style.height=fh+'px';
+    if(comet){ comet.hidden=false; comet.style.top='calc(13vh + '+fh+'px)'; }
+  }
+  let active=0; const mid=sc+window.innerHeight*0.4;
+  sections.forEach((s,i)=>{ if(s && s.offsetTop<=mid) active=i; });
+  dots.forEach((d,i)=>{ d.classList.toggle('active',i===active); d.classList.toggle('done',i<active); });
+  if(topProgress){ topProgress.innerHTML='Passo <b>'+active+'</b>/7'; }
+}
+window.addEventListener('scroll',updateRail,{passive:true});
+window.addEventListener('resize',updateRail,{passive:true});
+window.addEventListener('DOMContentLoaded',updateRail);
+
+/* ============ AURORA — lightweight canvas drift (energy + brand) ============ */
+(function aurora(){
+  const cv=document.getElementById('aurora'); if(!cv) return;
+  if(REDUCED || document.body.classList.contains('perf-lite')){ cv.style.display='none'; return; }
+  const ctx=cv.getContext('2d'); let w,h,raf,t=0;
+  function size(){ w=cv.width=innerWidth*Math.min(devicePixelRatio,1.5); h=cv.height=innerHeight*Math.min(devicePixelRatio,1.5); }
+  size(); addEventListener('resize',size);
+  const blobs=[
+    {x:.2,y:.3,r:.5,c:[124,58,237],a:.10,sx:.00007,sy:.00005},
+    {x:.8,y:.2,r:.42,c:[160,80,255],a:.08,sx:-.00006,sy:.00008},
+    {x:.6,y:.85,r:.55,c:[80,120,222],a:.09,sx:.00005,sy:-.00007},
+    {x:.32,y:.78,r:.34,c:[209,254,23],a:.05,sx:-.00008,sy:-.00005},
+  ];
+  cv.style.opacity='0.6'; cv.style.filter='blur(60px)';
+  function draw(){
+    t++; ctx.clearRect(0,0,w,h);
+    ctx.globalCompositeOperation='lighter';
+    blobs.forEach(b=>{
+      const cx=(b.x+Math.sin(t*b.sx*60)*0.06)*w, cy=(b.y+Math.cos(t*b.sy*60)*0.06)*h, r=b.r*Math.min(w,h);
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+      g.addColorStop(0,`rgba(${b.c[0]},${b.c[1]},${b.c[2]},${b.a})`);
+      g.addColorStop(1,`rgba(${b.c[0]},${b.c[1]},${b.c[2]},0)`);
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
+    });
+    raf=requestAnimationFrame(draw);
+  }
+  draw();
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden){cancelAnimationFrame(raf);} else {draw();} });
+})();
+
+/* ============ GSAP reveals (scroll-driven, never leaves content hidden) ============ */
+window.addEventListener('DOMContentLoaded',()=>{
+  if(REDUCED || !window.gsap){ return; }
+  gsap.registerPlugin(ScrollTrigger);
+  // hero entrance
+  gsap.from('.hero .js-anim',{opacity:0,y:30,duration:.8,stagger:.12,ease:'power3.out',delay:.1});
+  // per-chapter reveal
+  document.querySelectorAll('.chapter').forEach(ch=>{
+    const targets=ch.querySelectorAll('.js-anim');
+    gsap.from(targets,{
+      opacity:0, y:38, duration:.7, stagger:.09, ease:'power3.out',
+      scrollTrigger:{ trigger:ch, start:'top 74%', once:true }
+    });
+  });
+  // subtle parallax on sunrise arcs
+  gsap.utils.toArray('.sunrise').forEach(s=>{
+    gsap.to(s,{ yPercent:18, ease:'none', scrollTrigger:{ trigger:s.closest('section'), start:'top bottom', end:'bottom top', scrub:true } });
+  });
+  ScrollTrigger.refresh();
+});
+
+/* ============ OPPORTUNITY mini-cards (real Cuiabá data) ============ */
+const OPPS=[
+  {n:'Churrascaria do Gaúcho', niche:'Churrascaria', bairro:'Jardim Cuiabá', score:88, gap:'+R$115k', bar:92, spark:[40,55,60,72,80,92], cls:'card-hot'},
+  {n:'Ótica Visão Pantanal', niche:'Ótica', bairro:'Centro', score:81, gap:'+R$48k', bar:78, spark:[30,38,45,52,66,78]},
+  {n:'Clínica OdontoSorriso', niche:'Odontologia', bairro:'Goiabeiras', score:79, gap:'+R$92k', bar:84, spark:[44,50,58,70,76,84]},
+  {n:'Auto Peças Cuiabá Diesel', niche:'Autopeças', bairro:'CPA', score:76, gap:'+R$61k', bar:71, spark:[35,42,50,58,64,71]},
+  {n:'Padaria Pão Quente MT', niche:'Padaria', bairro:'Coxipó', score:74, gap:'+R$34k', bar:66, spark:[28,34,40,48,58,66]},
+  {n:'Academia Corpo & Movimento', niche:'Fitness', bairro:'Santa Rosa', score:72, gap:'+R$57k', bar:69, spark:[33,40,46,54,62,69]},
+  {n:'Pet Shop Amigo Fiel', niche:'Pet Shop', bairro:'Jardim das Américas', score:70, gap:'+R$29k', bar:61, spark:[26,32,38,46,54,61]},
+  {n:'Marmoraria Cuiabá Stone', niche:'Construção', bairro:'Distrito Industrial', score:68, gap:'+R$73k', bar:64, spark:[30,36,44,52,58,64]},
+  {n:'Buffet Sabor do Cerrado', niche:'Eventos', bairro:'Morada do Ouro', score:66, gap:'+R$41k', bar:58, spark:[24,30,36,44,50,58]},
+];
+window.addEventListener('DOMContentLoaded',()=>{
+  const strip=document.getElementById('oppStrip'); if(!strip) return;
+  OPPS.forEach((o,i)=>{
+    const el=document.createElement('article');
+    el.className='opp-mini card glass'+(o.cls?' '+o.cls:'');
+    el.tabIndex=0; el.setAttribute('role','button'); el.setAttribute('aria-label',`Analisar ${o.n}, score ${o.score}`);
+    const spark=o.spark.map(v=>`<i style="height:${v}%"></i>`).join('');
+    el.innerHTML=`
+      <span class="opp-mini__rank">#${i+1}</span>
+      <div class="row-between">
+        <div class="score-ring score-ring--${o.score>=80?'high':o.score>=72?'mid':'low'}" style="--pct:${o.score}; width:48px;height:48px">
+          <span class="score-val">${o.score}</span>
+        </div>
+        ${i===0?'<span class="badge badge--ready">topo</span>':'<span class="badge badge--audited">auditado</span>'}
+      </div>
+      <h3 class="t-h3" style="margin-top:var(--sp-3); font-size:var(--fs-lg)">${o.n}</h3>
+      <div class="t-sm t-dim">${o.niche} · ${o.bairro}</div>
+      <div class="opp-mini__spark" aria-hidden="true">${spark}</div>
+      <div class="row-between" style="margin-top:var(--sp-3)">
+        <span class="t-xs t-dim">salto de receita</span>
+        <span class="t-mono" style="color:var(--lime); font-weight:600">${o.gap}/mês</span>
+      </div>
+      <div class="opp-mini__bar"><i></i></div>`;
+    el.addEventListener('click',()=>{
+      if(i===0){ document.getElementById('lead').scrollIntoView({behavior:REDUCED?'auto':'smooth'}); }
+      else toast(`Abrindo análise de <b>${o.n}</b>`);
+    });
+    el.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); el.click(); } });
+    strip.appendChild(el);
+    // animate bar when visible
+    new IntersectionObserver((ents,ob)=>{
+      ents.forEach(en=>{ if(en.isIntersecting){
+        setTimeout(()=>{
+          const bar=el.querySelector('.opp-mini__bar > i');
+          if(bar){ bar.style.transition='width 1s var(--ease-out)'; bar.style.width=o.bar+'%'; }
+        }, REDUCED?0:i*60);
+        ob.disconnect();
+      }});
+    },{threshold:.4}).observe(el);
+  });
+  icons();
+});
+
+/* ============ MAPLIBRE — Surface A mini (Cuiabá) ============ */
+let map, mapData;
+const ZONES=[
+  {name:'Jardim Cuiabá', c:[-56.085,-15.585], status:'opportunity', biz:184, opp:9, rev:0.92, nosite:.7, age:.8, reviews:.85},
+  {name:'Centro',        c:[-56.097,-15.601], status:'consolidated',biz:312, opp:4, rev:0.55, nosite:.3, age:.6, reviews:.7},
+  {name:'Goiabeiras',    c:[-56.075,-15.575], status:'opportunity', biz:148, opp:7, rev:0.81, nosite:.65,age:.7, reviews:.6},
+  {name:'CPA',           c:[-56.060,-15.560], status:'niche',       biz:96,  opp:3, rev:0.7,  nosite:.5, age:.55,reviews:.5},
+  {name:'Coxipó',        c:[-56.055,-15.620], status:'opportunity', biz:171, opp:6, rev:0.74, nosite:.6, age:.65,reviews:.55},
+  {name:'Santa Rosa',    c:[-56.105,-15.578], status:'consolidated',biz:128, opp:2, rev:0.5,  nosite:.25,age:.5, reviews:.6},
+  {name:'Morada do Ouro',c:[-56.072,-15.555], status:'unexplored',  biz:64,  opp:1, rev:0.35, nosite:.4, age:.4, reviews:.3},
+  {name:'Jardim das Américas',c:[-56.115,-15.610], status:'opportunity',biz:89,opp:5, rev:0.78,nosite:.68,age:.6,reviews:.5},
+];
+function box(c,r){ const[x,y]=c; return [[ [x-r,y-r],[x+r,y-r],[x+r,y+r],[x-r,y+r],[x-r,y-r] ]]; }
+function zoneColor(z){
+  return ({opportunity:'rgb(247,138,92)',consolidated:'rgb(96,142,222)',niche:'rgb(209,254,23)',unexplored:'rgb(80,80,95)'})[z.status];
+}
+function buildGeo(filter){
+  return { type:'FeatureCollection', features: ZONES.map((z,i)=>{
+    let color, val=1;
+    if(filter==='status'){ color=zoneColor(z); val=z.status==='unexplored'?0.2:0.9; }
+    else {
+      val = filter==='revenue'?z.rev : filter==='nosite'?z.nosite : filter==='age'?z.age : z.reviews;
+      color = val>0.6 ? `rgb(${Math.round(120+135*val)},254,${Math.round(120-100*val)})`
+            : val>0.4 ? 'rgb(96,142,222)' : 'rgb(80,80,95)';
+    }
+    return { type:'Feature', properties:{...z, color, idx:i, match: val>0.6?1:0}, geometry:{type:'Polygon', coordinates: box(z.c, 0.011)} };
+  })};
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  if(!window.maplibregl){ console.warn('maplibre not loaded'); return; }
+  map=new maplibregl.Map({
+    container:'map',
+    style:{ version:8, sources:{}, layers:[{id:'bg',type:'background',paint:{'background-color':'#15131c'}}],
+            glyphs:'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf' },
+    center:[-56.085,-15.59], zoom:11.4, attributionControl:false, pitch:34, bearing:-14,
+    cooperativeGestures:false
+  });
+  map.addControl(new maplibregl.NavigationControl({showCompass:false}),'bottom-right');
+  map.on('load',()=>{
+    mapData=buildGeo('status');
+    map.addSource('zones',{type:'geojson',data:mapData});
+    // soft halo under fill for depth
+    map.addLayer({id:'zfill',type:'fill-extrusion',source:'zones',paint:{
+      'fill-extrusion-color':['get','color'],
+      'fill-extrusion-opacity':0.5,
+      'fill-extrusion-height':['*',['get','opp'],90],
+      'fill-extrusion-base':0
+    }});
+    map.addLayer({id:'zline',type:'line',source:'zones',paint:{'line-color':['get','color'],'line-width':1.6,'line-opacity':0.95}});
+    map.addLayer({id:'zlabel',type:'symbol',source:'zones',layout:{
+      'text-field':['get','name'],'text-size':12,'text-font':['Noto Sans Bold'],'text-offset':[0,0.2],'text-allow-overlap':false
+    },paint:{'text-color':'#f1eff8','text-halo-color':'#15131c','text-halo-width':1.6}});
+    // pulsing glow ring on opportunity zones
+    map.addLayer({id:'zglow',type:'circle',source:'zones',filter:['==',['get','status'],'opportunity'],paint:{
+      'circle-radius':9,'circle-color':'rgb(209,254,23)','circle-blur':1.1,'circle-opacity':0.7
+    }});
+
+    // animated glow pulse (compositor-cheap; gated by reduced-motion)
+    if(!REDUCED){
+      let gt=0;
+      setInterval(()=>{ if(!map.getLayer('zglow')) return; gt+=0.08; map.setPaintProperty('zglow','circle-radius', 9+Math.sin(gt)*3); map.setPaintProperty('zglow','circle-opacity', 0.55+Math.sin(gt)*0.2); }, 60);
+    }
+
+    map.on('click','zfill',e=>{
+      const p=e.features[0].properties;
+      document.getElementById('zoneName').textContent=p.name;
+      document.getElementById('zoneBiz').textContent=p.biz;
+      document.getElementById('zoneOpp').textContent=p.opp;
+      new maplibregl.Popup({closeButton:true,maxWidth:'300px',offset:14})
+        .setLngLat(e.lngLat)
+        .setHTML(`
+          <div class="pop-head">
+            <strong style="font-size:1.05rem">${p.name}</strong>
+            <span class="badge badge--${p.status}">${({opportunity:'oportunidade',consolidated:'consolidado',niche:'nicho',unexplored:'inexplorado'})[p.status]}</span>
+          </div>
+          <div class="pop-grid">
+            <div class="stat"><span class="stat__label">Negócios</span><span class="stat__value">${p.biz}</span></div>
+            <div class="stat"><span class="stat__label">Oport.</span><span class="stat__value" style="color:var(--lime)">${p.opp}</span></div>
+            <div class="stat"><span class="stat__label">Nicho</span><span class="stat__value" style="color:var(--purple-hot)">${Math.round(p.opp/3)}</span></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm btn-energy" onclick="document.getElementById('opps').scrollIntoView({behavior:'smooth'})">Ver oportunidades</button>
+            <button class="btn btn-sm" onclick="this.closest('.maplibregl-popup').querySelector('.maplibregl-popup-close-button').click()">Fechar</button>
+          </div>`)
+        .addTo(map);
+    });
+    map.on('mouseenter','zfill',()=>map.getCanvas().style.cursor='pointer');
+    map.on('mouseleave','zfill',()=>map.getCanvas().style.cursor='');
+
+    // gentle intro rotation for cinematic feel
+    if(!REDUCED){ map.easeTo({bearing:-8, pitch:36, duration:2600, essential:true}); }
+  });
+
+  // filters recolor map (match -> glow, rest -> cold)
+  document.querySelectorAll('#mapFilters .chip').forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      document.querySelectorAll('#mapFilters .chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      const f=chip.dataset.filter;
+      if(map.getSource('zones')){ map.getSource('zones').setData(buildGeo(f)); }
+      // when filtering by a metric, glow only matches
+      if(map.getLayer('zglow')){
+        map.setFilter('zglow', f==='status' ? ['==',['get','status'],'opportunity'] : ['==',['get','match'],1]);
+      }
+      const labels={status:'status',revenue:'potencial de receita',nosite:'sem site',age:'5+ anos',reviews:'movimento'};
+      toast(`Mapa recolorido por <b>${labels[f]}</b>`);
+    });
+  });
+
+  // zoom scope city/state/country
+  const SCOPES={city:{center:[-56.085,-15.59],zoom:11.4,pitch:36,label:'Cuiabá (todos)',biz:'1.284',opp:'38'},
+                state:{center:[-55.5,-13.2],zoom:6.2,pitch:20,label:'Mato Grosso',biz:'4.910',opp:'127'},
+                country:{center:[-52,-14],zoom:3.4,pitch:0,label:'Brasil',biz:'58.420',opp:'1.903'}};
+  document.querySelectorAll('.zoomscope button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('.zoomscope button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      const s=SCOPES[b.dataset.scope];
+      if(map) map.flyTo({center:s.center,zoom:s.zoom,pitch:s.pitch,duration:REDUCED?0:1400,essential:true});
+      document.getElementById('zoneName').textContent=s.label;
+      document.getElementById('zoneBiz').textContent=s.biz;
+      document.getElementById('zoneOpp').textContent=s.opp;
+    });
+  });
+
+  // sweep new area
+  const sweepBtn=document.getElementById('sweepBtn');
+  if(sweepBtn) sweepBtn.addEventListener('click',function(){
+    this.classList.add('energized','running'); this.innerHTML='<i data-lucide="loader"></i> Varrendo…'; icons();
+    toast('Varredura automática iniciada em <b>Morada do Ouro</b>', true);
+    if(map && !REDUCED){ map.flyTo({center:[-56.072,-15.555],zoom:12.6,duration:1600,essential:true}); }
+    setTimeout(()=>{
+      this.classList.remove('energized','running'); this.innerHTML='<i data-lucide="radar"></i> Varrer nova área'; icons();
+      toast('Varredura completa · <b>+12 oportunidades</b> encontradas', true);
+    }, REDUCED?100:2800);
+  });
+});
+
+/* ============ ECHARTS — rival market-dominance radar ============ */
+window.addEventListener('DOMContentLoaded',()=>{
+  const el=document.getElementById('rivalChart'); if(!el||!window.echarts) return;
+  const ch=echarts.init(el,null,{renderer:'canvas'});
+  ch.setOption({
+    backgroundColor:'transparent',
+    tooltip:{ trigger:'item', backgroundColor:'rgba(23,20,30,0.92)', borderColor:'rgba(255,255,255,0.12)', textStyle:{color:'#e8e6f0'} },
+    radar:{
+      center:['50%','52%'], radius:'66%',
+      indicator:[
+        {name:'Reputação',max:100},{name:'Reviews',max:100},{name:'Site',max:100},
+        {name:'Tráfego pago',max:100},{name:'SEO',max:100},{name:'Redes sociais',max:100}
+      ],
+      shape:'polygon', splitNumber:4,
+      axisName:{color:'#c9c4dd',fontSize:11},
+      splitLine:{lineStyle:{color:'rgba(140,140,160,0.18)'}},
+      splitArea:{areaStyle:{color:['rgba(124,58,237,0.05)','transparent']}},
+      axisLine:{lineStyle:{color:'rgba(140,140,160,0.2)'}}
+    },
+    legend:{ data:['Gaúcho (medido)','Concorrência (medido)'], textStyle:{color:'#c9c4dd'}, bottom:0, icon:'roundRect' },
+    series:[{
+      type:'radar', symbol:'circle', symbolSize:6,
+      emphasis:{ areaStyle:{opacity:0.3} },
+      data:[
+        {value:[95,98,5,3,8,55],name:'Gaúcho (medido)',
+          lineStyle:{color:'rgb(209,254,23)',width:2.4}, areaStyle:{color:'rgba(209,254,23,0.20)'}, itemStyle:{color:'rgb(209,254,23)'}},
+        {value:[72,68,80,70,65,75],name:'Concorrência (medido)',
+          lineStyle:{color:'rgb(124,58,237)',width:2.4}, areaStyle:{color:'rgba(124,58,237,0.14)'}, itemStyle:{color:'rgb(124,58,237)'}}
+      ]
+    }]
+  });
+  let drawn=false;
+  new IntersectionObserver((e,o)=>{ if(e[0].isIntersecting){ ch.resize(); if(!drawn){ drawn=true; } } }).observe(el);
+  window.addEventListener('resize',()=>ch.resize());
+});
+
+/* ============ wire up jump buttons + dispatch feedback ============ */
+window.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('[data-jump]').forEach(b=>{
+    b.addEventListener('click',()=>{ const t=document.getElementById(b.dataset.jump); if(t) t.scrollIntoView({behavior:REDUCED?'auto':'smooth'}); });
+  });
+  document.querySelectorAll('.dispatch-row .btn, .msg-preview .btn-energy').forEach(b=>{
+    b.addEventListener('click',()=>{ const t=b.closest('.dispatch-row')?.querySelector('div div')?.textContent || b.textContent.trim(); toast(`<b>${t}</b> · disparado`, b.classList.contains('btn-energy')); });
+  });
+});
+</script>
+</body>
+</html>

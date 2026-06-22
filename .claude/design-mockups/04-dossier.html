@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dossiê · Clube dos Bichos — Hermes Cloud Studio</title>
+<link rel="stylesheet" href="design-system.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5/index.css">
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/countup.js@2.10.0/dist/countUp.umd.js"></script>
+<style>
+  /* ---- page-local layout (uses ONLY design-system tokens) ---- */
+  .doss-grain { display:block; opacity:.04; }
+
+  /* scroll-driven reading progress rail (top hairline) */
+  .read-rail{ position:fixed; top:0; left:0; right:0; height:2px; z-index:calc(var(--z-sticky) + 1); pointer-events:none; }
+  .read-rail__fill{ height:100%; width:0%; transform-origin:left center;
+    background:linear-gradient(90deg, var(--purple-hot), var(--lime));
+    box-shadow:0 0 10px oklch(0.92 0.21 118 / 0.5); }
+
+  .topbar{
+    position:sticky; top:0; z-index:var(--z-sticky);
+    display:flex; align-items:center; justify-content:space-between;
+    gap:var(--sp-4); padding:var(--sp-3) var(--sp-5);
+    background:oklch(0.14 0.02 292 / 0.62);
+    backdrop-filter:blur(18px) saturate(170%); -webkit-backdrop-filter:blur(18px) saturate(170%);
+    border-bottom:1px solid var(--line);
+    box-shadow:0 1px 0 oklch(0.99 0.01 292 / 0.05), 0 10px 30px -20px oklch(0 0 0 / 0.8);
+  }
+  .topbar__crumbs{ display:flex; align-items:center; gap:var(--sp-2); font-size:var(--fs-xs); color:var(--text-dim); flex-wrap:wrap; }
+  .topbar__crumbs b{ color:var(--text); font-weight:600; }
+  .topbar__crumbs svg{ width:13px; height:13px; opacity:.5; }
+
+  /* ===== BLUF VERDICT HERO ===== */
+  .bluf-hero{ position:relative; padding:var(--sp-8) 0 var(--sp-7); }
+  /* hero ambient — twin light pools that drift, sits behind the grid */
+  .bluf-hero::before{
+    content:""; position:absolute; inset:-10% -6% 0; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(40% 60% at 22% 30%, oklch(0.55 0.16 118 / 0.18), transparent 70%),
+      radial-gradient(46% 64% at 82% 22%, oklch(0.5 0.18 295 / 0.22), transparent 72%);
+    filter:blur(8px); animation:heroPool 18s var(--ease-inout) infinite;
+  }
+  @keyframes heroPool{ 0%,100%{ transform:translate(0,0) scale(1); } 50%{ transform:translate(-2%,2%) scale(1.06); } }
+  .bluf-grid{
+    display:grid; grid-template-columns: 1.55fr 1fr; gap:var(--sp-6); align-items:stretch;
+  }
+  @media (max-width:920px){ .bluf-grid{ grid-template-columns:1fr; } }
+  .verdict{
+    position:relative; padding:var(--sp-7) var(--sp-7) var(--sp-6);
+    border-radius:var(--r-2xl); overflow:hidden;
+    background-image:var(--pool-lime), var(--glass-tint);
+    background-blend-mode:screen, normal;
+  }
+  /* slow diagonal light sweep across the verdict — "live audit" tell */
+  .verdict::after{
+    content:""; position:absolute; top:-50%; left:-30%; width:42%; height:200%;
+    background:linear-gradient(105deg, transparent, oklch(0.95 0.02 292 / 0.07) 45%, oklch(0.92 0.21 118 / 0.06) 50%, transparent 60%);
+    transform:rotate(8deg) translateX(-40%); pointer-events:none;
+    animation:verdictSweep 7.5s var(--ease-inout) 1.2s infinite;
+  }
+  @keyframes verdictSweep{ 0%{ transform:rotate(8deg) translateX(-60%); opacity:0; } 12%{ opacity:1; } 40%,100%{ transform:rotate(8deg) translateX(380%); opacity:0; } }
+  .verdict__kicker{ display:flex; align-items:center; gap:var(--sp-3); margin-bottom:var(--sp-5); flex-wrap:wrap; }
+  .verdict__headline{
+    font-size:clamp(2rem,1.3rem+2.8vw,3.6rem); font-weight:700; line-height:1.0;
+    letter-spacing:-0.035em; color:var(--text-hi); max-width:18ch;
+  }
+  .verdict__headline em{ font-style:normal; color:var(--lime);
+    text-shadow:0 0 18px oklch(0.92 0.21 118 / 0.55), 0 0 44px oklch(0.7 0.16 118 / 0.3); }
+  .verdict__sub{ margin-top:var(--sp-4); max-width:48ch; }
+  .verdict__cta{ margin-top:var(--sp-6); display:flex; gap:var(--sp-3); flex-wrap:wrap; }
+
+  .scorecard{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:var(--sp-5); padding:var(--sp-6); border-radius:var(--r-2xl); text-align:center;
+  }
+  .scorecard__head{ display:flex; align-items:center; gap:var(--sp-2); }
+  /* ring: conic progress as a masked ::before, so children (number) stay visible */
+  .score-big{
+    --pct:0; --ring-color:var(--lime); --ring-bleed:var(--lime-bleed);
+    position:relative; width:200px; height:200px; border-radius:50%; display:grid; place-items:center;
+    box-shadow:0 0 56px -10px var(--ring-bleed);
+  }
+  .score-big::before{
+    content:""; position:absolute; inset:0; border-radius:50%; z-index:0;
+    background:
+      conic-gradient(from -90deg,
+        var(--ring-color) calc(var(--pct)*1%),
+        oklch(0.3 0.02 292 / 0.4) calc(var(--pct)*1%));
+    -webkit-mask:radial-gradient(circle, transparent 0 80px, #000 81px);
+            mask:radial-gradient(circle, transparent 0 80px, #000 81px);
+  }
+  /* faint full-circle track sits under the progress */
+  .score-big__track{
+    position:absolute; inset:0; border-radius:50%; z-index:-1;
+    background:conic-gradient(from -90deg, oklch(0.3 0.02 292 / 0.32) 0 100%);
+    -webkit-mask:radial-gradient(circle, transparent 0 80px, #000 81px);
+            mask:radial-gradient(circle, transparent 0 80px, #000 81px);
+  }
+  /* radial tick marks around the ring */
+  .score-big__ticks{
+    position:absolute; inset:-9px; border-radius:50%; z-index:-1; opacity:.5;
+    background:repeating-conic-gradient(from -90deg,
+      oklch(0.7 0.04 292 / 0.5) 0 1deg, transparent 1deg 9deg);
+    -webkit-mask:radial-gradient(circle, transparent 0 99px, #000 100px 102px, transparent 103px);
+            mask:radial-gradient(circle, transparent 0 99px, #000 100px 102px, transparent 103px);
+  }
+  .score-big__core{
+    position:absolute; inset:18px; border-radius:50%; display:grid; place-items:center; z-index:1;
+    background:radial-gradient(circle at 50% 32%, var(--bg-2), var(--bg-inset) 78%);
+    box-shadow:inset 0 0 30px oklch(0 0 0 /.65), inset 0 1px 0 oklch(0.99 0.01 292 / 0.06);
+  }
+  .score-big__inner{ position:relative; display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .score-big__num{ font-family:var(--font-mono); font-size:3.7rem; font-weight:600; line-height:1; color:var(--text-hi); font-variant-numeric:tabular-nums; letter-spacing:-0.02em;
+    text-shadow:0 0 22px oklch(0.92 0.21 118 / 0.35); }
+  .score-big__den{ font-family:var(--font-mono); font-size:var(--fs-xs); color:var(--text-dim); letter-spacing:.1em; }
+  .score-big__verdict{ font-size:var(--fs-2xs); font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--lime); margin-top:2px; }
+  .verdict-pills{ display:flex; flex-direction:column; gap:var(--sp-2); width:100%; }
+  .verdict-pills .row-between{ padding:var(--sp-2) 0; border-bottom:1px solid var(--line); }
+  .verdict-pills .row-between:last-child{ border-bottom:none; }
+
+  /* ===== REVENUE GAP RING ===== */
+  .gap-section{ padding:var(--sp-7) 0; }
+  .gap-grid{ display:grid; grid-template-columns: 1.1fr 0.9fr; gap:var(--sp-6); align-items:center; }
+  @media (max-width:920px){ .gap-grid{ grid-template-columns:1fr; } }
+  #revRing{ width:100%; height:440px; }
+  .gap-readout{ display:flex; flex-direction:column; gap:var(--sp-4); }
+  .gap-figure{ position:relative; display:flex; flex-direction:column; gap:var(--sp-1);
+    padding-left:var(--sp-4); }
+  .gap-figure::before{ content:""; position:absolute; left:0; top:4px; bottom:4px; width:3px; border-radius:var(--r-pill);
+    background:linear-gradient(180deg, var(--lime), oklch(0.7 0.16 118 / 0.2)); box-shadow:0 0 10px oklch(0.92 0.21 118 / 0.5); }
+  .gap-figure .bignum{ font-size:clamp(2.6rem,1.6rem+3.2vw,4.4rem); line-height:0.95; }
+  .range-toggle{ display:inline-flex; align-items:center; gap:var(--sp-3); cursor:pointer; }
+  .range-vals{ display:flex; gap:var(--sp-4); }
+  .range-vals .rv{ flex:1; display:flex; flex-direction:column; gap:3px; padding:var(--sp-3); border-radius:var(--r-md);
+    background:oklch(0.5 0.03 292 / 0.1); border:1px solid var(--line); }
+  .range-vals .rv--likely{ background:oklch(0.92 0.21 118 / 0.08); border-color:var(--line-lime); box-shadow:0 0 18px -6px oklch(0.92 0.21 118 / 0.5); }
+  .switch{ position:relative; width:44px; height:24px; border-radius:var(--r-pill); background:var(--bg-inset); border:1px solid var(--line); cursor:pointer; transition:background var(--d-fast); flex:none; }
+  .switch::after{ content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--text-mid); transition:transform var(--d-base) var(--ease-spring), background var(--d-fast); }
+  .switch[aria-checked="true"]{ background:var(--lime); }
+  .switch[aria-checked="true"]::after{ transform:translateX(20px); background:var(--lime-ink); }
+
+  /* ===== SCROLLYTELLING ===== */
+  .scrolly{ position:relative; }
+  .scrolly__inner{ display:grid; grid-template-columns: 1fr 1fr; gap:var(--sp-7); position:relative; }
+  @media (max-width:920px){ .scrolly__inner{ grid-template-columns:1fr; } }
+  .scrolly__pin{ position:sticky; top:0; height:100dvh; display:flex; align-items:center; }
+  @media (max-width:920px){ .scrolly__pin{ position:relative; height:62dvh; top:0; } }
+  .pin-stage{ position:relative; width:100%; height:min(74dvh,580px); border-radius:var(--r-2xl); overflow:hidden; display:grid; place-items:center;
+    background-image:radial-gradient(120% 90% at 50% 0%, oklch(0.26 0.05 292 / 0.5), transparent 70%), var(--glass-tint-deep); }
+  .pin-stage::after{ /* soft vignette so the mutating visual reads as a focal stage */
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:3;
+    box-shadow:inset 0 0 90px -10px oklch(0 0 0 / 0.7); }
+  .pin-stage canvas, .pin-stage svg{ position:absolute; inset:0; }
+  /* act progress meter on the stage corner */
+  .pin-meter{ position:absolute; top:var(--sp-4); left:var(--sp-4); z-index:4; display:flex; gap:6px; }
+  .pin-meter span{ width:26px; height:3px; border-radius:var(--r-pill); background:oklch(0.5 0.03 292 / 0.4); transition:background var(--d-base), box-shadow var(--d-base); }
+  .pin-meter span.on{ background:var(--lime); box-shadow:0 0 10px oklch(0.92 0.21 118 / 0.6); }
+  .pin-tag{ position:absolute; top:var(--sp-4); right:var(--sp-4); z-index:4; font-family:var(--font-mono); font-size:var(--fs-2xs); letter-spacing:.18em; color:var(--text-dim); }
+
+  .act{ min-height:96dvh; display:flex; flex-direction:column; justify-content:center; gap:var(--sp-4); padding:var(--sp-7) 0;
+    transition:opacity var(--d-slow) var(--ease-out); }
+  .act__no{ font-family:var(--font-mono); font-size:var(--fs-sm); color:var(--lime); letter-spacing:.22em;
+    display:inline-flex; align-items:center; gap:var(--sp-3); }
+  .act__no::before{ content:""; width:28px; height:1px; background:linear-gradient(90deg, var(--lime), transparent); }
+  .act__body{ max-width:42ch; }
+  .act__stat{ display:flex; gap:var(--sp-6); flex-wrap:wrap; margin-top:var(--sp-3); }
+
+  /* pin visual faces */
+  .face{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:var(--sp-3); opacity:0; z-index:2; }
+  .face .glyph{ width:118px; height:118px; }
+  .face-stat{ font-family:var(--font-mono); font-size:clamp(2rem,1.4rem+2vw,3.4rem); font-weight:600; color:var(--text-hi); }
+  /* act1 storefront: glowing pedestal under the glyph */
+  .face[data-face="0"] .glyph{ filter:drop-shadow(0 0 22px oklch(0.92 0.21 118 / 0.55)); }
+  .face[data-face="0"]::before{ content:""; position:absolute; width:220px; height:60px; border-radius:50%; bottom:24%;
+    background:radial-gradient(ellipse, oklch(0.92 0.21 118 / 0.22), transparent 70%); filter:blur(6px); }
+  .orbit{ position:absolute; border-radius:50%; border:1px solid var(--line); }
+  .orbit::after{ content:""; position:absolute; width:9px; height:9px; border-radius:50%; top:-5px; left:50%; margin-left:-4px;
+    background:var(--st-opportunity); box-shadow:0 0 10px var(--st-opportunity); }
+  .orbit:nth-of-type(2)::after{ background:var(--purple-hot); box-shadow:0 0 10px var(--purple-hot); top:auto; bottom:-5px; }
+  .orbit:nth-of-type(3)::after{ background:var(--text-faint); box-shadow:none; left:-5px; top:50%; }
+  .moon{ position:absolute; width:14px; height:14px; border-radius:50%; }
+  #compChart{ width:88%; height:88%; }
+  #costChart{ width:90%; height:90%; }
+
+  /* ===== WATERFALL ===== */
+  .water-section{ padding:var(--sp-7) 0 var(--sp-8); }
+  #waterfall{ width:100%; height:440px; }
+  .lever-key{ display:flex; gap:var(--sp-5); flex-wrap:wrap; margin-top:var(--sp-4); }
+  .lever-key .k{ display:flex; align-items:center; gap:var(--sp-2); font-size:var(--fs-xs); color:var(--text-mid); }
+  .lever-key .dot{ width:11px; height:11px; border-radius:3px; box-shadow:0 0 8px -1px currentColor; }
+
+  /* competitor strip */
+  .vs-grid{ display:grid; grid-template-columns:1fr auto 1fr; gap:var(--sp-4); align-items:stretch; }
+  @media (max-width:760px){ .vs-grid{ grid-template-columns:1fr; } }
+  .vs-col{ padding:var(--sp-5); border-radius:var(--r-lg); transition:transform var(--d-base) var(--ease-out), box-shadow var(--d-base); }
+  .vs-col--win{ box-shadow:var(--elev-2), inset 0 0 0 1px var(--line-lime), 0 0 36px -14px oklch(0.92 0.21 118 / 0.5); }
+  .vs-col:hover{ transform:translateY(-2px); }
+  .vs-line{ display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) 0; border-bottom:1px solid var(--line); font-size:var(--fs-sm); }
+  .vs-line:last-child{ border-bottom:none; }
+  .vs-line .ico{ flex:none; width:22px; height:22px; display:grid; place-items:center; border-radius:50%; }
+  .vs-mid{ display:grid; place-items:center; }
+  .vs-mid .seam{ writing-mode:vertical-rl; font-family:var(--font-mono); color:var(--text-dim); font-size:var(--fs-xs); letter-spacing:.3em; }
+  @media (max-width:760px){ .vs-mid .seam{ writing-mode:horizontal-tb; } }
+
+  .sig-strip{ display:flex; gap:var(--sp-2); flex-wrap:wrap; }
+  .sig{ display:flex; align-items:center; gap:6px; padding:6px 11px; border-radius:var(--r-pill); background:oklch(0.5 0.03 292 /.1); border:1px solid var(--line); font-size:var(--fs-xs); font-weight:550; transition:transform var(--d-fast) var(--ease-out), box-shadow var(--d-fast); }
+  .sig:hover{ transform:translateY(-1px); }
+  .sig svg{ width:14px; height:14px; }
+  .sig--good{ color:var(--lime); border-color:var(--line-lime); background:oklch(0.92 0.21 118 /.06); }
+  .sig--good:hover{ box-shadow:0 0 14px -2px oklch(0.92 0.21 118 / 0.4); }
+  .sig--gap{ color:var(--st-opportunity); border-color:oklch(0.74 0.18 38 /.4); background:oklch(0.74 0.18 38 /.07); }
+  .sig--gap:hover{ box-shadow:0 0 14px -2px oklch(0.74 0.18 38 / 0.4); }
+
+  .section-head{ margin-bottom:var(--sp-6); }
+  .legend-honest{ display:flex; gap:var(--sp-4); flex-wrap:wrap; font-size:var(--fs-xs); color:var(--text-dim); align-items:center; }
+  .legend-honest .ch{ display:inline-flex; align-items:center; gap:var(--sp-2); }
+  .swh{ width:22px; height:14px; border-radius:4px; }
+  .swh--m{ background:var(--glass-tint-measured); border:1px solid var(--line-lime); }
+  .swh--p{ background:var(--glass-tint-projected); border:1px dashed var(--line-strong); }
+
+  .closer{ position:relative; text-align:center; padding:var(--sp-9) 0; }
+  .closer::before{ content:""; position:absolute; inset:-4% 0 auto; height:1px; max-width:340px; margin-inline:auto; left:0; right:0;
+    background:linear-gradient(90deg, transparent, var(--line-lime), transparent); }
+  .closer .btn-energy{ font-size:var(--fs-base); }
+  .vs-mid .seam{ position:relative; }
+</style>
+</head>
+<body>
+<div class="bg-base"></div>
+<div class="bg-mesh"></div>
+<div class="bg-grain doss-grain"></div>
+<div class="read-rail"><div class="read-rail__fill" id="readFill"></div></div>
+
+<!-- ============ TOPBAR ============ -->
+<header class="topbar app-shell">
+  <div class="topbar__crumbs">
+    <span>Hermes</span><i data-lucide="chevron-right"></i>
+    <span>Cuiabá · MT</span><i data-lucide="chevron-right"></i>
+    <span>Pet Shops</span><i data-lucide="chevron-right"></i>
+    <b>Clube dos Bichos</b>
+    <span class="badge badge--ready" style="margin-left:8px">Pronto p/ abordar</span>
+  </div>
+  <div class="row">
+    <button class="btn btn-ghost btn-sm" id="perfBtn" title="Modo leve"><i data-lucide="zap"></i> Leve</button>
+    <button class="btn btn-ghost btn-sm"><i data-lucide="refresh-cw"></i> Re-auditar</button>
+    <button class="btn btn-primary btn-sm"><i data-lucide="file-down"></i> Exportar PDF</button>
+  </div>
+</header>
+
+<main class="app-shell">
+<div class="container">
+
+  <!-- ============ BLUF VERDICT HERO ============ -->
+  <section class="bluf-hero">
+    <div class="bluf-grid">
+      <!-- verdict -->
+      <div class="verdict glass glass-hero glass-spec pool-lime">
+        <div class="verdict__kicker">
+          <span class="live-dot"></span>
+          <span class="t-label">Veredito · auditoria autônoma Hermes</span>
+          <span class="t-mono t-xs t-dim">#PET-0413 · 21 jun 2026</span>
+        </div>
+        <h1 class="verdict__headline">
+          Negócio sólido, <em>invisível online</em>.<br>Receita destravável agora.
+        </h1>
+        <p class="verdict__sub t-lead">
+          5+ anos de operação, fluxo real e reputação no Google Maps —
+          <b style="color:var(--text)">porém zero site e zero canais digitais</b>.
+          O concorrente direto já captura a busca local. Janela aberta.
+        </p>
+        <div class="sig-strip" style="margin-top:var(--sp-5)">
+          <span class="sig sig--good"><i data-lucide="check"></i> 4,8★ · 312 avaliações</span>
+          <span class="sig sig--good"><i data-lucide="check"></i> 5,5 anos ativo</span>
+          <span class="sig sig--good"><i data-lucide="check"></i> Fluxo medido alto</span>
+          <span class="sig sig--gap"><i data-lucide="x"></i> Sem site</span>
+          <span class="sig sig--gap"><i data-lucide="x"></i> Sem Instagram ativo</span>
+          <span class="sig sig--gap"><i data-lucide="x"></i> Sem Google Ads</span>
+        </div>
+        <div class="verdict__cta">
+          <button class="btn btn-energy btn-lg"><i data-lucide="send"></i> Preparar abordagem</button>
+          <button class="btn btn-ghost btn-lg"><i data-lucide="git-compare"></i> Ver concorrentes</button>
+        </div>
+      </div>
+
+      <!-- score ring -->
+      <div class="scorecard glass glass-spec is-measured">
+        <div class="scorecard__head">
+          <span class="t-label">Score de oportunidade</span>
+        </div>
+        <div class="score-big" id="scoreBig" style="--pct:0;--ring-color:var(--lime);--ring-bleed:var(--lime-bleed)">
+          <div class="score-big__track"></div>
+          <div class="score-big__ticks"></div>
+          <div class="score-big__core breathe">
+            <div class="score-big__inner">
+              <span class="score-big__num" id="scoreNum">0</span>
+              <span class="score-big__den">/ 100</span>
+              <span class="score-big__verdict">Alta oportunidade</span>
+            </div>
+          </div>
+        </div>
+        <div class="verdict-pills">
+          <div class="row-between"><span class="t-xs t-dim">Tração do negócio</span><span class="t-mono t-sm tglow-energy">Alta</span></div>
+          <div class="row-between"><span class="t-xs t-dim">Maturidade digital</span><span class="t-mono t-sm" style="color:var(--st-opportunity)">Nenhuma</span></div>
+          <div class="row-between"><span class="t-xs t-dim">Esforço p/ converter</span><span class="t-mono t-sm" style="color:var(--ok)">Baixo</span></div>
+          <div class="row-between"><span class="t-xs t-dim">Confiança do dado</span><span class="t-mono t-sm">82%</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ REVENUE GAP RING ============ -->
+  <section class="gap-section">
+    <div class="section-head row-between wrap">
+      <div>
+        <span class="t-label">O argumento de venda</span>
+        <h2 class="t-h2">O <span class="t-gradient">gap</span> entre o que ele fatura e o que poderia faturar</h2>
+      </div>
+      <div class="legend-honest">
+        <span class="ch"><span class="swh swh--m"></span> Medido</span>
+        <span class="ch"><span class="swh swh--p"></span> Projetado</span>
+      </div>
+    </div>
+
+    <div class="gap-grid glass glass-hero glass-spec" style="padding:var(--sp-6)">
+      <div id="revRing"></div>
+      <div class="gap-readout">
+        <div class="gap-figure">
+          <span class="t-label">Receita adicional comprometida</span>
+          <span class="revenue bignum" id="gapNum">+R$ 0</span>
+          <span class="t-sm t-dim">por mês · após ramp-up de 90 dias</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="range-toggle">
+          <span class="switch" id="rangeSwitch" role="switch" aria-checked="false" tabindex="0" aria-label="Mostrar faixa honesta"></span>
+          <span class="t-sm t-mid">Mostrar faixa honesta (cenários)</span>
+        </div>
+        <div class="range-vals" id="rangeVals" hidden>
+          <div class="rv"><span class="t-2xs t-dim t-label">Conservador</span><span class="num t-sm">+R$ 5.400</span><span class="t-2xs t-faint">piso defensável</span></div>
+          <div class="rv rv--likely"><span class="t-2xs t-label" style="color:var(--lime)">Provável</span><span class="num t-sm tglow-energy">+R$ 8.900</span><span class="t-2xs t-dim">cenário-base</span></div>
+          <div class="rv"><span class="t-2xs t-dim t-label">Agressivo</span><span class="num t-sm">+R$ 13.700</span><span class="t-2xs t-faint">execução plena</span></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row-between is-measured" style="padding:var(--sp-3);border-radius:var(--r-md)">
+          <div class="col" style="gap:2px">
+            <span class="t-2xs t-label t-dim">Receita atual</span>
+            <span class="num t-h3 tag-measured">R$ 24.000<span class="t-xs t-dim">/mês</span></span>
+          </div>
+          <i data-lucide="arrow-right" style="color:var(--text-dim)"></i>
+          <div class="col is-projected" style="gap:2px;padding:var(--sp-2) var(--sp-3);border-radius:var(--r-md)">
+            <span class="t-2xs t-label" style="color:var(--lime)">Potencial</span>
+            <span class="num t-h3" style="color:var(--lime)">R$ 32.900<span class="t-xs t-dim">/mês</span></span>
+          </div>
+        </div>
+        <p class="t-xs t-dim">
+          Atual = estimado por ticket médio do nicho × fluxo medido (avaliações + movimento Maps).
+          Potencial = atual + captura de busca local hoje desperdiçada. Sem chute: tudo derivado de sinais reais.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCROLLYTELLING 4 ACTS ============ -->
+  <section class="scrolly">
+    <span class="t-label" style="display:block;margin-bottom:var(--sp-3)">A história, em 4 atos</span>
+    <div class="scrolly__inner">
+      <!-- left: pinned mutating hero -->
+      <div>
+        <div class="scrolly__pin">
+          <div class="pin-stage glass glass-deep glass-spec" id="pinStage">
+            <div class="pin-meter" id="pinMeter"><span class="on"></span><span></span><span></span><span></span></div>
+            <div class="pin-tag" id="pinTag">QUEM SÃO</div>
+            <!-- ACT 1: who they are -->
+            <div class="face" data-face="0">
+              <i data-lucide="store" class="glyph iglow-energy" style="color:var(--lime)"></i>
+              <span class="face-stat">Clube dos Bichos</span>
+              <span class="t-sm t-mid">Pet shop · Bairro Goiabeiras, Cuiabá</span>
+            </div>
+            <!-- ACT 2: what they're missing (orbit of dead channels) -->
+            <div class="face" data-face="1">
+              <span class="orbit" style="width:160px;height:160px;"></span>
+              <span class="orbit" style="width:260px;height:260px;"></span>
+              <span class="orbit" style="width:360px;height:360px;"></span>
+              <i data-lucide="globe-2" class="glyph" style="color:var(--text-faint)"></i>
+              <span class="t-sm t-dim" style="margin-top:var(--sp-5)">Canais ausentes orbitam vazios</span>
+            </div>
+            <!-- ACT 3: what it costs (cost chart) -->
+            <div class="face" data-face="2">
+              <div id="costChart"></div>
+            </div>
+            <!-- ACT 4: what we'd do (comp chart vs competitor) -->
+            <div class="face" data-face="3">
+              <div id="compChart"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- right: scrolling text acts -->
+      <div>
+        <article class="act" data-act="0">
+          <span class="act__no">ATO 01</span>
+          <h3 class="t-h2">Quem eles são</h3>
+          <p class="act__body t-lead">
+            Pet shop de bairro com <b style="color:var(--text)">5,5 anos de estrada</b>, 4,8★ e 312 avaliações.
+            Movimento real, clientela fiel — um negócio que já provou que funciona no offline.
+          </p>
+          <div class="act__stat">
+            <div class="stat"><span class="stat__label">Anos ativo</span><span class="stat__value">5,5</span></div>
+            <div class="stat"><span class="stat__label">Avaliações</span><span class="stat__value">312</span></div>
+            <div class="stat"><span class="stat__label">Nota Maps</span><span class="stat__value">4,8★</span></div>
+          </div>
+        </article>
+
+        <article class="act" data-act="1">
+          <span class="act__no">ATO 02</span>
+          <h3 class="t-h2">O que falta</h3>
+          <p class="act__body t-lead">
+            Nenhum site. Instagram parado há 14 meses. Zero investimento em busca.
+            Quem procura "pet shop perto de mim" <b style="color:var(--st-opportunity)">nunca os encontra</b> —
+            mesmo estando a 400m.
+          </p>
+          <div class="sig-strip" style="margin-top:var(--sp-2)">
+            <span class="sig sig--gap"><i data-lucide="globe"></i> Site: inexistente</span>
+            <span class="sig sig--gap"><i data-lucide="instagram"></i> IG: inativo 14m</span>
+            <span class="sig sig--gap"><i data-lucide="search"></i> SEO/SEM: zero</span>
+          </div>
+        </article>
+
+        <article class="act" data-act="2">
+          <span class="act__no">ATO 03</span>
+          <h3 class="t-h2">Quanto isso custa</h3>
+          <p class="act__body t-lead">
+            Cada mês sem presença digital, <b style="color:var(--st-opportunity)">~R$ 8.900</b> em receita
+            vai para o concorrente que aparece primeiro. É dinheiro deixado na mesa,
+            todo mês, há anos.
+          </p>
+          <div class="act__stat">
+            <div class="stat"><span class="stat__label">Perda mensal estimada</span><span class="stat__value" style="color:var(--st-opportunity)">~R$ 8,9k</span></div>
+            <div class="stat"><span class="stat__label">Perda em 12 meses</span><span class="stat__value" style="color:var(--st-opportunity)">~R$ 107k</span></div>
+          </div>
+        </article>
+
+        <article class="act" data-act="3">
+          <span class="act__no">ATO 04</span>
+          <h3 class="t-h2">O que faríamos</h3>
+          <p class="act__body t-lead">
+            <b style="color:var(--purple-hot)">Vuecra</b> ergue o site + Google Business otimizado.
+            <b style="color:var(--lime)">Geronimo</b> liga Ads locais + SEO + conteúdo.
+            Em 90 dias, ele ultrapassa o concorrente na busca local.
+          </p>
+          <div class="act__stat">
+            <div class="stat"><span class="stat__label">Entrega Vuecra</span><span class="stat__value tglow-purple" style="font-size:var(--fs-h3)">Site + GBP</span></div>
+            <div class="stat"><span class="stat__label">Entrega Geronimo</span><span class="stat__value tglow-energy" style="font-size:var(--fs-h3)">Ads + SEO</span></div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WATERFALL OF UPSIDE LEVERS ============ -->
+  <section class="water-section">
+    <div class="section-head">
+      <span class="t-label">Alavancas de receita · por projeto entregador</span>
+      <h2 class="t-h2">De onde vem cada real de upside</h2>
+    </div>
+    <div class="glass glass-hero glass-spec" style="padding:var(--sp-6)">
+      <div id="waterfall"></div>
+      <div class="lever-key">
+        <span class="k"><span class="dot" style="background:var(--purple-hot);color:var(--purple-bleed)"></span> Vuecra · site & presença</span>
+        <span class="k"><span class="dot" style="background:var(--lime);color:var(--lime-bleed)"></span> Geronimo · ads & SEO</span>
+        <span class="k"><span class="swh swh--p" style="width:14px"></span> translúcido = projetado</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COMPETITOR VS ============ -->
+  <section class="water-section" style="padding-top:0">
+    <div class="section-head">
+      <span class="t-label">Eles fazem · o prospecto não</span>
+      <h2 class="t-h2">Clube dos Bichos <span class="t-dim" style="font-weight:400">vs</span> Mundo Animal (concorrente direto)</h2>
+    </div>
+    <div class="vs-grid">
+      <div class="vs-col vs-col--win glass glass-spec">
+        <div class="row-between" style="margin-bottom:var(--sp-3)">
+          <b class="t-h3">Clube dos Bichos</b>
+          <span class="badge badge--opportunity">prospecto</span>
+        </div>
+        <div class="vs-line"><span class="ico" style="background:oklch(0.66 0.22 25 /.18);color:var(--danger)"><i data-lucide="x" style="width:13px;height:13px"></i></span> Sem site institucional</div>
+        <div class="vs-line"><span class="ico" style="background:oklch(0.66 0.22 25 /.18);color:var(--danger)"><i data-lucide="x" style="width:13px;height:13px"></i></span> Não aparece em Google Ads</div>
+        <div class="vs-line"><span class="ico" style="background:oklch(0.66 0.22 25 /.18);color:var(--danger)"><i data-lucide="x" style="width:13px;height:13px"></i></span> Instagram inativo 14 meses</div>
+        <div class="vs-line"><span class="ico" style="background:oklch(0.83 0.16 85 /.18);color:var(--warn)"><i data-lucide="minus" style="width:13px;height:13px"></i></span> GBP sem fotos/horário</div>
+        <div class="vs-line"><span class="ico" style="background:oklch(0.8 0.17 150 /.18);color:var(--ok)"><i data-lucide="check" style="width:13px;height:13px"></i></span> Reputação superior (4,8★)</div>
+      </div>
+      <div class="vs-mid"><span class="seam">VS</span></div>
+      <div class="vs-col glass glass-spec">
+        <div class="row-between" style="margin-bottom:var(--sp-3)">
+          <b class="t-h3">Mundo Animal</b>
+          <span class="badge badge--consolidated">consolidado</span>
+        </div>
+        <div class="vs-line"><span class="ico" style="background:oklch(0.8 0.17 150 /.18);color:var(--ok)"><i data-lucide="check" style="width:13px;height:13px"></i></span> Site + e-commerce ativo</div>
+        <div class="vs-line"><span class="ico" style="background:oklch(0.8 0.17 150 /.18);color:var(--ok)"><i data-lucide="check" style="width:13px;height:13px"></i></span> Google Ads na busca local</div>
+        <div class="vs-line"><span class="ico" style="background:oklch(0.8 0.17 150 /.18);color:var(--ok)"><i data-lucide="check" style="width:13px;height:13px"></i></span> Instagram 8,2k seguidores</div>
+        <div class="vs-line"><span class="ico" style="background:oklch(0.8 0.17 150 /.18);color:var(--ok)"><i data-lucide="check" style="width:13px;height:13px"></i></span> GBP completo + posts</div>
+        <div class="vs-line"><span class="ico" style="background:oklch(0.83 0.16 85 /.18);color:var(--warn)"><i data-lucide="minus" style="width:13px;height:13px"></i></span> Reputação menor (4,3★)</div>
+      </div>
+    </div>
+    <p class="t-sm t-dim" style="margin-top:var(--sp-4);max-width:64ch">
+      Tradução: o prospecto <b style="color:var(--text)">já é melhor no que importa</b> (confiança do cliente),
+      mas perde 100% da disputa digital. Inverter isso é barato — e o resultado é desproporcional.
+    </p>
+  </section>
+
+  <!-- ============ CLOSER ============ -->
+  <section class="closer text-scrim">
+    <span class="t-label">Decisão</span>
+    <h2 class="t-h1" style="margin:var(--sp-3) 0;max-width:20ch;margin-inline:auto">
+      Vale a abordagem. Material já preparado.
+    </h2>
+    <p class="t-lead" style="max-width:50ch;margin-inline:auto">
+      Score 87, gap de <b style="color:var(--lime)">+R$ 8.900/mês</b>, esforço baixo, concorrente vulnerável.
+      Dispare para Vuecra + Geronimo ou exporte o dossiê para a reunião.
+    </p>
+    <div class="row" style="justify-content:center;gap:var(--sp-3);margin-top:var(--sp-6)">
+      <button class="btn btn-energy btn-lg"><i data-lucide="rocket"></i> Disparar p/ Geronimo</button>
+      <button class="btn btn-primary btn-lg"><i data-lucide="layout-template"></i> Pedir site à Vuecra</button>
+      <button class="btn btn-ghost btn-lg"><i data-lucide="check-circle"></i> Marcar contatado</button>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<script>
+(() => {
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ACCENT = { lime:'#d1fe17', limeSoft:'#bce04a', purple:'#a06bff', purpleHot:'#b388ff',
+                   opp:'#f78a5c', cons:'#608ede', dim:'#8a8a9a', text:'#e9e9f2', track:'#33333f' };
+
+  // icons
+  if (window.lucide) lucide.createIcons();
+
+  // perf-lite toggle
+  document.getElementById('perfBtn').addEventListener('click', e=>{
+    document.body.classList.toggle('perf-lite');
+    e.currentTarget.classList.toggle('chip');
+  });
+
+  /* ---------- read progress rail ---------- */
+  const readFill = document.getElementById('readFill');
+  let rafRail = 0;
+  function updateRail(){
+    rafRail = 0;
+    const h = document.documentElement.scrollHeight - window.innerHeight;
+    const p = h>0 ? Math.min(1, window.scrollY / h) : 0;
+    readFill.style.width = (p*100).toFixed(2) + '%';
+  }
+  window.addEventListener('scroll', ()=>{ if(!rafRail) rafRail = requestAnimationFrame(updateRail); }, {passive:true});
+  updateRail();
+
+  /* ---------- score ring count + fill ---------- */
+  const TARGET = 87;
+  const scoreBig = document.getElementById('scoreBig');
+  function animateScore(){
+    if (REDUCED){ scoreBig.style.setProperty('--pct', TARGET); document.getElementById('scoreNum').textContent = TARGET; return; }
+    const cu = new countUp.CountUp('scoreNum', TARGET, { duration:1.8 });
+    cu.start();
+    const start = performance.now();
+    (function step(t){
+      const p = Math.min(1, (t-start)/1800);
+      const eased = 1-Math.pow(1-p,3);
+      scoreBig.style.setProperty('--pct', (TARGET*eased).toFixed(1));
+      if (p<1) requestAnimationFrame(step);
+    })(performance.now());
+  }
+
+  /* ---------- gap number countup ---------- */
+  function animateGap(){
+    const el = document.getElementById('gapNum');
+    if (REDUCED){ el.textContent = '+R$ 8.900'; return; }
+    const cu = new countUp.CountUp('gapNum', 8900, {
+      duration:2, prefix:'+R$ ', separator:'.', formattingFn:(n)=>'+R$ '+n.toLocaleString('pt-BR')
+    });
+    cu.start();
+  }
+
+  /* ---------- DUAL-ARC REVENUE RING (ECharts) ---------- */
+  const revRing = echarts.init(document.getElementById('revRing'), null, { renderer:'canvas' });
+  function revOption(showRange){
+    const cur = 24000, pot = 32900, max = 36000;
+    const cons = 29400, agr = 37700; // honest range endpoints (clamped to max for the arc)
+    const ANG = { start:225, end:-45 };
+    const series = [];
+
+    // 0) PROJECTED outer track band (faint) — gives the outer arc a bed
+    series.push({
+      type:'gauge', radius:'93%', startAngle:ANG.start, endAngle:ANG.end, min:0, max:max, z:1,
+      pointer:{show:false}, axisTick:{show:false}, splitLine:{show:false}, axisLabel:{show:false},
+      anchor:{show:false}, title:{show:false}, detail:{show:false}, progress:{show:false},
+      axisLine:{ lineStyle:{ width:28, color:[[1,'rgba(255,255,255,0.045)']] } }, data:[]
+    });
+
+    // 1) honest RANGE band (only when toggled) — translucent lime arc from cons→agr
+    if (showRange){
+      const cP = Math.min(cons,max)/max, aP = Math.min(agr,max)/max;
+      series.push({
+        type:'gauge', radius:'93%', startAngle:ANG.start, endAngle:ANG.end, min:0, max:max, z:2,
+        pointer:{show:false}, axisTick:{show:false}, splitLine:{show:false}, axisLabel:{show:false},
+        anchor:{show:false}, title:{show:false}, detail:{show:false}, progress:{show:false},
+        axisLine:{ lineStyle:{ width:28, color:[
+          [cP,'rgba(255,255,255,0)'],
+          [aP,'rgba(209,254,23,0.14)'],
+          [1,'rgba(255,255,255,0)']
+        ] } }, data:[]
+      });
+    }
+
+    // 2) POTENTIAL outer progress (projected / translucent + dashed feel via soft gradient)
+    series.push({
+      name:'Potencial', type:'gauge', radius:'93%', startAngle:ANG.start, endAngle:ANG.end,
+      min:0, max:max, splitNumber:0, pointer:{show:false}, z:3,
+      progress:{ show:true, width:26, roundCap:true,
+        itemStyle:{ color:new echarts.graphic.LinearGradient(0,0,1,1,[
+          {offset:0,color:'rgba(209,254,23,0.20)'},{offset:1,color:'rgba(209,254,23,0.6)'}]),
+          shadowBlur:26, shadowColor:'rgba(209,254,23,0.55)', borderColor:'rgba(209,254,23,0.7)', borderWidth:1 } },
+      axisLine:{ lineStyle:{ width:26, color:[[1,'rgba(255,255,255,0.0)']] } },
+      axisTick:{show:false}, splitLine:{show:false}, axisLabel:{show:false},
+      anchor:{show:false}, title:{show:false}, detail:{show:false},
+      data:[{value:pot}]
+    });
+
+    // 3) GAP arc — THE PITCH: a bright lime hairline drawn only across the cur→pot slice.
+    //    Uses axisLine color-stops so the bright segment sits exactly on the gap.
+    const curP = cur/max, potP = pot/max;
+    series.push({
+      name:'Gap', type:'gauge', radius:'93%', startAngle:ANG.start, endAngle:ANG.end,
+      min:0, max:max, pointer:{show:false}, z:4, progress:{show:false},
+      axisTick:{show:false}, splitLine:{show:false}, axisLabel:{show:false},
+      anchor:{show:false}, title:{show:false}, detail:{show:false},
+      axisLine:{ lineStyle:{ width:7, color:[
+        [curP, 'rgba(0,0,0,0)'],
+        [potP, '#d1fe17'],
+        [1,    'rgba(0,0,0,0)']
+      ], shadowBlur:14, shadowColor:'rgba(209,254,23,0.85)' } },
+      data:[]
+    });
+
+    // 4) INNER current (measured / solid purple)
+    series.push({
+      name:'Atual', type:'gauge', radius:'70%', startAngle:ANG.start, endAngle:ANG.end,
+      min:0, max:max, pointer:{show:false}, z:5,
+      progress:{ show:true, width:22, roundCap:true,
+        itemStyle:{ color:new echarts.graphic.LinearGradient(0,0,1,1,[
+          {offset:0,color:'#7c3aed'},{offset:1,color:'#b388ff'}]),
+          shadowBlur:20, shadowColor:'rgba(124,58,237,0.6)' } },
+      axisLine:{ lineStyle:{ width:22, color:[[1,'rgba(255,255,255,0.05)']] } },
+      axisTick:{show:false}, splitLine:{show:false}, axisLabel:{show:false},
+      anchor:{show:false}, title:{show:false},
+      detail:{ valueAnimation:true, offsetCenter:[0,'4%'], fontFamily:'Geist Mono',
+        formatter:()=> ['{lab|GAP MENSAL · DESTRAVÁVEL}','{big|+R$ 8.900}','{sub|R$ 24,0k  →  R$ 32,9k / mês}'].join('\n'),
+        rich:{
+          lab:{ color:ACCENT.dim, fontSize:10.5, letterSpacing:2, padding:[0,0,8,0] },
+          big:{ color:ACCENT.lime, fontSize:36, fontWeight:600, textShadowColor:'rgba(209,254,23,0.55)', textShadowBlur:16 },
+          sub:{ color:ACCENT.dim, fontSize:12, padding:[8,0,0,0] }
+        } },
+      data:[{value:cur}]
+    });
+
+    return { animationDuration:1500, animationDurationUpdate:700, animationEasing:'cubicOut', series };
+  }
+  revRing.setOption(revOption(false));
+
+  /* ---------- range toggle ---------- */
+  const sw = document.getElementById('rangeSwitch');
+  const rangeVals = document.getElementById('rangeVals');
+  function toggleRange(){
+    const on = sw.getAttribute('aria-checked')!=='true';
+    sw.setAttribute('aria-checked', on);
+    rangeVals.hidden = !on;
+    revRing.setOption(revOption(on), true);
+  }
+  sw.addEventListener('click', toggleRange);
+  sw.addEventListener('keydown', e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); toggleRange(); }});
+
+  /* ---------- COST chart (act 3 pin) ---------- */
+  let costChart, compChart;
+  function buildCost(){
+    costChart = echarts.init(document.getElementById('costChart'), null, {renderer:'canvas'});
+    costChart.setOption({
+      grid:{ left:8,right:16,top:24,bottom:8, containLabel:true },
+      xAxis:{ type:'category', data:['ago','set','out','nov','dez','jan','fev'],
+        axisLine:{lineStyle:{color:ACCENT.track}}, axisLabel:{color:ACCENT.dim,fontSize:10}, axisTick:{show:false} },
+      yAxis:{ type:'value', axisLabel:{show:false}, splitLine:{lineStyle:{color:'rgba(255,255,255,0.04)'}} },
+      tooltip:{ trigger:'axis', backgroundColor:'rgba(25,22,34,0.94)', borderColor:'rgba(255,255,255,0.12)',
+        textStyle:{color:'#e9e9f2',fontSize:11},
+        formatter:p=>`${p[0].axisValue}<br><span style="color:#f78a5c">R$ ${p[0].value.toLocaleString('pt-BR')}</span> perdidos` },
+      series:[{
+        type:'bar', data:[6200,6800,7400,7900,8300,8600,8900],
+        itemStyle:{ borderRadius:[5,5,0,0],
+          color:p=> p.dataIndex===6
+            ? new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#ffb38f'},{offset:1,color:'rgba(247,138,92,0.25)'}])
+            : new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#f78a5c'},{offset:1,color:'rgba(247,138,92,0.12)'}]),
+          shadowBlur:p=>p.dataIndex===6?18:0, shadowColor:'rgba(247,138,92,0.6)' },
+        barWidth:'54%',
+        markPoint:{ symbol:'pin', symbolSize:36, data:[{ coord:[6,8900], value:'agora' }],
+          itemStyle:{color:'rgba(247,138,92,0.9)'}, label:{color:'#1a0f0a',fontSize:9,fontWeight:700} },
+        animationDelay:i=>i*70
+      }],
+      title:{ text:'Receita perdida / mês — e crescendo (R$)', left:'center', top:0,
+        textStyle:{color:ACCENT.dim,fontSize:11,fontWeight:500} }
+    });
+  }
+  function buildComp(){
+    compChart = echarts.init(document.getElementById('compChart'), null, {renderer:'canvas'});
+    compChart.setOption({
+      legend:{ data:['Prospecto (hoje)','Pós Vuecra+Geronimo','Concorrente'],
+        top:0, textStyle:{color:ACCENT.dim,fontSize:10}, itemWidth:10, itemHeight:10 },
+      radar:{ indicator:[
+          {name:'Busca',max:100},{name:'Site',max:100},{name:'Social',max:100},
+          {name:'Ads',max:100},{name:'Reputação',max:100}],
+        radius:'62%', center:['50%','56%'],
+        axisName:{color:ACCENT.dim,fontSize:10},
+        splitLine:{lineStyle:{color:'rgba(255,255,255,0.07)'}},
+        splitArea:{areaStyle:{color:['rgba(255,255,255,0.02)','transparent']}},
+        axisLine:{lineStyle:{color:'rgba(255,255,255,0.07)'}} },
+      series:[{ type:'radar', data:[
+        { value:[10,0,15,0,96], name:'Prospecto (hoje)',
+          lineStyle:{color:ACCENT.opp}, itemStyle:{color:ACCENT.opp}, areaStyle:{color:'rgba(247,138,92,0.12)'} },
+        { value:[88,90,82,85,96], name:'Pós Vuecra+Geronimo',
+          lineStyle:{color:ACCENT.lime,width:2}, itemStyle:{color:ACCENT.lime},
+          areaStyle:{color:'rgba(209,254,23,0.18)'} },
+        { value:[80,85,78,82,72], name:'Concorrente',
+          lineStyle:{color:ACCENT.cons,type:'dashed'}, itemStyle:{color:ACCENT.cons}, areaStyle:{color:'rgba(96,142,222,0.08)'} }
+      ]}]
+    });
+  }
+
+  /* ---------- WATERFALL (ECharts) ---------- */
+  const wf = echarts.init(document.getElementById('waterfall'), null, {renderer:'canvas'});
+  // base (invisible riser) + value, color-keyed by project
+  const cats = ['Atual', 'Site\n(Vuecra)', 'Google Business\n(Vuecra)', 'SEO local\n(Geronimo)', 'Google Ads\n(Geronimo)', 'Conteúdo IG\n(Geronimo)', 'Potencial'];
+  const base = [0, 24000, 26800, 28600, 30400, 32100, 0];
+  const vals = [24000, 2800, 1800, 1800, 1700, 800, 32900];
+  const colors = ['#7c3aed', '#a06bff', '#a06bff', '#d1fe17', '#d1fe17', '#d1fe17', '#d1fe17'];
+  wf.setOption({
+    grid:{ left:8,right:16,top:30,bottom:8, containLabel:true },
+    tooltip:{ trigger:'axis', backgroundColor:'rgba(25,22,34,0.92)', borderColor:'rgba(255,255,255,0.12)',
+      textStyle:{color:'#e9e9f2'},
+      formatter:(p)=>{ const i=p[0].dataIndex; const tip=['Atual (medido)','+ Site institucional','+ Ficha Google otimizada','+ SEO de busca local','+ Anúncios pagos locais','+ Conteúdo recorrente','Potencial total'][i];
+        return `<b>${cats[i].replace('\n',' ')}</b><br>${tip}<br><span style="color:#d1fe17">R$ ${vals[i].toLocaleString('pt-BR')}</span>`; } },
+    xAxis:{ type:'category', data:cats, axisLine:{lineStyle:{color:ACCENT.track}},
+      axisLabel:{color:ACCENT.dim,fontSize:10,interval:0,lineHeight:13}, axisTick:{show:false} },
+    yAxis:{ type:'value', axisLabel:{color:ACCENT.dim,fontSize:10,formatter:v=>'R$'+(v/1000)+'k'},
+      splitLine:{lineStyle:{color:'rgba(255,255,255,0.05)'}} },
+    series:[
+      { name:'base', type:'bar', stack:'wf', itemStyle:{color:'transparent'}, emphasis:{itemStyle:{color:'transparent'}}, data:base, silent:true },
+      { name:'val', type:'bar', stack:'wf', barWidth:'56%',
+        itemStyle:{ borderRadius:[5,5,0,0],
+          color:(p)=>{ const c=colors[p.dataIndex];
+            // anchors solid (measured), levers translucent (projected)
+            const projected = p.dataIndex!==0 && p.dataIndex!==cats.length-1;
+            if (p.dataIndex===0) return new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#b388ff'},{offset:1,color:'#7c3aed'}]);
+            if (p.dataIndex===cats.length-1) return new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#d1fe17'},{offset:1,color:'#9ec71a'}]);
+            const isV = c==='#d1fe17';
+            return isV ? 'rgba(209,254,23,0.42)' : 'rgba(160,107,255,0.42)';
+          },
+          borderColor:(p)=>{ const c=colors[p.dataIndex];
+            if (p.dataIndex===0||p.dataIndex===cats.length-1) return 'transparent';
+            return c==='#d1fe17' ? 'rgba(209,254,23,0.7)' : 'rgba(160,107,255,0.7)'; },
+          borderType:(p)=> (p.dataIndex===0||p.dataIndex===cats.length-1)?'solid':'dashed',
+          borderWidth:(p)=> (p.dataIndex===0||p.dataIndex===cats.length-1)?0:1,
+          shadowBlur:12, shadowColor:'rgba(124,58,237,0.25)' },
+        label:{ show:true, position:'top', color:ACCENT.text, fontFamily:'Geist Mono', fontSize:11,
+          formatter:(p)=> (p.dataIndex===0||p.dataIndex===cats.length-1)
+            ? 'R$'+(vals[p.dataIndex]/1000).toFixed(1).replace('.',',')+'k'
+            : '+R$'+(vals[p.dataIndex]/1000).toFixed(1).replace('.',',')+'k' },
+        data:vals }
+    ],
+    animationDuration:1200, animationEasing:'cubicOut'
+  });
+
+  /* connector lines between waterfall steps (the signature staircase) */
+  // cumulative top (in data units) at the END of each bar
+  const cumTop = cats.map((_,i)=> (i===cats.length-1) ? vals[i] : base[i]+vals[i]);
+  function drawConnectors(){
+    const lines = [];
+    const px = wf.getWidth();
+    const halfBar = (px / cats.length) * 0.28; // ~ half of barWidth 56%
+    for (let i=0; i<cats.length-1; i++){
+      try{
+        const a = wf.convertToPixel({gridIndex:0},[i,   cumTop[i]]);
+        const b = wf.convertToPixel({gridIndex:0},[i+1, cumTop[i]]);
+        if (!a||!b) continue;
+        lines.push({ type:'line',
+          shape:{ x1:a[0]+halfBar, y1:a[1], x2:b[0]-halfBar, y2:b[1] },
+          style:{ stroke:'rgba(255,255,255,0.22)', lineWidth:1, lineDash:[3,4] }, silent:true, z:1 });
+      }catch(e){}
+    }
+    wf.setOption({ graphic: lines });
+  }
+  // draw once after the grow animation settles, and on every resize.
+  // (avoid wf.on('finished') — setOption({graphic}) re-fires it into a loop)
+  setTimeout(drawConnectors, REDUCED ? 60 : 1400);
+
+  /* ---------- responsive ---------- */
+  window.addEventListener('resize', ()=>{ revRing.resize(); wf.resize(); costChart&&costChart.resize(); compChart&&compChart.resize(); setTimeout(drawConnectors,60); });
+
+  /* ---------- SCROLLYTELLING (GSAP ScrollTrigger) ---------- */
+  const faces = [...document.querySelectorAll('.face')];
+  const acts  = [...document.querySelectorAll('.act')];
+  const meterSegs = [...document.querySelectorAll('#pinMeter span')];
+  const pinTag = document.getElementById('pinTag');
+  const TAGS = ['QUEM SÃO','O QUE FALTA','QUANTO CUSTA','O QUE FARÍAMOS'];
+  let costBuilt=false, compBuilt=false, curFace=-1;
+  function showFace(idx){
+    if (idx===curFace) return;
+    curFace = idx;
+    faces.forEach((f,i)=>{
+      const on = i===idx;
+      gsap.to(f, { opacity: on?1:0, y: on?0:18, scale: on?1:0.97, duration: REDUCED?0:0.55, ease:'power3.out', overwrite:true });
+    });
+    meterSegs.forEach((s,i)=> s.classList.toggle('on', i<=idx));
+    if (pinTag) pinTag.textContent = TAGS[idx] || '';
+    // dim non-active acts for focus
+    acts.forEach((a,i)=> a.style.opacity = (i===idx ? 1 : 0.34));
+    if (idx===2 && !costBuilt){ buildCost(); costBuilt=true; }
+    if (idx===3 && !compBuilt){ buildComp(); compBuilt=true; }
+  }
+  showFace(0);
+
+  if (window.gsap && window.ScrollTrigger){
+    gsap.registerPlugin(ScrollTrigger);
+    const isMobile = window.matchMedia('(max-width:920px)').matches;
+
+    if (!isMobile){
+      ScrollTrigger.create({
+        trigger:'.scrolly', start:'top top', end:'bottom bottom',
+        pin:'.scrolly__pin', pinSpacing:false
+      });
+      // subtle parallax drift on the pinned stage as the section scrolls
+      if (!REDUCED){
+        gsap.to('#pinStage', {
+          yPercent:-4, ease:'none',
+          scrollTrigger:{ trigger:'.scrolly', start:'top top', end:'bottom bottom', scrub:0.6 }
+        });
+      }
+    }
+    // each act drives a face (with scrub-feel via center crossing)
+    acts.forEach((act)=>{
+      const i = +act.dataset.act;
+      ScrollTrigger.create({
+        trigger:act, start:'top center+=12%', end:'bottom center-=12%',
+        onEnter:()=>showFace(i), onEnterBack:()=>showFace(i)
+      });
+    });
+    // orbit moons (act2) gentle rotation
+    if (!REDUCED){
+      gsap.to('.orbit', { rotation:360, duration:46, repeat:-1, ease:'none', transformOrigin:'50% 50%' });
+      gsap.to('.orbit:nth-of-type(2)', { rotation:-360, duration:60, repeat:-1, ease:'none', transformOrigin:'50% 50%' });
+    }
+
+    // reveal-on-scroll for the lower sections (waterfall, vs cols, closer)
+    if (!REDUCED){
+      const revealEls = [
+        ['.water-section .glass', 0],
+        ['.vs-col', 0.08],
+        ['.closer .t-h1', 0],
+        ['.closer .row', 0.1]
+      ];
+      document.querySelectorAll('.vs-col').forEach((el,idx)=>{
+        gsap.from(el, { y:26, opacity:0, duration:0.7, ease:'power3.out', delay:idx*0.08,
+          scrollTrigger:{ trigger:el, start:'top 86%' } });
+      });
+      ['.water-section .glass','.closer'].forEach(sel=>{
+        const el=document.querySelector(sel); if(!el) return;
+        gsap.from(el, { y:28, opacity:0, duration:0.8, ease:'power3.out',
+          scrollTrigger:{ trigger:el, start:'top 84%' } });
+      });
+    }
+  }
+
+  /* ---------- fire hero animations on load (no scroll needed) ---------- */
+  function kickoff(){ animateScore(); animateGap(); }
+  if (document.readyState==='complete') kickoff();
+  else window.addEventListener('load', kickoff);
+
+  // refresh ScrollTrigger after charts/fonts settle
+  setTimeout(()=>{ window.ScrollTrigger && ScrollTrigger.refresh(); }, 600);
+})();
+</script>
+</body>
+</html>

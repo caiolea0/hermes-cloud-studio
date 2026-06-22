@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hermes Cloud Studio 2.0 — Território Vivo</title>
+
+<!-- design system + fonts + icons -->
+<link rel="stylesheet" href="design-system.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5/index.css">
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+
+<!-- Surface A stack: MapLibre + deck.gl -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/deck.gl@9.3.4/dist.min.js"></script>
+<!-- ambient particles + cinematic reveal + count-up -->
+<script src="https://cdn.jsdelivr.net/npm/@tsparticles/slim@3.5.0/tsparticles.slim.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/countup.js@2.10.0/dist/countUp.umd.js"></script>
+
+<style>
+/* ============================================================
+   00-HERO — page-local layout. Tokens/components from design-system.css.
+   The map is the cinematic backdrop; everything floats over it in glass.
+   GLOW BUDGET: exactly ONE focal energy glow per viewport — the living
+   sweep-ring (breathe). CTA + FAB use controlled component glow only.
+   ============================================================ */
+.hero { position: fixed; inset: 0; overflow: hidden; }
+
+/* map fills the screen, sits below content */
+#map { position: absolute; inset: 0; z-index: var(--z-map); }
+#deck-canvas { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+
+/* darken & vignette the map so glass + text read as AA over it.
+   3 stacked layers: cinematic vignette, top/bottom scrim, and a faint
+   purple chromatic edge bloom that ties the map to the brand void. */
+.map-veil {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background:
+    radial-gradient(135% 100% at 36% 44%, transparent 26%, oklch(0.13 0.018 292 / 0.5) 72%, oklch(0.105 0.016 292 / 0.95) 100%),
+    linear-gradient(180deg, oklch(0.115 0.018 292 / 0.78) 0%, transparent 20% 58%, oklch(0.105 0.016 292 / 0.94) 100%),
+    radial-gradient(60% 50% at 84% 88%, oklch(0.34 0.10 295 / 0.20), transparent 70%);
+}
+/* fine scanline + radar sweep across the whole map = "live varredura" */
+.map-scan {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden;
+  opacity: 0.7;
+  -webkit-mask: radial-gradient(120% 90% at 50% 45%, #000 35%, transparent 78%);
+          mask: radial-gradient(120% 90% at 50% 45%, #000 35%, transparent 78%);
+}
+.map-scan::before { /* 1px lime sweep arm crossing the city */
+  content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 2px;
+  background: linear-gradient(180deg, transparent, oklch(0.92 0.21 118 / 0.55), transparent);
+  box-shadow: 0 0 22px 3px oklch(0.92 0.21 118 / 0.28);
+  transform: translateX(-10vw); animation: scan-x 9s var(--ease-inout) infinite;
+}
+.map-scan::after { /* faint trailing wash behind the arm */
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(180deg, transparent 0 3px, oklch(0.92 0.21 118 / 0.014) 3px 4px);
+}
+@keyframes scan-x { 0% { transform: translateX(-10vw); opacity: 0; } 8% { opacity: 1; } 70% { opacity: 1; } 100% { transform: translateX(105vw); opacity: 0; } }
+
+/* tsParticles sits just above veil, still behind content */
+#particles { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+
+.hero-ui { position: absolute; inset: 0; z-index: var(--z-content); pointer-events: none; }
+.hero-ui > * { pointer-events: auto; }
+
+/* corner HUD ticks — premium "instrument" framing of the whole stage */
+.hud-frame { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.hud-tick { position: absolute; width: 18px; height: 18px; opacity: 0.5; }
+.hud-tick::before, .hud-tick::after { content:""; position:absolute; background: var(--line-lime); }
+.hud-tick::before { width: 18px; height: 1.5px; }
+.hud-tick::after { width: 1.5px; height: 18px; }
+.hud-tick.tl { top: 18px; left: 18px; }
+.hud-tick.tr { top: 18px; right: 18px; } .hud-tick.tr::before{right:0;left:auto} .hud-tick.tr::after{right:0;left:auto}
+.hud-tick.bl { bottom: 18px; left: 18px; } .hud-tick.bl::before{bottom:0;top:auto} .hud-tick.bl::after{bottom:0;top:auto}
+.hud-tick.br { bottom: 18px; right: 18px; } .hud-tick.br::before{right:0;bottom:0;left:auto;top:auto} .hud-tick.br::after{right:0;bottom:0;left:auto;top:auto}
+
+/* ---- top bar ---- */
+.topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-5) var(--sp-6); gap: var(--sp-4);
+}
+.brand { display: flex; align-items: center; gap: var(--sp-3); }
+.brand__mark {
+  position: relative; width: 40px; height: 40px; display: grid; place-items: center; border-radius: var(--r-md);
+  background: linear-gradient(150deg, var(--purple-hot), var(--purple) 60%, var(--purple-ink) 160%);
+  color: var(--purple-ink);
+  box-shadow: 0 0 0 1px var(--line-purple), 0 6px 22px oklch(0.5 0.16 295 / 0.45), inset 0 1px 0 oklch(0.99 0.02 295 / 0.4);
+}
+.brand__mark::after { /* slow conic catch-light on the mark */
+  content:""; position:absolute; inset:-1px; border-radius:inherit; padding:1px; pointer-events:none;
+  background: conic-gradient(from var(--angle), transparent 0 70%, oklch(0.95 0.06 295 / 0.7) 84%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: spin 7s linear infinite;
+}
+.brand__mark svg { width: 21px; height: 21px; position: relative; }
+.brand__name { font-weight: 680; letter-spacing: -0.02em; color: var(--text-hi); font-size: var(--fs-lg); line-height: 1; }
+.brand__sub { font-size: var(--fs-2xs); letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); margin-top: 3px; }
+.topbar__right { display: flex; align-items: center; gap: var(--sp-3); }
+.live-pill {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  padding: 0.46em 0.85em; border-radius: var(--r-pill);
+  background: oklch(0.5 0.03 292 / 0.16); border: 1px solid var(--glass-border);
+  font-size: var(--fs-xs); color: var(--text-mid);
+  backdrop-filter: blur(12px) saturate(160%); -webkit-backdrop-filter: blur(12px) saturate(160%);
+}
+.live-pill .num { color: var(--lime); }
+
+/* ---- center cinematic headline ---- */
+.stage {
+  position: absolute; left: var(--sp-7); top: 50%; transform: translateY(-50%);
+  max-width: 560px;
+}
+.stage::before { /* ambient light pool lit from below the headline */
+  content:""; position:absolute; inset: -12% -18% -22% -16%; z-index:-1; pointer-events:none;
+  background: radial-gradient(70% 60% at 30% 60%, oklch(0.30 0.07 295 / 0.42), transparent 72%);
+  filter: blur(8px);
+}
+.eyebrow {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--lime); margin-bottom: var(--sp-4);
+  padding: 0.36em 0.7em; border-radius: var(--r-pill);
+  background: oklch(0.92 0.21 118 / 0.07); border: 1px solid var(--line-lime);
+}
+.eyebrow .live-dot { width: 7px; height: 7px; }
+.stage h1 { margin-bottom: var(--sp-4); }
+.stage h1 .line { display: block; overflow: hidden; padding-bottom: 0.04em; }
+.stage h1 .line > span { display: inline-block; }
+.stage .t-lead { max-width: 460px; margin-bottom: var(--sp-5); }
+.cta-row { display: flex; gap: var(--sp-3); flex-wrap: wrap; align-items: center; }
+
+/* committed revenue line under headline — honest split: measured base + projected band */
+.revenue-line {
+  display: flex; align-items: baseline; gap: var(--sp-4); margin: var(--sp-6) 0 var(--sp-5);
+}
+.revenue-line .revenue { font-size: clamp(2.2rem, 1.4rem + 2.8vw, 3.7rem); line-height: 0.95; }
+.revenue-line .lbl { font-size: var(--fs-xs); color: var(--text-dim); max-width: 150px; line-height: 1.35; }
+.revenue-line .lbl b { color: var(--text-mid); font-family: var(--font-mono); }
+
+/* ---- progress ring (sweep status) — THE living focal element ---- */
+.sweep-ring-wrap {
+  position: absolute; right: var(--sp-7); bottom: calc(var(--sp-9) + var(--sp-4));
+  display: flex; align-items: center; gap: var(--sp-4);
+}
+.sweep-ring-wrap::before { /* light pool under the ring */
+  content:""; position:absolute; right:-10%; bottom:-30%; width:220px; height:220px; z-index:-1; pointer-events:none;
+  background: radial-gradient(50% 50% at 70% 50%, oklch(0.46 0.12 118 / 0.30), transparent 70%); filter: blur(6px);
+}
+.sweep-ring {
+  --p: 0; position: relative; width: 138px; height: 138px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: conic-gradient(from -90deg,
+    var(--lime) calc(var(--p) * 1%),
+    oklch(0.92 0.21 118 / 0.16) calc(var(--p) * 1%) calc(var(--p) * 1% + 1.5%),
+    oklch(0.3 0.02 292 / 0.45) calc(var(--p) * 1% + 1.5%));
+}
+.sweep-ring::before { content:""; position:absolute; inset:9px; border-radius:50%; background: var(--bg-void); box-shadow: inset 0 0 26px oklch(0 0 0 / 0.65), inset 0 1px 0 oklch(0.6 0.04 292 / 0.18); }
+.sweep-ring::after { /* sweeping radar arm */
+  content:""; position:absolute; inset:9px; border-radius:50%; pointer-events:none;
+  background: conic-gradient(from var(--angle), transparent 0 82%, oklch(0.92 0.21 118 / 0.12) 90%, oklch(0.95 0.24 118 / 0.6) 98%, transparent 100%);
+  animation: spin 4.2s linear infinite;
+}
+.sweep-ring__inner { position: relative; text-align: center; }
+.sweep-ring__pct { font-family: var(--font-mono); font-size: 1.7rem; font-weight: 600; color: var(--lime); line-height: 1; letter-spacing: -0.02em; text-shadow: 0 0 14px oklch(0.92 0.21 118 / 0.5); }
+.sweep-ring__lbl { font-size: var(--fs-2xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin-top: 4px; }
+.sweep-meta { font-size: var(--fs-xs); color: var(--text-mid); max-width: 168px; text-align: right; }
+.sweep-meta b { color: var(--text-hi); font-family: var(--font-mono); }
+.sweep-meta .t-label { justify-content: flex-end; }
+
+/* ---- floating glass stat panels (top-right column) ---- */
+.stat-stack {
+  position: absolute; top: calc(var(--sp-8) + var(--sp-4)); right: var(--sp-6);
+  display: flex; flex-direction: column; gap: var(--sp-3); width: 276px;
+}
+.stat-card { padding: var(--sp-4) var(--sp-4) var(--sp-3); border-radius: var(--r-lg); }
+.stat-card .row-between { margin-bottom: var(--sp-3); }
+.stat-card__icon { width: 32px; height: 32px; display:grid; place-items:center; border-radius: var(--r-sm); background: oklch(0.5 0.03 292 / 0.2); border: 1px solid var(--line); }
+.stat-card__icon svg { width: 16px; height: 16px; }
+.stat-card .stat__value { font-size: 1.85rem; letter-spacing: -0.02em; }
+.spark { width: 100%; height: 32px; margin-top: var(--sp-3); display: block; }
+
+/* ---- FEATURED top-opportunity card (the wow callout) — the ONE card-hot ---- */
+.featured {
+  position: absolute; left: var(--sp-7); bottom: calc(var(--sp-9) + var(--sp-3));
+  width: 340px; padding: var(--sp-4); border-radius: var(--r-xl);
+}
+.featured__head { display:flex; align-items:center; justify-content:space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.featured__kicker { display:inline-flex; align-items:center; gap: var(--sp-2); font-size: var(--fs-2xs); font-weight: 650; letter-spacing: 0.14em; text-transform: uppercase; color: var(--st-opportunity); }
+.featured__kicker i { width: 13px; height: 13px; }
+.featured__body { display:flex; align-items:center; gap: var(--sp-4); }
+.featured .score-ring { width: 64px; height: 64px; flex: 0 0 auto; }
+.featured__name { font-weight: 660; font-size: var(--fs-lg); color: var(--text-hi); letter-spacing: -0.01em; }
+.featured__meta { font-size: var(--fs-xs); color: var(--text-mid); margin-top: 3px; }
+.featured__rev { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--st-opportunity); font-weight: 600; }
+.featured__foot { display:flex; align-items:center; gap: var(--sp-3); margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--line); }
+.featured__gaps { display:flex; gap: var(--sp-2); flex-wrap: wrap; }
+.gap-tag { font-size: var(--fs-2xs); color: var(--text-dim); padding: 0.24em 0.6em; border-radius: var(--r-pill); background: oklch(0.5 0.03 292 / 0.16); border: 1px solid var(--line); }
+
+/* ---- opportunity callouts (anchored to map points) ---- */
+.callout {
+  position: absolute; transform: translate(-50%, -100%); width: max-content; max-width: 250px;
+  padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md);
+  cursor: pointer; transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base);
+  will-change: transform;
+}
+.callout:hover, .callout:focus-visible { transform: translate(-50%, -100%) translateY(-5px) scale(1.025); box-shadow: var(--elev-4); }
+.callout::after { /* stem to the map pin */
+  content:""; position:absolute; left:50%; bottom:-10px; transform: translateX(-50%);
+  width: 1.5px; height: 10px; background: linear-gradient(var(--lime), transparent);
+}
+.callout__pin {
+  position: absolute; left:50%; bottom:-16px; transform: translateX(-50%);
+  width: 11px; height: 11px; border-radius: 50%; background: var(--lime);
+  box-shadow: 0 0 0 3px oklch(0.92 0.21 118 / 0.2), 0 0 14px var(--lime);
+}
+.callout__pin::after { content:""; position:absolute; inset:-3px; border-radius:50%; border:1.5px solid oklch(0.92 0.21 118 / 0.5); animation: ping 2.4s var(--ease-out) infinite; }
+.callout__pin.is-opp { background: var(--st-opportunity); box-shadow: 0 0 0 3px oklch(0.74 0.18 38 / 0.2), 0 0 14px var(--st-opportunity); }
+.callout__pin.is-opp::after { border-color: oklch(0.74 0.18 38 / 0.5); }
+@keyframes ping { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(2.6); opacity: 0; } }
+.callout__top { display:flex; align-items:center; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+.callout__name { font-weight: 640; font-size: var(--fs-sm); color: var(--text-hi); }
+.callout__row { display:flex; align-items:center; gap: var(--sp-2); font-size: var(--fs-2xs); color: var(--text-mid); }
+.callout__row .num { color: var(--lime); }
+.callout__row .is-opp { color: var(--st-opportunity); }
+.callout .score-ring { width: 40px; height: 40px; flex: 0 0 auto; }
+.callout .score-ring::before { inset: 4px; }
+.callout .score-ring .score-val { font-size: var(--fs-2xs); }
+
+/* ---- legend + zoom + radial dock bottom ---- */
+.bottombar {
+  position: absolute; left: var(--sp-6); bottom: var(--sp-5); right: var(--sp-6);
+  display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-4);
+}
+.legend-card { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-lg); }
+.legend-card .legend { margin-bottom: var(--sp-3); }
+.legend__item { transition: opacity var(--d-fast); }
+.zoom-pills { display: inline-flex; gap: var(--sp-1); padding: var(--sp-1); border-radius: var(--r-pill); }
+.zoom-pills .chip { border: none; }
+
+/* radial nav (single dock/radial) */
+.radial-nav { position: relative; }
+.radial-fab {
+  position: relative; width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(180deg, var(--lime-hot), var(--lime)); color: var(--lime-ink);
+  box-shadow: 0 0 2px var(--lime), 0 0 16px oklch(0.92 0.21 118 / 0.5), 0 8px 30px oklch(0.55 0.15 118 / 0.35);
+  transition: transform var(--d-base) var(--ease-spring), box-shadow var(--d-base);
+}
+.radial-fab:hover { box-shadow: 0 0 3px var(--lime), 0 0 26px oklch(0.92 0.21 118 / 0.6), 0 10px 38px oklch(0.6 0.16 118 / 0.45); }
+.radial-fab svg { width: 25px; height: 25px; transition: transform var(--d-base) var(--ease-spring); }
+.radial-nav.open .radial-fab svg { transform: rotate(135deg); }
+.radial-nav.open .radial-fab { transform: scale(0.92); }
+.radial-item {
+  position: absolute; left: 7px; bottom: 7px; width: 48px; height: 48px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--glass-tint-deep); backdrop-filter: blur(14px) saturate(var(--glass-sat));
+  -webkit-backdrop-filter: blur(14px) saturate(var(--glass-sat));
+  border: 1px solid var(--glass-border); box-shadow: var(--elev-2); color: var(--text-hi);
+  opacity: 0; transform: translate(0,0) scale(0.4); pointer-events: none;
+  transition: transform var(--d-base) var(--ease-spring), opacity var(--d-base) var(--ease-out), box-shadow var(--d-fast), color var(--d-fast);
+}
+.radial-item svg { width: 20px; height: 20px; }
+.radial-item:hover { color: var(--lime); box-shadow: var(--elev-3), 0 0 18px oklch(0.92 0.21 118 / 0.35); }
+.radial-nav.open .radial-item { opacity: 1; pointer-events: auto; }
+.radial-item .rlabel {
+  position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%) translateX(4px);
+  white-space: nowrap; font-size: var(--fs-2xs); color: var(--text-hi);
+  background: var(--glass-tint-deep); backdrop-filter: blur(10px);
+  padding: 4px 9px; border-radius: var(--r-xs); border: 1px solid var(--glass-border);
+  opacity: 0; transition: opacity var(--d-fast), transform var(--d-fast); pointer-events: none;
+}
+.radial-item:hover .rlabel { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+/* ---- region modal (click a zone) ---- */
+.region-modal { max-width: min(580px, 94vw); padding: var(--sp-6); }
+.region-modal__head { display:flex; align-items:flex-start; justify-content: space-between; gap: var(--sp-4); margin-bottom: var(--sp-5); }
+.zone-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); margin-bottom: var(--sp-5); }
+.zone-stat { padding: var(--sp-4); border-radius: var(--r-md); background: oklch(0.16 0.02 292 / 0.7); border: 1px solid var(--line); }
+.zone-stat .v { font-family: var(--font-mono); font-size: 1.55rem; font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+.zone-stat .k { font-size: var(--fs-2xs); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 7px; }
+.zone-stat--opp .v { color: var(--st-opportunity); }
+.zone-stat--niche .v { color: var(--lime); }
+.zone-bars { display: flex; flex-direction: column; gap: var(--sp-4); margin-bottom: var(--sp-5); }
+.zbar__top { display:flex; justify-content: space-between; font-size: var(--fs-xs); margin-bottom: 6px; color: var(--text-mid); }
+.zbar__track { height: 9px; border-radius: var(--r-pill); background: oklch(0.26 0.02 292 / 0.6); overflow: hidden; }
+.zbar__fill { height: 100%; border-radius: var(--r-pill); width: 0; transition: width 0.9s var(--ease-out); box-shadow: 0 0 10px -2px currentColor; }
+
+/* loader veil */
+.boot {
+  position: fixed; inset: 0; z-index: var(--z-toast); display: grid; place-items: center;
+  background:
+    radial-gradient(60% 60% at 50% 45%, oklch(0.18 0.03 295 / 0.6), transparent 72%),
+    var(--bg-void);
+  transition: opacity 0.7s var(--ease-out);
+}
+.boot__inner { text-align: center; }
+.boot__ring { width: 68px; height: 68px; margin: 0 auto var(--sp-4); border-radius: 50%;
+  background: conic-gradient(from var(--angle), var(--lime), oklch(0.62 0.20 295) 60%, transparent 78%); animation: spin 1.1s linear infinite;
+  -webkit-mask: radial-gradient(closest-side, transparent 68%, #000 70%); mask: radial-gradient(closest-side, transparent 68%, #000 70%);
+  filter: drop-shadow(0 0 14px oklch(0.92 0.21 118 / 0.4)); }
+.boot.gone { opacity: 0; pointer-events: none; }
+
+@media (max-width: 1100px) {
+  .featured { display: none; }
+}
+@media (max-width: 880px) {
+  .stat-stack { display: none; }
+  .stage { left: var(--sp-4); right: var(--sp-4); max-width: none; }
+  .sweep-ring-wrap { right: var(--sp-4); bottom: calc(var(--sp-8) + 76px); }
+  .callout { display: none; }
+  .hud-frame { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- boot loader -->
+<div class="boot" id="boot"><div class="boot__inner">
+  <div class="boot__ring"></div>
+  <div class="t-label" style="color:var(--lime)">Carregando território</div>
+  <div class="t-xs t-dim" style="margin-top:6px">Cuiabá · Mato Grosso · BR</div>
+</div></div>
+
+<!-- living background fallbacks (visible before / behind the map) -->
+<div class="bg-base"></div>
+<div class="bg-mesh"></div>
+<div class="bg-grain"></div>
+
+<main class="hero">
+  <div id="map" role="img" aria-label="Mapa escuro de Cuiabá mostrando zonas de oportunidade brilhando"></div>
+  <canvas id="deck-canvas"></canvas>
+  <div class="map-veil"></div>
+  <div class="map-scan" aria-hidden="true"></div>
+  <div id="particles"></div>
+
+  <div class="hud-frame" aria-hidden="true">
+    <span class="hud-tick tl"></span><span class="hud-tick tr"></span>
+    <span class="hud-tick bl"></span><span class="hud-tick br"></span>
+  </div>
+
+  <div class="hero-ui">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand__mark"><i data-lucide="hexagon"></i></div>
+        <div>
+          <div class="brand__name">Hermes Cloud Studio <span style="color:var(--lime)">2.0</span></div>
+          <div class="brand__sub">Lead Discovery Engine</div>
+        </div>
+      </div>
+      <div class="topbar__right">
+        <span class="live-pill"><span class="live-dot"></span> Varredura ativa · <span class="num" id="agentsLive">11</span> agentes</span>
+        <span class="live-pill"><i data-lucide="clock" style="width:14px;height:14px"></i> 24/7</span>
+        <button class="btn btn-ghost btn-sm" aria-label="Configurações"><i data-lucide="settings-2"></i></button>
+      </div>
+    </header>
+
+    <!-- CENTER STAGE -->
+    <section class="stage text-scrim">
+      <span class="eyebrow"><span class="live-dot"></span> Território vivo · tempo real</span>
+      <h1 class="t-display" aria-label="O mapa do seu próximo cliente">
+        <span class="line"><span data-rv>O mapa do seu</span></span>
+        <span class="line"><span data-rv class="t-gradient">próximo cliente.</span></span>
+      </h1>
+      <p class="t-lead">
+        Hermes varre Cuiabá 24/7, audita cada negócio e projeta receita real.
+        As zonas que brilham são onde o dinheiro está esperando.
+      </p>
+
+      <div class="revenue-line">
+        <span class="revenue" id="revBig">R$ 0</span>
+        <span class="lbl">pipeline projetado em <b>312</b> oportunidades vivas <span class="tag-projected">estimativa</span></span>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-energy btn-lg" id="ctaSweep"><i data-lucide="radar"></i> Varrer nova zona</button>
+        <a class="btn btn-ghost btn-lg" href="01-conveyor.html"><i data-lucide="layout-grid"></i> Ver leads</a>
+      </div>
+    </section>
+
+    <!-- FLOATING STAT PANELS -->
+    <aside class="stat-stack stagger" aria-label="Indicadores em tempo real">
+      <div class="glass glass-spec lift stat-card is-measured">
+        <div class="row-between">
+          <span class="stat-card__icon"><i data-lucide="building-2" style="color:var(--lime)" class="iglow-energy"></i></span>
+          <span class="badge badge--ready">medido</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Negócios mapeados</span>
+          <span class="stat__value countup" data-count="4827">0</span>
+          <span class="stat__delta stat__delta--up">▲ +183 hoje</span>
+        </div>
+        <svg class="spark" data-spark="22,18,24,16,20,14,11,15,9,12,8,6,5"></svg>
+      </div>
+
+      <div class="glass glass-spec lift stat-card is-measured">
+        <div class="row-between">
+          <span class="stat-card__icon"><i data-lucide="flame" style="color:var(--st-opportunity)" class="iglow-opp"></i></span>
+          <span class="badge badge--opportunity">oportunidade</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Alta oportunidade</span>
+          <span class="stat__value countup" data-count="312" style="color:var(--st-opportunity)">0</span>
+          <span class="stat__delta stat__delta--up">▲ +27 esta semana</span>
+        </div>
+        <svg class="spark" data-spark="6,7,9,8,11,10,13,12,15,14,18,17,21" data-color="opp"></svg>
+      </div>
+
+      <div class="glass glass-spec lift stat-card is-projected">
+        <div class="row-between">
+          <span class="stat-card__icon"><i data-lucide="trending-up" style="color:var(--purple-hot)" class="iglow-purple"></i></span>
+          <span class="badge badge--audited">projetado</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Ticket médio projetado</span>
+          <span class="stat__value num" style="color:var(--purple-hot)">R$ <span class="countup" data-count="6450">0</span></span>
+          <span class="stat__delta t-dim">faixa R$ 3,2k – R$ 14k</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- FEATURED top opportunity — the single .card-hot (the wow callout) -->
+    <article class="card card-glass card-hot featured lift" id="featured" tabindex="0" aria-label="Maior oportunidade da varredura: Clínica OdontoVida">
+      <div class="featured__head">
+        <span class="featured__kicker"><i data-lucide="trophy"></i> Maior oportunidade agora</span>
+        <span class="badge badge--ready">pronto p/ contato</span>
+      </div>
+      <div class="featured__body">
+        <div class="score-ring score-ring--high" style="--pct:94"><span class="score-val">94</span></div>
+        <div>
+          <div class="featured__name">Clínica OdontoVida</div>
+          <div class="featured__meta">Centro-Sul · 5 anos operando · sem site · <span class="featured__rev">R$ 9,2k/mês</span> <span class="tag-projected">proj.</span></div>
+        </div>
+      </div>
+      <div class="featured__foot">
+        <div class="featured__gaps">
+          <span class="gap-tag"><i data-lucide="globe-2" style="width:11px;height:11px;vertical-align:-1px"></i> sem site</span>
+          <span class="gap-tag"><i data-lucide="megaphone" style="width:11px;height:11px;vertical-align:-1px"></i> sem ads</span>
+          <span class="gap-tag"><i data-lucide="instagram" style="width:11px;height:11px;vertical-align:-1px"></i> insta parado</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- OPPORTUNITY CALLOUTS (positioned to map via JS) -->
+    <button class="callout glass glass-spec" data-lng="-56.0680" data-lat="-15.6210" data-kind="opp">
+      <span class="callout__pin is-opp"></span>
+      <span class="callout__top"><span class="badge badge--opportunity">oportunidade</span></span>
+      <div class="row" style="gap:var(--sp-3)">
+        <div class="score-ring score-ring--mid" style="--pct:81"><span class="score-val">81</span></div>
+        <div>
+          <div class="callout__name">Marmoraria Pantanal</div>
+          <div class="callout__row"><span>8 anos · sem ads</span> · <span class="is-opp">R$ 6,8k/mês</span></div>
+        </div>
+      </div>
+    </button>
+
+    <button class="callout glass glass-spec" data-lng="-56.1180" data-lat="-15.5790" data-kind="niche">
+      <span class="callout__pin"></span>
+      <span class="callout__top"><span class="badge badge--ready">nicho quente</span></span>
+      <div class="row" style="gap:var(--sp-3)">
+        <div class="score-ring score-ring--high" style="--pct:88"><span class="score-val">88</span></div>
+        <div>
+          <div class="callout__name">Academia Corpo & Foco</div>
+          <div class="callout__row"><span>6 anos · Insta inativo</span> · <span class="num">R$ 7,5k/mês</span></div>
+        </div>
+      </div>
+    </button>
+
+    <!-- SWEEP PROGRESS RING -->
+    <div class="sweep-ring-wrap">
+      <div class="sweep-meta">
+        <div class="t-label" style="color:var(--lime)">Varredura da cidade</div>
+        <div style="margin-top:5px; line-height:1.5">Cuiabá <b id="sweepZones">31</b>/42 bairros<br>próximo: <b>Coxipó</b></div>
+      </div>
+      <div class="sweep-ring breathe" id="sweepRing" role="meter" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Progresso da varredura">
+        <div class="sweep-ring__inner">
+          <div class="sweep-ring__pct" id="sweepPct">0%</div>
+          <div class="sweep-ring__lbl">varrido</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM BAR: legend + zoom + radial nav -->
+    <div class="bottombar">
+      <div class="glass glass-spec legend-card">
+        <div class="t-label" style="margin-bottom:var(--sp-2)">Status no mapa</div>
+        <div class="legend">
+          <span class="legend__item" data-kind="opp"><span class="legend__swatch legend__swatch--opportunity"></span> Alta oportunidade</span>
+          <span class="legend__item" data-kind="niche"><span class="legend__swatch legend__swatch--niche"></span> Nicho quente</span>
+          <span class="legend__item" data-kind="cons"><span class="legend__swatch legend__swatch--consolidated"></span> Consolidado</span>
+          <span class="legend__item" data-kind="unx"><span class="legend__swatch legend__swatch--unexplored"></span> Não explorado</span>
+        </div>
+        <div class="glass zoom-pills">
+          <button class="chip active" data-zoom="city">Cidade</button>
+          <button class="chip" data-zoom="state">Estado</button>
+          <button class="chip" data-zoom="country">País</button>
+        </div>
+      </div>
+
+      <div class="radial-nav" id="radialNav">
+        <button class="radial-item" style="--i:0"><i data-lucide="radar"></i><span class="rlabel">Varrer zona</span></button>
+        <button class="radial-item" style="--i:1"><i data-lucide="layout-grid"></i><span class="rlabel">Esteira de leads</span></button>
+        <button class="radial-item" style="--i:2"><i data-lucide="file-text"></i><span class="rlabel">Dossiês</span></button>
+        <button class="radial-item" style="--i:3"><i data-lucide="cpu"></i><span class="rlabel">Command Center</span></button>
+        <button class="radial-item" style="--i:4"><i data-lucide="send"></i><span class="rlabel">Enviar p/ Geronimo</span></button>
+        <button class="radial-fab" id="radialFab" aria-label="Menu de ações" aria-expanded="false"><i data-lucide="plus"></i></button>
+      </div>
+    </div>
+
+  </div><!-- /hero-ui -->
+</main>
+
+<!-- REGION MODAL -->
+<div class="scrim" id="regionScrim" hidden>
+  <div class="modal region-modal glass-spec" role="dialog" aria-modal="true" aria-labelledby="rmTitle">
+    <div class="region-modal__head">
+      <div>
+        <div class="t-label" style="color:var(--lime)" id="rmKicker">Bairro varrido</div>
+        <h2 class="t-h2" id="rmTitle">Centro-Sul</h2>
+        <div class="t-sm t-dim" style="margin-top:4px"><i data-lucide="map-pin" style="width:13px;height:13px;vertical-align:-2px"></i> -15.601, -56.097 · raio 1,8 km</div>
+      </div>
+      <button class="btn btn-icon btn-ghost" id="rmClose" aria-label="Fechar"><i data-lucide="x"></i></button>
+    </div>
+
+    <div class="zone-stats">
+      <div class="zone-stat"><div class="v" id="rmTotal">0</div><div class="k">Negócios</div></div>
+      <div class="zone-stat zone-stat--opp"><div class="v" id="rmOpp">0</div><div class="k">Oportunidades</div></div>
+      <div class="zone-stat zone-stat--niche"><div class="v" id="rmNiche">0</div><div class="k">Nicho quente</div></div>
+    </div>
+
+    <div class="zone-bars">
+      <div class="zbar"><div class="zbar__top"><span>Sem site / sem digital</span><span class="num">62%</span></div><div class="zbar__track"><div class="zbar__fill" style="background:var(--st-opportunity);color:var(--st-opportunity)" data-w="62"></div></div></div>
+      <div class="zbar"><div class="zbar__top"><span>Operando 5+ anos com fluxo</span><span class="num">44%</span></div><div class="zbar__track"><div class="zbar__fill" style="background:var(--lime);color:var(--lime)" data-w="44"></div></div></div>
+      <div class="zbar"><div class="zbar__top"><span>Já consolidado (concorrência)</span><span class="num">19%</span></div><div class="zbar__track"><div class="zbar__fill" style="background:var(--st-consolidated);color:var(--st-consolidated)" data-w="19"></div></div></div>
+    </div>
+
+    <div class="row wrap" style="gap:var(--sp-3)">
+      <button class="btn btn-energy"><i data-lucide="radar"></i> Re-varrer este bairro</button>
+      <button class="btn btn-primary"><i data-lucide="building-2"></i> Expandir negócios</button>
+      <a class="btn btn-ghost" href="01-conveyor.html"><i data-lucide="map"></i> Ver geolocalização exata</a>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   data — realistic Cuiabá / Mato Grosso sample (no lorem)
+   ============================================================ */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CUIABA = [-56.0949, -15.5989];
+
+// neighbourhood opportunity points around Cuiabá (lng,lat,weight 0..1, kind)
+const ZONES = [
+  // hot opportunity clusters
+  {c:[-56.0949,-15.5989],w:1.0,k:'opp', name:'Centro-Sul', total:418, opp:74, niche:31},
+  {c:[-56.0680,-15.6210],w:0.86,k:'opp', name:'Jardim Cuiabá', total:362, opp:61, niche:22},
+  {c:[-56.1180,-15.5790],w:0.78,k:'niche', name:'Bosque da Saúde', total:288, opp:48, niche:27},
+  {c:[-56.0810,-15.5620],w:0.7,k:'opp', name:'Goiabeiras', total:241, opp:39, niche:14},
+  {c:[-56.0540,-15.5980],w:0.64,k:'niche', name:'Jardim Aclimação', total:198, opp:33, niche:19},
+  {c:[-56.1260,-15.6150],w:0.58,k:'opp', name:'Coxipó', total:176, opp:41, niche:11},
+  {c:[-56.0420,-15.5740],w:0.5,k:'cons', name:'CPA', total:312, opp:18, niche:6},
+  {c:[-56.1010,-15.6320],w:0.46,k:'niche', name:'Pedra 90', total:154, opp:36, niche:21},
+  {c:[-56.0290,-15.6080],w:0.4,k:'cons', name:'Morada do Ouro', total:267, opp:14, niche:4},
+  {c:[-56.1430,-15.5910],w:0.34,k:'opp', name:'Tijucal', total:131, opp:29, niche:9},
+  {c:[-56.0660,-15.5510],w:0.3,k:'unx', name:'Verdão', total:42, opp:5, niche:1},
+  {c:[-56.1550,-15.6280],w:0.26,k:'unx', name:'Altos do Coxipó', total:0, opp:0, niche:0},
+  {c:[-56.0150,-15.5650],w:0.22,k:'cons', name:'Jardim Itália', total:204, opp:9, niche:3},
+  {c:[-56.1100,-15.5410],w:0.18,k:'unx', name:'Despraiado', total:0, opp:0, niche:0},
+];
+const KCOLOR = {
+  opp:[247,138,92], niche:[209,254,23], cons:[96,142,222], unx:[120,120,135]
+};
+
+/* ============================================================
+   MapLibre — dark CARTO basemap centred on Cuiabá
+   ============================================================ */
+let map, deckOverlay, currentFilter = 'all';
+let pulse = 0; // 0..1 animated, drives the "living" zone breathing
+
+function buildScatter() {
+  return new deck.ScatterplotLayer({
+    id: 'zones',
+    data: ZONES,
+    pickable: true,
+    opacity: 0.9,
+    stroked: true,
+    filled: true,
+    radiusUnits: 'meters',
+    getPosition: d => d.c,
+    // hotter zones breathe more — gives the map a living pulse
+    getRadius: d => (380 + d.w * 1400) * (1 + (d.k!=='unx'? d.w : 0) * 0.10 * Math.sin(pulse*Math.PI*2)),
+    getFillColor: d => {
+      const dim = currentFilter !== 'all' && d.k !== currentFilter;
+      const base = dim ? [120,120,135] : KCOLOR[d.k];
+      return [...base, dim ? 30 : 55 + d.w * 130];
+    },
+    getLineColor: d => {
+      const dim = currentFilter !== 'all' && d.k !== currentFilter;
+      return dim ? [120,120,135,55] : [...KCOLOR[d.k], 235];
+    },
+    getLineWidth: 2,
+    lineWidthUnits: 'pixels',
+    updateTriggers: { getFillColor:[currentFilter], getLineColor:[currentFilter], getRadius:[pulse] },
+    transitions: { getFillColor: 400, getLineColor: 400 }
+  });
+}
+// pulsing halo ring around the single hottest zone (Centro-Sul) — radar ping
+function buildPing() {
+  const hot = ZONES[0];
+  const t = pulse; // 0..1
+  return new deck.ScatterplotLayer({
+    id: 'ping', data: [hot],
+    getPosition: d => d.c, stroked: true, filled: false,
+    radiusUnits: 'meters',
+    getRadius: 600 + t * 2600,
+    getLineColor: [209,254,23, Math.round(180 * (1 - t))],
+    getLineWidth: 2, lineWidthUnits: 'pixels',
+    updateTriggers: { getRadius:[t], getLineColor:[t] }
+  });
+}
+function buildHeat() {
+  return new deck.HeatmapLayer({
+    id:'heat', data: ZONES.filter(z=>z.w>0.1),
+    getPosition:d=>d.c, getWeight:d=>d.w,
+    radiusPixels: 96, intensity: 1.15, threshold: 0.04,
+    colorRange:[[40,40,70,0],[96,142,222,110],[120,200,150,165],[209,254,23,215],[247,138,92,255]]
+  });
+}
+// heatmap is expensive to rebuild — keep ONE stable instance, only rebuild the
+// cheap scatter/ping layers as the pulse animates.
+let heatLayer = null;
+function refreshDeck(){
+  if(!deckOverlay) return;
+  if(!heatLayer) heatLayer = buildHeat();
+  deckOverlay.setProps({layers:[heatLayer, buildPing(), buildScatter()]});
+}
+
+// drive the living pulse — throttled to ~30fps so deck rebuilds stay cheap
+let lastPulse = 0;
+function pulseLoop(ts){
+  if(ts - lastPulse > 33){ pulse = (pulse + 0.011) % 1; refreshDeck(); lastPulse = ts; }
+  requestAnimationFrame(pulseLoop);
+}
+
+function initMap(){
+  map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    center: CUIABA, zoom: 12.1, pitch: 48, bearing: -14,
+    attributionControl: false, interactive: true
+  });
+  map.on('load', () => {
+    // tint the basemap toward brand purple-void
+    try {
+      map.getStyle().layers.forEach(l=>{
+        if(l.type==='background') map.setPaintProperty(l.id,'background-color','#16131f');
+        if(l.id && l.id.includes('water')) map.setPaintProperty(l.id,'fill-color','#0f0d18');
+      });
+    } catch(e){}
+
+    heatLayer = buildHeat();
+    deckOverlay = new deck.MapboxOverlay({ interleaved:false, layers:[heatLayer, buildPing(), buildScatter()],
+      onClick: (info)=>{ if(info.object) openRegion(info.object); }
+    });
+    map.addControl(deckOverlay);
+
+    positionCallouts();
+    map.on('move', positionCallouts);
+    map.on('zoom', positionCallouts);
+
+    bootDone();
+    if(!REDUCED){ cinematicIntro(); requestAnimationFrame(pulseLoop); }
+  });
+  map.on('error', ()=>{ /* offline file:// fallback — still show UI over mesh bg */ bootDone(); });
+}
+
+/* slow cinematic camera drift (dive-in feel) */
+function cinematicIntro(){
+  let t = 0;
+  function loop(){
+    t += 0.0012;
+    if(map && map.isStyleLoaded()){
+      map.setBearing(-14 + Math.sin(t)*6);
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  map.easeTo({ zoom: 12.45, pitch: 53, duration: 4600, easing: x=>1-Math.pow(1-x,3) });
+}
+
+/* anchor HTML callouts to map coordinates */
+function positionCallouts(){
+  if(!map) return;
+  document.querySelectorAll('.callout').forEach(el=>{
+    const p = map.project([+el.dataset.lng, +el.dataset.lat]);
+    el.style.left = p.x + 'px';
+    el.style.top  = p.y - 22 + 'px';
+    const vis = p.x>40 && p.x<innerWidth-40 && p.y>90 && p.y<innerHeight-150;
+    el.style.opacity = vis ? '1':'0';
+    el.style.pointerEvents = vis ? 'auto':'none';
+  });
+}
+
+/* ============================================================
+   Region modal
+   ============================================================ */
+const scrim = document.getElementById('regionScrim');
+let lastFocus = null;
+function openRegion(z){
+  lastFocus = document.activeElement;
+  document.getElementById('rmTitle').textContent = z.name;
+  document.getElementById('rmKicker').textContent = z.k==='unx' ? 'Zona não explorada' : 'Bairro varrido';
+  animTo('rmTotal', z.total); animTo('rmOpp', z.opp); animTo('rmNiche', z.niche);
+  scrim.hidden = false;
+  document.getElementById('rmClose').focus();
+  requestAnimationFrame(()=>document.querySelectorAll('.zbar__fill').forEach(f=>f.style.width=f.dataset.w+'%'));
+}
+function closeRegion(){
+  scrim.hidden = true;
+  document.querySelectorAll('.zbar__fill').forEach(f=>f.style.width='0');
+  if(lastFocus) lastFocus.focus();
+}
+document.getElementById('rmClose').onclick = closeRegion;
+scrim.addEventListener('click', e=>{ if(e.target===scrim) closeRegion(); });
+addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeRegion(); if(radialNav.classList.contains('open')){ radialNav.classList.remove('open'); radialFab.setAttribute('aria-expanded','false'); layoutRadial(); } } });
+function animTo(id,val){ const el=document.getElementById(id); if(REDUCED){el.textContent=val;return;} new countUp.CountUp(el,val,{duration:1.1}).start(); }
+
+/* featured card + callouts open their zone */
+document.getElementById('featured').addEventListener('click',()=>openRegion(ZONES[0]));
+document.getElementById('featured').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openRegion(ZONES[0]); }});
+document.querySelectorAll('.callout').forEach((el,i)=>{
+  el.addEventListener('click',()=>openRegion(ZONES[[1,2][i]||0]));
+});
+
+/* ============================================================
+   zoom pills (city/state/country fly) + legend filter on map
+   ============================================================ */
+document.querySelectorAll('[data-zoom]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('[data-zoom]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const z = btn.dataset.zoom;
+    if(!map) return;
+    const dur = REDUCED ? 0 : 1500;
+    if(z==='city') map.easeTo({center:CUIABA, zoom:12.45, pitch:53, duration:dur});
+    if(z==='state') map.easeTo({center:[-55.9,-13.5], zoom:6.2, pitch:30, duration:dur+200});
+    if(z==='country') map.easeTo({center:[-51.9,-14.2], zoom:3.6, pitch:0, duration:dur+400});
+  });
+});
+
+/* legend items act as kind filters — match glows, rest goes cold (per design contract) */
+document.querySelectorAll('.legend__item').forEach(item=>{
+  item.style.cursor='pointer';
+  item.addEventListener('click',()=>{
+    const k = item.dataset.kind;
+    currentFilter = (currentFilter===k) ? 'all' : k;
+    document.querySelectorAll('.legend__item').forEach(it=>{
+      it.style.opacity = (currentFilter==='all' || it.dataset.kind===currentFilter) ? '1' : '0.4';
+    });
+    refreshDeck();
+  });
+});
+
+/* ============================================================
+   radial nav
+   ============================================================ */
+const radialNav = document.getElementById('radialNav');
+const radialFab = document.getElementById('radialFab');
+function layoutRadial(){
+  const items=[...radialNav.querySelectorAll('.radial-item')];
+  const open = radialNav.classList.contains('open');
+  const R=94, start=-12, span=108;
+  items.forEach((it,idx)=>{
+    if(open){
+      const a=(start + span*(idx/(items.length-1)))*Math.PI/180;
+      it.style.transform=`translate(${Math.cos(a)*R}px, ${-Math.sin(a)*R}px) scale(1)`;
+      it.style.transitionDelay = (idx*0.03)+'s';
+    } else { it.style.transform='translate(0,0) scale(0.4)'; it.style.transitionDelay='0s'; }
+  });
+}
+radialFab.onclick=()=>{ radialNav.classList.toggle('open'); radialFab.setAttribute('aria-expanded', radialNav.classList.contains('open')); layoutRadial(); };
+
+/* ============================================================
+   CTA sweep -> toast + ring tick
+   ============================================================ */
+document.getElementById('ctaSweep').onclick=()=>{ toast('Varredura disparada · Coxipó entrou na fila'); tickSweep(); };
+function toast(msg){
+  const t=document.createElement('div'); t.className='toast'; t.innerHTML=`<span class="live-dot"></span> ${msg}`;
+  document.body.appendChild(t); setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(8px)';},2600); setTimeout(()=>t.remove(),3200);
+}
+
+/* ============================================================
+   sweep ring fill + count-ups + sparklines
+   ============================================================ */
+let sweepVal=0; const SWEEP_TARGET=74;
+function setRing(p){
+  const r=document.getElementById('sweepRing');
+  r.style.setProperty('--p',p); r.setAttribute('aria-valuenow',Math.round(p));
+  document.getElementById('sweepPct').textContent=Math.round(p)+'%';
+}
+function tickSweep(){ sweepVal=Math.min(100,sweepVal+3); setRing(sweepVal); document.getElementById('sweepZones').textContent=Math.min(42,31+Math.round(sweepVal/12)); }
+
+function animateRing(){
+  if(REDUCED){ setRing(SWEEP_TARGET); return; }
+  let v=0; const step=()=>{ v+=1.4; if(v>=SWEEP_TARGET){setRing(SWEEP_TARGET); sweepVal=SWEEP_TARGET; return;} setRing(v); requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function runCountups(){
+  document.querySelectorAll('.countup').forEach(el=>{
+    const v=+el.dataset.count; if(REDUCED){el.textContent=v.toLocaleString('pt-BR');return;}
+    new countUp.CountUp(el, v, {duration:1.8, separator:'.'}).start();
+  });
+  // big revenue
+  const rev=document.getElementById('revBig');
+  if(REDUCED){ rev.textContent='R$ 2,01 mi'; }
+  else { const c=new countUp.CountUp(rev,2013500,{duration:2.4,prefix:'R$ ',separator:'.'}); c.start(()=>{ rev.textContent='R$ 2,01 mi'; }); }
+}
+function drawSparks(){
+  document.querySelectorAll('.spark').forEach(svg=>{
+    const pts=svg.dataset.spark.split(',').map(Number);
+    const col=svg.dataset.color==='opp'?'var(--st-opportunity)':'var(--lime)';
+    const w=240,h=32,max=Math.max(...pts),min=Math.min(...pts);
+    const sx=w/(pts.length-1);
+    const xy=pts.map((p,i)=>[i*sx, h-((p-min)/(max-min||1))*(h-8)-4]);
+    const line=xy.map((q,i)=>`${i?'L':'M'}${q[0].toFixed(1)},${q[1].toFixed(1)}`).join(' ');
+    const area=`${line} L${w},${h} L0,${h} Z`;
+    const gid='g'+Math.random().toString(36).slice(2,7);
+    svg.setAttribute('viewBox',`0 0 ${w} ${h}`); svg.setAttribute('preserveAspectRatio','none');
+    svg.innerHTML=
+      `<defs><linearGradient id="${gid}" x1="0" x2="0" y1="0" y2="1">`+
+      `<stop offset="0" stop-color="${col}" stop-opacity="0.28"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>`+
+      `<path d="${area}" fill="url(#${gid})"/>`+
+      `<path d="${line}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 4px ${col})"/>`+
+      `<circle cx="${xy[xy.length-1][0].toFixed(1)}" cy="${xy[xy.length-1][1].toFixed(1)}" r="2.6" fill="${col}" style="filter:drop-shadow(0 0 5px ${col})"/>`;
+  });
+}
+
+/* GSAP cinematic headline reveal */
+function headlineReveal(){
+  if(REDUCED || !window.gsap){ document.querySelectorAll('[data-rv]').forEach(e=>e.style.opacity=1); return; }
+  gsap.set('[data-rv]',{yPercent:110,opacity:0});
+  gsap.to('[data-rv]',{yPercent:0,opacity:1,duration:1,ease:'power3.out',stagger:0.12,delay:0.2});
+  gsap.from('.eyebrow',{opacity:0,y:14,duration:0.8,delay:0.1});
+  gsap.from('.revenue-line, .cta-row',{opacity:0,y:18,duration:0.8,delay:0.6,stagger:0.1});
+  gsap.from('.stat-stack .stat-card',{opacity:0,x:30,duration:0.8,delay:0.5,stagger:0.12});
+  gsap.from('.featured',{opacity:0,y:24,scale:0.94,duration:0.9,delay:0.85,ease:'back.out(1.5)'});
+  gsap.from('.callout',{opacity:0,scale:0.8,duration:0.7,delay:1.1,stagger:0.15,ease:'back.out(1.6)'});
+  gsap.from('.sweep-ring-wrap',{opacity:0,x:24,duration:0.8,delay:0.7});
+}
+
+/* tsParticles ambient */
+function initParticles(){
+  if(REDUCED || !window.tsParticles){ return; }
+  tsParticles.load({ id:'particles', options:{
+    fpsLimit:45, fullScreen:{enable:false},
+    particles:{
+      number:{value:48,density:{enable:true,area:900}},
+      color:{value:['#d1fe17','#7c3aed','#a78bfa']},
+      opacity:{value:{min:0.05,max:0.42},animation:{enable:true,speed:0.6,sync:false}},
+      size:{value:{min:0.5,max:2.4}},
+      move:{enable:true,speed:0.38,direction:'top',outModes:{default:'out'},random:true},
+      shadow:{enable:true,color:'#d1fe17',blur:6}
+    },
+    detectRetina:true
+  }});
+}
+
+/* ============================================================
+   boot
+   ============================================================ */
+function bootDone(){ const b=document.getElementById('boot'); if(!b) return; b.classList.add('gone'); setTimeout(()=>b.remove(),800); }
+
+function start(){
+  if(window.lucide) lucide.createIcons();
+  drawSparks();
+  initParticles();
+  layoutRadial();
+  // run reveals + numbers slightly after paint
+  setTimeout(()=>{ runCountups(); animateRing(); headlineReveal(); }, 280);
+  // live ticker: agents count flickers a bit (realtime feel)
+  if(!REDUCED) setInterval(()=>{ const e=document.getElementById('agentsLive'); e.textContent=10+Math.floor(Math.random()*4); },3200);
+
+  if(window.maplibregl) initMap();
+  else { bootDone(); } // hard fallback: still award-winning over the mesh bg
+}
+addEventListener('DOMContentLoaded', start);
+// safety: never let the boot loader trap the user
+setTimeout(()=>{ const b=document.getElementById('boot'); if(b) {b.classList.add('gone');} }, 6000);
+</script>
+</body>
+</html>

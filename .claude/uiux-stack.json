@@ -1,0 +1,178 @@
+{
+  "meta": {
+    "project": "hermes-cloud-studio",
+    "doc": "Hermes 2.0 VISUAL UI/UX plan — machine-readable surface -> concepts + libs map",
+    "sealed": "2026-06-21",
+    "master_principle": "everything VISUAL, no tables, no walls of text, glance-able, dive-in feel",
+    "constraints": {
+      "budget": "$0",
+      "hosting": "self-hosted Contabo",
+      "cdn": "zero CDN, all libs vendored local hash-pinned",
+      "stack": "vanilla JS + OKLCH + Geist",
+      "accent": "#7c3aed",
+      "energy": "#d1fe17",
+      "a11y": "WCAG AA, prefers-reduced-motion"
+    },
+    "react_recommendation": "Stay vanilla for shell + Surfaces 1,2,4. All wow libs are framework-agnostic. React only as optional islands for heavy Dossier scrollytelling state. React-coupled libs (visx, Nivo, Tremor) are reference-only."
+  },
+  "color_semantics_oklch": {
+    "high_opportunity": "saturated warm coral/amber bloom (uncaptured money)",
+    "consolidated": "cool muted blue/teal (has site + marketing, already taken)",
+    "unexplored": "neutral gray fog",
+    "intensity_ramp": "perceptually-uniform OKLCH sequential (culori + d3-scale) so heatmap never lies",
+    "brand_active": "#7c3aed purple",
+    "energy_critical": "#d1fe17 lime",
+    "encoding_law": "solid=measured, translucent=projected; count-up only on real numbers"
+  },
+  "surfaces": [
+    {
+      "id": 1,
+      "name": "Sweep Map",
+      "purpose": "explore territory, spot opportunities, paint swept vs unexplored",
+      "concepts": [
+        "Self-hosted dark OKLCH PMTiles basemap (single Brazil/MT .pmtiles, no tile server, no API key)",
+        "deck.gl GPU overlay: GeoJsonLayer choropleth, H3HexagonLayer swept hexes, HeatmapLayer density, ScatterplotLayer pulsing dots",
+        "MANY filters that RECOLOR via deck.gl updateTriggers on getFillColor (one GPU frame, zero refetch) + live counter",
+        "H3 hexbin swept-vs-unexplored sweep metaphor, resolution scales with zoom",
+        "Fog-of-war paint: dark overlay punched out where swept + swept-vs-total progress ring",
+        "Cinematic semantic drill-down country->state->city, flyTo(curve:1.42), globe->Mercator morph ~z12, focus-dim",
+        "Click-to-sweep: Terra Draw lasso -> Turf.js encloses H3 cells -> animated wipe + shimmer",
+        "Region modal: PostGIS aggregate -> count-up donut gauges (total vs opportunities vs niche) + geolocation + handoff CTA",
+        "Legend that doubles as a filter; realtime follow-cursor tooltip per zoom tier",
+        "PostGIS + h3-pg spatial brain: pre-aggregated filtered GeoJSON, 'missing a service' reverse-filter in SQL"
+      ],
+      "libs": ["maplibre-gl-js", "protomaps-pmtiles", "deck.gl", "h3-js", "h3-pg", "postgis", "terra-draw", "turf.js", "ibge-geobr", "mapshaper", "culori", "d3-scale", "motion-one"]
+    },
+    {
+      "id": 2,
+      "name": "Lead Conveyor",
+      "purpose": "scan 50 leads in seconds, decide, dispatch actions",
+      "concepts": [
+        "Kinetic cards not tables: name, score ring, niche icon, size, revenue sparkline, social dots (lit/dim), ads-posts micro-bar",
+        "Conveyor Kanban states: found -> audited -> ready-to-contact -> contacted, drag to restate, auto-advance micro-animation",
+        "Reverse-filter businesses MISSING a service (negative-space gold), recolors conveyor + map, live count badge",
+        "Max filters as chips that re-tint and FLIP-animate cards into new rank (shared lens with map)",
+        "Per-card hover action row (icon buttons): dossier, mark-contacted, send-to-Geronimo, re-audit, see-audit-failures, compare-competitors, adversarial-report, market-dominance-estimate, SEO-SEM-strategies",
+        "Score band micro-bar / chip for high-density rows, glow-by-band so hottest lead is brightest",
+        "Region->conveyor handoff from Surface 1"
+      ],
+      "libs": ["pure-css-conic-property-oklch", "sortablejs", "motion-one", "inline-svg-sparkline", "culori"]
+    },
+    {
+      "id": 3,
+      "name": "Dossier",
+      "purpose": "glance-to-decide verdict, honest revenue projection, conversion ammo to close",
+      "concepts": [
+        "BLUF verdict header (inverted pyramid): one hero conclusion + status color + 0-100 score ring before any evidence",
+        "Scrollytelling 4 acts (who/missing/cost/what-we-do) with pinned hero visual that mutates per scroll step",
+        "Dual-arc potential-gap ring (current vs potential, gap = the pitch, no ranges, one committed number)",
+        "Range bullet bar / scenario fan: solid=measured translucent=projected, conservative-likely-optimistic band",
+        "Waterfall of upside levers color-keyed to delivering project (Vuecra=site, Geronimo=ads/SEO), toggle lever -> live total",
+        "Stellar chart (radial spears not lying radar) client vs dominant competitor",
+        "Reverse-gap matrix heatmap (what-they-have-you-dont)",
+        "Market-dominance Voronoi treemap (FoamTree) sized by share",
+        "Adversarial 2-axis competitor plot with gap vectors -> click vector -> recommended offer",
+        "Confidence encoding: solid=high, hatched=inferred, faint=guessed"
+      ],
+      "libs": ["pure-css-conic-property-oklch", "d3", "apache-echarts", "apexcharts", "foamtree", "gsap-scrolltrigger", "motion-one", "culori"]
+    },
+    {
+      "id": 4,
+      "name": "Command Center",
+      "purpose": "ONLY Hermes actions + realtime monitoring + cross-project triggers, fully visual",
+      "concepts": [
+        "Living nervous-system WebGL agent graph: nodes=Hermes core+40+ agents+Vuecra+Geronimo, edges=triggers, animated particles=work in flight, pulse/halo/red=status",
+        "Cross-project triggers drawn as edges firing: Hermes->Vuecra build-site, Hermes->Geronimo run-marketing/software-strategy",
+        "Click-node radial action menu + agent detail; click-edge trigger payload/result; trigger any action from the node",
+        "Realtime via existing daemon.{subsystem_status,log_event,decision} WS broadcasts -> patch pulses/particles/halos, transition-only",
+        "Instrument-cluster pure-CSS needle gauges for 40+ agent health, swing in realtime off WS (cockpit)",
+        "deck.gl ArcLayer overlay on map: closed leads fire glowing arcs to delivering project, camera-synced",
+        "Monitor cross-project done vs in-progress as node halos; filter by subsystem/status dims subgraphs",
+        "Smooth status recolor + entrance transitions (Motion One, restrained)"
+      ],
+      "libs": ["sigma.js", "graphology", "deck.gl", "maplibre-gl-js", "pure-css-conic-property-oklch", "motion-one", "culori", "d3-force"]
+    }
+  ],
+  "agent_viz_ideas": [
+    "Nervous-system WebGL graph (primary): particles=work, pulse=status, halo=done (Sigma.js)",
+    "Cockpit gauge wall: pure-CSS needle gauges per agent, vital signs off WS",
+    "Constellation/star-map: agents=stars, brightness=activity, constellations=subsystems",
+    "Swimlane heartbeat strip: per-agent ECG pulse line, spike=run, red spike=error",
+    "Particle-flow river: each particle a lead moving discover->enrich->qualify->handoff, width=throughput",
+    "Capability radial/sunburst: Hermes->subsystems->agents->capabilities drill",
+    "Hex-grid agent board: each agent a hex tile (reuse H3 language), fill=load",
+    "Live timeline ticker: last N decisions as flowing chips, color=subsystem",
+    "3D depth stack: subsystems on parallax CSS-3D layers, tilt on mouse",
+    "Trigger-pulse map overlay: cross-project triggers as deck.gl arcs on geography",
+    "Mini-graph badges on conveyor cards: which agents touched this lead",
+    "Error-spotlight mode: filter to error/stuck nodes, rest dims to fog"
+  ],
+  "action_dispatch_ux": [
+    "Hover action row on cards (icon buttons + tooltips)",
+    "Radial/pie menu on Command Center nodes",
+    "Drag-to-trigger: drag lead card onto project node to fire handoff",
+    "Command palette (Cmd+K) fuzzy-search any action across surfaces",
+    "Confirm-by-gesture (slide/hold) for destructive + cross-project (matches Brain requires_confirm)",
+    "Optimistic visual feedback before WS confirm",
+    "Reuse window.hermesToast (F.2.4) for confirms, window.skeleton for loading"
+  ],
+  "wow_moments": [
+    "Fog-of-war sweep paint: lasso gray region, fog dissolves radial wipe + shimmer, hexes bloom, progress ring grows",
+    "GPU recolor in one frame: drag filter, whole map recolors <16ms, live counter ticks matches",
+    "Cinematic country->state->city dive: flyTo(curve:1.42) + globe->Mercator morph + cursor tooltip all the way down",
+    "Dual-arc gap ring: empty space between current and potential IS the pitch, gap opens on reveal, no ranges",
+    "Living nervous-system agent graph: 40+ WebGL nodes, cross-project trigger particle pulses, status as pulse/halo/red",
+    "Reverse-gap one-click pitch generator: 'missing a service' recolors to only exploitable gaps",
+    "One OKLCH color language across all 4 surfaces: learn 'coral=money' once",
+    "solid=measured / translucent=projected honesty law + count-up only on real numbers"
+  ],
+  "libs": [
+    { "id": "maplibre-gl-js", "name": "MapLibre GL JS", "license": "BSD-3", "free": true, "react_required": false, "url": "https://maplibre.org/maplibre-gl-js/docs/", "role": "base WebGL vector map, flyTo, feature-state recolor, zoom-gated layers" },
+    { "id": "protomaps-pmtiles", "name": "Protomaps / PMTiles", "license": "OSS/OSM", "free": true, "react_required": false, "url": "https://docs.protomaps.com/pmtiles/maplibre", "role": "single .pmtiles basemap off Contabo nginx, no tile server, OKLCH dark restyle" },
+    { "id": "deck.gl", "name": "deck.gl v9 + @deck.gl/mapbox", "license": "MIT", "free": true, "react_required": false, "url": "https://deck.gl/docs/api-reference/geo-layers/h3-hexagon-layer", "role": "GPU GeoJson/H3Hexagon/Heatmap/Scatterplot/Arc layers, updateTriggers instant recolor, DataFilterExtension live counts" },
+    { "id": "h3-js", "name": "Uber H3 / h3-js", "license": "Apache-2.0", "free": true, "react_required": false, "url": "https://h3geo.org/docs/", "role": "hexagonal hierarchical sweep grid client-side, zoom-tiered resolution" },
+    { "id": "h3-pg", "name": "h3-pg", "license": "Apache-2.0", "free": true, "react_required": false, "url": "https://github.com/zachasme/h3-pg", "role": "H3 in PostGIS, integer-join density aggregation server-side" },
+    { "id": "postgis", "name": "PostGIS", "license": "OSS", "free": true, "react_required": false, "url": "https://postgis.net/", "role": "spatial brain on Contabo, pre-aggregated filtered GeoJSON + missing-a-service reverse-filter in SQL" },
+    { "id": "terra-draw", "name": "Terra Draw + maplibre-gl-terradraw", "license": "MIT", "free": true, "react_required": false, "url": "https://github.com/JamesLMilner/terra-draw", "role": "click/drag/freehand sweep-area selection, replaces mapbox-gl-draw" },
+    { "id": "turf.js", "name": "Turf.js", "license": "MIT", "free": true, "react_required": false, "url": "https://turfjs.org/", "role": "point-in-polygon/contains to compute hexes & businesses inside a drawn sweep zone" },
+    { "id": "ibge-geobr", "name": "IBGE / geobr / geodata-br / br-atlas", "license": "CC0 / BSD-3", "free": true, "react_required": false, "url": "https://github.com/carolinabigonha/br-atlas", "role": "official Brazil state + municipality boundary GeoJSON/TopoJSON" },
+    { "id": "mapshaper", "name": "mapshaper", "license": "OSS", "free": true, "react_required": false, "url": "https://github.com/mbloch/mapshaper", "role": "build-time simplify/quantize IBGE boundaries into per-zoom LOD tiers" },
+    { "id": "culori", "name": "culori", "license": "MIT", "free": true, "react_required": false, "url": "https://culorijs.org/", "role": "OKLCH perceptually-uniform ramps + colorblind-safe lightness separation" },
+    { "id": "d3-scale", "name": "d3-scale + d3-scale-chromatic", "license": "ISC", "free": true, "react_required": false, "url": "https://d3js.org/d3-scale", "role": "quantize opportunity scores into OKLCH bins, legend thresholds" },
+    { "id": "d3", "name": "D3.js (d3-shape/d3-scale/d3-geo modules)", "license": "ISC/BSD", "free": true, "react_required": false, "url": "https://d3js.org", "role": "vanilla arc/gauge path math, sparklines, bespoke transitions, import submodules only" },
+    { "id": "d3-force", "name": "d3-force", "license": "ISC", "free": true, "react_required": false, "url": "https://d3js.org/d3-force", "role": "fallback non-WebGL agent-graph layout" },
+    { "id": "pure-css-conic-property-oklch", "name": "Pure CSS (conic-gradient + Houdini @property + OKLCH)", "license": "native", "free": true, "react_required": false, "url": "https://developer.mozilla.org/en-US/docs/Web/CSS/@property", "role": "all score rings/needle gauges, zero bundle, native interpolation" },
+    { "id": "apache-echarts", "name": "Apache ECharts 6", "license": "Apache-2.0", "free": true, "react_required": false, "url": "https://echarts.apache.org/", "role": "vanilla-first one-lib: stellar/radar/treemap/heatmap/bullet/gauge/sankey" },
+    { "id": "apexcharts", "name": "ApexCharts", "license": "MIT", "free": true, "react_required": false, "url": "https://apexcharts.com/", "role": "range-bar/range-area/bullet out of the box for honest current-vs-potential ranges" },
+    { "id": "foamtree", "name": "FoamTree (Carrot Search)", "license": "free-js-lib", "free": true, "react_required": false, "url": "https://carrotsearch.com/foamtree/", "role": "organic Voronoi treemap for market-dominance viz" },
+    { "id": "sigma.js", "name": "Sigma.js", "license": "MIT", "free": true, "react_required": false, "url": "https://www.sigmajs.org/", "role": "WebGL node-link agent graph, 40+ nodes at 60fps, animated edges, status pulses" },
+    { "id": "graphology", "name": "graphology", "license": "MIT", "free": true, "react_required": false, "url": "https://graphology.github.io/", "role": "graph data model + layouts for the agent graph" },
+    { "id": "gsap-scrolltrigger", "name": "GSAP + ScrollTrigger", "license": "free (since 2025)", "free": true, "react_required": false, "url": "https://gsap.com/", "role": "scrollytelling dossier pinned-visual morph; vendor one file, isolate per no-gsap-outside ESLint rule" },
+    { "id": "motion-one", "name": "Motion One", "license": "MIT", "free": true, "react_required": false, "url": "https://motion.dev/", "role": "~5KB WAAPI vanilla: FLIP reflow, card flips, ring count-ups, modal springs, status recolor" },
+    { "id": "sortablejs", "name": "SortableJS", "license": "MIT", "free": true, "react_required": false, "url": "https://sortablejs.github.io/Sortable/", "role": "drag cards between conveyor Kanban state columns" },
+    { "id": "inline-svg-sparkline", "name": "inline SVG sparkline", "license": "native", "free": true, "react_required": false, "url": "https://developer.mozilla.org/en-US/docs/Web/SVG/Element/path", "role": "~80x24px no-axis trend charts inside cards, one path-builder function, no lib" },
+    { "id": "kepler.gl", "name": "kepler.gl (optional analyst lab)", "license": "MIT", "free": true, "react_required": true, "url": "https://github.com/keplergl/kepler.gl", "role": "OPTIONAL side analyst lab only (React/UMD), not the daily dashboard" },
+    { "id": "visx", "name": "visx (REFERENCE ONLY)", "license": "MIT", "free": true, "react_required": true, "url": "https://airbnb.io/visx", "role": "React-coupled; mine arc/gauge/sparkline math, do not import into vanilla" },
+    { "id": "nivo", "name": "Nivo (REFERENCE ONLY)", "license": "MIT", "free": true, "react_required": true, "url": "https://nivo.rocks", "role": "React-only design reference for premium radial/heat looks" },
+    { "id": "tremor", "name": "Tremor (REFERENCE ONLY)", "license": "Apache-2.0", "free": true, "react_required": true, "url": "https://tremor.so", "role": "React+Tailwind; skip unless stack moves to React" }
+  ],
+  "build_phases": [
+    { "id": "UI-P0", "name": "Foundation", "deps": "discovery engine writes business rows", "deliver": "vendor libs local, Brazil/MT .pmtiles on Contabo, OKLCH map style, PostGIS+h3-pg schema, GeoJSON REST endpoint" },
+    { "id": "UI-P1", "name": "Sweep Map MVP", "deps": "qualify/score output", "deliver": "MapLibre+deck.gl choropleth+H3 hexes+status colors+region modal+flyTo" },
+    { "id": "UI-P2", "name": "Sweep mechanics", "deps": "UI-P1", "deliver": "Terra Draw lasso, fog-of-war paint, progress ring, filters-recolor+live counter, reverse-filter SQL" },
+    { "id": "UI-P3", "name": "Lead Conveyor", "deps": "golden lead records", "deliver": "cards+score rings+Kanban+chips+FLIP+per-card actions+region handoff" },
+    { "id": "UI-P4", "name": "Dossier", "deps": "enrichment+PageSpeed score+competitor+revenue projection", "deliver": "BLUF+dual-arc gap+waterfall+scrollytelling+stellar/matrix/treemap+confidence encoding" },
+    { "id": "UI-P5", "name": "Command Center", "deps": "daemon.* WS + handoff layer (Geronimo NATS, Vuecra HI1/HI2 REST)", "deliver": "Sigma.js graph+WS pulse/particles+radial actions+cockpit gauges+trigger arcs" },
+    { "id": "UI-P6", "name": "Polish & unify", "deps": "all surfaces", "deliver": "shared-element transitions, Cmd+K palette, reduced-motion pass, WCAG AA (axe-core local), perf budgets" }
+  ],
+  "open_decisions": [
+    "Navigation: radial/dock morph-switcher vs persistent rail vs Cmd+K-first (rec: dock morph + Cmd+K)",
+    "Agent-view default: nervous-system graph vs cockpit gauges vs constellation (rec: graph + gauge toggle)",
+    "Dossier framework: vanilla+GSAP (rec) vs isolated React island for heavy scrollytelling state",
+    "Basemap hosting: Contabo nginx static .pmtiles (rec) vs Cloudflare R2 zero-egress",
+    "kepler.gl analyst lab: include as side tool or skip for one cohesive brand surface",
+    "Honest-ranges default: always-range vs single committed number + per-client toggle (rec: single + toggle)",
+    "Map data scale at launch: Cuiaba-only (rec, smallest/fastest) vs full-MT vs full-Brazil",
+    "Cross-project trigger confirm: slide-to-confirm gesture vs explicit modal (per Brain requires_confirm)"
+  ]
+}

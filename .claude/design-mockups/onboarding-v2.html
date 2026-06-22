@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes 2.0 — Primeiro uso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="design-system-v2.css">
+<style>
+/* ---- pagina-especifico: primeiro uso / empty states (tudo herda do design-system-v2) ---- */
+
+/* tabular-nums em todo numero (igual esteira) */
+.tnum{font-feature-settings:"tnum" 1}
+
+/* convite calmo — um foco so na tela */
+.invite{padding:52px 4px 6px;max-width:660px}
+.invite .kicker{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--tx3);
+  background:var(--surface);border:0.5px solid var(--line);padding:6px 12px;border-radius:999px;letter-spacing:0}
+.invite .kicker i{font-size:14px;color:var(--accent-2)}
+.invite h1{font-size:34px;font-weight:600;letter-spacing:-0.032em;line-height:1.08;margin-top:20px}
+.invite h1 .soft{color:var(--tx3);font-weight:400}
+.invite .lead{color:var(--tx2);font-size:15px;margin-top:14px;line-height:1.55;max-width:540px}
+.invite .lead b{color:var(--tx);font-weight:500}
+
+/* acao primaria unica + campo bairro */
+.cta-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:26px}
+.pick{display:flex;align-items:center;gap:10px;background:var(--surface);border:0.5px solid var(--line);
+  border-radius:12px;padding:0 14px;height:46px;width:300px;max-width:100%;
+  transition:border-color .25s,box-shadow .25s,width .3s var(--ease)}
+.pick:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.pick i{color:var(--tx3);font-size:18px}
+.pick input{background:none;border:0;outline:0;color:var(--tx);font-family:inherit;font-size:14.5px;width:100%}
+.pick input::placeholder{color:var(--tx4)}
+.act.big{height:46px;padding:0 20px;font-size:14px;border-radius:12px;font-weight:500}
+.act.big i{font-size:18px}
+.hint-line{font-size:12px;color:var(--tx4);margin-top:13px;display:flex;align-items:center;gap:7px}
+.hint-line i{font-size:14px;color:var(--good)}
+
+/* bairros sugeridos — atalho discreto, nao poluido */
+.sugg{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:18px}
+.sugg .lbl{font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.09em;font-weight:500;margin-right:3px}
+/* tooltip nos chips (mesmo padrao .act do design-system) */
+.chip[data-tip]{position:relative}
+.chip[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 9px);left:50%;
+  transform:translateX(-50%);background:var(--surface-2);color:var(--tx);border:0.5px solid var(--line-2);
+  padding:8px 11px;border-radius:9px;font-size:11.5px;white-space:nowrap;
+  box-shadow:0 12px 30px -10px oklch(0 0 0 /.8);z-index:40;pointer-events:none;font-weight:400;letter-spacing:0}
+
+/* divisor de secao discreto */
+.sect{margin-top:54px}
+.sect-h{display:flex;align-items:baseline;gap:11px;padding:0 4px 2px}
+.sect-h h2{font-size:14px;font-weight:550;letter-spacing:-0.01em}
+.sect-h .note{font-size:12px;color:var(--tx3)}
+
+/* como a maquina trabalha — 4 passos visuais (icone + 3-5 palavras) */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-top:16px}
+.stp{position:relative;padding:20px 16px 18px;text-align:left;cursor:default}
+.stp .si{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:21px;
+  color:var(--tx2);background:radial-gradient(circle at 30% 25%,var(--surface-2),var(--bg-2));
+  border:0.5px solid var(--line-2);transition:color .3s var(--ease),border-color .3s var(--ease),transform .35s var(--ease-2)}
+.stp:hover .si{color:var(--tx);transform:translateY(-2px) scale(1.03)}
+.stp .sn{font-size:10px;color:var(--tx4);font-weight:500;letter-spacing:.07em;margin-top:16px}
+.stp .st{font-size:14px;font-weight:500;letter-spacing:-0.01em;margin-top:6px;line-height:1.25}
+.stp .sd{font-size:12px;color:var(--tx3);margin-top:6px;line-height:1.45}
+/* power on demand: detalhe extra so no hover (progressive disclosure, base limpo) */
+.stp .sx{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease),margin-top .4s var(--ease);margin-top:0}
+.stp:hover .sx{grid-template-rows:1fr;margin-top:9px}
+.stp .sx>span{overflow:hidden;min-height:0;font-size:11.5px;color:var(--tx4);line-height:1.45;display:block}
+/* seta de fluxo entre passos (so visual, some no mobile) */
+.stp::after{content:'\ea61';font-family:'tabler-icons';position:absolute;right:-9px;top:30px;
+  font-size:15px;color:var(--tx4);opacity:.5;z-index:2}
+.steps .stp:last-child::after{display:none}
+/* destaque do passo final (entrega) — um toque de accent, com significado */
+.stp.last .si{color:var(--accent-2);border-color:transparent;
+  background:linear-gradient(145deg,var(--accent-soft),transparent);box-shadow:0 0 22px -8px var(--accent)}
+
+/* empty states elegantes das superficies */
+.surfaces{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;margin-top:16px}
+.surf{padding:0;overflow:hidden;position:relative}
+.surf .cap{display:flex;align-items:center;gap:9px;padding:15px 17px 13px;border-bottom:0.5px solid var(--line)}
+.surf .cap i{font-size:17px;color:var(--tx3)}
+.surf .cap b{font-size:13.5px;font-weight:500}
+.surf .cap .badge{margin-left:auto;font-size:10.5px;color:var(--tx4);background:var(--bg-2);
+  border:0.5px solid var(--line);padding:4px 9px;border-radius:7px}
+
+/* mapa vazio — leve hint, malha discreta */
+.mapbox{position:relative;height:230px;
+  background:
+    radial-gradient(420px 220px at 50% 46%, var(--accent-soft), transparent 70%),
+    linear-gradient(var(--line) 1px,transparent 1px) 0 0/100% 38px,
+    linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/38px 100%,
+    var(--bg-2)}
+.mapbox .veil{position:absolute;inset:0;background:radial-gradient(circle at 50% 46%,transparent 38%,var(--bg-2) 86%)}
+.mapc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:11px;text-align:center;padding:0 24px}
+.mapc .pin{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:22px;
+  color:var(--accent-2);background:var(--surface);border:0.5px solid var(--line-2);
+  box-shadow:0 0 26px -8px var(--accent);position:relative}
+@media(prefers-reduced-motion:no-preference){
+  .mapc .pin::before{content:'';position:absolute;inset:0;border-radius:50%;
+    box-shadow:0 0 0 0 var(--accent-soft);animation:sweep 3s var(--ease) infinite}
+}
+@keyframes sweep{0%{box-shadow:0 0 0 0 oklch(0.67 0.16 290 / .35)}70%{box-shadow:0 0 0 22px oklch(0.67 0.16 290 / 0)}100%{box-shadow:0 0 0 0 oklch(0.67 0.16 290 / 0)}}
+.mapc .mt{font-size:13.5px;color:var(--tx2);font-weight:450}
+.mapc .ms{font-size:12px;color:var(--tx4);max-width:280px;line-height:1.45}
+
+/* esteira vazia — slots fantasma */
+.estbox{padding:15px 17px 17px;display:flex;flex-direction:column;gap:9px;min-height:230px}
+.ghost{display:flex;align-items:center;gap:13px;padding:13px 14px;border-radius:var(--r-sm);
+  background:var(--bg-2);border:0.5px solid var(--line)}
+.ghost .gi{width:34px;height:34px;border-radius:10px;background:var(--surface);border:0.5px solid var(--line);flex-shrink:0}
+.ghost .gl{display:flex;flex-direction:column;gap:7px;flex:1;min-width:0}
+.ghost .gbar{height:9px;border-radius:5px;background:var(--surface)}
+.ghost .gbar.w1{width:46%}.ghost .gbar.w2{width:72%}
+.ghost .gv{width:26px;height:18px;border-radius:6px;background:var(--surface)}
+@media(prefers-reduced-motion:no-preference){
+  .ghost .gbar,.ghost .gv,.ghost .gi{background:linear-gradient(100deg,var(--surface) 30%,var(--surface-2) 50%,var(--surface) 70%);
+    background-size:220% 100%;animation:shim 2.4s linear infinite}
+  .ghost:nth-child(2) .gbar,.ghost:nth-child(2) .gv,.ghost:nth-child(2) .gi{animation-delay:.25s}
+  .ghost:nth-child(3) .gbar,.ghost:nth-child(3) .gv,.ghost:nth-child(3) .gi{animation-delay:.5s}
+}
+@keyframes shim{to{background-position:-220% 0}}
+.estfoot{display:flex;align-items:center;gap:9px;justify-content:center;text-align:center;
+  color:var(--tx4);font-size:12px;margin-top:4px;padding-top:11px;border-top:0.5px solid var(--line)}
+.estfoot i{font-size:15px;color:var(--tx3)}
+
+/* rodape tranquilizador */
+.reassure{display:flex;align-items:center;gap:11px;margin-top:34px;padding:15px 18px;
+  color:var(--tx3);font-size:13px;line-height:1.5}
+.reassure i{font-size:19px;color:var(--good);flex-shrink:0}
+.reassure b{color:var(--tx2);font-weight:500}
+
+@media(max-width:820px){
+  .steps{grid-template-columns:repeat(2,1fr)}
+  .steps .stp:nth-child(2)::after{display:none}
+  .surfaces{grid-template-columns:1fr}
+}
+@media(max-width:520px){.steps{grid-template-columns:1fr}.stp::after{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-windmill"></i></div>
+      <b>Hermes</b><span class="dim">· Cuiabá / MT</span>
+    </div>
+    <nav class="nav">
+      <a href="cmd-v2.html">Painel</a>
+      <a href="map-v2.html">Mapa</a>
+      <a href="02b-esteira-v2.html">Esteira</a>
+      <a href="dossier-v2.html">Relatório</a>
+      <a href="competitors-v2.html">Concorrentes</a>
+      <a href="agent-v2.html">Agente</a>
+      <a href="myday-v2.html">Meu dia</a>
+      <a href="onboarding-v2.html" class="on">Começar</a>
+    </nav>
+    <span class="spacer"></span>
+    <span class="pulse"><span class="d"></span>Motor pronto</span>
+  </header>
+
+  <!-- convite: um foco so -->
+  <section class="invite reveal">
+    <span class="kicker"><i class="ti ti-windmill"></i>Bem-vindo, Caio</span>
+    <h1>Varra seu primeiro bairro<br><span class="soft">e veja quem precisa de você em Cuiabá.</span></h1>
+    <p class="lead">O Hermes vasculha os negócios do bairro, descobre o que falta no digital de cada um e já monta a conversa de venda. <b>Você só escolhe por onde começar.</b></p>
+
+    <div class="cta-row">
+      <label class="pick">
+        <i class="ti ti-map-search"></i>
+        <input id="bairro" placeholder="Digite um bairro de Cuiabá…" value="Goiabeiras">
+      </label>
+      <button class="act primary big" id="go" data-tip="O motor sai listando e analisando os negócios desse bairro agora">
+        <i class="ti ti-radar-2"></i>Varrer este bairro
+      </button>
+    </div>
+
+    <div class="sugg">
+      <span class="lbl">Atalhos</span>
+      <button class="chip sg" data-tip="Bairro com muito comércio — bom pra começar">Goiabeiras</button>
+      <button class="chip sg" data-tip="Região de classe média, alto potencial">Jardim das Américas</button>
+      <button class="chip sg" data-tip="Coração da cidade, comércio denso">Centro</button>
+      <button class="chip sg" data-tip="Grande, muitos negócios de bairro">CPA</button>
+      <button class="chip sg" data-tip="Comércio popular, pouca concorrência digital">Quilombo</button>
+    </div>
+
+    <p class="hint-line"><i class="ti ti-clock-hour-4"></i>Leva poucos minutos. Pode fechar a tela — o motor segue trabalhando sozinho.</p>
+  </section>
+
+  <!-- como a maquina trabalha: 4 passos visuais -->
+  <section class="sect reveal" style="animation-delay:.06s">
+    <div class="sect-h">
+      <h2>Como o Hermes trabalha pra você</h2>
+      <span class="note">4 passos, no automático</span>
+    </div>
+    <div class="steps">
+      <article class="card h stp">
+        <div class="si"><i class="ti ti-building-store"></i></div>
+        <div class="sn">PASSO 1</div>
+        <div class="st">Acha os negócios</div>
+        <div class="sd">Lista cada comércio do bairro.</div>
+        <div class="sx"><span>Padaria, pet shop, clínica, oficina — tudo que abre porta na rua.</span></div>
+      </article>
+      <article class="card h stp">
+        <div class="si"><i class="ti ti-stethoscope"></i></div>
+        <div class="sn">PASSO 2</div>
+        <div class="st">Vê o que falta</div>
+        <div class="sd">Se tem site, se aparece no Google, nas redes.</div>
+        <div class="sx"><span>Aponta os buracos no digital de cada um — onde dá pra crescer.</span></div>
+      </article>
+      <article class="card h stp">
+        <div class="si"><i class="ti ti-trending-up"></i></div>
+        <div class="sn">PASSO 3</div>
+        <div class="st">Calcula o ganho</div>
+        <div class="sd">Quanto fatura hoje e quanto poderia faturar.</div>
+        <div class="sx"><span>Uma faixa realista, pra você saber onde está o dinheiro maior.</span></div>
+      </article>
+      <article class="card h stp last">
+        <div class="si"><i class="ti ti-rosette-discount-check"></i></div>
+        <div class="sn">PASSO 4</div>
+        <div class="st">Entrega pronto</div>
+        <div class="sd">A conversa de venda já escrita pra você.</div>
+        <div class="sx"><span>Você abre, lê e manda — ou ajusta antes. O trabalho pesado já tá feito.</span></div>
+      </article>
+    </div>
+  </section>
+
+  <!-- empty states elegantes das superficies -->
+  <section class="sect reveal" style="animation-delay:.12s">
+    <div class="sect-h">
+      <h2>Por enquanto, tudo vazio</h2>
+      <span class="note">vai se encher assim que você varrer o primeiro bairro</span>
+    </div>
+    <div class="surfaces">
+
+      <!-- mapa vazio com leve hint -->
+      <article class="card surf">
+        <div class="cap"><i class="ti ti-map-2"></i><b>Mapa</b><span class="badge tnum">0 negócios</span></div>
+        <div class="mapbox">
+          <div class="veil"></div>
+          <div class="mapc">
+            <div class="pin"><i class="ti ti-map-pin-plus"></i></div>
+            <div class="mt">O mapa de Cuiabá te espera</div>
+            <div class="ms">Cada negócio vira um ponto aqui, quente quanto maior a oportunidade.</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- esteira vazia -->
+      <article class="card surf">
+        <div class="cap"><i class="ti ti-windmill"></i><b>Esteira</b><span class="badge">nada varrido ainda</span></div>
+        <div class="estbox">
+          <div class="ghost"><div class="gi"></div><div class="gl"><div class="gbar w2"></div><div class="gbar w1"></div></div><div class="gv"></div></div>
+          <div class="ghost"><div class="gi"></div><div class="gl"><div class="gbar w1"></div><div class="gbar w2"></div></div><div class="gv"></div></div>
+          <div class="ghost"><div class="gi"></div><div class="gl"><div class="gbar w2"></div><div class="gbar w1"></div></div><div class="gv"></div></div>
+          <div class="estfoot"><i class="ti ti-arrow-up"></i>Os negócios encontrados aparecem aqui, um a um.</div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- rodape tranquilizador -->
+  <article class="card reassure reveal" style="animation-delay:.16s">
+    <i class="ti ti-shield-check"></i>
+    <span>Nada é enviado pra ninguém sem você mandar. <b>O Hermes só pesquisa e prepara</b> — quem decide falar com cada negócio é você.</span>
+  </article>
+
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-radar-2"></i><span></span></div>
+
+<script>
+const bairro = document.getElementById('bairro');
+const toast = document.getElementById('toast');
+
+document.querySelectorAll('.chip.sg').forEach(c=>c.onclick=()=>{ bairro.value=c.textContent; bairro.focus(); });
+
+document.getElementById('go').onclick=()=>{
+  const b=(bairro.value||'').trim();
+  showToast(b ? 'Varrendo '+b+' · o motor começou' : 'Escolha um bairro pra começar');
+};
+bairro.addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('go').click(); });
+
+function showToast(msg){ toast.querySelector('span').textContent=msg; toast.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>toast.classList.remove('show'),2400); }
+</script>
+</body>
+</html>

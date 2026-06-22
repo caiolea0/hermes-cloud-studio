@@ -1,0 +1,408 @@
+{
+  "meta": {
+    "title": "Hermes 2.0 Candidate Layers Catalog",
+    "sealed": "2026-06-21",
+    "purpose": "Wide menu of possible Hermes layers for owner to filter. Buffet not plan.",
+    "context": "Caio solo founder Cuiaba Brazil. HERMES(find+qualify locals)->GERONIMO(40+ agents make companies 24/7 agentic)->VUECRA(auto-builds sites). Goal: max businesses agentic, lead Brazil agentic market 2026-2027. Constraints: $0-first, self-hosted Contabo, 24/7 self-improving. Signature: gap-reverse-filter.",
+    "tags": { "QUICK-WIN": "cheap + high payoff now", "BIG-BET": "expensive but transformational", "FUTURE": "later / emerging" },
+    "effort_scale": { "low": "days", "medium": "1-2 weeks", "high": "weeks, real architecture" }
+  },
+  "stages": [
+    "Discovery", "Market-Intelligence", "Diagnose/Readiness", "Prescribe/Playbooks",
+    "Prove/Demo-Proposal", "Deliver/Orchestrate", "Retain/Upsell", "Learn/Self-improve",
+    "Authority/Inbound", "System/UX"
+  ],
+  "layers": [
+    {
+      "name": "CNPJ Firmographic Foundation",
+      "stage": "Discovery",
+      "what": "Ingest full Brazilian company registry per region via BrasilAPI(primary)+ReceitaWS(fallback): CNAE codes, status, opening date, partners(QSA), address, phone, email, capital. Geocode to Cuiaba neighborhoods.",
+      "value": "Defines TOTAL addressable set of MT businesses by niche = denominator for penetration%, TAM, conquest. Opening-date deltas catch greenfield CNPJs before competitors.",
+      "effort": "medium",
+      "reuse": "Free no-account public APIs. Pairs with existing prospect DB schema.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Digital/Agentic Gap-Depth Scanner",
+      "stage": "Discovery",
+      "what": "Per-business scan of what is MISSING vs agentic baseline: no website, outdated CMS, no booking, no chatbot/WhatsApp-API, no analytics, no email capture, phone-only, slow site. Outputs missing-service vector mapped 1:1 to GERONIMO/VUECRA SKUs. Re-scans.",
+      "value": "Caio signature operationalized. Converts output from 'a prospect' to 'prospect + exact thing to sell + why'. Highest direct ROI to agentic goal.",
+      "effort": "medium",
+      "reuse": "Wappalyzer-style OSS fingerprinting ($0, ~90% coverage). Extends existing crawl. Places data in pipeline.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Review-Velocity & Sentiment Watcher (GBP)",
+      "stage": "Discovery",
+      "what": "Poll GBP listing; track review count delta, velocity, star trend, owner reply-rate. Flag positive spike(growing/overwhelmed), negative cluster(reputation pain), growing+no-replies(sell auto-review agent).",
+      "value": "THE primary local-SMB intent signal. Growth+zero-replies = textbook gap-reverse hit. Catches businesses when most likely to say yes.",
+      "effort": "medium",
+      "reuse": "GBP/Maps already core data source. Add dated-snapshot diff loop + review_snapshots table.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Hiring-Surge Detector",
+      "stage": "Discovery",
+      "what": "Watch 'now hiring' on BR job boards (Catho, Indeed BR, Vagas, Gupy) + business social/GBP posts. Role reveals pain.",
+      "value": "Top-tier free buying signal, proves budget moving now. Hiring+new-leader = 3x meeting acceptance in 90d window.",
+      "effort": "medium",
+      "reuse": "Pure scraping of public BR boards + channels Hermes monitors.",
+      "tag": "FUTURE"
+    },
+    {
+      "name": "New-Location / Expansion Sentinel",
+      "stage": "Discovery",
+      "what": "Detect new unit/branch: new GBP listing same brand, hours/address changes, Cuiaba prefeitura alvara filings, nova-unidade posts.",
+      "value": "Expansion = capital + need to standardize ops across sites = ideal GERONIMO pitch (one agentic layer serving N locations).",
+      "effort": "medium",
+      "reuse": "GBP diffing (needed for review layer) + Cuiaba open-data scraper. Geo-scoped.",
+      "tag": "FUTURE"
+    },
+    {
+      "name": "Ad-Activity / Spend-Change Monitor",
+      "stage": "Discovery",
+      "what": "Check Meta Ad Library + Google Ads transparency: running ads? just started/ramped? Ads + no booking/landing/chat = leaking clicks = gap.",
+      "value": "Reveals businesses that already decided to invest in growth (budget confirmed) + 'spending money wrong' pitch.",
+      "effort": "medium",
+      "reuse": "Meta Ad Library fully public/scriptable. New monitor into signal store.",
+      "tag": "FUTURE"
+    },
+    {
+      "name": "Ownership / Leadership-Change Detector",
+      "stage": "Discovery",
+      "what": "Detect new owner/manager: LinkedIn role changes, GBP under-new-management, Junta Comercial updates, local news.",
+      "value": "New owner = clean slate + active vendor evaluation = 10x more likely to adopt, 90-120d window. Rare for SMB but high-conversion; cheap passive watch.",
+      "effort": "low",
+      "reuse": "Mostly LinkedIn + GBP diffing Hermes infra touches. Passive flag.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Niche x Region Opportunity Heatmap",
+      "stage": "Market-Intelligence",
+      "what": "Per CNAE-niche x neighborhood cell: (density x demand x dispersity)/competitive saturation. Render heatmap; flag Blue Ocean cells (high demand, low competition).",
+      "value": "Answers where is biggest agentic opportunity in Cuiaba. Aim at high-density under-served pockets; avoid crowded zones.",
+      "effort": "medium",
+      "reuse": "Rides existing dashboard (F.2.4 tokens; MapLibre+deck.gl H3HexagonLayer, $0). Sits on CNPJ+saturation; mostly aggregation.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Competitive-Saturation & Category-Dispersity Layer",
+      "stage": "Market-Intelligence",
+      "what": "Per niche x region competitor count + concentration. Separate saturated (avoid) from fragmented under-served (easy entry).",
+      "value": "Refines heatmap from raw density to true opportunity; flags defensible first-agentic niches.",
+      "effort": "low",
+      "reuse": "Pure derivation from CNPJ+OSM counts already collected.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Penetration & Whitespace Conquest Map",
+      "stage": "Market-Intelligence",
+      "what": "Track per niche x region fraction of addressable CNPJ set already-agentic/in-pipeline/virgin, overlaid on heatmap.",
+      "value": "Converts abstract 'lead Brazil 2026-2027' into measurable conquest %. Reuses Geronimo conversion-state joined on CNPJ denominator.",
+      "effort": "medium",
+      "reuse": "Sits on CNPJ denominator + scored DB; needs Geronimo conversion-state join.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Territory Coverage Engine (H3 hex + frontier sweep)",
+      "stage": "Market-Intelligence",
+      "what": "Tile Cuiaba->MT->Brazil into Uber-H3 hexes, each lifecycle unexplored->in_progress->swept->re-sweep-due (TTL decay). Swept = discovery-completeness (Overpass count vs found) not visitation. Boustrophedon daemon sweeps outward, 100% eventual coverage no backtracking.",
+      "value": "Turns 'city to country' into literal 24/7 algorithm. The map of found/swept/unexplored Caio asked for.",
+      "effort": "high",
+      "reuse": "All $0 self-hostable (h3-py/h3-js, PostGIS, MapLibre+deck.gl, Overpass). Decay mirrors agentmemory.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Living Scored Database / Continuous Re-Score",
+      "stage": "Market-Intelligence",
+      "what": "Score entire Cuiaba market vs closed-won patterns from Geronimo/Vuecra wins; assign propensity tiers; re-score continuously as state changes (new biz, adds site, hires, fires staff).",
+      "value": "Hermes always works highest-propensity untouched accounts. Model learns which gaps sell in Cuiaba = compounding lead. Matches 24/7 constraint.",
+      "effort": "high",
+      "reuse": "Feedback loop reuses Geronimo close data + agentmemory self-improve cron. Re-runs gap scanner on Contabo scheduler.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "External Signal Harvester (cold readiness fingerprint)",
+      "stage": "Diagnose/Readiness",
+      "what": "Score automation maturity from outside-only signals, zero target cooperation: site present+responsive, booking, chatbot, WhatsApp Business, contact-form vs phone-only, social cadence, reviews+reply-rate+latency, tech fingerprint, 24/7-reachable. Emits 0-100 score.",
+      "value": "THE engine turning Hermes from finder into perfect diagnostic tool. Detects exact missing surface, hands GERONIMO a pre-diagnosed lead.",
+      "effort": "high",
+      "reuse": "Extends existing crawl with signal-extraction pass. Wappalyzer-style OSS. $0 on Contabo.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Per-Process Automatability Map",
+      "stage": "Diagnose/Readiness",
+      "what": "Decompose target into 5 canonical processes (attendance, sales, post-sale, scheduling, billing); score automatability=f(volume,repetitiveness,structured-data,decision-criteria,revenue-leak). Per process: state, score, ROI, recommended Geronimo agent. Pre-rank by sellable ROI.",
+      "value": "Answers which processes can become agentic + how much. Turns 'is behind' into line-item shopping list; 40+ agents self-route. Only 21% enterprises AI-ready, <1% score>50/100 = vast gap.",
+      "effort": "high",
+      "reuse": "Maps 1:1 onto Geronimo 40+ agent catalog. ROI benchmarks hardcoded as priors.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Gap-Reverse-Filter Scorer",
+      "stage": "Diagnose/Readiness",
+      "what": "Invert readiness: rank by SIZE-OF-GAP on a sellable process not by readiness. Critical-bottleneck rule: strong overall but scores 1 on one pillar = prime. Filter has-revenue AND has-presence AND missing>=1 high-ROI process. Output sell-queue + reason + deal value + SKU.",
+      "value": "Caio signature as final ranker. What makes Hermes 'beyond finding prospects' = ranked, reasoned, product-matched target list.",
+      "effort": "low-medium",
+      "reuse": "Pure scoring over Harvester+Automatability. No new data. Slots into existing qualification stage.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "5-Stage Maturity Ladder + Composite Readiness Score",
+      "stage": "Diagnose/Readiness",
+      "what": "Roll signals+process map into one stage (Stage1 Manual->Stage5 Autonomous) + numeric composite. Defines agentic-ready threshold; computes % processes with automatability>=70.",
+      "value": "Headline metric Caio asked for (how much can become agentic) + market leaderboard. Stage label drives GERONIMO playbook.",
+      "effort": "low",
+      "reuse": "Pure aggregation over Harvester+Automatability+Gap-Filter. No new collection.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Composite Signal Scorer + Decay Engine",
+      "stage": "Diagnose/Readiness",
+      "what": "Central service: every layer writes dated events to one store. Scorer=sum(strength x fit_weight) with time-decay (15-20%/week, auto-expire) MULTIPLIED by gap-fit. On threshold-cross in active window emit qualified trigger to GERONIMO with SKU+evidence+timing. Logs closes, re-weights.",
+      "value": "Without it cheap monitors are noise. Stacking 2-3 signals jumps reply 1-5%->25-45%. Decay fires inside 7-60d window (first responder wins 35-50%). Fit-multiplier hard-wires gap-reverse-filter. Win-rate loop = self-improving moat.",
+      "effort": "high",
+      "reuse": "Builds on prospect DB + agentmemory decay. Cheap math, no ML initially. Dated-event store replaces static is_prospect flag.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Signal-to-SKU Router",
+      "stage": "Prescribe/Playbooks",
+      "what": "Deterministic map: no website->VUECRA; no booking/chatbot/24-7->GERONIMO agent; ad spend+leaky funnel->VUECRA landing+agent; reviews growing+no replies->review-response agent. Emits SKU+pitch angle automatically.",
+      "value": "Signal-to-product is deterministic here, exploit it. GERONIMO outreach starts already-personalized (15-25% reply vs 3-5% cold).",
+      "effort": "low",
+      "reuse": "Pure rules over gap-scanner output. No new data.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Productized Offer Ladder / Auto-Proposal",
+      "stage": "Prescribe/Playbooks",
+      "what": "Codified tiered offers (audit->starter site/automation->full transformation->managed retainer) with hybrid pricing (base 40-60% + outcome incentive). Auto-assembles scoped proposal+price from gap report per prospect+vertical.",
+      "value": "Standardized offers make delivery repeatable; 3rd client = half time of 1st. Auto-proposal collapses pitch->close, key for converting MAX businesses solo.",
+      "effort": "medium",
+      "reuse": "Gap Report + Automatability output feeds proposal. Mostly templating + pricing logic.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Versioned Automation/Agent Template Library",
+      "stage": "Prescribe/Playbooks",
+      "what": "Governed versioned catalog of reusable agent bundles, workflows, prompts, tools that Geronimo clones per client. Each = productized transformation. Every win auto-promotes.",
+      "value": "#1 solo-founder scaling lever: Nth client costs near-zero. Without it headcount scales with clients, solo leadership impossible.",
+      "effort": "medium",
+      "reuse": "n8n self-host (7000+ free workflows) + Agent SDK skills. Generalizes hermes-skill-forge-runner into cross-ecosystem registry.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Gap Report / Audit-as-Offer Engine",
+      "stage": "Prove/Demo-Proposal",
+      "what": "Auto-generate per-prospect evidence report proving the gap (AI-search invisibility, missing/weak site, no booking/chat, no automation, inconsistent NAP, outdated tech). One artifact = cold hook + pitch + machine-readable delivery spec.",
+      "value": "Highest-leverage layer in catalog. Turns claim into PROOF (highest-converting AAA pitch). Same spine flows find->prove->pitch->deliver, zero handoff loss. Rides 88%-no-AI-strategy / 1.2%-recommended / 45%-consumers-use-AI gap.",
+      "effort": "medium",
+      "reuse": "Hermes already finds+qualifies+computes missing-service signal. Gap scanners feed it. Insites/Origami blueprints. Local Ollama narrative, $0.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Gap-to-Spec Audit Engine (delivery-side)",
+      "stage": "Prove/Demo-Proposal",
+      "what": "Deeper post-qualification audit converting MISSING services into a prioritized GERONIMO build-spec: which agents, ROI, effort, tier. Output = machine-readable roadmap + client-facing audit.",
+      "value": "Lets one founder scope at scale. Same what-is-missing engine becomes auto-scoping telling Geronimo exactly what to build.",
+      "effort": "medium",
+      "reuse": "Extends Gap Report + Automatability map. Planner->Generator->Evaluator (Agent SDK) directly buildable.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Live Demo Generator",
+      "stage": "Prove/Demo-Proposal",
+      "what": "For high-fit prospect auto-spin a throwaway demo of the fix (sample VUECRA landing, working WhatsApp triage agent answering as their business) attached to the gap report.",
+      "value": "Show-dont-tell: a working demo of THEIR automation converts far above a deck. Strongest proof.",
+      "effort": "high",
+      "reuse": "Vuecra already auto-builds sites; needs sandboxed per-demo trigger + teardown TTL.",
+      "tag": "FUTURE"
+    },
+    {
+      "name": "Onboarding Automation (Hermes->Geronimo->Vuecra handoff)",
+      "stage": "Deliver/Orchestrate",
+      "what": "On deal-won: collect assets/access, validate vs checklist, spin up isolated workspace, route gap-spec to Geronimo agents / trigger Vuecra build, send SLA-risk reminders.",
+      "value": "Onboarding gaps cause 40% of at-risk churn in first 90d. Automating handoff makes ecosystem flow end-to-end, lets one founder absorb many simultaneous clients.",
+      "effort": "medium",
+      "reuse": "Lifecycle state machine + template library + shared skills provide rails. Vuecra needs only trigger contract.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Pipeline/CRM + Lifecycle State Machine",
+      "stage": "Deliver/Orchestrate",
+      "what": "Unified record per business: found->qualified->gap-audited->pitched->won->onboarding->delivering->live/retained->at-risk. One source of truth, auto-handoffs between Hermes/Geronimo/Vuecra, stage SLAs, auto-routing.",
+      "value": "What CONVERTS found-businesses into RETAINED agentic companies = stated goal. SLA flags close onboarding gaps causing 40% churn.",
+      "effort": "medium",
+      "reuse": "Hermes already tracks prospects/sequences/replies/deals (cobaia-status). Extend into full-lifecycle CRM.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Multi-Tenant Provisioning & Isolation",
+      "stage": "Deliver/Orchestrate",
+      "what": "One-command provisioning clones template bundle into isolated per-client tenant on Contabo (own namespace/DB schema/credentials/runtime); Hermes as master control plane; each client isolated access.",
+      "value": "Required to run MANY transformations on one $0 box without cross-client leakage. Operational backbone for volume; architect early.",
+      "effort": "high",
+      "reuse": "Docker-per-client (agentbot OSS), Postgres schema-per-tenant, n8n multi-instance. All self-hostable.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Self-Hosted Orchestration + Observability (Agent-Ops)",
+      "stage": "Deliver/Orchestrate",
+      "what": "Run-and-watch: orchestrate each client agents (scheduling, state, retries, recovery) + observability (traces, latency, cost, error rates, guardrail checks) with alerts on break.",
+      "value": "24/7 self-improving requires knowing when client agents fail and auto-recovering before client notices. Per-tenant traces feed self-improvement loop. Silent break = churn.",
+      "effort": "medium",
+      "reuse": "Langfuse OSS + OpenTelemetry, self-hostable on Contabo. No lock-in.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Shared Skills/Capabilities Layer",
+      "stage": "Deliver/Orchestrate",
+      "what": "Centralized typed-skill library (sendEmail, generateImage, searchMaps, runWorkflow, scrapeSite, draftSequence, buildPage) all agents pull from. Single-point updates propagate to every agent.",
+      "value": "With 40+ agents duplicated integrations = unmaintainable. Change once, every agent benefits = maintainability keystone for large self-improving fleet run by one person.",
+      "effort": "medium",
+      "reuse": "Stack already thinks in skills (forge-sdk runner, hermes-skill-forge-runner). Generalize into cross-ecosystem registry.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Client ROI Proof Layer + QBR Generator",
+      "stage": "Retain/Upsell",
+      "what": "Per-client dashboard quantifying delivered value (leads, hours saved, replies handled, revenue influenced, AI-visibility before/after) + auto-QBR narratives. Agent pulls metrics via read-only MCP, drafts, renders before/after, ~20min human approval gate.",
+      "value": "2026 is ROI era, proof before wallets reopen (47% higher 90d retention). Retention = profit engine (maintenance retainer near-pure margin). Closes deliver->prove->upsell; shows transformation not activity.",
+      "effort": "medium",
+      "reuse": "Hermes computes channel hit-rates/pipeline metrics (cobaia-status), repoint to per-client value. Agent SDK 5-stage pipeline documented.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "At-Risk Flagging + Upsell Trigger",
+      "stage": "Retain/Upsell",
+      "what": "Watch live tenants for drop signals (usage decline, errors, lower ROI trend) and growth signals (new location, hiring, capacity strain) -> fire retention alert or upsell-next-tier trigger.",
+      "value": "Proactive retention beats firefighting; upsell into existing accounts is cheapest growth. Makes lifecycle CRM an active account-management brain.",
+      "effort": "low",
+      "reuse": "Reuses lifecycle CRM stages + Stage-1 signal watchers (now pointed at clients).",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Continuous Re-Score Loop",
+      "stage": "Learn/Self-improve",
+      "what": "Re-run readiness fingerprint + gap scan 24/7 so scores drift with reality (adds booking->drops off scheduling-gap queue; goes quiet->fresh attendance-gap). Feed deal-outcomes back to re-weight ROI priors.",
+      "value": "Matches 24/7 constraint; living radar. Outcome-feedback sharpens gap-reverse-filter so never pitches a closed gap = compounding lead.",
+      "effort": "medium",
+      "reuse": "Reuses harvester on Contabo cron. Outcome loop plugs into agentmemory lessons (confidence + 5%/day decay). $0.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Self-Improvement Eval + Memory Loop",
+      "stage": "Learn/Self-improve",
+      "what": "Closed feedback loop across fleet: trace every agent run, score outcomes (reply rate, deal close, build quality), feed wins/losses back as evals+lessons so 40+ agents AND prospecting heuristics improve autonomously. Learns best-converting gaps/verticals in Cuiaba.",
+      "value": "Stated constraint is 24/7 self-improving. Without traces+evals cant debug/improve; with them whole ecosystem compounds.",
+      "effort": "high",
+      "reuse": "AgentMemory exists (lessons+insights+consolidate/reflect cron); hermes-skill-forge-runner does dry-run->metrics->promote/quarantine. Wire fleet outcomes in.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Cost / Resource Governance (FinOps for $0-first Contabo)",
+      "stage": "Learn/Self-improve",
+      "what": "Track token/compute/storage spend per agent, per client, per stage; rate-limit + fallback to cheaper/local models; budget caps with alerts.",
+      "value": "Hard constraint is $0-first. Without per-agent cost visibility a 40+ agent 24/7 fleet silently blows budget; FinOps makes leading the market financially survivable solo.",
+      "effort": "low",
+      "reuse": "AgentMemory already self-hosted (Ollama local near-zero marginal cost). Add usage/cost meter + gateway routing.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "AI-Search Visibility Audit",
+      "stage": "Authority/Inbound",
+      "what": "Per-business test whether ChatGPT/Perplexity/Gemini recommend them for category+city; score AI-search invisibility. Result IS a gap-report section AND a standalone offer.",
+      "value": "88% local businesses no AI-search strategy, only 1.2% AI-recommended, yet 45% consumers use AI to find local services (was 6%). Massive fresh fear-inducing gap-reverse market.",
+      "effort": "medium",
+      "reuse": "Feeds Gap Report engine directly. Cheap to run, high-emotion pitch.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Public Conquest / Leaderboard (inbound magnet)",
+      "stage": "Authority/Inbound",
+      "what": "Public-facing 'agentic Cuiaba' tracker: how many businesses now 24/7 agentic, by niche, anonymized before/after. Positions Caio/Geronimo as obvious market leader.",
+      "value": "Authority pulls inbound (cheaper than outbound) and cements lead-Brazil narrative publicly. Self-reinforcing as conquest % grows.",
+      "effort": "medium",
+      "reuse": "Reads from Penetration/Whitespace Conquest Map. Vuecra builds the page.",
+      "tag": "FUTURE"
+    },
+    {
+      "name": "Case-Study Auto-Generator",
+      "stage": "Authority/Inbound",
+      "what": "On each retained win auto-draft before/after case study from ROI proof layer (with consent) for outreach + public tracker.",
+      "value": "Social proof is #1 conversion lever for SMB; auto-gen removes the bottleneck that kills most solo case-study pipelines.",
+      "effort": "low",
+      "reuse": "Reads from Client ROI Proof Layer. Mostly templating (local Ollama).",
+      "tag": "FUTURE"
+    },
+    {
+      "name": "Command Center / Mission Control (goal-oriented)",
+      "stage": "System/UX",
+      "what": "Single pane above Hermes+Geronimo+Vuecra. Manage by GOALS not terminals: Kanban of every prospect/deal/build/campaign as cards (queued/running/completed/needs-attention), live 40+ agent fleet status, exception surfacing, reprioritize without code, cron/event/webhook scheduling.",
+      "value": "THE single highest-leverage build. Solo founder cant run 40+ agents across 3 systems by reading logs. Goal-based mission control lets one person operate at fleet scale = the agency OS.",
+      "effort": "high",
+      "reuse": "Hermes has dashboard+daemon+WS broadcast (F.2.3 dot-notation, F.2.4 design system). Extend prospecting view to whole-agency view.",
+      "tag": "BIG-BET"
+    },
+    {
+      "name": "Live Coverage Map UI (choropleth hex + funnel pins + HUD)",
+      "stage": "System/UX",
+      "what": "Single MapLibre/Leaflet view: H3 hex choropleth by coverage state UNDER pin layer by funnel stage. Zoom aggregates country->state->city->hex->business. HUD: coverage %, found, % agentic, frontier size. Layer toggles.",
+      "value": "Exact map of found/swept/unexplored Caio asked for. Makes a 24/7 autonomous sweep legible and motivating at a glance.",
+      "effort": "medium",
+      "reuse": "MapLibre+deck.gl H3HexagonLayer + OSM tiles, $0. Rides existing dashboard. Needs Territory Coverage Engine behind it for full value.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Conquest Feed & Coverage Leaderboard",
+      "stage": "System/UX",
+      "what": "Gamified activity stream + stats: 'Cuiaba Centro 100% swept', '+47 businesses found', 'state coverage 12%->14% this week', fastest-converting segments.",
+      "value": "Keeps solo founder oriented and 40+ fleet accountable; turns abstract 24/7 progress into visible momentum reinforcing lead-the-market narrative.",
+      "effort": "low",
+      "reuse": "Reads from coverage state + lifecycle CRM. Re-points SPOTIO/SalesRabbit leaderboard pattern to agents/territories.",
+      "tag": "QUICK-WIN"
+    },
+    {
+      "name": "Guardrails / Human-in-the-Loop Approval Gate",
+      "stage": "System/UX",
+      "what": "Policy-as-code gate before irreversible/destructive actions (mass outreach, publishing client site, spending, touching client account): low-conf or destructive requires confirm, rest autonomous. Audit log of every decision.",
+      "value": "Lets ONE founder safely delegate to 40+ autonomous agents touching real client businesses without blowing up a relationship = trust foundation for scaling delegation.",
+      "effort": "low",
+      "reuse": "Already designed in Hermes Brain (brain/safety.py: destructive 100% requires_confirm, low_conf<0.5->confirm) + brain-test golden cases. Generalize gate across Geronimo/Vuecra.",
+      "tag": "QUICK-WIN"
+    }
+  ],
+  "shortlists": {
+    "top_quick_wins": [
+      "Gap Report / Audit-as-Offer Engine",
+      "Gap-Reverse-Filter Scorer",
+      "5-Stage Maturity Ladder + Composite Readiness Score",
+      "Signal-to-SKU Router + Productized Offer Ladder / Auto-Proposal",
+      "Digital/Agentic Gap-Depth Scanner"
+    ],
+    "top_big_bets": [
+      "Command Center / Mission Control",
+      "External Signal Harvester + Per-Process Automatability Map",
+      "Territory Coverage Engine (H3 sweep)",
+      "Living Scored Database + Continuous Re-Score / Self-Improvement Loop",
+      "Self-Hosted Multi-Tenant Delivery + Observability"
+    ],
+    "emerging_future": [
+      "Live Demo Generator",
+      "Public Conquest / Authority Tracker + Case-Study Auto-Gen",
+      "Full signal-stack expansion (Hiring-Surge, New-Location, Ad-Activity, Competitor-FOMO)"
+    ]
+  },
+  "filter_questions": [
+    "Pick the bottleneck: not finding / not converting / not delivering-retaining / cant-see-steer? Selects the stage.",
+    "Spine first (Gap Report end-to-end on few verticals) or breadth first (Territory+CNPJ+heatmap across Cuiaba)?",
+    "If only ONE big-bet this quarter: Command Center / Diagnosis engine / Territory Coverage? Cross out the other two.",
+    "Does the layer need data you dont yet collect? If yes its two builds (collector+consumer). Prefer pure-logic-over-existing-data first.",
+    "What single metric must this workflow move: conquest % / sell-queue size / reply rate / retained-agentic-count?",
+    "Manual-acceptable vs must-be-autonomous per step? Autonomy is where effort explodes.",
+    "Reuse test: name the existing Hermes asset each survivor extends. Cant name one = its FUTURE not next.",
+    "Demo or proof? If closing bottleneck is believability prioritize Gap Report + AI-Search Audit; else find/diagnose more."
+  ]
+}

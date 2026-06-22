@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes 2.0 — Central</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="design-system-v2.css">
+<style>
+/* ---- pagina-especifico: Central ---- */
+.lede{display:flex;align-items:flex-start;gap:22px;padding:30px 0 26px;border-bottom:0.5px solid var(--line)}
+.lede .orb{width:58px;height:58px;border-radius:18px;flex-shrink:0;display:grid;place-items:center;font-size:30px;color:var(--accent-2);
+  background:radial-gradient(circle at 32% 28%,var(--accent-soft),transparent 70%);border:0.5px solid var(--line-2);box-shadow:0 0 32px -10px var(--accent)}
+@media(prefers-reduced-motion:no-preference){.lede .orb{animation:float 6s var(--ease) infinite}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.lede .say{flex:1;min-width:0}
+.lede .say h1{font-size:21px;font-weight:600;letter-spacing:-0.03em;line-height:1.25;margin-bottom:5px}
+.lede .say h1 .hl{color:var(--accent-2)}
+.lede .say p{color:var(--tx3);font-size:13.5px;line-height:1.5;max-width:62ch}
+.lede .say p b{color:var(--tx2);font-weight:500}
+
+/* reduced-motion safety net (caso o CSS externo nao carregue):
+   conteudo essencial SEMPRE visivel; entrada animada so sob no-preference */
+@keyframes riseIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.001ms!important}}
+
+.section{margin-top:38px}
+.shead{display:flex;align-items:baseline;gap:11px;margin-bottom:15px;padding:0 2px}
+.shead h2{font-size:13px;font-weight:600;letter-spacing:-0.01em}
+.shead .hint{font-size:11.5px;color:var(--tx4)}
+.shead .spacer{flex:1}
+
+.cols{display:grid;grid-template-columns:1fr 312px;gap:30px;align-items:start;margin-top:34px}
+@media(max-width:880px){.cols{grid-template-columns:1fr}}
+
+/* ---- roster de agentes (near-monochrome, calmo) ---- */
+.team-meta{display:flex;align-items:center;gap:8px}
+.legend{display:flex;align-items:center;gap:15px;font-size:11px;color:var(--tx4)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dotk{width:7px;height:7px;border-radius:50%}
+.dotk.act{background:var(--good)}
+.dotk.idle{background:var(--tx4)}
+.dotk.att{background:var(--warm);box-shadow:0 0 7px var(--warm)}
+
+.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:11px}
+.node{background:var(--surface);border:0.5px solid var(--line);border-radius:13px;padding:13px 13px 12px;cursor:pointer;position:relative;overflow:hidden;
+  transition:border-color .3s var(--ease),background .3s var(--ease),transform .3s var(--ease),box-shadow .35s var(--ease)}
+.node:hover{border-color:var(--line-2);background:var(--surface-2);transform:translateY(-2px);box-shadow:var(--shadow-sm)}
+.node.att{box-shadow:0 0 0 0.5px var(--warm-soft), -1px 0 0 var(--warm) inset}
+.node.att:hover{box-shadow:var(--shadow-sm), -1px 0 0 var(--warm) inset, 0 0 34px -20px var(--warm)}
+.node .nhead{display:flex;align-items:center;gap:9px}
+.node .nico{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;font-size:16px;color:var(--tx2);
+  background:radial-gradient(circle at 30% 25%,var(--surface-2),var(--bg-2));border:0.5px solid var(--line-2);transition:color .3s}
+.node:hover .nico{color:var(--tx)}
+.node.att .nico{color:var(--warm)}
+.node .nm{font-size:12.5px;font-weight:500;line-height:1.2;min-width:0;flex:1}
+.node .role{font-size:10.5px;color:var(--tx4);margin-top:2px}
+/* status dot */
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--tx4)}
+.node.live .sdot{background:var(--good)}
+@media(prefers-reduced-motion:no-preference){.node.live .sdot{animation:beat 2.6s var(--ease) infinite}}
+.node.att .sdot{background:var(--warm);box-shadow:0 0 7px var(--warm)}
+@media(prefers-reduced-motion:no-preference){.node.att .sdot{animation:beat 1.8s var(--ease) infinite}}
+@keyframes beat{0%{box-shadow:0 0 0 0 oklch(0.78 0.12 165 / .5)}70%{box-shadow:0 0 0 6px oklch(0.78 0.12 165 / 0)}100%{box-shadow:0 0 0 0 oklch(0.78 0.12 165 / 0)}}
+.node.dim{opacity:.6}
+.node.dim:hover{opacity:1}
+/* progressive disclosure no node */
+.ndisc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}
+.node:hover .ndisc{grid-template-rows:1fr}
+.ndisc>.nin{overflow:hidden;min-height:0}
+.npad{padding-top:11px;margin-top:11px;border-top:0.5px solid var(--line)}
+@media(prefers-reduced-motion:no-preference){
+  .npad{opacity:0;transform:translateY(6px);transition:opacity .35s var(--ease) .06s,transform .4s var(--ease) .06s}
+  .node:hover .npad{opacity:1;transform:none}
+}
+.npad .doing{font-size:12px;color:var(--tx2);line-height:1.45}
+.npad .doing b{color:var(--tx);font-weight:500}
+.npad .stat{display:flex;align-items:center;gap:6px;margin-top:9px;font-size:11px;color:var(--tx3)}
+.npad .stat i{font-size:13px;opacity:.8}
+.npad .stat .v{color:var(--good);font-weight:500}
+.node.att .npad .stat .v{color:var(--warm)}
+
+/* roster: filtro por funcao */
+.tfilters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+
+/* ---- right rail: feed de decisoes ---- */
+.rail{display:flex;flex-direction:column;gap:22px;position:sticky;top:96px}
+.feed{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r);padding:16px 16px 10px}
+.feed .fh{display:flex;align-items:center;gap:8px;margin-bottom:4px;padding:0 2px 12px;border-bottom:0.5px solid var(--line)}
+.feed .fh i{color:var(--tx3);font-size:16px}
+.feed .fh b{font-size:12.5px;font-weight:600}
+.feed .fh .live{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:10.5px;color:var(--tx4)}
+.feed .fh .live .d{width:5px;height:5px;border-radius:50%;background:var(--good)}
+@media(prefers-reduced-motion:no-preference){.feed .fh .live .d{animation:beat 2.4s var(--ease) infinite}}
+.stream{display:flex;flex-direction:column}
+.ev{display:flex;gap:11px;padding:11px 2px;border-bottom:0.5px solid var(--line);position:relative}
+.ev:last-child{border-bottom:0}
+.ev .eico{width:24px;height:24px;border-radius:7px;flex-shrink:0;display:grid;place-items:center;font-size:13px;color:var(--tx3);background:var(--bg-2);border:0.5px solid var(--line);margin-top:1px}
+.ev.warm .eico{color:var(--warm);background:var(--warm-soft);border-color:var(--warm-soft)}
+.ev.good .eico{color:var(--good);background:var(--good-soft);border-color:var(--good-soft)}
+.ev .etx{min-width:0;flex:1}
+.ev .etx p{font-size:12.5px;color:var(--tx2);line-height:1.4}
+.ev .etx p b{color:var(--tx);font-weight:500}
+.ev .etx .when{font-size:10.5px;color:var(--tx4);margin-top:3px}
+@media(prefers-reduced-motion:no-preference){.ev{opacity:0;transform:translateY(8px);animation:riseIn .5s var(--ease) forwards}}
+.feed .ftf{text-align:center;padding:11px 0 6px}
+.feed .ftf a{font-size:11.5px;color:var(--tx3);text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:color .2s}
+.feed .ftf a:hover{color:var(--tx)}
+
+/* ---- dispatch cross-project ---- */
+.dispatch{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+@media(max-width:620px){.dispatch{grid-template-columns:1fr}}
+.dcard{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r);padding:18px;position:relative;overflow:hidden;
+  transition:border-color .3s var(--ease),background .3s var(--ease),transform .3s var(--ease),box-shadow .35s var(--ease)}
+.dcard:hover{border-color:var(--line-2);background:var(--surface-2);transform:translateY(-2px);box-shadow:var(--shadow)}
+.dcard .dtop{display:flex;align-items:center;gap:12px}
+.dcard .dav{width:42px;height:42px;border-radius:13px;flex-shrink:0;display:grid;place-items:center;font-size:21px;
+  background:radial-gradient(circle at 30% 25%,var(--surface-2),var(--bg-2));border:0.5px solid var(--line-2);color:var(--tx2);transition:color .3s}
+.dcard:hover .dav{color:var(--tx)}
+.dcard .dname{font-size:14.5px;font-weight:600;letter-spacing:-0.02em}
+.dcard .dwhat{font-size:11.5px;color:var(--tx4);margin-top:2px}
+.dcard .dstat{display:flex;align-items:center;gap:8px;margin-top:14px;padding:10px 12px;background:var(--bg-2);border:0.5px solid var(--line);border-radius:11px}
+.dcard .dstat .big{font-size:19px;font-weight:600;letter-spacing:-0.03em;line-height:1}
+.dcard .dstat .big.acc{color:var(--accent-2)}
+.dcard .dstat .big.good{color:var(--good)}
+.dcard .dstat .lbl{font-size:11px;color:var(--tx3);line-height:1.35}
+.dcard .dstat .spk{margin-left:auto;display:flex;align-items:flex-end;gap:3px;height:26px}
+.dcard .dstat .spk i{width:3px;border-radius:2px;background:var(--line-2);display:block}
+.dcard:hover .dstat .spk i{background:var(--accent)}
+.dcard .drun{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}
+.dcard:hover .drun{grid-template-rows:1fr}
+.dcard .drun>.in{overflow:hidden;min-height:0}
+.dcard .drun .pad{padding-top:12px}
+@media(prefers-reduced-motion:no-preference){
+  .dcard .drun .pad{opacity:0;transform:translateY(6px);transition:opacity .35s var(--ease) .05s,transform .4s var(--ease) .05s}
+  .dcard:hover .drun .pad{opacity:1;transform:none}
+}
+.dcard .job{display:flex;align-items:center;gap:9px;padding:7px 2px;font-size:11.5px;color:var(--tx3);border-top:0.5px solid var(--line)}
+.dcard .job:first-child{border-top:0}
+.dcard .job i{font-size:13px;color:var(--tx4)}
+.dcard .job .jn{flex:1;min-width:0;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dcard .job .jt{font-size:10.5px;color:var(--tx4)}
+.dcard .job .pct{width:34px;text-align:right;color:var(--good);font-weight:500;font-size:11px}
+.dcard .dact{margin-top:14px;display:flex;gap:8px}
+.dcard .dact .act{flex:1;justify-content:center}
+
+/* metric pulse line abaixo do lede */
+.subglance{display:flex;gap:30px;padding:18px 2px 0;flex-wrap:wrap}
+.subglance .m{display:flex;flex-direction:column;gap:3px}
+.subglance .n{font-size:21px;font-weight:600;letter-spacing:-0.03em;line-height:1}
+.subglance .n.good{color:var(--good)} .subglance .n.acc{color:var(--accent-2)} .subglance .n.warm{color:var(--warm)}
+.subglance .l{font-size:11px;color:var(--tx3)}
+.subglance .sep{width:0.5px;align-self:stretch;background:var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap wide">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-windmill"></i></div>
+      <b>Hermes</b><span class="dim">· Central</span>
+    </div>
+    <span class="spacer"></span>
+    <nav class="nav">
+      <a href="cmd-v2.html" class="on">Central</a>
+      <a href="map-v2.html">Mapa</a>
+      <a href="02b-esteira-v2.html">Esteira</a>
+      <a href="dossier-v2.html">Dossiê</a>
+      <a href="competitors-v2.html">Concorrentes</a>
+      <a href="agent-v2.html">Agentes</a>
+      <a href="myday-v2.html">Meu dia</a>
+    </nav>
+    <span class="pulse"><span class="d"></span>Motor 24/7 ativo</span>
+  </header>
+
+  <!-- ENGINE STATE — hero line calma -->
+  <section class="lede reveal">
+    <div class="orb"><i class="ti ti-windmill"></i></div>
+    <div class="say">
+      <h1>O motor está <span class="hl">trabalhando agora</span> — varrendo Cuiabá em busca de quem precisa de você.</h1>
+      <p>Neste momento: <b>42 ajudantes</b> rodando sem parar. Estão vasculhando <b>Jardim das Américas</b> e <b>Goiabeiras</b>, montando o relatório de venda de cada negócio e escrevendo as primeiras abordagens. Você só entra quando tem negócio pronto pra fechar.</p>
+      <div class="subglance">
+        <div class="m"><span class="n good" id="m-found">14</span><span class="l">negócios encontrados hoje</span></div>
+        <div class="sep"></div>
+        <div class="m"><span class="n" id="m-sweeps">9</span><span class="l">bairros varridos</span></div>
+        <div class="sep"></div>
+        <div class="m"><span class="n" id="m-dossier">11</span><span class="l">relatórios de venda prontos</span></div>
+        <div class="sep"></div>
+        <div class="m"><span class="n warm" id="m-att">1</span><span class="l">precisa do seu olhar</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="cols">
+
+    <!-- LEFT: roster de ajudantes + dispatch -->
+    <div>
+      <div class="section">
+        <div class="shead">
+          <h2>Os ajudantes</h2>
+          <span class="hint">passe o mouse pra ver o que cada um faz</span>
+          <span class="spacer"></span>
+          <span class="legend">
+            <span><span class="dotk act"></span>trabalhando</span>
+            <span><span class="dotk att"></span>quer você</span>
+            <span><span class="dotk idle"></span>descansando</span>
+          </span>
+        </div>
+
+        <div class="tfilters">
+          <button class="chip team on" data-team="all">Todos · 42</button>
+          <button class="chip team" data-team="find"><i class="ti ti-radar-2"></i>Encontrar negócios</button>
+          <button class="chip team" data-team="study"><i class="ti ti-file-search"></i>Estudar &amp; montar relatório</button>
+          <button class="chip team" data-team="reach"><i class="ti ti-send"></i>Abordar &amp; falar</button>
+          <button class="chip team" data-team="watch"><i class="ti ti-eye"></i>Vigiar concorrência</button>
+        </div>
+
+        <div class="roster" id="roster"></div>
+      </div>
+
+      <!-- DISPATCH cross-project -->
+      <div class="section">
+        <div class="shead">
+          <h2>Mandar trabalho pra fora</h2>
+          <span class="hint">dois parceiros que o Hermes aciona sozinho</span>
+        </div>
+        <div class="dispatch">
+
+          <div class="dcard reveal">
+            <div class="dtop">
+              <div class="dav"><i class="ti ti-browser"></i></div>
+              <div class="grow">
+                <div class="dname">Vuecra</div>
+                <div class="dwhat">monta o site do negócio, do zero</div>
+              </div>
+            </div>
+            <div class="dstat">
+              <span class="big">3</span>
+              <span class="lbl">sites sendo<br>montados agora</span>
+              <span class="spk" data-spk="vuecra"></span>
+            </div>
+            <div class="drun"><div class="in"><div class="pad">
+              <div class="job"><i class="ti ti-loader-2"></i><span class="jn">Clube dos Bichos</span><span class="pct">72%</span></div>
+              <div class="job"><i class="ti ti-loader-2"></i><span class="jn">Padaria Trigo Dourado</span><span class="pct">41%</span></div>
+              <div class="job"><i class="ti ti-loader-2"></i><span class="jn">Ótica Visão Real</span><span class="pct">18%</span></div>
+            </div></div></div>
+            <div class="dact">
+              <button class="act primary" data-tip="Escolhe um negócio e o Vuecra entrega um site pronto" data-act="vuecra"><i class="ti ti-world-bolt"></i>Mandar fazer um site</button>
+            </div>
+          </div>
+
+          <div class="dcard reveal">
+            <div class="dtop">
+              <div class="dav"><i class="ti ti-chess-knight"></i></div>
+              <div class="grow">
+                <div class="dname">Gerônimo</div>
+                <div class="dwhat">monta o plano pra fechar a venda</div>
+              </div>
+            </div>
+            <div class="dstat">
+              <span class="big">7</span>
+              <span class="lbl">planos de venda<br>sendo montados</span>
+              <span class="spk" data-spk="geronimo"></span>
+            </div>
+            <div class="drun"><div class="in"><div class="pad">
+              <div class="job"><i class="ti ti-bulb"></i><span class="jn">Clínica Vida+</span><span class="jt">plano de anúncios</span></div>
+              <div class="job"><i class="ti ti-bulb"></i><span class="jn">Móveis Planejados Lar</span><span class="jt">prova de portfólio</span></div>
+              <div class="job"><i class="ti ti-bulb"></i><span class="jn">Auto Center MT</span><span class="jt">presença local</span></div>
+            </div></div></div>
+            <div class="dact">
+              <button class="act primary" data-tip="Escolhe um negócio e o Gerônimo monta o plano pra fechar" data-act="geronimo"><i class="ti ti-bulb"></i>Pedir estratégia</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT RAIL: feed de decisoes -->
+    <aside class="rail">
+      <div class="feed reveal">
+        <div class="fh">
+          <i class="ti ti-activity-heartbeat"></i>
+          <b>O que o motor decidiu</b>
+          <span class="live"><span class="d"></span>ao vivo</span>
+        </div>
+        <div class="stream" id="stream"></div>
+        <div class="ftf"><a href="agent-v2.html">Ver tudo que os ajudantes fizeram <i class="ti ti-arrow-right"></i></a></div>
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-check"></i><span></span></div>
+
+<script>
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---- 42 ajudantes, agrupados por funcao, linguagem de operador ---- */
+const AGENTS = [
+  // ENCONTRAR
+  {team:'find', name:'Caçador de negócios', role:'encontra empresas', icon:'ti-radar-2', state:'live',
+    doing:'Varrendo <b>Jardim das Américas</b> rua por rua.', stat:'achou 12 hoje', si:'ti-building-store'},
+  {team:'find', name:'Batedor de Goiabeiras', role:'encontra empresas', icon:'ti-map-search', state:'live',
+    doing:'Listando comércios sem site em <b>Goiabeiras</b>.', stat:'achou 9 hoje', si:'ti-building-store'},
+  {team:'find', name:'Olheiro do Centro', role:'encontra empresas', icon:'ti-map-pin-search', state:'live',
+    doing:'Conferindo lojas do <b>Centro</b> uma a uma.', stat:'achou 5 hoje', si:'ti-building-store'},
+  {team:'find', name:'Coletor de notas', role:'avaliações Google', icon:'ti-star-half', state:'live',
+    doing:'Lendo avaliações do Google pra medir reputação.', stat:'312 lidas hoje', si:'ti-star'},
+  {team:'find', name:'Conferente de horário', role:'checa funcionamento', icon:'ti-clock-check', state:'idle',
+    doing:'Confere se o negócio ainda está aberto e ativo.', stat:'descansando', si:'ti-clock'},
+  {team:'find', name:'Mapeador de bairro', role:'cruza região', icon:'ti-map-2', state:'live',
+    doing:'Cruzando movimento e renda por bairro.', stat:'3 bairros hoje', si:'ti-map'},
+  // ESTUDAR
+  {team:'study', name:'Detetive de faturamento', role:'estima quanto fatura', icon:'ti-cash', state:'live',
+    doing:'Estimando quanto <b>Clube dos Bichos</b> fatura hoje.', stat:'4 em análise', si:'ti-coin'},
+  {team:'study', name:'Caça-brechas', role:'acha o que falta', icon:'ti-puzzle', state:'live',
+    doing:'Achando o que falta: <b>sem site, fora do Google</b>.', stat:'6 brechas hoje', si:'ti-puzzle'},
+  {team:'study', name:'Montador de relatório', role:'escreve o relatório de venda', icon:'ti-file-text', state:'live',
+    doing:'Escrevendo o relatório de venda da <b>Clínica Vida+</b>.', stat:'11 prontos hoje', si:'ti-file-check'},
+  {team:'study', name:'Avaliador de potencial', role:'mede oportunidade', icon:'ti-trending-up', state:'live',
+    doing:'Calculando quanto cada negócio <b>poderia faturar</b>.', stat:'nota 91 no topo', si:'ti-chart-arrows-vertical'},
+  {team:'study', name:'Leitor do Google', role:'vê se aparece', icon:'ti-brand-google', state:'live',
+    doing:'Vendo quem aparece no Google e quem está invisível.', stat:'8 fora do Google', si:'ti-search'},
+  {team:'study', name:'Espião de site', role:'vistoria o site', icon:'ti-world-search', state:'idle',
+    doing:'Vistoria sites antigos e parados.', stat:'descansando', si:'ti-world'},
+  {team:'study', name:'Contador de seguidores', role:'mede redes sociais', icon:'ti-users-group', state:'live',
+    doing:'Medindo presença em Instagram e Facebook.', stat:'7 redes fracas', si:'ti-heart'},
+  {team:'study', name:'Calculadora de ticket', role:'estima valor médio', icon:'ti-receipt', state:'idle',
+    doing:'Estima o valor médio de cada venda do negócio.', stat:'descansando', si:'ti-receipt-2'},
+  // ABORDAR — um precisa de atencao
+  {team:'reach', name:'Escritor de abordagem', role:'escreve a 1ª mensagem', icon:'ti-message-2', state:'live',
+    doing:'Escrevendo a primeira mensagem pra <b>Padaria Trigo Dourado</b>.', stat:'5 escritas hoje', si:'ti-message'},
+  {team:'reach', name:'Revisor de tom', role:'ajusta o jeito de falar', icon:'ti-quote', state:'live',
+    doing:'Deixando a mensagem com cara de gente, não de robô.', stat:'5 revisadas', si:'ti-writing'},
+  {team:'reach', name:'Carteiro de e-mail', role:'envia e acompanha', icon:'ti-mail-fast', state:'att',
+    doing:'Uma resposta chegou de <b>Móveis Planejados Lar</b> — quer que eu responda ou você fala?', stat:'1 resposta esperando', si:'ti-mail-opened'},
+  {team:'reach', name:'Sentinela do WhatsApp', role:'cuida do WhatsApp', icon:'ti-brand-whatsapp', state:'live',
+    doing:'Acompanhando as conversas no WhatsApp.', stat:'3 ativas', si:'ti-brand-whatsapp'},
+  {team:'reach', name:'Agendador de follow', role:'lembra de voltar', icon:'ti-calendar-time', state:'live',
+    doing:'Agendando o retorno de quem não respondeu ainda.', stat:'4 agendados', si:'ti-calendar'},
+  {team:'reach', name:'Marcador de reunião', role:'puxa pra conversa', icon:'ti-phone-call', state:'idle',
+    doing:'Tenta marcar a conversa quando o negócio responde.', stat:'descansando', si:'ti-phone'},
+  // VIGIAR
+  {team:'watch', name:'Vigia da concorrência', role:'olha quem domina', icon:'ti-eye', state:'live',
+    doing:'Vendo quem domina o mercado de <b>pet shop</b> na região.', stat:'2 líderes mapeados', si:'ti-crown'},
+  {team:'watch', name:'Caça-anúncios', role:'vê quem anuncia', icon:'ti-speakerphone', state:'live',
+    doing:'Descobrindo quais concorrentes estão anunciando.', stat:'5 anunciando', si:'ti-ad'},
+  {team:'watch', name:'Comparador', role:'mostra a diferença', icon:'ti-arrows-diff', state:'live',
+    doing:'Comparando o negócio com quem está na frente.', stat:'3 comparações', si:'ti-git-compare'},
+  {team:'watch', name:'Farejador de preço', role:'olha preços do rival', icon:'ti-tag', state:'idle',
+    doing:'Acompanha os preços que a concorrência pratica.', stat:'descansando', si:'ti-tags'},
+];
+// completar visualmente ate 42 sem poluir: os listados sao os "nomeados", o resto agregamos no chip
+const HIDDEN = 42 - AGENTS.length; // ajudantes de apoio rodando em silencio
+
+const roster = document.getElementById('roster');
+let fTeam = 'all';
+
+function nodeHTML(a){
+  const cls = a.state==='att' ? 'att' : a.state==='live' ? 'live' : 'idle dim';
+  return `<article class="node ${cls}" data-team="${a.team}">
+    <div class="nhead">
+      <div class="nico"><i class="ti ${a.icon}"></i></div>
+      <div class="nm">${a.name}<div class="role">${a.role}</div></div>
+      <span class="sdot"></span>
+    </div>
+    <div class="ndisc"><div class="nin"><div class="npad">
+      <div class="doing">${a.doing}</div>
+      <div class="stat"><i class="ti ${a.si}"></i><span class="v">${a.stat}</span></div>
+    </div></div></div>
+  </article>`;
+}
+
+function buildRoster(){
+  const items = AGENTS.filter(a=>fTeam==='all'||a.team===fTeam).map(nodeHTML).join('');
+  let tail = '';
+  if(fTeam==='all'){
+    tail = `<article class="node dim" style="display:grid;place-items:center;text-align:center;min-height:74px">
+      <div><div class="nm" style="font-size:20px;font-weight:600;letter-spacing:-.03em">+${HIDDEN}</div>
+      <div class="role" style="margin-top:3px">ajudantes de apoio<br>rodando em silêncio</div></div>
+    </article>`;
+  }
+  roster.innerHTML = items + tail;
+}
+
+document.querySelectorAll('.chip.team').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('.chip.team').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on'); fTeam=c.dataset.team; buildRoster();
+});
+
+/* ---- feed de decisoes em PT plano ---- */
+const EVENTS = [
+  {k:'good', i:'ti-circle-check', t:'<b>Clube dos Bichos</b> virou negócio quente — nota 91. Relatório de venda pronto pra você.', w:'agora'},
+  {k:'', i:'ti-radar-2', t:'Terminei de varrer <b>Jardim das Américas</b>: 12 negócios novos.', w:'há 4 min'},
+  {k:'warm', i:'ti-mail-opened', t:'<b>Móveis Planejados Lar</b> respondeu o e-mail. Esperando seu sinal.', w:'há 9 min'},
+  {k:'', i:'ti-browser', t:'Pedi ao <b>Vuecra</b> pra montar o site da <b>Ótica Visão Real</b>.', w:'há 17 min'},
+  {k:'', i:'ti-file-text', t:'Montei o relatório de venda da <b>Clínica Vida+</b>.', w:'há 23 min'},
+  {k:'good', i:'ti-bulb', t:'<b>Gerônimo</b> entregou a estratégia da <b>Padaria Trigo Dourado</b>.', w:'há 31 min'},
+  {k:'', i:'ti-eye', t:'Descobri que o concorrente da <b>Clínica Vida+</b> anuncia pesado.', w:'há 38 min'},
+  {k:'', i:'ti-message-2', t:'Escrevi a 1ª abordagem pra 5 negócios de Goiabeiras.', w:'há 52 min'},
+];
+const stream = document.getElementById('stream');
+stream.innerHTML = EVENTS.map((e,idx)=>`<div class="ev ${e.k}" style="animation-delay:${idx*70}ms">
+  <div class="eico"><i class="ti ${e.i}"></i></div>
+  <div class="etx"><p>${e.t}</p><div class="when">${e.w}</div></div>
+</div>`).join('');
+
+/* ---- sparkline calmo nos dispatch (puro CSS heights) ---- */
+function spark(sel, seed){
+  const el=document.querySelector(`[data-spk="${sel}"]`); if(!el)return;
+  let s=seed; const rnd=()=>{ s=(s*9301+49297)%233280; return s/233280; };
+  el.innerHTML = Array.from({length:9},()=>`<i style="height:${6+Math.round(rnd()*20)}px"></i>`).join('');
+}
+spark('vuecra',7); spark('geronimo',13);
+
+/* ---- count-up enhancement (reduced-motion guarded; base value ja no HTML) ---- */
+function countUp(id){
+  const el=document.getElementById(id); if(!el)return;
+  const to=+el.textContent; if(RM)return;
+  let s=null; const dur=850; el.textContent='0';
+  function step(t){ if(!s)s=t; const p=Math.min(1,(t-s)/dur); const e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(to*e); if(p<1)requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+}
+['m-found','m-sweeps','m-dossier','m-att'].forEach(countUp);
+
+/* ---- acoes ---- */
+const toast=document.getElementById('toast');
+function showToast(msg){ toast.querySelector('span').textContent=msg; toast.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>toast.classList.remove('show'),2200); }
+document.addEventListener('click',e=>{
+  const a=e.target.closest('[data-act]'); if(!a)return;
+  const map={vuecra:'Escolha o negócio — o Vuecra começa o site',geronimo:'Escolha o negócio — o Gerônimo monta o plano'};
+  showToast(map[a.dataset.act]||'Feito');
+});
+
+buildRoster();
+</script>
+</body>
+</html>

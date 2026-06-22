@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes 2.0 — Formas de comandar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="design-system-v2.css">
+<style>
+/* ---- pagina-especifico: formas de comandar ---- */
+.lede{padding:14px 4px 0;max-width:560px}
+.lede h1{font-size:20px;font-weight:500;letter-spacing:-0.025em;line-height:1.2}
+.lede p{color:var(--tx3);font-size:13.5px;margin-top:8px;line-height:1.55}
+.kbd{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:500;color:var(--tx2);background:var(--bg-2);border:0.5px solid var(--line-2);border-bottom-width:1.5px;border-radius:6px;padding:2px 7px;letter-spacing:0;font-feature-settings:"tnum" 1}
+
+/* grid de demos */
+.demos{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:38px}
+@media(max-width:820px){.demos{grid-template-columns:1fr}}
+.demo{padding:24px 24px 26px;display:flex;flex-direction:column;min-height:300px}
+.demo-h{display:flex;align-items:flex-start;gap:13px;margin-bottom:6px}
+.demo-ic{width:36px;height:36px;border-radius:11px;background:radial-gradient(circle at 30% 25%,var(--surface-2),var(--bg-2));color:var(--tx2);display:grid;place-items:center;font-size:18px;border:0.5px solid var(--line-2);flex-shrink:0;transition:color .3s var(--ease),border-color .3s var(--ease)}
+.demo.card.h:hover .demo-ic{color:var(--accent-2);border-color:var(--accent)}
+.demo-h .t{min-width:0}
+.demo-h .t b{font-weight:600;font-size:15px;display:block}
+.demo-h .t .d{color:var(--tx3);font-size:12.5px;margin-top:3px;line-height:1.4}
+.demo-stage{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;margin-top:14px;min-height:0}
+.hint{font-size:11.5px;color:var(--tx4);margin-top:14px;display:flex;align-items:center;gap:6px;justify-content:center}
+.hint i{font-size:13px}
+
+/* (a) command palette trigger */
+.kbar{display:flex;align-items:center;gap:11px;width:100%;height:46px;padding:0 15px;border-radius:12px;border:0.5px solid var(--line-2);background:var(--bg-2);color:var(--tx3);font-family:inherit;font-size:13.5px;cursor:text;transition:all .22s var(--ease)}
+.kbar:hover{border-color:var(--accent);background:var(--surface);color:var(--tx2);box-shadow:0 0 0 4px var(--accent-soft)}
+.kbar i{font-size:17px;color:var(--tx3)}
+.kbar .grow{text-align:left}
+.kbar .kbd{margin-left:auto}
+
+/* palette overlay */
+.scrim{position:fixed;inset:0;background:oklch(0.08 0.006 265 / 0.62);backdrop-filter:blur(3px);z-index:60;display:none;align-items:flex-start;justify-content:center;padding-top:13vh}
+.scrim.show{display:flex}
+@media(prefers-reduced-motion:no-preference){
+  .scrim.show{animation:fade .2s var(--ease)}
+  .scrim.show .pal{animation:popIn .32s var(--ease-2)}
+}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:translateY(-10px) scale(.97)}to{opacity:1;transform:none}}
+.pal{width:min(560px,92vw);background:var(--surface);border:0.5px solid var(--line-2);border-radius:16px;box-shadow:0 40px 90px -30px oklch(0 0 0 /.85);overflow:hidden}
+.pal-in{display:flex;align-items:center;gap:12px;padding:0 18px;height:56px;border-bottom:0.5px solid var(--line)}
+.pal-in i{font-size:19px;color:var(--tx3)}
+.pal-in input{flex:1;background:none;border:0;outline:0;color:var(--tx);font-family:inherit;font-size:15.5px;letter-spacing:-0.01em}
+.pal-in input::placeholder{color:var(--tx4)}
+.pal-in .esc{font-size:10.5px;color:var(--tx4);border:0.5px solid var(--line-2);border-radius:6px;padding:3px 7px}
+.pal-list{max-height:46vh;overflow-y:auto;padding:8px}
+.pal-grp{font-size:10px;color:var(--tx4);text-transform:uppercase;letter-spacing:.1em;font-weight:500;padding:11px 12px 6px}
+.pal-it{display:flex;align-items:center;gap:13px;padding:11px 12px;border-radius:11px;cursor:pointer;transition:background .12s}
+.pal-it i.lead-ic{font-size:18px;color:var(--tx2);width:22px;text-align:center;flex-shrink:0}
+.pal-it .pt{flex:1;min-width:0}
+.pal-it .pt b{font-weight:450;font-size:14px;display:block}
+.pal-it .pt small{color:var(--tx3);font-size:12px;display:block;margin-top:1px}
+.pal-it .ent{font-size:11px;color:var(--tx4);opacity:0;transition:opacity .12s}
+.pal-it.sel{background:var(--accent-soft);box-shadow:0 0 0 0.5px var(--accent) inset}
+.pal-it.sel i.lead-ic{color:var(--accent-2)}
+.pal-it.sel .ent{opacity:1;color:var(--tx2)}
+.pal-empty{padding:34px 12px;text-align:center;color:var(--tx3);font-size:13px}
+.hl{color:var(--accent-2);font-weight:500}
+
+/* (b) radial menu */
+.radial-wrap{position:relative;width:230px;height:230px;display:grid;place-items:center}
+.rcore{width:74px;height:74px;border-radius:18px;background:var(--surface-2);border:0.5px solid var(--line-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;z-index:3;transition:all .25s var(--ease);text-align:center;padding:0 6px}
+.rcore:hover{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.rcore.open{border-color:var(--accent);background:var(--surface)}
+.rcore i{font-size:20px;color:var(--tx2)}
+.rcore.open i{color:var(--accent-2)}
+.rcore small{font-size:10px;color:var(--tx3);line-height:1.1;font-weight:500}
+/* petals: escondidas por padrao = progressive disclosure (menu fechado).
+   Quando aberto (.on), ficam visiveis na hora. A animacao de "abrir em leque"
+   so existe sob no-preference; sob reduced-motion aparecem direto no lugar. */
+.petal{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:14px;background:var(--surface-2);border:0.5px solid var(--line-2);display:grid;place-items:center;cursor:pointer;z-index:2;color:var(--tx2);
+  opacity:0;pointer-events:none;transform:translate(var(--x),var(--y)) scale(1);transition:border-color .2s,color .2s,background .2s,transform .2s}
+.radial-wrap.on .petal{opacity:1;pointer-events:auto}
+@media(prefers-reduced-motion:no-preference){
+  .petal{transform:translate(0,0) scale(.4);transition:transform .38s var(--ease-2),opacity .25s var(--ease),border-color .2s,color .2s,background .2s}
+  .radial-wrap.on .petal{transform:translate(var(--x),var(--y)) scale(1)}
+}
+.petal:hover{border-color:var(--accent);color:var(--tx);background:var(--surface);transform:translate(var(--x),var(--y)) scale(1.12)}
+.petal i{font-size:19px}
+.petal[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--surface-2);color:var(--tx);border:0.5px solid var(--line-2);padding:7px 10px;border-radius:8px;font-size:11px;white-space:nowrap;box-shadow:0 12px 30px -10px oklch(0 0 0 /.8);z-index:9;pointer-events:none;font-weight:400}
+
+/* (c) drag-to-dispatch */
+.dd-stage{width:100%;display:flex;flex-direction:column;gap:18px;align-items:center}
+.dd-chip{display:inline-flex;align-items:center;gap:10px;padding:10px 15px 10px 11px;border-radius:13px;background:var(--surface-2);border:0.5px solid var(--line-2);cursor:grab;user-select:none;touch-action:none;transition:box-shadow .2s,transform .12s,opacity .2s;box-shadow:var(--shadow-sm)}
+.dd-chip:active{cursor:grabbing}
+.dd-chip.dragging{opacity:.5}
+.dd-chip.flying{position:fixed;z-index:70;pointer-events:none;box-shadow:0 24px 50px -16px oklch(0 0 0 /.7);border-color:var(--accent)}
+.dd-chip .dico{width:30px;height:30px;border-radius:9px;background:radial-gradient(circle at 30% 25%,var(--surface),var(--bg-2));border:0.5px solid var(--line-2);display:grid;place-items:center;color:var(--tx2);font-size:16px}
+.dd-chip .dt b{font-weight:500;font-size:13.5px;display:block;line-height:1.1}
+.dd-chip .dt small{color:var(--tx3);font-size:11px}
+.dd-chip .ti-grip-vertical{color:var(--tx4);font-size:16px;margin-left:2px}
+.targets{display:flex;gap:14px;width:100%;justify-content:center}
+.tgt{flex:1;max-width:140px;height:96px;border-radius:14px;border:1px dashed var(--line-2);background:var(--bg-2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;transition:all .2s var(--ease);padding:0 8px}
+.tgt i{font-size:22px;color:var(--tx3);transition:color .2s,transform .2s var(--ease-2)}
+.tgt b{font-size:13px;font-weight:500}
+.tgt small{font-size:10.5px;color:var(--tx4);line-height:1.2}
+.tgt.over{border-style:solid;border-color:var(--accent);background:var(--accent-soft);transform:translateY(-2px)}
+.tgt.over i{color:var(--accent-2);transform:scale(1.15)}
+.tgt.done{border-style:solid;border-color:var(--good);background:var(--good-soft)}
+.tgt.done i{color:var(--good)}
+
+/* (d) slide to confirm */
+.slide{position:relative;width:100%;max-width:300px;height:54px;border-radius:14px;background:var(--bg-2);border:0.5px solid var(--line-2);overflow:hidden;user-select:none;touch-action:none}
+.slide .fill{position:absolute;inset:0;width:0;background:linear-gradient(90deg,var(--warm-soft),oklch(0.82 0.13 80 / 0.22));border-radius:14px;transition:width .05s linear}
+.slide .lab{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;color:var(--tx2);font-weight:450;pointer-events:none;transition:opacity .2s}
+.slide .knob{position:absolute;left:4px;top:4px;width:46px;height:46px;border-radius:11px;background:var(--surface-2);border:0.5px solid var(--line-2);display:grid;place-items:center;cursor:grab;color:var(--warm);z-index:2;box-shadow:var(--shadow-sm);transition:left .28s var(--ease-2),background .2s}
+.slide .knob:active{cursor:grabbing}
+.slide .knob i{font-size:20px}
+.slide.armed .fill{background:linear-gradient(90deg,var(--good-soft),oklch(0.78 0.12 165 / 0.22))}
+.slide.armed .knob{color:var(--good);border-color:var(--good)}
+.slide.armed .lab{opacity:0}
+.slide-cap{font-size:11.5px;color:var(--tx4);margin-top:11px;text-align:center;max-width:300px;line-height:1.4}
+
+/* footer note */
+.foot{margin-top:40px;padding:18px 22px;display:flex;align-items:center;gap:13px;color:var(--tx3);font-size:12.5px;line-height:1.5}
+.foot i{font-size:19px;color:var(--tx4);flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="wrap wide">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-windmill"></i></div>
+      <b>Hermes</b><span class="dim">· Formas de comandar</span>
+    </div>
+    <nav class="nav">
+      <a href="cmd-v2.html">Painel</a>
+      <a href="map-v2.html">Mapa</a>
+      <a href="02b-esteira-v2.html">Esteira</a>
+      <a href="dossier-v2.html">Relatório</a>
+      <a href="competitors-v2.html">Concorrentes</a>
+      <a href="agent-v2.html">Agente</a>
+      <a href="myday-v2.html">Meu dia</a>
+      <a href="action-dispatch-v2.html" class="on">Comandar</a>
+    </nav>
+    <span class="spacer"></span>
+    <span class="pulse"><span class="d"></span>Motor 24/7</span>
+  </header>
+
+  <div class="lede reveal">
+    <h1>Quatro formas de mandar o Hermes trabalhar</h1>
+    <p>Escolha a que for mais rápida pro momento. Cada botão diz o que faz e mostra um lembrete quando você passa o mouse.</p>
+  </div>
+
+  <div class="demos">
+
+    <!-- (a) Command palette -->
+    <article class="card demo h reveal" style="animation-delay:.05s">
+      <div class="demo-h">
+        <div class="demo-ic"><i class="ti ti-command"></i></div>
+        <div class="t">
+          <b>Digite o que quer</b>
+          <div class="d">Aperte <span class="kbd">Ctrl</span> <span class="kbd">K</span> e escreva em português. Ele acha a ação, mesmo escrita pela metade.</div>
+        </div>
+      </div>
+      <div class="demo-stage">
+        <button class="kbar" id="kbarBtn">
+          <i class="ti ti-search"></i>
+          <span class="grow">Buscar uma ação…</span>
+          <span class="kbd">Ctrl</span><span class="kbd">K</span>
+        </button>
+        <div class="hint"><i class="ti ti-keyboard"></i>Ex.: "varrer bairro", "aprovar dossiê", "mandar fazer site"</div>
+      </div>
+    </article>
+
+    <!-- (b) Radial menu -->
+    <article class="card demo h reveal" style="animation-delay:.1s">
+      <div class="demo-h">
+        <div class="demo-ic"><i class="ti ti-circle-dotted"></i></div>
+        <div class="t">
+          <b>Gire o menu</b>
+          <div class="d">Clique no negócio e as ações abrem em volta dele. A mais usada fica à mão.</div>
+        </div>
+      </div>
+      <div class="demo-stage">
+        <div class="radial-wrap" id="radial">
+          <div class="rcore" id="rcore">
+            <i class="ti ti-paw"></i>
+            <small>Clube dos<br>Bichos</small>
+          </div>
+          <!-- petals injetadas via JS -->
+        </div>
+        <div class="hint"><i class="ti ti-hand-finger"></i>Clique no negócio pra abrir as ações</div>
+      </div>
+    </article>
+
+    <!-- (c) Drag to dispatch -->
+    <article class="card demo h reveal" style="animation-delay:.15s">
+      <div class="demo-h">
+        <div class="demo-ic"><i class="ti ti-drag-drop"></i></div>
+        <div class="t">
+          <b>Arraste pra quem resolve</b>
+          <div class="d">Pegue o negócio e solte em cima do time certo. O Hermes manda o serviço na hora.</div>
+        </div>
+      </div>
+      <div class="demo-stage">
+        <div class="dd-stage">
+          <div class="dd-chip" id="ddChip" draggable="false">
+            <span class="dico"><i class="ti ti-bread"></i></span>
+            <span class="dt"><b>Padaria Trigo Dourado</b><small>Goiabeiras · sem anúncios</small></span>
+            <i class="ti ti-grip-vertical"></i>
+          </div>
+          <div class="targets">
+            <div class="tgt" id="tgtVuecra" data-team="Vuecra" data-msg="Vuecra vai montar o site da Padaria Trigo Dourado">
+              <i class="ti ti-world-bolt"></i>
+              <b>Vuecra</b>
+              <small>monta o site</small>
+            </div>
+            <div class="tgt" id="tgtGeronimo" data-team="Geronimo" data-msg="Geronimo vai montar a estratégia da Padaria Trigo Dourado">
+              <i class="ti ti-bulb"></i>
+              <b>Geronimo</b>
+              <small>monta a estratégia</small>
+            </div>
+          </div>
+        </div>
+        <div class="hint"><i class="ti ti-arrow-down"></i>Arraste o cartão até o time</div>
+      </div>
+    </article>
+
+    <!-- (d) Slide to confirm -->
+    <article class="card demo h reveal" style="animation-delay:.2s">
+      <div class="demo-h">
+        <div class="demo-ic"><i class="ti ti-send"></i></div>
+        <div class="t">
+          <b>Deslize pra confirmar</b>
+          <div class="d">Pra ações delicadas — como falar com o cliente — você desliza. Sem clique sem querer.</div>
+        </div>
+      </div>
+      <div class="demo-stage">
+        <div class="slide" id="slide">
+          <div class="fill" id="slideFill"></div>
+          <div class="lab">Deslize pra disparar a mensagem</div>
+          <div class="knob" id="slideKnob"><i class="ti ti-chevron-right"></i></div>
+        </div>
+        <div class="slide-cap">Manda a 1ª mensagem pro WhatsApp da Clínica Vida+. Você confirma antes de sair.</div>
+      </div>
+    </article>
+
+  </div>
+
+  <div class="card foot reveal" style="animation-delay:.25s">
+    <i class="ti ti-bulb"></i>
+    <span>As quatro fazem a mesma coisa: põem o Hermes pra trabalhar. Use a que for mais rápida agora.</span>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-check"></i><span></span></div>
+
+<script>
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const toast = document.getElementById('toast');
+function showToast(msg,icon){
+  toast.querySelector('i').className = 'ti '+(icon||'ti-check');
+  toast.querySelector('span').textContent = msg;
+  toast.classList.add('show'); clearTimeout(toast._t);
+  toast._t = setTimeout(()=>toast.classList.remove('show'),2400);
+}
+
+/* ============ (a) COMMAND PALETTE ============ */
+const COMMANDS = [
+  { grp:'Prospecção', label:'Varrer um bairro', sub:'Procura negócios novos numa região de Cuiabá', icon:'ti-radar-2', kw:'varrer bairro buscar negocios prospectar regiao zona', msg:'Varredura iniciada · escolha o bairro' },
+  { grp:'Prospecção', label:'Auditar um negócio', sub:'Vê o que falta: site, Google, anúncios, redes', icon:'ti-stethoscope', kw:'auditar negocio analisar brechas diagnostico o que falta', msg:'Auditoria em andamento' },
+  { grp:'Venda', label:'Aprovar o dossiê', sub:'Libera o relatório de venda pra usar com o cliente', icon:'ti-file-check', kw:'aprovar dossie relatorio liberar proposta venda', msg:'Dossiê aprovado' },
+  { grp:'Venda', label:'Ver por que o concorrente ganha', sub:'Compara com quem domina o mercado e mostra a brecha', icon:'ti-swords', kw:'concorrente ganha comparar dominar mercado brecha rival', msg:'Comparando com o líder do mercado' },
+  { grp:'Entrega', label:'Mandar fazer o site', sub:'Vuecra monta um site pronto pra esse negócio', icon:'ti-world-bolt', kw:'mandar fazer site criar pagina vuecra web', msg:'Pedido enviado ao Vuecra' },
+  { grp:'Entrega', label:'Pedir a estratégia', sub:'Geronimo monta o plano de marketing pra fechar', icon:'ti-bulb', kw:'pedir estrategia plano marketing geronimo campanha', msg:'Pedido enviado ao Geronimo' },
+  { grp:'Entrega', label:'Aparecer no Google', sub:'Quais palavras focar e quanto custa pra ser achado', icon:'ti-brand-google', kw:'aparecer google seo busca achado palavras ranquear', msg:'Montando plano de Google' },
+  { grp:'Contato', label:'Mandar a primeira mensagem', sub:'Abre o WhatsApp com o texto já pronto', icon:'ti-brand-whatsapp', kw:'mandar mensagem primeira whatsapp falar contato abordar', msg:'Mensagem pronta pra revisar' },
+  { grp:'Contato', label:'Marcar que já falei', sub:'Move o negócio pra "já contatado"', icon:'ti-circle-check', kw:'marcar falei contatado ja conversei mover', msg:'Marcado como contatado' },
+];
+const scrim = document.createElement('div'); scrim.className='scrim'; scrim.id='scrim';
+scrim.innerHTML = `<div class="pal" role="dialog" aria-label="Buscar ação">
+  <div class="pal-in"><i class="ti ti-command"></i><input id="palQ" placeholder="O que você quer que o Hermes faça?" autocomplete="off"><span class="esc">esc</span></div>
+  <div class="pal-list" id="palList"></div>
+</div>`;
+document.body.appendChild(scrim);
+const palQ = scrim.querySelector('#palQ');
+const palList = scrim.querySelector('#palList');
+let palSel = 0, palFiltered = [];
+
+function fuzzy(q, s){ // subsequence match -> simples e perdoa typos de ordem
+  q=q.toLowerCase(); s=s.toLowerCase(); let i=0;
+  for(const ch of s){ if(ch===q[i]) i++; if(i===q.length) return true; }
+  return q.length===0;
+}
+function scoreCmd(q, c){
+  if(!q) return 1;
+  const hay=(c.label+' '+c.kw).toLowerCase();
+  if(hay.includes(q)) return 3;
+  // por palavra
+  const words=q.split(/\s+/).filter(Boolean);
+  if(words.length && words.every(w=>hay.includes(w))) return 2;
+  if(fuzzy(q,c.label)||fuzzy(q,c.kw)) return 1;
+  return 0;
+}
+function hlText(label,q){
+  if(!q) return label;
+  const i=label.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0) return label;
+  return label.slice(0,i)+'<span class="hl">'+label.slice(i,i+q.length)+'</span>'+label.slice(i+q.length);
+}
+function renderPal(){
+  const q=palQ.value.trim();
+  palFiltered = COMMANDS.map(c=>({c,s:scoreCmd(q,c)})).filter(x=>x.s>0)
+    .sort((a,b)=>b.s-a.s).map(x=>x.c);
+  if(palSel>=palFiltered.length) palSel=0;
+  if(!palFiltered.length){ palList.innerHTML='<div class="pal-empty">Nada encontrado. Tente "site", "auditar" ou "Google".</div>'; return; }
+  let html='', lastGrp='';
+  palFiltered.forEach((c,idx)=>{
+    if(c.grp!==lastGrp){ html+=`<div class="pal-grp">${c.grp}</div>`; lastGrp=c.grp; }
+    html+=`<div class="pal-it ${idx===palSel?'sel':''}" data-idx="${idx}">
+      <i class="ti ${c.icon} lead-ic"></i>
+      <div class="pt"><b>${hlText(c.label,q)}</b><small>${c.sub}</small></div>
+      <span class="ent">Enter ↵</span></div>`;
+  });
+  palList.innerHTML=html;
+}
+function openPal(){ scrim.classList.add('show'); palQ.value=''; palSel=0; renderPal(); setTimeout(()=>palQ.focus(),RM?0:60); }
+function closePal(){ scrim.classList.remove('show'); }
+function runCmd(c){ if(!c) return; closePal(); showToast(c.msg, c.icon); }
+
+document.getElementById('kbarBtn').onclick=openPal;
+scrim.addEventListener('click',e=>{ if(e.target===scrim) closePal(); });
+palList.addEventListener('mousemove',e=>{ const it=e.target.closest('.pal-it'); if(it){ palSel=+it.dataset.idx; renderPal(); } });
+palList.addEventListener('click',e=>{ const it=e.target.closest('.pal-it'); if(it) runCmd(palFiltered[+it.dataset.idx]); });
+palQ.addEventListener('input',()=>{ palSel=0; renderPal(); });
+palQ.addEventListener('keydown',e=>{
+  if(e.key==='ArrowDown'){ e.preventDefault(); palSel=Math.min(palSel+1,palFiltered.length-1); renderPal(); scrollSel(); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); palSel=Math.max(palSel-1,0); renderPal(); scrollSel(); }
+  else if(e.key==='Enter'){ e.preventDefault(); runCmd(palFiltered[palSel]); }
+  else if(e.key==='Escape'){ closePal(); }
+});
+function scrollSel(){ const el=palList.querySelector('.pal-it.sel'); if(el) el.scrollIntoView({block:'nearest'}); }
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); scrim.classList.contains('show')?closePal():openPal(); }
+});
+
+/* ============ (b) RADIAL MENU ============ */
+const RADIAL_ACTS = [
+  { icon:'ti-file-text', tip:'Ver relatório de venda', msg:'Abrindo relatório de venda · Clube dos Bichos' },
+  { icon:'ti-world-bolt', tip:'Mandar fazer o site', msg:'Pedido enviado ao Vuecra · Clube dos Bichos' },
+  { icon:'ti-bulb', tip:'Pedir a estratégia', msg:'Pedido enviado ao Geronimo · Clube dos Bichos' },
+  { icon:'ti-brand-whatsapp', tip:'Mandar a 1ª mensagem', msg:'Mensagem pronta · Clube dos Bichos' },
+  { icon:'ti-swords', tip:'Por que o concorrente ganha', msg:'Comparando com o líder · Clube dos Bichos' },
+  { icon:'ti-circle-check', tip:'Marcar que já falei', msg:'Marcado como contatado · Clube dos Bichos' },
+];
+const radial = document.getElementById('radial');
+const rcore = document.getElementById('rcore');
+const R = 84;
+RADIAL_ACTS.forEach((a,i)=>{
+  const ang = (-90 + i*(360/RADIAL_ACTS.length)) * Math.PI/180;
+  const x = Math.cos(ang)*R, y = Math.sin(ang)*R;
+  const p=document.createElement('button');
+  p.className='petal'; p.setAttribute('data-tip',a.tip);
+  p.setAttribute('aria-label',a.tip); p.title=a.tip;
+  p.style.setProperty('--x', x.toFixed(1)+'px');
+  p.style.setProperty('--y', y.toFixed(1)+'px');
+  p.style.transitionDelay = RM?'0s':(i*0.03)+'s';
+  p.innerHTML=`<i class="ti ${a.icon}" aria-hidden="true"></i>`;
+  p.onclick=(e)=>{ e.stopPropagation(); showToast(a.msg, a.icon); closeRadial(); };
+  radial.appendChild(p);
+});
+function openRadial(){ radial.classList.add('on'); rcore.classList.add('open'); }
+function closeRadial(){ radial.classList.remove('on'); rcore.classList.remove('open'); }
+rcore.onclick=(e)=>{ e.stopPropagation(); radial.classList.contains('on')?closeRadial():openRadial(); };
+document.addEventListener('click',e=>{ if(!radial.contains(e.target)) closeRadial(); });
+
+/* ============ (c) DRAG TO DISPATCH ============ */
+const ddChip = document.getElementById('ddChip');
+const targets = [...document.querySelectorAll('.tgt')];
+let drag = null;
+
+function pointDown(e){
+  if(e.button!==undefined && e.button!==0) return;
+  const pt = e.touches?e.touches[0]:e;
+  const r = ddChip.getBoundingClientRect();
+  drag = { ox: pt.clientX-r.left, oy: pt.clientY-r.top, w:r.width, h:r.height, fly:null, started:false, sx:pt.clientX, sy:pt.clientY };
+  document.addEventListener('pointermove', pointMove);
+  document.addEventListener('pointerup', pointUp);
+  e.preventDefault();
+}
+function pointMove(e){
+  if(!drag) return;
+  if(!drag.started){
+    if(Math.hypot(e.clientX-drag.sx, e.clientY-drag.sy) < 5) return;
+    drag.started=true;
+    const fly = ddChip.cloneNode(true);
+    fly.classList.add('flying'); fly.classList.remove('dragging');
+    fly.style.width=drag.w+'px'; fly.style.left='0'; fly.style.top='0';
+    document.body.appendChild(fly); drag.fly=fly;
+    ddChip.classList.add('dragging');
+  }
+  drag.fly.style.transform=`translate(${e.clientX-drag.ox}px, ${e.clientY-drag.oy}px)`;
+  const over = hitTarget(e.clientX,e.clientY);
+  targets.forEach(t=>t.classList.toggle('over', t===over && !t.classList.contains('done')));
+}
+function pointUp(e){
+  document.removeEventListener('pointermove', pointMove);
+  document.removeEventListener('pointerup', pointUp);
+  if(!drag) return;
+  const over = drag.started ? hitTarget(e.clientX,e.clientY) : null;
+  if(drag.fly) drag.fly.remove();
+  ddChip.classList.remove('dragging');
+  targets.forEach(t=>t.classList.remove('over'));
+  if(over && !over.classList.contains('done')){
+    over.classList.add('done');
+    over.querySelector('i').className='ti ti-check';
+    showToast(over.dataset.msg, 'ti-send');
+    setTimeout(()=>resetTarget(over), 2600);
+  }
+  drag=null;
+}
+function hitTarget(x,y){ return targets.find(t=>{ const r=t.getBoundingClientRect(); return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom; }); }
+function resetTarget(t){
+  t.classList.remove('done');
+  const ic = t.id==='tgtVuecra'?'ti-world-bolt':'ti-bulb';
+  t.querySelector('i').className='ti '+ic;
+}
+ddChip.addEventListener('pointerdown', pointDown);
+// fallback teclado: clicar abre escolha simples
+ddChip.addEventListener('keydown',e=>{ if(e.key==='Enter'){ targets[0].classList.add('done'); targets[0].querySelector('i').className='ti ti-check'; showToast(targets[0].dataset.msg,'ti-send'); setTimeout(()=>resetTarget(targets[0]),2600); } });
+ddChip.tabIndex=0;
+
+/* ============ (d) SLIDE TO CONFIRM ============ */
+const slide = document.getElementById('slide');
+const knob = document.getElementById('slideKnob');
+const fill = document.getElementById('slideFill');
+let sld = null;
+const PAD = 4, KW = 46;
+function maxX(){ return slide.clientWidth - KW - PAD*2; }
+function slideDown(e){
+  if(slide.classList.contains('armed')) return;
+  sld = { sx:e.clientX, start:parseFloat(knob.style.left)||PAD };
+  knob.style.transition='none'; fill.style.transition='none';
+  document.addEventListener('pointermove', slideMove);
+  document.addEventListener('pointerup', slideUp);
+  e.preventDefault();
+}
+function setX(x){
+  x=Math.max(PAD, Math.min(PAD+maxX(), x));
+  knob.style.left=x+'px';
+  fill.style.width=(x+KW/2)+'px';
+  return x;
+}
+function slideMove(e){ if(!sld) return; setX(sld.start + (e.clientX-sld.sx)); }
+function slideUp(e){
+  document.removeEventListener('pointermove', slideMove);
+  document.removeEventListener('pointerup', slideUp);
+  if(!sld) return;
+  const x = parseFloat(knob.style.left)||PAD;
+  knob.style.transition=''; fill.style.transition='';
+  if(x >= PAD+maxX()-6){ armSlide(); } else { setX(PAD); fill.style.width='0'; }
+  sld=null;
+}
+function armSlide(){
+  slide.classList.add('armed');
+  setX(PAD+maxX()); fill.style.width='100%';
+  knob.querySelector('i').className='ti ti-check';
+  showToast('Mensagem disparada pro WhatsApp · Clínica Vida+', 'ti-send');
+  setTimeout(()=>{
+    slide.classList.remove('armed');
+    knob.querySelector('i').className='ti ti-chevron-right';
+    knob.style.transition=''; setX(PAD); fill.style.width='0';
+  }, 2800);
+}
+knob.addEventListener('pointerdown', slideDown);
+// fallback teclado/clique: Enter no knob arma
+knob.tabIndex=0;
+knob.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ')&&!slide.classList.contains('armed')){ e.preventDefault(); armSlide(); } });
+// init base (sempre visivel, sem depender de animacao)
+setX(PAD); fill.style.width='0';
+</script>
+</body>
+</html>

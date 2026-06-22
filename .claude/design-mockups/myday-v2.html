@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes 2.0 — Meu dia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="design-system-v2.css">
+<style>
+/* ---- pagina-especifico: fluxo do dia (tudo herda do design-system-v2) ---- */
+
+/* saudacao calma */
+.hero{padding:30px 4px 8px}
+.hero .hi{font-size:13px;color:var(--tx3);font-weight:400;letter-spacing:0}
+.hero h1{font-size:30px;font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-top:6px}
+.hero h1 .soft{color:var(--tx3);font-weight:400}
+.hero .sub{color:var(--tx2);font-size:14px;margin-top:11px;max-width:560px;line-height:1.5}
+.hero .sub b{color:var(--warm);font-weight:500}
+
+/* trilha vertical de passos */
+.flow{position:relative;margin-top:34px;padding-left:46px}
+/* linha guia da trilha */
+.flow::before{content:'';position:absolute;left:17px;top:14px;bottom:24px;width:1.5px;
+  background:linear-gradient(var(--accent-soft),var(--line) 14%,var(--line) 86%,transparent)}
+
+.step{position:relative;margin-bottom:16px}
+/* no da trilha */
+.step .node{position:absolute;left:-46px;top:2px;width:36px;height:36px;border-radius:11px;
+  display:grid;place-items:center;font-size:18px;color:var(--tx2);
+  background:var(--surface);border:0.5px solid var(--line-2);
+  box-shadow:var(--shadow-sm);transition:all .3s var(--ease);z-index:2}
+.step:hover .node{color:var(--tx);border-color:var(--line-2);transform:scale(1.04)}
+.step.now .node{color:var(--accent-2);border-color:transparent;
+  background:linear-gradient(145deg,var(--accent-soft),transparent);
+  box-shadow:0 0 22px -6px var(--accent)}
+.step .num{position:absolute;left:-46px;top:42px;width:36px;text-align:center;
+  font-size:10px;color:var(--tx4);font-weight:500;letter-spacing:.04em}
+
+/* cartao do passo */
+.panel{padding:17px 18px;cursor:pointer}
+.panel a,.panel button{cursor:pointer}
+/* passo fixado aberto (clique) — leve realce, igual .pinned da esteira */
+.step.open>.panel{border-color:var(--line-2);background:var(--surface-2)}
+.head{display:flex;align-items:flex-start;gap:13px}
+.head .t{flex:1;min-width:0}
+.head h2{font-size:16px;font-weight:550;letter-spacing:-0.02em;display:flex;align-items:center;gap:9px}
+.head .now-pill{font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--accent-2);background:var(--accent-soft);padding:3px 8px;border-radius:6px}
+.head .d{color:var(--tx3);font-size:13px;margin-top:4px;line-height:1.45;max-width:520px}
+.head .cta{flex-shrink:0}
+
+/* preview area de cada passo — progressive disclosure (lei 4).
+   Padrao: recolhido (tela limpa). Abre no hover, no clique (.open) ou
+   com foco de teclado. Reduced-motion-safe: grid-rows colapsa o LAYOUT,
+   nunca esconde conteudo por opacity/animacao; com motion off o toggle
+   ainda funciona (transicao instantanea) e o conteudo aparece no hover/foco.
+   O passo ativo (.now) e qualquer passo aberto ficam sempre visiveis. */
+.preview{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}
+.preview>.pin{overflow:hidden;min-height:0;margin-top:0}
+.step:hover .preview,
+.step:focus-within .preview,
+.step.now .preview,
+.step.open .preview{grid-template-rows:1fr}
+.step:hover .preview>.pin,
+.step:focus-within .preview>.pin,
+.step.now .preview>.pin,
+.step.open .preview>.pin{margin-top:15px}
+/* dica "passe o mouse" — some quando aberto */
+.hint{font-size:11.5px;color:var(--tx4);margin-top:9px;display:flex;align-items:center;gap:6px;transition:opacity .25s var(--ease)}
+.hint i{font-size:14px}
+.step:hover .hint,.step:focus-within .hint,.step.now .hint,.step.open .hint{opacity:0;height:0;margin:0;overflow:hidden}
+
+/* mini cards de oportunidade (passo 2) */
+.opps{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.opp-c{background:var(--bg-2);border:0.5px solid var(--line);border-radius:var(--r-sm);
+  padding:12px;transition:all .25s var(--ease);cursor:pointer;position:relative;overflow:hidden}
+.opp-c:hover{border-color:var(--line-2);background:var(--surface);transform:translateY(-2px);box-shadow:var(--shadow-sm)}
+.opp-c.hot{box-shadow:-1px 0 0 var(--warm) inset}
+.opp-c .oh{display:flex;align-items:center;gap:8px}
+.opp-c .ico{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;
+  font-size:16px;color:var(--tx2);background:radial-gradient(circle at 30% 25%,var(--surface-2),var(--bg-2));
+  border:0.5px solid var(--line-2)}
+.opp-c b{font-size:13px;font-weight:500;line-height:1.15;display:block}
+.opp-c .ni{font-size:11px;color:var(--tx3);margin-top:1px}
+.opp-c .gap{font-size:11px;color:var(--warm);margin-top:10px;display:flex;align-items:center;gap:5px}
+.opp-c .gap i{font-size:13px}
+.opp-c .sc{position:absolute;top:11px;right:12px;font-size:14px;font-weight:600;color:var(--warm);letter-spacing:-0.02em}
+.opp-c.cool .gap{color:var(--cool)} .opp-c.cool .sc{color:var(--cool)}
+
+/* mini mapa (passo 1) */
+.minimap{display:flex;gap:14px;align-items:center}
+.map-vis{position:relative;flex:1;height:118px;border-radius:var(--r-sm);overflow:hidden;
+  background:
+    radial-gradient(420px 200px at 30% 40%, var(--warm-soft), transparent 60%),
+    radial-gradient(360px 180px at 72% 64%, var(--cool-soft), transparent 60%),
+    linear-gradient(var(--bg-2),var(--bg-2));
+  border:0.5px solid var(--line)}
+/* malha sutil de ruas */
+.map-vis::before{content:'';position:absolute;inset:0;opacity:.5;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:26px 26px}
+.dot{position:absolute;width:8px;height:8px;border-radius:50%;transform:translate(-50%,-50%);z-index:2}
+.dot.w{background:var(--warm);box-shadow:0 0 9px var(--warm)}
+.dot.c{background:var(--cool)}
+.dot.g{background:var(--good)}
+@media(prefers-reduced-motion:no-preference){.dot.w{animation:ping 2.8s var(--ease) infinite}}
+@keyframes ping{0%{box-shadow:0 0 0 0 oklch(0.82 0.13 80 / .5)}70%{box-shadow:0 0 0 9px oklch(0.82 0.13 80 / 0)}100%{box-shadow:0 0 0 0 oklch(0.82 0.13 80 / 0)}}
+.map-legend{display:flex;flex-direction:column;gap:10px;width:172px;flex-shrink:0}
+.lg{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--tx2)}
+.lg .sw{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.lg .sw.w{background:var(--warm)} .lg .sw.c{background:var(--cool)} .lg .sw.g{background:var(--good)}
+.lg b{color:var(--tx);font-weight:550}
+
+/* analisar negocio: ring + dados (passo 3) */
+.dossier-mini{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.ring.big{--sz:74px}
+.ring.big b{font-size:18px}
+.dossier-mini .who{flex:1;min-width:150px}
+.dossier-mini .who b{font-size:15px;font-weight:550;display:block}
+.dossier-mini .who .s{font-size:12px;color:var(--tx3);margin-top:3px}
+.facts{display:flex;gap:24px;flex-wrap:wrap}
+.fact .k{font-size:10px;color:var(--tx4);text-transform:uppercase;letter-spacing:.07em;font-weight:500}
+.fact .v{font-size:16px;font-weight:600;letter-spacing:-0.02em;margin-top:3px}
+.fact .v.pot{color:var(--good)} .fact .v.warm{color:var(--warm)}
+
+/* concorrentes: barras lado a lado (passo 4) */
+.versus{display:flex;flex-direction:column;gap:11px}
+.vbar{display:flex;align-items:center;gap:12px}
+.vbar .nm{width:124px;flex-shrink:0;font-size:12.5px;color:var(--tx2);display:flex;align-items:center;gap:7px}
+.vbar .nm i{font-size:14px;color:var(--tx3)}
+.vbar.you .nm{color:var(--tx)}.vbar.you .nm i{color:var(--accent-2)}
+.vtrack{flex:1;height:9px;border-radius:5px;background:var(--bg-2);border:0.5px solid var(--line);overflow:hidden;position:relative}
+.vtrack i{display:block;height:100%;border-radius:5px;background:var(--cool)}
+.vbar.you .vtrack i{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+.vbar .pc{width:42px;text-align:right;font-size:13px;font-weight:600;letter-spacing:-0.02em;color:var(--tx2)}
+.vbar.you .pc{color:var(--accent-2)}
+.vnote{font-size:12px;color:var(--tx3);margin-top:13px;display:flex;align-items:center;gap:7px;line-height:1.4}
+.vnote i{color:var(--warm);font-size:15px;flex-shrink:0}
+
+/* relatorio: linhas-resumo (passo 5) */
+.report{display:flex;flex-direction:column;gap:9px}
+.rline{display:flex;align-items:center;gap:11px;font-size:13px;color:var(--tx2)}
+.rline .ic{width:26px;height:26px;border-radius:8px;background:var(--bg-2);border:0.5px solid var(--line);
+  display:grid;place-items:center;font-size:14px;color:var(--tx3);flex-shrink:0}
+.rline b{color:var(--tx);font-weight:550}
+.rline.good .ic{color:var(--good)} .rline.warm .ic{color:var(--warm)}
+
+/* oferta: o que vender (passo 6) */
+.offer{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.off-c{background:var(--bg-2);border:0.5px solid var(--line);border-radius:var(--r-sm);padding:13px;
+  transition:all .25s var(--ease)}
+.off-c:hover{border-color:var(--line-2);background:var(--surface);transform:translateY(-1px)}
+.off-c .oh{display:flex;align-items:center;gap:9px}
+.off-c .oh i{font-size:17px;color:var(--accent-2)}
+.off-c b{font-size:13.5px;font-weight:550}
+.off-c .pr{font-size:12px;color:var(--tx3);margin-top:8px;line-height:1.45}
+.off-c .px{font-size:13px;color:var(--good);font-weight:550;margin-top:9px}
+
+/* falar com cliente (passo 7) — fechamento */
+.contact{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.contact .ch{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 15px;border-radius:11px;
+  border:0.5px solid var(--line-2);background:transparent;color:var(--tx2);font-family:inherit;font-size:13px;
+  cursor:pointer;transition:all .2s var(--ease)}
+.contact .ch:hover{background:var(--surface);color:var(--tx);transform:translateY(-1px)}
+.contact .ch i{font-size:16px}
+.contact .ch.wa i{color:var(--good)}
+.contact .note{font-size:12px;color:var(--tx3);margin-left:auto}
+
+@media(max-width:760px){
+  .opps{grid-template-columns:1fr}
+  .offer{grid-template-columns:1fr}
+  .minimap{flex-direction:column;align-items:stretch}
+  .map-legend{width:auto;flex-direction:row;flex-wrap:wrap}
+  .head{flex-direction:column}
+  .head .cta{align-self:flex-start}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-windmill"></i></div>
+      <b>Meu dia</b><span class="dim">· Cuiabá / MT</span>
+    </div>
+    <nav class="nav">
+      <a href="cmd-v2.html">Painel</a>
+      <a href="map-v2.html">Mapa</a>
+      <a href="02b-esteira-v2.html">Esteira</a>
+      <a href="dossier-v2.html">Relatório</a>
+      <a href="competitors-v2.html">Concorrentes</a>
+      <a href="agent-v2.html">Agente</a>
+      <a href="myday-v2.html" class="on">Meu dia</a>
+    </nav>
+    <span class="spacer"></span>
+    <span class="pulse"><span class="d"></span>Motor 24/7 · +3 hoje</span>
+  </header>
+
+  <!-- saudacao -->
+  <section class="hero reveal">
+    <div class="hi" id="hi">Bom dia, Caio</div>
+    <h1>Seu dia em <span class="soft">7 passos calmos</span>.</h1>
+    <p class="sub">Enquanto você dormia, o motor achou <b>3 negócios quentes</b> em Cuiabá. Siga o fluxo de cima pra baixo — cada passo abre uma tela pronta pra agir.</p>
+  </section>
+
+  <!-- trilha -->
+  <div class="flow">
+
+    <!-- 1 · explorar territorio -->
+    <div class="step reveal" style="animation-delay:.04s">
+      <div class="node"><i class="ti ti-map-2"></i></div>
+      <div class="num">01</div>
+      <article class="card h panel">
+        <div class="head">
+          <div class="t">
+            <h2>Explorar o território</h2>
+            <p class="d">Veja num mapa onde tem dinheiro no chão: bairros com negócios sem presença digital e poucos concorrentes anunciando.</p>
+          </div>
+          <a class="act cta" href="map-v2.html" data-tip="Abre o mapa de Cuiabá com os bairros mais promissores"><i class="ti ti-map-2"></i>Abrir o mapa</a>
+        </div>
+        <div class="hint"><i class="ti ti-hand-finger"></i>Passe o mouse pra ver a prévia</div>
+        <div class="preview"><div class="pin">
+          <div class="minimap">
+            <div class="map-vis">
+              <span class="dot w" style="left:30%;top:38%"></span>
+              <span class="dot w" style="left:44%;top:58%"></span>
+              <span class="dot w" style="left:22%;top:64%"></span>
+              <span class="dot g" style="left:58%;top:32%"></span>
+              <span class="dot c" style="left:72%;top:62%"></span>
+              <span class="dot c" style="left:80%;top:44%"></span>
+              <span class="dot g" style="left:50%;top:78%"></span>
+            </div>
+            <div class="map-legend">
+              <div class="lg"><span class="sw w"></span><b>9 bairros</b> com brecha aberta</div>
+              <div class="lg"><span class="sw g"></span><b>5 zonas</b> de alto potencial</div>
+              <div class="lg"><span class="sw c"></span><b>3 áreas</b> já disputadas</div>
+            </div>
+          </div>
+        </div></div>
+      </article>
+    </div>
+
+    <!-- 2 · oportunidades em destaque -->
+    <div class="step now reveal" style="animation-delay:.09s">
+      <div class="node"><i class="ti ti-flame"></i></div>
+      <div class="num">02</div>
+      <article class="card h panel">
+        <div class="head">
+          <div class="t">
+            <h2>Oportunidades em destaque <span class="now-pill">Comece aqui</span></h2>
+            <p class="d">Os 3 negócios mais promissores que o motor separou hoje. Quanto maior a nota, mais dinheiro deixado na mesa.</p>
+          </div>
+          <a class="act cta primary" href="02b-esteira-v2.html" data-tip="Abre a esteira completa com os 47 negócios encontrados"><i class="ti ti-stack-2"></i>Ver a esteira</a>
+        </div>
+        <div class="preview"><div class="pin">
+          <div class="opps">
+            <div class="opp-c hot">
+              <span class="sc">91</span>
+              <div class="oh">
+                <div class="ico"><i class="ti ti-paw"></i></div>
+                <div><b>Clube dos Bichos</b><div class="ni">Pet shop · Jd. das Américas</div></div>
+              </div>
+              <div class="gap"><i class="ti ti-world-off"></i>Sem site, concorrente anuncia</div>
+            </div>
+            <div class="opp-c hot">
+              <span class="sc">88</span>
+              <div class="oh">
+                <div class="ico"><i class="ti ti-bread"></i></div>
+                <div><b>Padaria Trigo Dourado</b><div class="ni">Padaria · Goiabeiras</div></div>
+              </div>
+              <div class="gap"><i class="ti ti-speakerphone"></i>Nunca anunciou, muito movimento</div>
+            </div>
+            <div class="opp-c cool">
+              <span class="sc">84</span>
+              <div class="oh">
+                <div class="ico"><i class="ti ti-heartbeat"></i></div>
+                <div><b>Clínica Vida+</b><div class="ni">Saúde · Quilombo</div></div>
+              </div>
+              <div class="gap"><i class="ti ti-swords"></i>Concorrente forte, ticket alto</div>
+            </div>
+          </div>
+        </div></div>
+      </article>
+    </div>
+
+    <!-- 3 · analisar um negocio -->
+    <div class="step reveal" style="animation-delay:.14s">
+      <div class="node"><i class="ti ti-zoom-scan"></i></div>
+      <div class="num">03</div>
+      <article class="card h panel">
+        <div class="head">
+          <div class="t">
+            <h2>Analisar um negócio</h2>
+            <p class="d">Olhe a fundo o escolhido: quanto fatura hoje, quanto poderia faturar e onde está o vazamento.</p>
+          </div>
+          <a class="act cta" href="dossier-v2.html" data-tip="Abre o raio-x completo do Clube dos Bichos"><i class="ti ti-zoom-scan"></i>Ver raio-x</a>
+        </div>
+        <div class="hint"><i class="ti ti-hand-finger"></i>Passe o mouse pra ver a prévia</div>
+        <div class="preview"><div class="pin">
+          <div class="dossier-mini">
+            <div class="ring big" style="--val:91;--col:var(--warm)"><b>91</b></div>
+            <div class="who">
+              <b>Clube dos Bichos</b>
+              <div class="s">Pet shop · 7 anos de mercado · 312 avaliações no Google</div>
+            </div>
+            <div class="facts">
+              <div class="fact"><div class="k">Fatura hoje</div><div class="v" data-cnt="18" data-suf="k/mês">R$ 18k/mês</div></div>
+              <div class="fact"><div class="k">Poderia faturar</div><div class="v pot" data-cnt="56" data-suf="k/mês">R$ 56k/mês</div></div>
+              <div class="fact"><div class="k">Brecha principal</div><div class="v warm">Sem site</div></div>
+            </div>
+          </div>
+        </div></div>
+      </article>
+    </div>
+
+    <!-- 4 · ver concorrentes -->
+    <div class="step reveal" style="animation-delay:.19s">
+      <div class="node"><i class="ti ti-swords"></i></div>
+      <div class="num">04</div>
+      <article class="card h panel">
+        <div class="head">
+          <div class="t">
+            <h2>Ver os concorrentes</h2>
+            <p class="d">Quanto cada um domina o mercado da região — e por que o líder está na frente.</p>
+          </div>
+          <a class="act cta" href="competitors-v2.html" data-tip="Compara o negócio com quem domina o bairro e mostra a brecha"><i class="ti ti-swords"></i>Ver concorrentes</a>
+        </div>
+        <div class="hint"><i class="ti ti-hand-finger"></i>Passe o mouse pra ver a prévia</div>
+        <div class="preview"><div class="pin">
+          <div class="versus">
+            <div class="vbar">
+              <span class="nm"><i class="ti ti-crown"></i>Pet Center Líder</span>
+              <span class="vtrack"><i style="width:62%"></i></span>
+              <span class="pc">62%</span>
+            </div>
+            <div class="vbar">
+              <span class="nm"><i class="ti ti-building-store"></i>Mundo Animal</span>
+              <span class="vtrack"><i style="width:24%"></i></span>
+              <span class="pc">24%</span>
+            </div>
+            <div class="vbar you">
+              <span class="nm"><i class="ti ti-paw"></i>Clube dos Bichos</span>
+              <span class="vtrack"><i style="width:14%"></i></span>
+              <span class="pc">14%</span>
+            </div>
+          </div>
+          <div class="vnote"><i class="ti ti-bulb"></i>O líder ganha porque aparece no Google e anuncia. O Clube dos Bichos tem mais avaliações — falta só apresentar pra cidade.</div>
+        </div></div>
+      </article>
+    </div>
+
+    <!-- 5 · ler o relatorio -->
+    <div class="step reveal" style="animation-delay:.24s">
+      <div class="node"><i class="ti ti-file-text"></i></div>
+      <div class="num">05</div>
+      <article class="card h panel">
+        <div class="head">
+          <div class="t">
+            <h2>Ler o relatório de venda</h2>
+            <p class="d">O resumo pronto pra conversa: o problema, a oportunidade e o argumento que fecha.</p>
+          </div>
+          <a class="act cta" href="dossier-v2.html" data-tip="Abre o dossiê completo com faturamento, brechas e a proposta pronta"><i class="ti ti-file-text"></i>Abrir relatório</a>
+        </div>
+        <div class="hint"><i class="ti ti-hand-finger"></i>Passe o mouse pra ver a prévia</div>
+        <div class="preview"><div class="pin">
+          <div class="report">
+            <div class="rline warm"><span class="ic"><i class="ti ti-alert-triangle"></i></span>Problema: <b>não aparece no Google</b> e perde clientes pro concorrente todo dia.</div>
+            <div class="rline good"><span class="ic"><i class="ti ti-trending-up"></i></span>Oportunidade: <b>R$ 38k/mês</b> a mais com site + anúncios bem feitos.</div>
+            <div class="rline"><span class="ic"><i class="ti ti-quote"></i></span>Argumento: <b>“você tem 312 elogios e ninguém te acha online.”</b></div>
+          </div>
+        </div></div>
+      </article>
+    </div>
+
+    <!-- 6 · ver o que oferecer -->
+    <div class="step reveal" style="animation-delay:.29s">
+      <div class="node"><i class="ti ti-gift"></i></div>
+      <div class="num">06</div>
+      <article class="card h panel">
+        <div class="head">
+          <div class="t">
+            <h2>Ver o que oferecer</h2>
+            <p class="d">O pacote sugerido pra esse negócio, com preço de partida — pronto pra propor.</p>
+          </div>
+          <a class="act cta" href="agent-v2.html" data-tip="O agente monta o plano de marketing sob medida pra fechar"><i class="ti ti-sparkles"></i>Montar proposta</a>
+        </div>
+        <div class="hint"><i class="ti ti-hand-finger"></i>Passe o mouse pra ver a prévia</div>
+        <div class="preview"><div class="pin">
+          <div class="offer">
+            <div class="off-c">
+              <div class="oh"><i class="ti ti-world-bolt"></i><b>Site pronto pra vender</b></div>
+              <div class="pr">Página rápida, com WhatsApp e cardápio de serviços. Vuecra entrega em dias.</div>
+              <div class="px">a partir de R$ 1.500</div>
+            </div>
+            <div class="off-c">
+              <div class="oh"><i class="ti ti-brand-google"></i><b>Aparecer no Google</b></div>
+              <div class="pr">Ficha do negócio + anúncios nas buscas de “pet shop perto de mim”.</div>
+              <div class="px">a partir de R$ 900/mês</div>
+            </div>
+          </div>
+        </div></div>
+      </article>
+    </div>
+
+    <!-- 7 · falar com o cliente -->
+    <div class="step reveal" style="animation-delay:.34s">
+      <div class="node"><i class="ti ti-message-circle"></i></div>
+      <div class="num">07</div>
+      <article class="card h panel">
+        <div class="head">
+          <div class="t">
+            <h2>Falar com o cliente</h2>
+            <p class="d">Mensagem de abertura já escrita com o nome e o argumento. Escolha o canal e mande.</p>
+          </div>
+          <a class="act cta primary" href="agent-v2.html" data-tip="Abre a mensagem pronta pra revisar antes de enviar"><i class="ti ti-send"></i>Abrir mensagem</a>
+        </div>
+        <div class="hint"><i class="ti ti-hand-finger"></i>Passe o mouse pra ver os canais</div>
+        <div class="preview"><div class="pin">
+          <div class="contact">
+            <button class="ch wa" data-tip="Manda a mensagem de abertura pelo WhatsApp"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>
+            <button class="ch" data-tip="Manda a mensagem por e-mail"><i class="ti ti-mail"></i>E-mail</button>
+            <button class="ch" data-tip="Liga com o roteiro de abertura na tela"><i class="ti ti-phone"></i>Ligar</button>
+            <button class="ch" data-tip="Marca que você já falou com esse negócio" data-act="done"><i class="ti ti-circle-check"></i>Já falei</button>
+            <span class="note">3 negócios prontos pra falar hoje</span>
+          </div>
+        </div></div>
+      </article>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-check"></i><span></span></div>
+
+<script>
+// saudacao pela hora
+(function(){
+  const h=new Date().getHours();
+  const g=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';
+  document.getElementById('hi').textContent=g+', Caio';
+})();
+
+// toast leve
+const toast=document.getElementById('toast');
+function showToast(msg){toast.querySelector('span').textContent=msg;toast.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>toast.classList.remove('show'),2200);}
+
+document.querySelectorAll('.contact .ch').forEach(b=>b.addEventListener('click',e=>{
+  e.preventDefault();
+  const map={done:'Marcado como contatado'};
+  showToast(map[b.dataset.act]||('Abrindo '+b.textContent.trim()));
+}));
+
+// progressive disclosure: clicar no cartao fixa aberto (.open) — como o
+// .pinned da esteira. Cliques em links/botoes nao disparam (so o cartao).
+document.querySelectorAll('.flow .step').forEach(step=>{
+  const card=step.querySelector('.panel');
+  if(!card)return;
+  card.addEventListener('click',e=>{
+    if(e.target.closest('a,button'))return; // nao rouba o clique de uma acao
+    step.classList.toggle('open');
+    if(step.classList.contains('open'))countSteps(step);
+  });
+});
+
+// count-up SO como enhancement. Numeros JA estao no HTML (reduced-motion
+// e qualquer falha de JS = numero final visivel). Dispara ao revelar o passo.
+const RM=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const seen=new WeakSet();
+function countUp(el){
+  if(seen.has(el))return; seen.add(el);
+  if(RM)return; // sob reduced-motion mantem o valor ja renderizado
+  const to=+el.dataset.cnt, suf=el.dataset.suf; let s=null; const dur=750;
+  el.textContent='R$ 0'+suf;
+  function step(t){if(!s)s=t;const p=Math.min(1,(t-s)/dur);const e=1-Math.pow(1-p,3);el.textContent='R$ '+Math.round(to*e)+suf;if(p<1)requestAnimationFrame(step);}
+  requestAnimationFrame(step);
+}
+function countSteps(step){ step.querySelectorAll('[data-cnt]').forEach(countUp); }
+// hover revela -> conta uma vez (passo ativo conta de imediato)
+if(!RM){
+  document.querySelectorAll('.flow .step').forEach(step=>{
+    step.addEventListener('mouseenter',()=>countSteps(step));
+  });
+  const nowStep=document.querySelector('.flow .step.now');
+  if(nowStep)countSteps(nowStep);
+}
+</script>
+</body>
+</html>

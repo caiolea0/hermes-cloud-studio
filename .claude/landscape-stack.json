@@ -1,0 +1,103 @@
+{
+  "sealed": "2026-06-21",
+  "project": "Hermes 2.0 - lead-discovery + market-intelligence machine (gap-reverse-filter, Cuiaba/BR, $0 self-hosted, feeds Geronimo + Vuecra)",
+  "products": {
+    "sales_market_intel_global": [
+      {"name": "Apollo.io", "url": "https://www.apollo.io/product/prospect-and-enrich", "maturity": "market leader, all-in-one", "cost": "Free 100cr; $49-149/user/mo", "steal": "65+-attribute filterable lead table as home surface; scoring reorders work queue (not FIFO); waterfall enrich"},
+      {"name": "ZoomInfo", "url": "https://www.zoominfo.com/features/intent-data", "maturity": "enterprise incumbent", "cost": "~$15k-25k/yr opaque", "steal": "buyer-context panel (org chart + next-best-action); intent timeline; WebSights de-anon visitors"},
+      {"name": "Clay.com", "url": "https://www.clay.com/", "maturity": "$3.1B 2025, hot growth", "cost": "credit-per-action $149-800/mo", "steal": "table-as-canvas; waterfall provider cascade pay-on-success; Claygent agent; Find-Local-Businesses-via-Maps recipe w/ owner waterfall"},
+      {"name": "Lusha", "url": "https://www.lusha.com/", "maturity": "established mid-market", "cost": "Free; $49-79/mo", "steal": "ICP-match recommendations; gen-AI sequence drafting; confidence indicators; clean LI overlay"},
+      {"name": "Seamless.AI", "url": "https://seamless.ai/", "maturity": "established", "cost": "custom quote", "steal": "live verify-at-query-time (vs stale cache) verification badges"},
+      {"name": "Instantly.ai", "url": "https://instantly.ai/pricing", "maturity": "popular SMB/agency", "cost": "~$37.60-220/mo", "steal": "modular panel IA (outreach/leads/CRM separate) + inbox warmup deliverability-first"},
+      {"name": "Surfe", "url": "https://www.surfe.com/", "maturity": "established niche", "cost": "Free; $39-79/user/mo", "steal": "inline LinkedIn-to-CRM overlay; 15+ provider enrich cascade; job-change re-engage alerts"},
+      {"name": "BuiltWith", "url": "https://builtwith.com/", "maturity": "mature niche", "cost": "$144/yr lookup; $295/mo lists", "steal": "queryable technographic DB; INVERT it -> gap-reverse-filter"},
+      {"name": "Wappalyzer", "url": "https://www.wappalyzer.com/lead-generation/", "maturity": "mature", "cost": "from $250/mo", "steal": "tech-detection + geo/traffic narrowing; has-no-X as filterable column"},
+      {"name": "Google Maps scrapers (Scrap.io/Outscraper/Apify Compass)", "url": "https://scrap.io/", "maturity": "commodity", "cost": "cheap pay-per-extract", "steal": "local-prospecting field schema: name/address/phone/website-present/email/social/reviews/rating"}
+    ],
+    "agentic_ai_sdr_global": [
+      {"name": "Artisan AI (Ava)", "url": "https://marketbetter.ai/blog/artisan-ai-review-2026/", "maturity": "mature/GA", "cost": "$280-2k/mo annual-only", "steal": "AI-BDR persona + activity dashboard (digital-worker framing)"},
+      {"name": "11x (Alice + Julian)", "url": "https://getbreakout.ai/blog/11x-pricing-ai-sdr-cost-2026", "maturity": "mature/enterprise", "cost": "~$5k/mo, min $50-60k yr1", "steal": "digital-worker framing; 24/7 reply handling; voice add-on"},
+      {"name": "Relevance AI", "url": "https://relevanceai.com/pricing", "maturity": "mature/build-your-own", "cost": "Free 200 actions; to $349/mo", "steal": "exact-cost-no-markup credit model = self-hosted cost mental model; 400+ agent templates"},
+      {"name": "Clay (Claygent)", "url": "https://www.cleanlist.ai/blog/2026-03-19-clay-vs-apollo", "maturity": "mature/GA", "cost": "$149-800/mo", "steal": "waterfall + per-row AI research orchestration UX gold standard"}
+    ],
+    "br_market_intel": [
+      {"name": "Econodata", "url": "https://www.getapp.com/marketing-software/a/econodata/", "maturity": "mature BR", "cost": "quote-based", "steal": "BR firmographic segmentation over 24M+ cos"},
+      {"name": "Speedio", "url": "https://speedio.com.br/", "maturity": "mature BR", "cost": "R$300-2000/mo", "steal": "80+ filters CNAE/size/geo; active-number validation before send; decisor LI/email/WhatsApp/phone"},
+      {"name": "Driva", "url": "https://www.driva.io/", "maturity": "growing BR", "cost": "Free tier; tiered", "steal": "closest BR full-agentic analog; freemium TAM+ICP+AI multichannel"},
+      {"name": "Cortex Intelligence", "url": "https://www.cortex-intelligence.com/en/b2b-sales-intelligence", "maturity": "mature BR enterprise", "cost": "enterprise quote", "steal": "analyst-augmented LatAm data positioning"}
+    ],
+    "emerging_on_target": [
+      {"name": "Maps Scraper AI / Scrap.io / n8n Maps templates", "url": "https://n8n.io/workflows/6091-google-maps-lead-scraper-and-enrichment-with-ai-powered-personalized-outreach/", "maturity": "emerging/DIY", "cost": "cheap / free self-host", "steal": "find owner-operated locals absent from any DB (Hermes core target); scrape->enrich->validate->outreach lifecycle"},
+      {"name": "MyWebAudit (AI-visibility/digital-presence audit)", "url": "https://www.mywebaudit.com/blog/ai-visibility-audit-walkthrough", "maturity": "emerging", "cost": "agency SaaS tiers", "steal": "auto 0-100 score + gap report = sellable door-opener artifact = the gap-to-sell input"}
+    ]
+  },
+  "repos": {
+    "scrapers_data": [
+      {"name": "gosom/google-maps-scraper", "url": "https://github.com/gosom/google-maps-scraper", "maturity": "4.4k stars, very active v1.14 May 2026", "language": "Go", "cost": "Free OSS", "reuse": "PRIMARY discovery engine; ships Claude Code MCP skill + REST API + dedup LeadsDB; wrap behind gateway, feed Cuiaba category+geo, enable email-crawl"},
+      {"name": "rictom/cnpj-sqlite", "url": "https://github.com/rictom/cnpj-sqlite", "maturity": "active BR maintained", "language": "Python", "cost": "Free OSS", "reuse": "Receita Federal CNPJ -> local SQLite; JOIN gmaps -> official CNAE/address; zero ban risk"},
+      {"name": "fabioserpa/CNPJ-full", "url": "https://github.com/fabioserpa/CNPJ-full", "maturity": "popular BR", "language": "Python", "cost": "Free OSS", "reuse": "full CNPJ dataset + QSA partner graph; ICP filter city+CNAE"},
+      {"name": "turicas/socios-brasil", "url": "https://github.com/turicas/socios-brasil", "maturity": "established BR civic-tech", "language": "Python", "cost": "Free OSS", "reuse": "owner/partner name extraction for personalization w/o LI risk"},
+      {"name": "unclecode/crawl4ai", "url": "https://github.com/unclecode/crawl4ai", "maturity": "68k stars, top trending", "language": "Python", "cost": "Free Apache-2.0", "reuse": "website -> structured JSON via local Ollama; enrich gmaps URLs"},
+      {"name": "ScrapeGraphAI/Scrapegraph-ai", "url": "https://github.com/ScrapeGraphAI/Scrapegraph-ai", "maturity": "tens of k stars, active", "language": "Python", "cost": "Free OSS + LLM", "reuse": "prompt-defined extraction resilient to redesigns; local LLM"},
+      {"name": "firecrawl/firecrawl", "url": "https://github.com/firecrawl/firecrawl", "maturity": "110k stars YC", "language": "TypeScript", "cost": "OSS self-host free (skip hosted)", "reuse": "Map endpoint enumerates domain URLs; heavier than crawl4ai"},
+      {"name": "mocnik-science/osm-python-tools", "url": "https://github.com/mocnik-science/osm-python-tools", "maturity": "established", "language": "Python", "cost": "Free", "reuse": "Overpass/Nominatim POI discovery, no ban risk"},
+      {"name": "gboeing/osmnx", "url": "https://github.com/gboeing/osmnx", "maturity": "widely used", "language": "Python", "cost": "Free OSS", "reuse": "features_from_place('Cuiaba') -> POIs GeoDataFrame; dedup by coord vs gmaps"},
+      {"name": "faniAhmed/GoogleAdsTransparencyScraper", "url": "https://github.com/faniAhmed/GoogleAdsTransparencyScraper", "maturity": "niche working", "language": "Python", "cost": "Free OSS", "reuse": "intent signal: who buys Google Ads = warm"},
+      {"name": "skylarcheung/Facebook-Ad-Library-Scraper", "url": "https://github.com/skylarcheung/Facebook-Ad-Library-Scraper", "maturity": "small functional", "language": "Python", "cost": "Free OSS + Meta token", "reuse": "official Meta Ad Library API = active advertisers = high intent"},
+      {"name": "georgekhananaev/google-reviews-scraper-pro", "url": "https://github.com/georgekhananaev/google-reviews-scraper-pro", "maturity": "maintained 2026", "language": "Python", "cost": "Free OSS", "reuse": "mine complaints/low ratings -> outreach hooks; incremental feed"},
+      {"name": "irfanalidv/trustpilot_scraper", "url": "https://github.com/irfanalidv/trustpilot_scraper", "maturity": "small utility", "language": "Python", "cost": "Free OSS", "reuse": "cross-source reputation signal beyond Google"}
+    ],
+    "geo_dashboard_heatmap": [
+      {"name": "visgl/deck.gl", "url": "https://github.com/visgl/deck.gl", "maturity": "very mature Uber/OpenJS", "language": "TypeScript/WebGL", "cost": "Free MIT", "reuse": "coverage map engine; H3HexagonLayer found-density + swept-polygon layer for unexplored zones; GPU thousands+ pts"},
+      {"name": "visgl/react-map-gl", "url": "https://github.com/visgl/react-map-gl", "maturity": "mature", "language": "TypeScript/React", "cost": "Free MIT", "reuse": "React Map over MapLibre (no token) basemap under deck.gl"},
+      {"name": "keplergl/kepler.gl", "url": "https://github.com/keplergl/kepler.gl", "maturity": "very mature Uber", "language": "JS/React-Redux", "cost": "Free MIT", "reuse": "embeddable drop-in for fast coverage-map MVP then graduate to deck.gl"}
+    ],
+    "crm_pipeline_ui": [
+      {"name": "marmelab/atomic-crm", "url": "https://github.com/marmelab/atomic-crm", "maturity": "mature", "language": "TypeScript/React", "cost": "Free MIT", "reuse": "RECOMMENDED conveyor: Kanban found->audited->ready; shadcn + TanStack Query; Supabase backend; MIT safe to fork"},
+      {"name": "twentyhq/twenty", "url": "https://github.com/twentyhq/twenty", "maturity": "~50k stars YC S23", "language": "TypeScript", "cost": "Free AGPL-3.0 (copyleft)", "reuse": "table<->Kanban toggle + custom objects + workflows + GraphQL push; NOTE AGPL"},
+      {"name": "CodeRyderX/leadtracker", "url": "https://github.com/CodeRyderX/leadtracker", "maturity": "small/early", "language": "TypeScript", "cost": "Free OSS", "reuse": "copy dnd-kit drag pattern for column moves w/o CRM dep"},
+      {"name": "krayin/laravel-crm", "url": "https://github.com/krayin/laravel-crm", "maturity": "22k stars", "language": "PHP/Vue", "cost": "Free MIT", "reuse": "fallback only; stack mismatch lower priority"}
+    ],
+    "data_table_filter_ui": [
+      {"name": "openstatusHQ/data-table-filters", "url": "https://github.com/openstatusHQ/data-table-filters", "maturity": "active reference impl", "language": "TypeScript/Next.js", "cost": "Free MIT", "reuse": "near-exact match thousands-of-businesses + faceted filters; chips -> niche/size/missing-service; lift wholesale"},
+      {"name": "TanStack/table (+react-virtual)", "url": "https://github.com/tanstack/table", "maturity": "de-facto standard", "language": "TypeScript", "cost": "Free MIT", "reuse": "headless faceting = unique-value filter lists; virtual = 10k+ rows <100ms"}
+    ],
+    "mcps_agents_selfimprove": [
+      {"name": "firecrawl/firecrawl-mcp-server", "url": "https://github.com/firecrawl/firecrawl-mcp-server", "maturity": "very high ~130k parent", "cost": "self-host free / hosted paid", "reuse": "self-host scrape/crawl/extract MCP behind Hermes gateway"},
+      {"name": "exa-labs/exa-mcp-server", "url": "https://github.com/exa-labs/exa-mcp-server", "maturity": "high top-2 research MCP", "cost": "PAID - gate behind owner key", "reuse": "neural find-companies-like-X prospect expansion"},
+      {"name": "Inferensys/apollo-io-mcp", "url": "https://github.com/Inferensys/apollo-io-mcp", "maturity": "most complete Apollo MCP", "cost": "PAID - gate strictly", "reuse": "enrichment-only verified email/phone for gaps"},
+      {"name": "assafelovic/gpt-researcher", "url": "https://github.com/assafelovic/gpt-researcher", "maturity": "very high top DeepResearch scorer", "cost": "Free OSS + local Ollama", "reuse": "port planner/executor + pluggable retriever into account-research subsystem"},
+      {"name": "mayooear/ai-company-researcher", "url": "https://github.com/mayooear/ai-company-researcher", "maturity": "~206 stars ARCHIVED Mar 2026", "cost": "Free OSS", "reuse": "PATTERN ONLY: LangGraph routing + revision-count + HITL -> per-prospect research card"},
+      {"name": "Bricks / clay-alternative", "url": "https://github.com/topics/clay-alternative", "maturity": "emerging on-target", "cost": "Free fully local", "reuse": "local Clay-style waterfall enrichment CSV-in->enriched-out; best guardrail fit"},
+      {"name": "sentient-agi/EvoSkill", "url": "https://github.com/sentient-agi/EvoSkill", "maturity": "new multi-runtime", "cost": "Free OSS", "reuse": "failure-trajectory->skill synthesis feeds F.4 auto-skill-forge; validate via skill-forge-runner"},
+      {"name": "BerriAI/self-improving-agent", "url": "https://github.com/BerriAI/self-improving-agent", "maturity": "new minimal", "cost": "Free OSS", "reuse": "propose-diff->approve->draft-PR; targets claude-agent-sdk = owner-confirmation guardrail fit"},
+      {"name": "swarmclawai/swarmclaw", "url": "https://github.com/swarmclawai/swarmclaw", "maturity": "active", "cost": "Free self-hosted", "reuse": "cron-drift-repair pattern for daemon scheduler/watchdog"},
+      {"name": "punkpeye/awesome-mcp-servers", "url": "https://github.com/punkpeye/awesome-mcp-servers", "maturity": "canonical discovery feed", "cost": "Free", "reuse": "recurring scan source for hermes-mcp-survey (+ modelcontextprotocol/servers)"}
+    ]
+  },
+  "differentiation": [
+    "gap-reverse-filter as the product: filter for what businesses LACK (inverts BuiltWith/Wappalyzer); output = weakness + agentic service to sell",
+    "$0 zero-paid-API self-hosted vs credit-metered category ($15k-25k/yr to per-phone credits)",
+    "agentic closed loop discover->gap-audit->pitch->fulfill via Geronimo + Vuecra (competitors stop at data or outreach)",
+    "Cuiaba/BR-native: CNPJ/CNAE/QSA + Maps long-tail owner-operated locals + PT-BR + WhatsApp",
+    "owns channels end-to-end (LI stealth + email + WhatsApp on VM), no tool-stitching/per-seat fee",
+    "24/7 self-improving Brain (Brain.decide F.6 + F.4 auto-skill-forge w/ sandbox + golden-case gating)",
+    "unexplored-zones as first-class concept (swept-vs-unswept coverage feedback loop); computed stage gating not human-dragged"
+  ],
+  "shopping_list": {
+    "backend_reuse_wholesale": ["gosom/google-maps-scraper", "rictom/cnpj-sqlite", "fabioserpa/CNPJ-full", "turicas/socios-brasil", "unclecode/crawl4ai", "ad/review scrapers", "osmnx"],
+    "backend_port_as_pattern": ["eracle/OpenOutreach state machine", "assafelovic/gpt-researcher", "mayooear/ai-company-researcher (archived)", "EvoSkill", "BerriAI/self-improving-agent", "SwarmClaw cron-repair", "Autobot cron-as-message-bus"],
+    "ui_reuse_wholesale": ["openstatusHQ/data-table-filters", "TanStack/table + react-virtual", "deck.gl + react-map-gl + MapLibre", "kepler.gl (prototype)", "marmelab/atomic-crm Kanban", "leadtracker dnd-kit pattern"],
+    "ui_patterns_from_products": ["dense filterable table as home", "waterfall enrich cascade viz", "per-cell confidence badges", "score-reordered work-next queue", "signal timeline -> daemon.* WS", "inline enrich overlay", "digital-worker persona + activity dashboard", "auto gap-audit artifact", "saved-search auto-refresh", "modular IA Prospects|Sequences|Replies|Deals"],
+    "proprietary_keep_ours": ["LinkedIn stealth stack (stealth/human/limiter/cooldown Patchright)", "Brain decision+safety+golden-case harness", "gap-reverse-filter scoring", "unexplored-zones coverage feedback loop", "Geronimo+Vuecra fulfillment handoff", "BR-local ICP scoring + PT-BR messaging", "MCP gateway + daemon + 3-scope agentmemory"]
+  },
+  "open_questions": [
+    "Conveyor license: Twenty (AGPL, richer) vs Atomic CRM (MIT, recommended). Confirm Atomic?",
+    "Any owner-keyed paid MCP exceptions (Apollo/Hunter/Exa) for verified email/phone gaps, or strictly $0?",
+    "Gap-audit scope: include AI-visibility (ChatGPT/Claude/Perplexity) like MyWebAudit, or classic signals only?",
+    "Discovery priority: lead CNPJ+OSM (zero ban) and use gmaps only for gaps, or gmaps primary (anti-bot risk on VM)?",
+    "Digital-worker persona name/framing for dashboard?",
+    "Confirm MapLibre (no token) over Mapbox?",
+    "Conveyor backend: Supabase (Atomic default) or reuse existing Hermes prospects DB?"
+  ]
+}

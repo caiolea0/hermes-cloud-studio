@@ -1,0 +1,129 @@
+{
+  "_meta": {
+    "build": "Hermes 2.0 Build #1 — Diagnosis Engine",
+    "sealed": "2026-06-21",
+    "metric": "number of businesses with a ready, owner-approved sales dossier",
+    "scope_locked": "6 dimensions A-F; anti-mock [FACT]/[EST], never guessed point numbers; revenue = ranges with visible premises; $0-first self-hosted Contabo; deep on 1-2 Cuiaba niches first; owner approves via reused Brain HITL gate; feeds Geronimo + Vuecra",
+    "poc_business": "Clube dos Bichos (veterinaria + pet shop, Cuiaba-MT)"
+  },
+  "ground_truth_corrections": [
+    "MCP servers are TypeScript/Node (src/, package.json, tsconfig.json) — template mcps/hermes-control/. NOT Python.",
+    "core/web_audit.py does not exist — audit logic in core/pipeline.py (audit_pending) + api/audit.py which proxies to VM. Heavy fetch/scrape = VM-only; PC orchestrates+stores (BLACKLIST R2).",
+    "INTENT_REGISTRY locked at exactly 6 (D3) — cobaia uses separate registry via startswith fast-path. Diagnosis follows same separate-registry pattern, NOT mutating the 6.",
+    "Daemon uses integer priority on Task dataclass + TaskCategory enum; AUDIT=5. No literal P0-P7 method slots.",
+    "brain/safety.py confidence threshold is 0.5 not 0.75 — don't change global; add dossier-specific 0.75."
+  ],
+  "global_gates_every_phase": {
+    "blacklist_r2": "no direct import of linkedin/* or scraper modules; all scraping via mcp.diagnosis.* -> gateway dispatch; scrape/browser VM-only",
+    "pytest_green": "phase tests + existing suite, no regression in tests/test_brain_golden.py",
+    "zero_cost": "no paid API key in .env for that phase; all sources free",
+    "anti_mock_proof": "every acceptance test runs against Clube dos Bichos and asserts every number carries [FACT] or [EST], never a bare point number"
+  },
+  "phases": [
+    {
+      "id": "H2D-F0", "name": "Foundation: schema + tagger + separate intent registry",
+      "goal": "durable substrate before any dimension; the spine, no data yet",
+      "scope": "cross-cutting",
+      "build": ["core/state.py init_db idempotent migration (prospects dossier_* cols + dossier_runs table)", "core/dossier_tagger.py (DossierTagger.tag_metric, FACT/EST/NEEDS-TOOL/NO-DATA, confidence rollup, anti-mock invariant raises on untagged bare number)", "brain/diagnosis_intent.py DIAGNOSIS_INTENT_REGISTRY + startswith hook in brain/decide.py"],
+      "effort": "S (8-12h)", "model": "Sonnet",
+      "reuse": ["state.py migration pattern", "cobaia separate-registry pattern", "observability log_activity"],
+      "acceptance": "init_db() twice = no error; tag_metric(4371, ig_raw_html, 1.0)->FACT; tag_metric('~R$150', benchmark, 0.5)->EST; tagger raises on untagged bare number; insert+read a real Clube dos Bichos row",
+      "gates": ["pytest tagger + full suite green", "$0", "golden brain cases unchanged"]
+    },
+    {
+      "id": "H2D-F1", "name": "Diagnosis MCP skeleton + gateway wiring",
+      "goal": "TS MCP exposing 6 tool stubs, registered in gateway, dispatchable by Brain — prove the pipe end-to-end",
+      "scope": "all 6 (typed stubs returning [NEEDS-TOOL])",
+      "build": ["mcps/diagnosis-engine/ (TS, copy hermes-control scaffold): presence_audit, seo_audit, competitor_analysis, keyword_research, organic_strategy, revenue_projection", "register in gateway dispatcher + DIAGNOSIS_INTENT_REGISTRY.default_tools", "_decide_diagnosis() -> dispatch 6 tools parallel max_latency 60s"],
+      "effort": "M (12-16h)", "model": "Sonnet",
+      "reuse": ["mcps/hermes-control scaffold", "gateway dispatch", "brain/_react.py ReAct loop"],
+      "acceptance": "decide(intent=audit_diagnosis, {Clube dos Bichos, veterinaria, Cuiaba}) returns 6 keys each [NEEDS-TOOL] (honest, not fake); brain_runs row persisted",
+      "gates": ["BLACKLIST R2 grep zero direct scraper imports", "pytest green", "$0"]
+    },
+    {
+      "id": "H2D-F2", "name": "Dimension A — Presence/social/ads/pixel",
+      "goal": "real presence audit",
+      "scope": "A",
+      "build": ["core/diagnosis/presence.py", "httpx+regex pixel/GTM/social via VM api/audit proxy", "VM-Playwright follower counts + ad-library status"],
+      "effort": "M (12-16h)", "model": "Sonnet",
+      "reuse": ["api/audit.py VM proxy", "httpx+regex audit path"],
+      "acceptance": "reproduces POC: 2 IG accounts + counts FACT, GTM ids FACT, Meta Pixel ABSENT FACT, ad libraries NEEDS-TOOL, creatives NO-DATA",
+      "gates": ["scrape VM-only", "pytest green", "$0"]
+    },
+    {
+      "id": "H2D-F3", "name": "Dimension B — SEO/Google position",
+      "goal": "on-page + schema + SERP position audit",
+      "scope": "B",
+      "build": ["core/diagnosis/seo.py", "httpx+regex title/meta/canonical/schema/sitemap", "VM SERP scrape for position"],
+      "effort": "M", "model": "Sonnet",
+      "reuse": ["api/audit.py VM proxy"],
+      "acceptance": "reproduces POC: title/canonical/Rank Math FACT, schema-gap detection FACT, #1-2 local rank FACT, CWV NEEDS-TOOL",
+      "gates": ["scrape VM-only", "pytest green", "$0"]
+    },
+    {
+      "id": "H2D-F4", "name": "Dimension C — Competitive + Places free-tier rating",
+      "goal": "3 rivals + exact Google rating",
+      "scope": "C",
+      "build": ["core/diagnosis/competitive.py runs A+B on 3 rivals", "wire Google Places free-tier API for exact ratings (reuse prospects google_rating/google_reviews + source=google_maps path)"],
+      "effort": "M-L (16-20h)", "model": "Sonnet",
+      "reuse": ["dim A+B modules", "existing Maps discovery path"],
+      "acceptance": "Vivet ~17K / HVCM ~10K IG FACT; target+rival Google rating now FACT via Places (was NEEDS-TOOL); standing EST synth",
+      "gates": ["Places free tier only (owner decision D2)", "scrape VM-only", "pytest green"]
+    },
+    {
+      "id": "H2D-F5", "name": "Dimension D — Keywords + AdWords competition",
+      "goal": "clusters + ranks + EST volume",
+      "scope": "D",
+      "build": ["core/diagnosis/keyword.py", "Ollama (hermes-llm) keyword cluster generation", "SERP scrape for currently-ranks", "volume/CPC as EST ranges (v1); Keyword-Planner-via-Playwright test next (v1.5)"],
+      "effort": "M", "model": "Sonnet",
+      "reuse": ["hermes-llm MCP", "VM SERP scrape"],
+      "acceptance": "Clube ranks '24h' FACT, INVISIBLE on banho-e-tosa FACT; volume EST ranges w/ premise; own prices NO-DATA",
+      "gates": ["$0 (no DataForSEO key)", "scrape VM-only", "pytest green"]
+    },
+    {
+      "id": "H2D-F6", "name": "Dimensions E+F — Strategy + Revenue projection",
+      "goal": "LLM strategy synthesis + ranged revenue projection",
+      "scope": "E, F",
+      "build": ["core/diagnosis/strategy.py (Ollama synthesis of A-D, all EST)", "core/diagnosis/revenue.py (Demand x Capture x Conversion x Ticket; ranges; business OWN prices if published else NO-DATA)"],
+      "effort": "M", "model": "Sonnet",
+      "reuse": ["hermes-llm MCP", "dossier_tagger anti-mock invariant"],
+      "acceptance": "strategy all EST; revenue 3 scenarios w/ visible premises; tagger BLOCKS any point-R$ FACT without verifiable source",
+      "gates": ["anti-mock invariant enforced", "pytest green", "$0"]
+    },
+    {
+      "id": "H2D-F7", "name": "HITL review gate + Dashboard 6-pane viewer",
+      "goal": "owner approval + dossier UI",
+      "scope": "cross-cutting",
+      "build": ["brain/safety.py dossier_requires_review(confidence, fact_ratio) @0.75 (don't touch global 0.5)", "api/dossiers.py GET/{id} + POST/{id}/approve + POST/{id}/reject", "dashboard 6-pane page, tag color-coding FACT=blue EST=amber NEEDS-TOOL=grey NO-DATA=red, approve button (reuse existing modal)"],
+      "effort": "M-L", "model": "Sonnet",
+      "reuse": ["brain/safety.py gate mechanism", "brain/persistence.py brain_runs", "existing dashboard modals"],
+      "acceptance": "Clube dossier confidence<0.75 -> needs_review; approve sets dossier_approved_at + locks from auto-re-audit; tags color-coded",
+      "gates": ["HITL reused not rebuilt", "pytest green", "golden brain cases unchanged"]
+    },
+    {
+      "id": "H2D-F8", "name": "Geronimo/Vuecra downstream feeds",
+      "goal": "export approved dossiers downstream",
+      "scope": "cross-cutting",
+      "build": ["api/dossier_export.py GET /export/geronimo/{id} (sales dossier JSON, tags preserved) + GET /export/vuecra/{id} (site-brief payload)", "POST webhooks (GERONIMO_WEBHOOK_URL, VUECRA_WEBHOOK_URL) fired ONLY on dossier_approved_at transition"],
+      "effort": "S-M", "model": "Sonnet",
+      "reuse": ["dossier_runs payload", "approval gate transition"],
+      "acceptance": "on approval, export endpoints emit tagged JSON; webhook fires only on dossier_approved_at transition (owner decision D5)",
+      "gates": ["downstream fires post-approval only", "$0", "pytest green"]
+    }
+  ],
+  "build_order": ["H2D-F0", "H2D-F1", "H2D-F2", "H2D-F3", "H2D-F4", "H2D-F5", "H2D-F6", "H2D-F7", "H2D-F8"],
+  "open_owner_decisions": [
+    {"id": "D1", "q": "Keyword volume tier: ship [EST] only (v1) vs invest VM time in Keyword-Planner-via-Playwright (v1.5) now?", "rec": "ship EST, add Planner next sprint, DataForSEO only if revenue justifies"},
+    {"id": "D2", "q": "Enable Google Places free tier (kills #1 POC gap)? Free but needs Google Cloud project + key", "rec": "yes — highest value lowest cost"},
+    {"id": "D3", "q": "HITL strictness: auto-approve at confidence>=0.75 & fact_ratio>=0.75 vs review every dossier in Build #1?", "rec": "review every one during POC niche, then relax"},
+    {"id": "D4", "q": "Lock veterinaria+pet shop as the only Build #1 niche vs add a 2nd before done?", "rec": "lock 1 niche deep first"},
+    {"id": "D5", "q": "Fire Geronimo/Vuecra webhooks auto on approval vs keep export manual for Build #1?", "rec": "manual export for Build #1, auto webhook later"}
+  ],
+  "risks": [
+    "VM scraping fragility (ad libraries + Keyword Planner JS-walled/anti-bot) — tag NEEDS-TOOL, degrade gracefully, never block a dossier on a scrape",
+    "Region skew in SERP (POC was US-region) — relative ordering reliable, exact positions need Search Console",
+    "Ticket honesty — when business hides prices, ticket is EST until sales call; dossier shows the premise",
+    "Confidence 0.75 threshold is a guess — watch first ~20 real dossiers and tune",
+    "Places free-tier quota finite — batch + cache ratings, don't re-pull per re-audit"
+  ]
+}

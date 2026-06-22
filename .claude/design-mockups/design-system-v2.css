@@ -1,0 +1,153 @@
+/* Hermes Cloud Studio 2.0 — Design System v2 (Minimalismo Robusto)
+   Fonte da verdade do idioma visual. Aprovado pela esteira (02b-esteira-v2).
+   LEIS: tela limpa por padrao; cor escassa e harmonica; zero jargao;
+   progressive disclosure (hover/click revela); conteudo SEMPRE visivel
+   (animacao so como enhancement sob no-preference). */
+
+:root{
+  --bg:oklch(0.155 0.008 265);
+  --bg-2:oklch(0.135 0.007 265);
+  --surface:oklch(0.198 0.010 265);
+  --surface-2:oklch(0.238 0.012 265);
+  --line:oklch(1 0 0 / 0.055);
+  --line-2:oklch(1 0 0 / 0.10);
+  --tx:oklch(0.97 0.004 265);
+  --tx2:oklch(0.73 0.008 265);
+  --tx3:oklch(0.55 0.009 265);
+  --tx4:oklch(0.44 0.009 265);
+  --accent:oklch(0.67 0.16 290);
+  --accent-2:oklch(0.74 0.15 292);
+  --accent-soft:oklch(0.67 0.16 290 / 0.13);
+  --warm:oklch(0.82 0.13 80);          /* oportunidade / dinheiro no chao — usar com parcimonia */
+  --warm-soft:oklch(0.82 0.13 80 / 0.12);
+  --good:oklch(0.78 0.12 165);         /* potencial / positivo */
+  --good-soft:oklch(0.78 0.12 165 / 0.14);
+  --cool:oklch(0.66 0.11 240);         /* consolidado / ja tomado */
+  --cool-soft:oklch(0.66 0.11 240 / 0.13);
+  --danger:oklch(0.66 0.17 25);
+  --ease:cubic-bezier(0.16,1,0.3,1);
+  --ease-2:cubic-bezier(0.34,1.56,0.64,1);
+  --r:16px; --r-sm:10px; --r-lg:20px;
+  --shadow:0 1px 0 oklch(1 0 0 / 0.04) inset, 0 18px 50px -24px oklch(0 0 0 / 0.75);
+  --shadow-sm:0 8px 24px -14px oklch(0 0 0 / 0.7);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px}
+body{
+  background:
+    radial-gradient(1100px 520px at 88% -12%, oklch(0.67 0.16 290 / 0.07), transparent 58%),
+    radial-gradient(900px 500px at 0% 8%, oklch(0.82 0.13 80 / 0.022), transparent 55%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--tx);
+  font-family:'Geist',system-ui,sans-serif;
+  font-feature-settings:"tnum" 1,"cv01" 1,"ss01" 1;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  letter-spacing:-0.011em;
+}
+.wrap{max-width:980px;margin:0 auto;padding:0 24px 100px}
+.wrap.wide{max-width:1180px}
+
+/* ---- top bar ---- */
+.top{display:flex;align-items:center;gap:14px;padding:26px 0 20px;position:sticky;top:0;background:linear-gradient(var(--bg) 62%,transparent);z-index:30;backdrop-filter:blur(2px)}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.logo{width:32px;height:32px;border-radius:10px;background:linear-gradient(145deg,var(--accent-soft),transparent);color:var(--accent-2);display:grid;place-items:center;font-size:18px;border:0.5px solid var(--line-2);box-shadow:0 0 18px -6px var(--accent)}
+.brand b{font-weight:600;font-size:15.5px}
+.brand .dim{color:var(--tx3);font-size:13px;font-weight:400}
+.spacer{flex:1}
+.pulse{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--tx3)}
+.pulse .d{width:6px;height:6px;border-radius:50%;background:var(--good)}
+@media(prefers-reduced-motion:no-preference){.pulse .d{animation:beat 2.4s var(--ease) infinite}}
+@keyframes beat{0%{box-shadow:0 0 0 0 oklch(0.78 0.12 165 / .5)}70%{box-shadow:0 0 0 7px oklch(0.78 0.12 165 / 0)}100%{box-shadow:0 0 0 0 oklch(0.78 0.12 165 / 0)}}
+
+/* segmented nav (substitui tabs com cara de site) */
+.nav{display:flex;gap:2px;background:var(--surface);border:0.5px solid var(--line);border-radius:11px;padding:3px}
+.nav a{padding:7px 14px;border-radius:8px;font-size:13px;color:var(--tx3);text-decoration:none;transition:all .2s var(--ease)}
+.nav a:hover{color:var(--tx2)}
+.nav a.on{background:var(--accent-soft);color:var(--tx);box-shadow:0 0 0 0.5px var(--accent) inset}
+
+.search{display:flex;align-items:center;gap:9px;background:var(--surface);border:0.5px solid var(--line);border-radius:11px;padding:0 12px;height:38px;width:230px;transition:border-color .25s,box-shadow .25s,width .3s var(--ease)}
+.search:focus-within{border-color:var(--accent);width:276px;box-shadow:0 0 0 4px var(--accent-soft)}
+.search i{color:var(--tx3);font-size:16px}
+.search input{background:none;border:0;outline:0;color:var(--tx);font-family:inherit;font-size:13.5px;width:100%}
+.search input::placeholder{color:var(--tx4)}
+
+/* ---- glance metrics (discreto, nao card grande) ---- */
+.glance{display:flex;gap:34px;padding:8px 4px 22px;border-bottom:0.5px solid var(--line);flex-wrap:wrap}
+.glance .m{display:flex;flex-direction:column;gap:2px}
+.glance .n{font-size:23px;font-weight:600;letter-spacing:-0.025em;line-height:1}
+.glance .l{font-size:11.5px;color:var(--tx3);font-weight:400}
+.n.warm{color:var(--warm)} .n.acc{color:var(--accent-2)} .n.good{color:var(--good)} .n.cool{color:var(--cool)}
+
+/* ---- chips / filtros ---- */
+.filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:20px 0 10px}
+.fgroup{display:flex;align-items:center;gap:6px}
+.flabel{font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.09em;margin-right:3px;font-weight:500}
+.chip{display:inline-flex;align-items:center;gap:6px;height:31px;padding:0 13px;border-radius:999px;border:0.5px solid var(--line-2);background:transparent;color:var(--tx2);font-family:inherit;font-size:12.5px;cursor:pointer;transition:all .2s var(--ease);white-space:nowrap}
+.chip:hover{background:var(--surface);color:var(--tx);transform:translateY(-1px)}
+.chip:active{transform:translateY(0)}
+.chip i{font-size:14px;opacity:.85}
+.chip.on{background:var(--accent-soft);border-color:transparent;color:var(--tx);box-shadow:0 0 0 0.5px var(--accent) inset}
+.chip.miss.on{background:var(--warm-soft);color:var(--warm);box-shadow:0 0 0 0.5px var(--warm) inset}
+.sep{width:0.5px;height:20px;background:var(--line-2);margin:0 5px}
+
+/* ---- card / surface ---- */
+.card{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r);transition:border-color .3s var(--ease),background .3s var(--ease),transform .3s var(--ease),box-shadow .35s var(--ease)}
+.card.h:hover{border-color:var(--line-2);background:var(--surface-2);box-shadow:var(--shadow);transform:translateY(-1px)}
+.card.hot{box-shadow:0 0 0 0.5px var(--warm-soft), -1px 0 0 var(--warm) inset}
+.card.pinned{border-color:var(--accent);background:var(--surface-2);box-shadow:var(--shadow),0 0 0 1px var(--accent-soft)}
+
+/* ---- actions ---- */
+.act{display:inline-flex;align-items:center;gap:7px;height:35px;padding:0 13px;border-radius:10px;border:0.5px solid var(--line-2);background:transparent;color:var(--tx2);font-family:inherit;font-size:12.5px;cursor:pointer;transition:all .18s var(--ease);position:relative}
+.act:hover{background:var(--surface);color:var(--tx);transform:translateY(-1px)}
+.act:active{transform:translateY(0)}
+.act i{font-size:15px}
+.act.primary{background:linear-gradient(180deg,var(--accent-2),var(--accent));border-color:transparent;color:white;box-shadow:0 6px 18px -8px var(--accent)}
+.act.primary:hover{filter:brightness(1.08);box-shadow:0 8px 22px -8px var(--accent)}
+.act.icon{width:35px;padding:0;justify-content:center;color:var(--tx3)}
+/* tooltip: explica o que a acao faz, em PT de operador */
+.act[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);background:var(--surface-2);color:var(--tx);border:0.5px solid var(--line-2);padding:8px 11px;border-radius:9px;font-size:11.5px;white-space:nowrap;box-shadow:0 12px 30px -10px oklch(0 0 0 /.8);z-index:40;pointer-events:none;font-weight:400;letter-spacing:0}
+
+/* ---- tags / pills ---- */
+.tag{font-size:11.5px;color:var(--tx2);background:var(--bg-2);border:0.5px solid var(--line);padding:5px 10px;border-radius:8px}
+.tag.warm{color:var(--warm);border-color:var(--warm-soft);background:var(--warm-soft)}
+.tag.good{color:var(--good);border-color:var(--good-soft);background:var(--good-soft)}
+.tag.cool{color:var(--cool);border-color:var(--cool-soft);background:var(--cool-soft)}
+.label-k{font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.07em;font-weight:500}
+
+/* ---- conic ring gauge (CSS puro) — use --val (0..100) e --col ---- */
+.ring{--val:0;--col:var(--tx2);position:relative;width:var(--sz,46px);height:var(--sz,46px);border-radius:50%;
+  background:conic-gradient(var(--col) calc(var(--val)*1%), var(--line-2) 0)}
+.ring::after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--surface)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;font-weight:600;z-index:1;letter-spacing:-0.02em}
+
+/* ---- toast ---- */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface-2);border:0.5px solid var(--line-2);color:var(--tx);padding:13px 19px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:10px;opacity:0;transition:all .35s var(--ease);box-shadow:0 20px 50px -14px oklch(0 0 0 /.8);z-index:50;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast i{color:var(--accent-2);font-size:17px}
+
+/* ---- progressive disclosure: detail que abre (grid-rows 0fr->1fr) ---- */
+.disc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}
+.disc-open,.h:hover .disc,.pinned .disc{grid-template-rows:1fr}
+.disc>.in{overflow:hidden;min-height:0}
+
+/* ============ REDUCED-MOTION SAFETY (LEI) ============
+   Conteudo essencial SEMPRE visivel. opacity:0 + animacao de entrada
+   SO sob no-preference. .reveal e o util seguro de entrada. */
+.reveal{} /* base: visivel */
+@media(prefers-reduced-motion:no-preference){
+  .reveal{opacity:0;transform:translateY(10px);animation:riseIn .55s var(--ease) forwards}
+}
+@keyframes riseIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.001ms!important}}
+
+/* utils */
+.row{display:flex;align-items:center;gap:12px}
+.col{display:flex;flex-direction:column}
+.grow{flex:1;min-width:0}
+.muted{color:var(--tx3)} .muted2{color:var(--tx4)}
+.divider{height:0.5px;background:var(--line);border:0;margin:0}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px;border:3px solid transparent;background-clip:content-box}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}

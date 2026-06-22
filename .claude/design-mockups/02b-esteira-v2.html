@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes 2.0 — Esteira</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>
+:root{
+  --bg:oklch(0.155 0.008 265);
+  --bg-2:oklch(0.135 0.007 265);
+  --surface:oklch(0.198 0.010 265);
+  --surface-2:oklch(0.238 0.012 265);
+  --line:oklch(1 0 0 / 0.055);
+  --line-2:oklch(1 0 0 / 0.10);
+  --tx:oklch(0.97 0.004 265);
+  --tx2:oklch(0.73 0.008 265);
+  --tx3:oklch(0.55 0.009 265);
+  --tx4:oklch(0.44 0.009 265);
+  --accent:oklch(0.67 0.16 290);
+  --accent-2:oklch(0.74 0.15 292);
+  --accent-soft:oklch(0.67 0.16 290 / 0.13);
+  --warm:oklch(0.82 0.13 80);
+  --warm-soft:oklch(0.82 0.13 80 / 0.12);
+  --good:oklch(0.78 0.12 165);
+  --good-soft:oklch(0.78 0.12 165 / 0.14);
+  --ease:cubic-bezier(0.16,1,0.3,1);
+  --ease-2:cubic-bezier(0.34,1.56,0.64,1);
+  --r:16px;
+  --shadow:0 1px 0 oklch(1 0 0 / 0.04) inset, 0 18px 50px -24px oklch(0 0 0 / 0.75);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px}
+body{
+  background:
+    radial-gradient(1100px 520px at 88% -12%, oklch(0.67 0.16 290 / 0.07), transparent 58%),
+    radial-gradient(900px 500px at 0% 8%, oklch(0.82 0.13 80 / 0.025), transparent 55%),
+    var(--bg);
+  color:var(--tx);
+  font-family:'Geist',system-ui,sans-serif;
+  font-feature-settings:"tnum" 1,"cv01" 1,"ss01" 1;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  letter-spacing:-0.011em;
+}
+.wrap{max-width:940px;margin:0 auto;padding:0 24px 100px}
+
+.top{display:flex;align-items:center;gap:14px;padding:26px 0 20px;position:sticky;top:0;background:linear-gradient(var(--bg) 62%,transparent);z-index:30;backdrop-filter:blur(2px)}
+.brand{display:flex;align-items:center;gap:11px;flex:1;min-width:0}
+.logo{width:32px;height:32px;border-radius:10px;background:linear-gradient(145deg,var(--accent-soft),transparent);color:var(--accent-2);display:grid;place-items:center;font-size:18px;border:0.5px solid var(--line-2);box-shadow:0 0 18px -6px var(--accent)}
+.brand b{font-weight:600;font-size:15.5px}
+.brand .dim{color:var(--tx3);font-size:13px;font-weight:400}
+.pulse{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--tx3);margin-right:4px}
+.pulse .d{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 0 0 var(--good);animation:beat 2.4s var(--ease) infinite}
+@keyframes beat{0%{box-shadow:0 0 0 0 oklch(0.78 0.12 165 / .5)}70%{box-shadow:0 0 0 7px oklch(0.78 0.12 165 / 0)}100%{box-shadow:0 0 0 0 oklch(0.78 0.12 165 / 0)}}
+.search{display:flex;align-items:center;gap:9px;background:var(--surface);border:0.5px solid var(--line);border-radius:11px;padding:0 12px;height:38px;width:240px;transition:border-color .25s,box-shadow .25s,width .3s var(--ease)}
+.search:focus-within{border-color:var(--accent);width:286px;box-shadow:0 0 0 4px var(--accent-soft)}
+.search i{color:var(--tx3);font-size:16px}
+.search input{background:none;border:0;outline:0;color:var(--tx);font-family:inherit;font-size:13.5px;width:100%}
+.search input::placeholder{color:var(--tx4)}
+
+.glance{display:flex;gap:34px;padding:8px 4px 22px;border-bottom:0.5px solid var(--line)}
+.glance div{display:flex;flex-direction:column;gap:2px}
+.glance .n{font-size:23px;font-weight:600;letter-spacing:-0.025em;line-height:1}
+.glance .l{font-size:11.5px;color:var(--tx3);font-weight:400}
+.glance .n.warm{color:var(--warm)}
+.glance .n.acc{color:var(--accent-2)}
+
+.filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:20px 0 10px}
+.fgroup{display:flex;align-items:center;gap:6px}
+.flabel{font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.09em;margin-right:3px;font-weight:500}
+.chip{display:inline-flex;align-items:center;gap:6px;height:31px;padding:0 13px;border-radius:999px;border:0.5px solid var(--line-2);background:transparent;color:var(--tx2);font-family:inherit;font-size:12.5px;cursor:pointer;transition:all .2s var(--ease);white-space:nowrap}
+.chip:hover{background:var(--surface);color:var(--tx);transform:translateY(-1px)}
+.chip:active{transform:translateY(0)}
+.chip i{font-size:14px;opacity:.85}
+.chip.on{background:var(--accent-soft);border-color:transparent;color:var(--tx);box-shadow:0 0 0 0.5px var(--accent) inset}
+.chip.miss.on{background:var(--warm-soft);color:var(--warm);box-shadow:0 0 0 0.5px var(--warm) inset}
+.sep{width:0.5px;height:20px;background:var(--line-2);margin:0 5px}
+
+.list{display:flex;flex-direction:column;gap:9px;margin-top:14px}
+.lead{
+  background:var(--surface);
+  border:0.5px solid var(--line);
+  border-radius:var(--r);
+  overflow:hidden;
+  transition:border-color .3s var(--ease),background .3s var(--ease),transform .3s var(--ease),box-shadow .35s var(--ease);
+}
+@keyframes riseIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:no-preference){
+  .lead{opacity:0;transform:translateY(10px);animation:riseIn .55s var(--ease) forwards}
+}
+.lead.hidden{display:none}
+.lead:hover{border-color:var(--line-2);background:var(--surface-2);box-shadow:var(--shadow);transform:translateY(-1px)}
+.lead.hot{box-shadow:0 0 0 0.5px var(--warm-soft), -1px 0 0 var(--warm) inset}
+.lead.hot:hover{box-shadow:var(--shadow), -1px 0 0 var(--warm) inset, 0 0 40px -22px var(--warm)}
+.lead.pinned{border-color:var(--accent);background:var(--surface-2);box-shadow:var(--shadow),0 0 0 1px var(--accent-soft)}
+.row{display:flex;align-items:center;gap:15px;padding:16px 18px;cursor:pointer}
+.nico{width:40px;height:40px;border-radius:11px;background:radial-gradient(circle at 30% 25%,var(--surface-2),var(--bg-2));border:0.5px solid var(--line-2);display:grid;place-items:center;color:var(--tx2);font-size:19px;flex-shrink:0;transition:color .3s,border-color .3s}
+.lead:hover .nico{color:var(--tx);border-color:var(--line-2)}
+.id{min-width:0;flex:1}
+.id b{font-weight:500;font-size:15.5px;display:flex;align-items:center;gap:9px;line-height:1.2}
+.id .sub{color:var(--tx3);font-size:12.5px;margin-top:3px;display:flex;align-items:center;gap:6px}
+.id .sub i{font-size:13px;opacity:.7}
+.tagh{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:500;color:var(--warm);background:var(--warm-soft);padding:3px 8px;border-radius:6px;letter-spacing:.02em;text-transform:uppercase}
+.tagh .hd{width:5px;height:5px;border-radius:50%;background:var(--warm);box-shadow:0 0 7px var(--warm)}
+.gap{font-size:12px;color:var(--tx2);background:var(--bg-2);border:0.5px solid var(--line);padding:6px 11px;border-radius:9px;white-space:nowrap;transition:all .3s}
+.gap.warm{color:var(--warm);border-color:var(--warm-soft);background:var(--warm-soft)}
+.opp{display:flex;flex-direction:column;align-items:flex-end;gap:6px;width:60px;flex-shrink:0}
+.opp .v{font-size:18px;font-weight:600;letter-spacing:-0.03em;line-height:1}
+.opp .bar{width:50px;height:3px;border-radius:2px;background:var(--line-2);overflow:hidden}
+.opp .bar i{display:block;height:100%;border-radius:2px;background:var(--tx2)}
+.opp.hi .v{color:var(--warm)}
+.opp.hi .bar i{background:var(--warm);box-shadow:0 0 6px var(--warm)}
+.chev{color:var(--tx4);font-size:18px;transition:transform .35s var(--ease),color .3s;flex-shrink:0}
+.lead:hover .chev,.lead.pinned .chev{transform:rotate(90deg);color:var(--tx2)}
+
+.detail{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}
+.lead:hover .detail,.lead.pinned .detail{grid-template-rows:1fr}
+.detail-in{overflow:hidden;min-height:0}
+.detail-pad{padding:4px 18px 19px 73px;display:flex;flex-direction:column;gap:17px}
+.detail-pad>*{opacity:0;transform:translateY(8px);transition:opacity .35s var(--ease),transform .4s var(--ease)}
+.lead:hover .detail-pad>*,.lead.pinned .detail-pad>*{opacity:1;transform:none}
+.lead:hover .detail-pad>*:nth-child(1),.lead.pinned .detail-pad>*:nth-child(1){transition-delay:.05s}
+.lead:hover .detail-pad>*:nth-child(2),.lead.pinned .detail-pad>*:nth-child(2){transition-delay:.11s}
+.lead:hover .detail-pad>*:nth-child(3),.lead.pinned .detail-pad>*:nth-child(3){transition-delay:.17s}
+
+.money{display:flex;align-items:center;gap:16px}
+.money .blk{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+.money .k{font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.07em;font-weight:500}
+.money .v{font-size:18px;font-weight:600;letter-spacing:-0.02em}
+.money .v.pot{color:var(--good)}
+.money .arrow{color:var(--tx4);font-size:17px;flex-shrink:0}
+.money .track{flex:1;height:7px;border-radius:4px;background:var(--bg-2);overflow:hidden;position:relative;border:0.5px solid var(--line);min-width:120px}
+.money .now{position:absolute;left:0;top:0;height:100%;background:var(--tx4);border-radius:4px}
+.money .gain{position:absolute;top:0;height:100%;background:linear-gradient(90deg,var(--good),var(--good-soft));border-radius:4px}
+
+.meta{display:flex;gap:26px;flex-wrap:wrap}
+.meta .blk{display:flex;flex-direction:column;gap:7px}
+.meta .k{font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.07em;font-weight:500}
+.channels{display:flex;gap:7px}
+.ch{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;font-size:13px;border:0.5px solid var(--line);color:var(--tx4);background:var(--bg-2);transition:transform .2s var(--ease-2)}
+.ch:hover{transform:translateY(-2px)}
+.ch.on{color:var(--tx);border-color:var(--line-2);background:var(--surface-2)}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tg{font-size:11.5px;color:var(--tx2);background:var(--bg-2);border:0.5px solid var(--line);padding:5px 10px;border-radius:8px}
+
+.actions{display:flex;gap:7px;flex-wrap:wrap;padding-top:3px}
+.act{display:inline-flex;align-items:center;gap:7px;height:35px;padding:0 13px;border-radius:10px;border:0.5px solid var(--line-2);background:transparent;color:var(--tx2);font-family:inherit;font-size:12.5px;cursor:pointer;transition:all .18s var(--ease);position:relative}
+.act:hover{background:var(--surface);color:var(--tx);transform:translateY(-1px)}
+.act:active{transform:translateY(0)}
+.act i{font-size:15px}
+.act.primary{background:linear-gradient(180deg,var(--accent-2),var(--accent));border-color:transparent;color:white;box-shadow:0 6px 18px -8px var(--accent)}
+.act.primary:hover{filter:brightness(1.08);box-shadow:0 8px 22px -8px var(--accent)}
+.act[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);background:var(--surface-2);color:var(--tx);border:0.5px solid var(--line-2);padding:8px 11px;border-radius:9px;font-size:11.5px;white-space:nowrap;box-shadow:0 12px 30px -10px oklch(0 0 0 /.8);z-index:5;pointer-events:none;font-weight:400;letter-spacing:0}
+.more{color:var(--tx3);width:35px;padding:0;justify-content:center}
+
+.empty{text-align:center;color:var(--tx3);padding:70px 0;font-size:13.5px}
+
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface-2);border:0.5px solid var(--line-2);color:var(--tx);padding:13px 19px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:10px;opacity:0;transition:all .35s var(--ease);box-shadow:0 20px 50px -14px oklch(0 0 0 /.8);z-index:50;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast i{color:var(--accent-2);font-size:17px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-windmill"></i></div>
+      <b>Esteira</b><span class="dim">· Cuiabá / MT</span>
+    </div>
+    <span class="pulse"><span class="d"></span>Motor 24/7 · +3 hoje</span>
+    <label class="search"><i class="ti ti-search"></i><input id="q" placeholder="Buscar negócio, bairro…"></label>
+  </header>
+
+  <div class="glance">
+    <div><span class="n" id="g-total">47</span><span class="l">negócios na esteira</span></div>
+    <div><span class="n acc" id="g-ready">12</span><span class="l">prontos pra falar</span></div>
+    <div><span class="n warm">R$ 1,4M</span><span class="l">potencial no mês · faixa estimada</span></div>
+  </div>
+
+  <div class="filters">
+    <div class="fgroup">
+      <span class="flabel">Estágio</span>
+      <button class="chip stage on" data-stage="all">Todos</button>
+      <button class="chip stage" data-stage="found">Encontradas</button>
+      <button class="chip stage" data-stage="audited">Auditadas</button>
+      <button class="chip stage" data-stage="ready">Prontas</button>
+    </div>
+    <div class="sep"></div>
+    <div class="fgroup">
+      <span class="flabel">Falta</span>
+      <button class="chip miss" data-miss="site"><i class="ti ti-world-off"></i>Site</button>
+      <button class="chip miss" data-miss="google"><i class="ti ti-brand-google"></i>Google</button>
+      <button class="chip miss" data-miss="ads"><i class="ti ti-speakerphone"></i>Anúncios</button>
+      <button class="chip miss" data-miss="social"><i class="ti ti-heart"></i>Redes</button>
+    </div>
+  </div>
+
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty" style="display:none">Nenhum negócio com esse filtro.</div>
+
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-check"></i><span></span></div>
+
+<script>
+const LEADS = [
+  { name:'Clube dos Bichos', niche:'Pet shop', icon:'ti-paw', area:'Jardim das Américas', stage:'ready', opp:91, hot:true,
+    gap:'Sem site', now:18, pot:56, miss:['site','google','ads'],
+    ch:{site:0,instagram:1,whatsapp:1,google:1,facebook:0},
+    tags:['7 anos de mercado','312 avaliações no Google','Movimento alto','Concorrente anuncia, ela não'] },
+  { name:'Padaria Trigo Dourado', niche:'Padaria', icon:'ti-bread', area:'Goiabeiras', stage:'ready', opp:88, hot:true,
+    gap:'Sem anúncios', now:45, pot:98, miss:['ads','social'],
+    ch:{site:1,instagram:0,whatsapp:1,google:1,facebook:0},
+    tags:['Grande, muito movimento','5 km sem concorrente forte','Nunca anunciou'] },
+  { name:'Clínica Vida+', niche:'Saúde', icon:'ti-heartbeat', area:'Quilombo', stage:'ready', opp:84, hot:false,
+    gap:'Concorrente domina', now:60, pot:120, miss:['ads','google'],
+    ch:{site:1,instagram:1,whatsapp:1,google:1,facebook:1},
+    tags:['Ticket alto','Concorrente investe pesado em anúncios','Espaço pra crescer'] },
+  { name:'Móveis Planejados Lar', niche:'Marcenaria', icon:'ti-armchair', area:'Tijucal', stage:'audited', opp:77, hot:false,
+    gap:'Sem anúncios', now:55, pot:115, miss:['ads','site'],
+    ch:{site:0,instagram:1,whatsapp:1,google:1,facebook:1},
+    tags:['Ticket muito alto','Portfólio só no Instagram','Sem anúncios'] },
+  { name:'Ótica Visão Real', niche:'Ótica', icon:'ti-eyeglass', area:'Centro', stage:'audited', opp:74, hot:false,
+    gap:'Fora do Google', now:32, pot:71, miss:['google','ads'],
+    ch:{site:1,instagram:1,whatsapp:1,google:0,facebook:1},
+    tags:['Tem site parado','Não aparece nas buscas','Instagram ativo'] },
+  { name:'Auto Center MT', niche:'Mecânica', icon:'ti-car', area:'CPA', stage:'audited', opp:69, hot:false,
+    gap:'Sem redes', now:38, pot:74, miss:['social','site'],
+    ch:{site:0,instagram:0,whatsapp:1,google:1,facebook:0},
+    tags:['Só WhatsApp','Boa nota no Google','Sem presença digital'] },
+  { name:'Restaurante Peixe Vivo', niche:'Restaurante', icon:'ti-fish', area:'Porto', stage:'found', opp:62, hot:false,
+    gap:'Sem site', now:50, pot:82, miss:['site','ads'],
+    ch:{site:0,instagram:1,whatsapp:1,google:1,facebook:1},
+    tags:['Tradicional','Só recebe por indicação','Sem cardápio online'] },
+  { name:'Academia Corpo & Ação', niche:'Academia', icon:'ti-barbell', area:'Santa Rosa', stage:'found', opp:58, hot:false,
+    gap:'Fora do Google', now:40, pot:66, miss:['google','social'],
+    ch:{site:1,instagram:1,whatsapp:1,google:0,facebook:0},
+    tags:['Bairro em crescimento','Invisível na busca'] },
+];
+
+const ACTIONS = [
+  { k:'dossier', label:'Ver relatório de venda', icon:'ti-file-text', tip:'Abre o dossiê: faturamento, brechas e a proposta pronta', primary:true },
+  { k:'contacted', label:'Marcar que falei', icon:'ti-circle-check', tip:'Move pra "já contatado"' },
+  { k:'site', label:'Mandar fazer o site', icon:'ti-world-bolt', tip:'Vuecra monta um site pronto pra esse negócio' },
+  { k:'strategy', label:'Pedir estratégia', icon:'ti-bulb', tip:'Geronimo monta o plano de marketing pra fechar' },
+  { k:'why', label:'Por que o concorrente ganha', icon:'ti-swords', tip:'Compara com quem domina e mostra a brecha' },
+  { k:'google', label:'Aparecer no Google', icon:'ti-brand-google', tip:'Quais palavras focar e quanto custa' },
+];
+
+const list = document.getElementById('list');
+const toast = document.getElementById('toast');
+let fStage='all', fMiss=new Set(), fq='';
+const counted = new WeakSet();
+
+function fmt(v){ return 'R$ '+v+'k'; }
+
+function card(l,i){
+  const oppHi = l.opp>=85;
+  const channels = [
+    ['site','ti-world','Site'],['instagram','ti-brand-instagram','Instagram'],
+    ['whatsapp','ti-brand-whatsapp','WhatsApp'],['google','ti-brand-google','Google'],
+    ['facebook','ti-brand-facebook','Facebook']
+  ].map(c=>`<div class="ch ${l.ch[c[0]]?'on':''}" title="${c[2]} ${l.ch[c[0]]?'presente':'ausente'}"><i class="ti ${c[1]}"></i></div>`).join('');
+  const acts = ACTIONS.map(a=>`<button class="act ${a.primary?'primary':''}" data-tip="${a.tip}" data-act="${a.k}" data-name="${l.name}"><i class="ti ${a.icon}"></i>${a.label}</button>`).join('')
+    + `<button class="act more" data-tip="Auditar de novo · O que não deu pra ver · Quanto domina o mercado" data-act="more" data-name="${l.name}"><i class="ti ti-dots"></i></button>`;
+  const nowPct = Math.round(l.now/l.pot*100);
+  const gainPct = 100-nowPct;
+  return `<article class="lead ${l.hot?'hot':''}" style="animation-delay:${i*55}ms" data-stage="${l.stage}" data-hay="${(l.name+' '+l.area+' '+l.niche).toLowerCase()}" data-miss="${l.miss.join(' ')}" data-now="${l.now}" data-pot="${l.pot}">
+    <div class="row">
+      <div class="nico"><i class="ti ${l.icon}"></i></div>
+      <div class="id">
+        <b>${l.name} ${l.hot?'<span class="tagh"><span class="hd"></span>Quente</span>':''}</b>
+        <div class="sub"><i class="ti ${l.icon}"></i>${l.niche} <span style="opacity:.4">·</span> <i class="ti ti-map-pin"></i>${l.area}</div>
+      </div>
+      <span class="gap ${l.hot?'warm':''}">${l.gap}</span>
+      <div class="opp ${oppHi?'hi':''}">
+        <span class="v">${l.opp}</span>
+        <span class="bar"><i style="width:${l.opp}%"></i></span>
+      </div>
+      <i class="ti ti-chevron-right chev"></i>
+    </div>
+    <div class="detail"><div class="detail-in"><div class="detail-pad">
+      <div class="money">
+        <div class="blk"><span class="k">Fatura hoje</span><span class="v" data-cnt="${l.now}" data-suf="k/mês">R$ ${l.now}k/mês</span></div>
+        <i class="ti ti-arrow-right arrow"></i>
+        <div class="blk"><span class="k">Poderia faturar</span><span class="v pot" data-cnt="${l.pot}" data-suf="k/mês">R$ ${l.pot}k/mês</span></div>
+        <div class="track"><div class="now" style="width:${nowPct}%"></div><div class="gain" style="left:${nowPct}%;width:${gainPct}%"></div></div>
+      </div>
+      <div class="meta">
+        <div class="blk"><span class="k">Onde está presente</span><div class="channels">${channels}</div></div>
+        <div class="blk"><span class="k">Por que é boa presa</span><div class="tags">${l.tags.map(t=>`<span class="tg">${t}</span>`).join('')}</div></div>
+      </div>
+      <div class="actions">${acts}</div>
+    </div></div></div>
+  </article>`;
+}
+
+function build(){
+  list.innerHTML = LEADS.map(card).join('');
+}
+
+function match(c){
+  if(fStage!=='all' && c.dataset.stage!==fStage) return false;
+  if(fMiss.size){ const m=c.dataset.miss.split(' '); for(const x of fMiss){ if(!m.includes(x)) return false; } }
+  if(fq && !c.dataset.hay.includes(fq)) return false;
+  return true;
+}
+
+function applyFilter(){
+  const cards=[...list.children];
+  const firsts=new Map(); cards.forEach(c=>firsts.set(c,c.getBoundingClientRect().top));
+  let vis=0, ready=0;
+  cards.forEach(c=>{ const ok=match(c); c.classList.toggle('hidden',!ok); if(ok){vis++; if(c.dataset.stage==='ready')ready++;} });
+  cards.forEach(c=>{ if(c.classList.contains('hidden'))return; const last=c.getBoundingClientRect().top; const dy=firsts.get(c)-last; if(Math.abs(dy)>1){ c.animate([{transform:`translateY(${dy}px)`},{transform:'none'}],{duration:450,easing:'cubic-bezier(.16,1,.3,1)'}); } });
+  document.getElementById('empty').style.display = vis?'none':'block';
+  document.getElementById('g-total').textContent = vis;
+  document.getElementById('g-ready').textContent = ready;
+}
+
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function animateValue(el){
+  if(counted.has(el))return; counted.add(el);
+  if(RM) return;
+  const to=+el.dataset.cnt, suf=el.dataset.suf; let s=null; const dur=750;
+  el.textContent='R$ 0'+suf;
+  function step(t){ if(!s)s=t; const p=Math.min(1,(t-s)/dur); const e=1-Math.pow(1-p,3); el.textContent='R$ '+Math.round(to*e)+suf; if(p<1)requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+}
+function expandFx(card){
+  card.querySelectorAll('[data-cnt]').forEach(animateValue);
+}
+
+document.querySelectorAll('.chip.stage').forEach(c=>c.onclick=()=>{
+  document.querySelectorAll('.chip.stage').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on'); fStage=c.dataset.stage; applyFilter();
+});
+document.querySelectorAll('.chip.miss').forEach(c=>c.onclick=()=>{
+  c.classList.toggle('on'); const m=c.dataset.miss;
+  if(fMiss.has(m)) fMiss.delete(m); else fMiss.add(m); applyFilter();
+});
+document.getElementById('q').addEventListener('input',e=>{ fq=e.target.value.trim().toLowerCase(); applyFilter(); });
+
+list.addEventListener('mouseover',e=>{ const c=e.target.closest('.lead'); if(c) expandFx(c); });
+list.addEventListener('click',e=>{
+  const act=e.target.closest('.act');
+  if(act){ e.stopPropagation();
+    const map={dossier:'Abrindo relatório de venda',contacted:'Marcado como contatado',site:'Pedido enviado ao Vuecra',strategy:'Pedido enviado ao Geronimo',why:'Comparando com o concorrente líder',google:'Montando plano de Google',more:'Mais ações'};
+    showToast((map[act.dataset.act]||'Ação')+' · '+act.dataset.name); return;
+  }
+  const row=e.target.closest('.row');
+  if(row){ const c=row.closest('.lead'); c.classList.toggle('pinned'); if(c.classList.contains('pinned'))expandFx(c); }
+});
+
+function showToast(msg){ toast.querySelector('span').textContent=msg; toast.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>toast.classList.remove('show'),2200); }
+
+build(); applyFilter();
+</script>
+</body>
+</html>

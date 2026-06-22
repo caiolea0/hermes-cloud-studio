@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command Center — Hermes Cloud Studio</title>
+<link rel="stylesheet" href="design-system.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5/index.css">
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+<style>
+  /* ===== PAGE-LOCAL LAYOUT (uses design-system tokens only) ===== */
+  .cc-shell { min-height: 100dvh; display: flex; flex-direction: column; }
+
+  /* Top command bar */
+  .cc-topbar {
+    position: sticky; top: 0; z-index: var(--z-sticky);
+    display: flex; align-items: center; gap: var(--sp-4);
+    padding: var(--sp-3) var(--sp-5);
+    border-bottom: 1px solid var(--line);
+  }
+  .cc-brand { display: flex; align-items: center; gap: var(--sp-3); }
+  .cc-brand__mark {
+    position: relative; width: 40px; height: 40px; border-radius: var(--r-md); display: grid; place-items: center;
+    background: linear-gradient(150deg, var(--purple-hot), var(--purple)); color: var(--purple-ink);
+    box-shadow: 0 0 20px oklch(0.62 0.2 295 / 0.55), inset 0 1px 0 oklch(0.95 0.05 295 / 0.4);
+  }
+  .cc-brand__mark svg { width: 21px; height: 21px; position: relative; z-index: 1; filter: drop-shadow(0 1px 1px oklch(0.2 0.1 295 / 0.5)); }
+  .cc-brand__mark::after { content:""; position:absolute; inset:-2px; border-radius: inherit; pointer-events:none;
+    background: conic-gradient(transparent, oklch(0.92 0.21 118 / 0.8), transparent 38%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+            mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; padding: 2px;
+    animation: spin 5s linear infinite; opacity: 0.85; }
+  @media (prefers-reduced-motion: reduce) { .cc-brand__mark::after { animation: none; opacity: 0.4; } }
+  .cc-nav { display: flex; gap: 2px; background: oklch(0.5 0.03 292 / 0.1); padding: 3px; border-radius: var(--r-pill); }
+  .cc-nav a {
+    padding: 0.42em 0.9em; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 600;
+    color: var(--text-dim); transition: all var(--d-fast) var(--ease-out);
+  }
+  .cc-nav a:hover { color: var(--text-hi); }
+  .cc-nav a.active { color: var(--lime-ink); background: var(--lime); box-shadow: 0 0 16px oklch(0.92 0.21 118 / 0.35); }
+  .cc-clock { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-mid); font-variant-numeric: tabular-nums; }
+
+  /* Health ribbon */
+  .cc-ribbon { display: flex; gap: var(--sp-3); align-items: stretch; padding: var(--sp-4) var(--sp-5) 0; flex-wrap: wrap; }
+  .cc-pulse {
+    flex: 1 1 150px; min-width: 140px; position: relative; display: flex; flex-direction: column; gap: 3px;
+    padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md); overflow: hidden;
+    background:
+      radial-gradient(140% 120% at 0% 0%, oklch(0.26 0.04 292 / 0.5), transparent 60%),
+      oklch(0.185 0.024 292 / 0.6);
+    border: 1px solid var(--line); box-shadow: var(--elev-1), inset 0 1px 0 oklch(0.6 0.04 292 / 0.06);
+    transition: border-color var(--d-base), transform var(--d-base) var(--ease-out);
+  }
+  .cc-pulse:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+  /* accent hairline at the top of each vital */
+  .cc-pulse::before { content:""; position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, oklch(0.62 0.12 295 / 0.5), transparent); }
+  .cc-pulse--hot::before { background: linear-gradient(90deg, transparent, var(--lime), transparent); }
+  .cc-pulse__k { font-size: var(--fs-2xs); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); display:flex; align-items:center; gap:6px; }
+  .cc-pulse__k svg { width:12px; height:12px; color: var(--text-faint); }
+  .cc-pulse__v { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 650; color: var(--text-hi); line-height: 1.05; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .cc-pulse__d { font-size: var(--fs-2xs); font-family: var(--font-mono); letter-spacing: 0.01em; }
+
+  /* Main grid */
+  .cc-grid {
+    flex: 1; display: grid;
+    grid-template-columns: 300px minmax(0, 1fr) 332px;
+    gap: var(--sp-4); padding: var(--sp-4) var(--sp-5) 110px;
+    align-items: stretch;
+  }
+  @media (max-width: 1200px) {
+    .cc-grid { grid-template-columns: 1fr; flex: none; }
+    .stage { min-height: min(72vh, 620px); }
+    .ticker { min-height: 300px; }
+  }
+  @media (max-width: 640px) {
+    .cc-ribbon { padding-left: var(--sp-3); padding-right: var(--sp-3); }
+    .cc-grid { padding: var(--sp-3) var(--sp-3) 120px; }
+    .gauges { grid-template-columns: 1fr 1fr; }
+    .cc-topbar { gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); flex-wrap: wrap; }
+    .cmddock { left: var(--sp-3); right: var(--sp-3); transform: none; max-width: none; overflow-x: auto; }
+  }
+
+  .cc-panel { display: flex; flex-direction: column; min-height: 0; }
+  .cc-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-3); }
+  .cc-panel__title { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-mid); display: flex; align-items: center; gap: var(--sp-2); }
+  .cc-panel__title svg { width: 15px; height: 15px; color: var(--lime); filter: drop-shadow(0 0 6px oklch(0.92 0.21 118 / 0.45)); }
+
+  /* GAUGE COCKPIT (pure CSS/SVG needles) */
+  .gauges { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+  .ngauge {
+    position: relative; padding: var(--sp-3) var(--sp-3) 7px; border-radius: var(--r-md);
+    background:
+      radial-gradient(120% 80% at 50% -10%, oklch(0.26 0.03 292 / 0.7), transparent 70%),
+      var(--bg-inset);
+    border: 1px solid var(--line); overflow: hidden;
+    box-shadow: var(--elev-1), inset 0 1px 0 oklch(0.6 0.04 292 / 0.08);
+    transition: border-color var(--d-base), box-shadow var(--d-base);
+  }
+  .ngauge:hover { border-color: var(--line-strong); }
+  /* glass dome highlight over the dial */
+  .ngauge::after { content:""; position:absolute; top:0; left:0; right:0; height:46%; pointer-events:none;
+    background: linear-gradient(180deg, oklch(0.9 0.02 292 / 0.07), transparent); }
+  .ngauge__dial { position: relative; width: 100%; aspect-ratio: 2/1.06; }
+  .ngauge svg { width: 100%; height: 100%; overflow: visible; }
+  .ngauge__needle { transform-box: fill-box; transform-origin: 50% 100%; transition: transform 1.2s var(--ease-spring); }
+  .ngauge__val { margin-top: 4px; text-align: center; font-family: var(--font-mono); font-weight: 650; font-size: 1.18rem; color: var(--text-hi); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; }
+  .ngauge__lbl { margin-top: 4px; text-align: center; font-size: var(--fs-2xs); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ngauge--crit { border-color: oklch(0.74 0.18 38 / 0.45); box-shadow: var(--elev-1), 0 0 22px oklch(0.74 0.18 38 / 0.18), inset 0 1px 0 oklch(0.6 0.04 292 / 0.08); }
+  .ngauge--crit .ngauge__val { color: var(--st-opportunity); text-shadow: 0 0 12px oklch(0.74 0.18 38 / 0.5); }
+  .ngauge--crit .ngauge__lbl { color: oklch(0.78 0.12 38); }
+  /* tiny pulsing alert dot on critical gauges */
+  .ngauge--crit .ngauge__dot { position:absolute; top:8px; right:8px; width:6px; height:6px; border-radius:50%; background: var(--st-opportunity); box-shadow: 0 0 8px var(--st-opportunity); animation: blink-dot 1.4s var(--ease-inout) infinite; }
+
+  /* GRAPH STAGE */
+  .stage {
+    position: relative; flex: 1; min-height: 520px; border-radius: var(--r-xl); overflow: hidden;
+    background:
+      radial-gradient(58% 70% at 42% 50%, oklch(0.30 0.10 295 / 0.30), transparent 62%),
+      radial-gradient(40% 50% at 78% 30%, oklch(0.30 0.10 38 / 0.14), transparent 70%),
+      radial-gradient(36% 46% at 76% 78%, oklch(0.30 0.10 250 / 0.16), transparent 70%),
+      linear-gradient(180deg, oklch(0.155 0.022 292), oklch(0.125 0.018 292));
+    box-shadow: inset 0 0 0 1px var(--glass-border), inset 0 1px 0 var(--glass-sheen), var(--elev-3);
+  }
+  /* subtle blueprint grid + radial vignette + scanline — the "containment field" */
+  .stage::before {
+    content:""; position:absolute; inset:0; pointer-events:none; z-index:1; opacity:0.5;
+    background-image:
+      linear-gradient(oklch(0.6 0.04 292 / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.6 0.04 292 / 0.05) 1px, transparent 1px);
+    background-size: 46px 46px, 46px 46px;
+    -webkit-mask-image: radial-gradient(70% 70% at 42% 50%, #000 25%, transparent 78%);
+            mask-image: radial-gradient(70% 70% at 42% 50%, #000 25%, transparent 78%);
+  }
+  .stage::after {
+    content:""; position:absolute; inset:0; pointer-events:none; z-index:6;
+    box-shadow: inset 0 0 120px 12px oklch(0.10 0.02 292 / 0.85);
+    border-radius: inherit;
+  }
+  /* slow rotating energy sweep behind the graph — the "scan" of mission control */
+  .stage__sweep {
+    position:absolute; inset:-30%; z-index:0; pointer-events:none; opacity:0.55;
+    background: conic-gradient(from 0deg, transparent 0deg, oklch(0.62 0.20 295 / 0.16) 24deg, transparent 60deg, transparent 360deg);
+    -webkit-mask-image: radial-gradient(50% 50% at 50% 50%, #000 30%, transparent 72%);
+            mask-image: radial-gradient(50% 50% at 50% 50%, #000 30%, transparent 72%);
+    animation: stageSweep 18s linear infinite;
+  }
+  @keyframes stageSweep { to { transform: rotate(360deg); } }
+  #graph { position: absolute; inset: 0; z-index: 2; }
+  .stage__overlay { position: absolute; inset: 0; pointer-events: none; }
+  .stage__scrim-top { position: absolute; top: 0; left: 0; right: 0; height: 90px; z-index:4; background: linear-gradient(to bottom, oklch(0.12 0.018 292 / 0.92), transparent); pointer-events: none; }
+  .stage__hud { position: absolute; top: var(--sp-4); left: var(--sp-4); right: var(--sp-4); z-index: 7; display: flex; justify-content: space-between; gap: var(--sp-3); pointer-events: none; }
+  .stage__hud > * { pointer-events: auto; }
+  .stage__legend { padding: var(--sp-2) var(--sp-3); border-radius: var(--r-pill); display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; }
+  .lk { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-2xs); color: var(--text-mid); letter-spacing: 0.01em; }
+  .lk i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px currentColor, 0 0 2px currentColor; }
+  .lk--core i { background: var(--purple-hot); color: var(--purple-hot); }
+  .lk--run i { background: var(--lime); color: var(--lime); }
+  .lk--idle i { background: var(--st-consolidated); color: var(--st-consolidated); }
+  .lk--crit i { background: var(--st-opportunity); color: var(--st-opportunity); }
+  .lk--xp i { background: var(--text-dim); color: var(--text-dim); box-shadow: none; }
+
+  .stage__zoom { position: absolute; bottom: var(--sp-4); left: var(--sp-4); z-index: 7; display: flex; flex-direction: column; gap: 4px; }
+  .zbtn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--text-mid); transition: color var(--d-fast), transform var(--d-fast) var(--ease-out); }
+  .zbtn:hover { color: var(--lime); transform: translateY(-1px); }
+  .zbtn:active { transform: translateY(0) scale(0.94); }
+  .zbtn svg { width: 16px; height: 16px; }
+
+  /* node detail flyout */
+  .nodecard {
+    position: absolute; bottom: var(--sp-4); right: var(--sp-4); width: 248px; padding: var(--sp-4);
+    border-radius: var(--r-lg); opacity: 0; transform: translateY(8px); pointer-events: none; z-index: 8;
+    transition: opacity var(--d-base) var(--ease-out), transform var(--d-base) var(--ease-out);
+  }
+  .nodecard.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .nodecard__name { font-weight: 680; font-size: var(--fs-base); color: var(--text-hi); letter-spacing: -0.01em; }
+  .nodecard__pill { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: var(--r-pill); border: 1px solid currentColor; white-space: nowrap; }
+  .nodecard__pill[data-st="run"]  { color: var(--lime); background: oklch(0.92 0.21 118 / 0.1); }
+  .nodecard__pill[data-st="idle"] { color: var(--st-consolidated); background: oklch(0.66 0.15 250 / 0.12); }
+  .nodecard__pill[data-st="crit"] { color: var(--st-opportunity); background: oklch(0.74 0.18 38 / 0.14); }
+  .nodecard__pill[data-st="core"] { color: var(--purple-hot); background: oklch(0.62 0.2 295 / 0.14); }
+  .nodecard__role { font-size: var(--fs-xs); color: var(--text-mid); margin: 3px 0 var(--sp-3); }
+  .nodecard__bars { display: flex; flex-direction: column; gap: 7px; }
+  .mbar { display: grid; grid-template-columns: 62px 1fr 30px; align-items: center; gap: var(--sp-2); font-size: var(--fs-2xs); color: var(--text-dim); }
+  .mbar__track { height: 5px; border-radius: var(--r-pill); background: oklch(0.28 0.02 292 / 0.7); overflow: hidden; box-shadow: inset 0 0 0 1px oklch(0.5 0.03 292 / 0.12); }
+  .mbar__fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--purple-hot), var(--lime)); box-shadow: 0 0 8px oklch(0.92 0.21 118 / 0.35); transform-origin: left; animation: barGrow .7s var(--ease-spring) both; }
+  @keyframes barGrow { from { transform: scaleX(0); } }
+  .mbar__n { font-family: var(--font-mono); text-align: right; color: var(--text-mid); font-variant-numeric: tabular-nums; }
+
+  /* RIGHT RAIL */
+  .rail { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+  /* decision ticker */
+  .ticker { flex: 1; min-height: 220px; display: flex; flex-direction: column; padding: var(--sp-4); border-radius: var(--r-lg); overflow: hidden; }
+  .ticker__feed { flex: 1; overflow: hidden; position: relative; mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 86%, transparent); }
+  .ticker__list { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .tk {
+    display: grid; grid-template-columns: 28px 1fr; gap: var(--sp-2); align-items: start;
+    padding: 7px var(--sp-2); border-radius: var(--r-sm); position: relative; overflow: hidden;
+    border-left: 2px solid var(--line); background: oklch(0.21 0.026 292 / 0.45);
+    transition: background var(--d-fast), transform var(--d-fast) var(--ease-out);
+    animation: reveal-up var(--d-base) var(--ease-out) both;
+  }
+  .tk:hover { background: oklch(0.25 0.03 292 / 0.6); transform: translateX(2px); }
+  /* freshest decision gets a one-shot light sweep */
+  .tk:first-child::after { content:""; position:absolute; inset:0; pointer-events:none;
+    background: linear-gradient(90deg, transparent, oklch(0.92 0.21 118 / 0.12), transparent);
+    transform: translateX(-100%); animation: tkSweep 1.1s var(--ease-out) 1; }
+  @keyframes tkSweep { to { transform: translateX(100%); } }
+  .tk--act { border-left-color: var(--lime); }
+  .tk--xp  { border-left-color: var(--purple-hot); }
+  .tk--warn{ border-left-color: var(--st-opportunity); }
+  .tk__ico { width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--r-xs); background: oklch(0.3 0.02 292 / 0.5); }
+  .tk__ico svg { width: 14px; height: 14px; }
+  .tk--act .tk__ico { color: var(--lime); } .tk--xp .tk__ico { color: var(--purple-hot); } .tk--warn .tk__ico { color: var(--st-opportunity); }
+  .tk__txt { font-size: var(--fs-xs); color: var(--text); line-height: 1.4; }
+  .tk__txt b { color: var(--text-hi); font-weight: 600; }
+  .tk__t { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--text-faint); }
+
+  /* cross-project send */
+  .xproj { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border-radius: var(--r-lg); }
+  .xcard { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-md); border: 1px solid var(--line); position: relative; overflow: hidden; background: oklch(0.2 0.026 292 / 0.5); transition: border-color var(--d-base), transform var(--d-base) var(--ease-out), box-shadow var(--d-base); cursor: pointer; }
+  .xcard::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; opacity:0.85; }
+  .xcard--vuecra::before { background: linear-gradient(180deg, var(--st-consolidated), transparent); }
+  .xcard--geronimo::before { background: linear-gradient(180deg, var(--st-opportunity), transparent); }
+  .xcard:hover { transform: translateY(-2px); box-shadow: var(--elev-2); }
+  .xcard--vuecra:hover { border-color: oklch(0.66 0.15 250 / 0.55); box-shadow: var(--elev-2), 0 0 22px oklch(0.66 0.15 250 / 0.2); }
+  .xcard--geronimo:hover { border-color: oklch(0.74 0.18 38 / 0.55); box-shadow: var(--elev-2), 0 0 22px oklch(0.74 0.18 38 / 0.2); }
+  .xcard:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+  .xcard:hover .go { color: var(--text-hi); transform: translate(2px,-2px); }
+  .xcard__logo { width: 40px; height: 40px; border-radius: var(--r-sm); display: grid; place-items: center; font-weight: 700; font-family: var(--font-mono); flex: none; transition: box-shadow var(--d-base); }
+  .xcard--vuecra .xcard__logo { background: oklch(0.3 0.1 250 / 0.5); color: var(--st-consolidated); border: 1px solid oklch(0.66 0.15 250 / 0.4); }
+  .xcard--vuecra:hover .xcard__logo { box-shadow: 0 0 16px oklch(0.66 0.15 250 / 0.45); }
+  .xcard--geronimo .xcard__logo { background: oklch(0.3 0.12 38 / 0.4); color: var(--st-opportunity); border: 1px solid oklch(0.74 0.18 38 / 0.4); }
+  .xcard--geronimo:hover .xcard__logo { box-shadow: 0 0 16px oklch(0.74 0.18 38 / 0.45); }
+  .xcard__body { flex: 1; min-width: 0; }
+  .xcard__name { font-weight: 600; font-size: var(--fs-sm); color: var(--text-hi); }
+  .xcard__sub { font-size: var(--fs-2xs); color: var(--text-dim); display: flex; align-items: center; gap: 5px; }
+  .xcard__sub .live-dot { width: 6px; height: 6px; }
+  .xcard svg.go { width: 18px; height: 18px; color: var(--text-dim); transition: color var(--d-base), transform var(--d-base) var(--ease-out); }
+
+  /* COMMAND DOCK */
+  .cmddock {
+    position: fixed; bottom: var(--sp-4); left: 50%; transform: translateX(-50%); z-index: var(--z-dock);
+    display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
+    border-radius: var(--r-pill); max-width: calc(100vw - var(--sp-6));
+  }
+  .cmddock__hint { font-size: var(--fs-xs); color: var(--text-dim); white-space: nowrap; display: flex; align-items: center; gap: var(--sp-2); }
+  .cmddock kbd { font-family: var(--font-mono); font-size: var(--fs-2xs); padding: 2px 7px; border: 1px solid var(--line); border-radius: var(--r-xs); color: var(--text-mid); }
+  .cmddock .vd { width: 1px; align-self: stretch; background: var(--line); margin: 4px 2px; }
+
+  /* command palette items */
+  .palette__item kbd.k { background: oklch(0.5 0.03 292 / 0.2); }
+  .palette__group { padding: var(--sp-2) var(--sp-5) 4px; font-size: var(--fs-2xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+  .palette__icn { width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--r-xs); background: oklch(0.3 0.02 292 / 0.5); color: var(--lime); flex: none; }
+  .palette__icn svg { width: 15px; height: 15px; }
+  .palette__item .pm { display: flex; flex-direction: column; }
+  .palette__item .pm b { font-size: var(--fs-sm); color: var(--text-hi); font-weight: 600; }
+  .palette__item .pm span { font-size: var(--fs-2xs); color: var(--text-dim); }
+
+  /* agent roster strip */
+  .roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 5px; }
+  .ag {
+    aspect-ratio: 1; border-radius: var(--r-sm); display: grid; place-items: center; position: relative;
+    background: oklch(0.21 0.026 292 / 0.75); border: 1px solid var(--line); cursor: pointer;
+    transition: transform var(--d-fast) var(--ease-out), border-color var(--d-fast), background var(--d-fast);
+  }
+  .ag:hover { transform: scale(1.22) translateY(-1px); z-index: 3; border-color: var(--line-strong); background: oklch(0.26 0.03 292 / 0.85); }
+  .ag svg { width: 15px; height: 15px; color: var(--text-mid); transition: color var(--d-fast); }
+  .ag--run { border-color: var(--line-lime); background: oklch(0.24 0.04 118 / 0.35); }
+  .ag--run svg { color: var(--lime); filter: drop-shadow(0 0 4px oklch(0.92 0.21 118 / 0.6)); }
+  .ag--run::after { content:""; position:absolute; inset:-1px; border-radius:inherit; box-shadow: 0 0 10px oklch(0.92 0.21 118 / 0.45), inset 0 0 6px oklch(0.92 0.21 118 / 0.18); animation: blink-dot 2.2s var(--ease-inout) infinite; pointer-events:none; }
+  .ag--crit { border-color: oklch(0.74 0.18 38 / 0.55); background: oklch(0.26 0.06 38 / 0.3); }
+  .ag--crit svg { color: var(--st-opportunity); filter: drop-shadow(0 0 4px oklch(0.74 0.18 38 / 0.6)); }
+  .ag--crit::after { content:""; position:absolute; inset:-1px; border-radius:inherit; box-shadow: 0 0 9px oklch(0.74 0.18 38 / 0.4); animation: blink-dot 1.5s var(--ease-inout) infinite; pointer-events:none; }
+  @media (prefers-reduced-motion: reduce) { .ag--run::after, .ag--crit::after { animation: none; } }
+
+  .seg { display: inline-flex; background: oklch(0.5 0.03 292 / 0.1); border-radius: var(--r-pill); padding: 3px; gap: 2px; }
+  .seg button { padding: 0.3em 0.7em; border-radius: var(--r-pill); font-size: var(--fs-2xs); font-weight: 600; color: var(--text-dim); }
+  .seg button.on { color: var(--lime-ink); background: var(--lime); }
+
+  .small-caps { font-size: var(--fs-2xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+</style>
+</head>
+<body class="bg-base">
+<div class="bg-mesh" aria-hidden="true"></div>
+<div class="bg-grain" aria-hidden="true"></div>
+
+<h1 class="sr-only">Hermes Cloud Studio — Command Center: live nervous-system graph of 40+ agents, subsystem health gauges, decision ticker, and cross-project dispatch to Vuecra and Geronimo.</h1>
+
+<div class="cc-shell app-shell">
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="cc-topbar glass">
+    <div class="cc-brand">
+      <div class="cc-brand__mark breathe breathe--purple"><i data-lucide="hexagon"></i></div>
+      <div>
+        <div style="font-weight:700; letter-spacing:-0.02em; color:var(--text-hi); line-height:1;">Hermes <span class="tglow-purple">Cloud Studio</span></div>
+        <div class="small-caps" style="margin-top:2px;">Command Center · Cuiabá / MT</div>
+      </div>
+    </div>
+    <nav class="cc-nav" aria-label="Surfaces">
+      <a href="#">Sweep Map</a>
+      <a href="#">Conveyor</a>
+      <a href="#">Dossier</a>
+      <a href="#" class="active" aria-current="page">Command</a>
+    </nav>
+    <div class="grow"></div>
+    <span class="row" style="gap:7px;"><span class="live-dot" aria-hidden="true"></span><span class="small-caps" style="color:var(--lime)">Engine Live</span></span>
+    <span class="cc-clock" id="clock">--:--:--</span>
+    <button class="btn btn-sm btn-ghost" id="openPalette"><i data-lucide="command"></i> Dispatch</button>
+  </header>
+
+  <!-- ============ HEALTH RIBBON ============ -->
+  <section class="cc-ribbon" aria-label="Live engine vitals">
+    <div class="cc-pulse is-measured">
+      <span class="cc-pulse__k"><i data-lucide="cpu"></i> Agentes Ativos</span>
+      <span class="cc-pulse__v"><span id="kActive">23</span><span style="color:var(--text-faint);font-size:1rem"> / 44</span></span>
+      <span class="cc-pulse__d stat__delta--up">▲ 6 vs ontem</span>
+    </div>
+    <div class="cc-pulse cc-pulse--hot is-measured">
+      <span class="cc-pulse__k"><i data-lucide="activity"></i> Trabalho em Voo</span>
+      <span class="cc-pulse__v tglow-energy" id="kFlight">187</span>
+      <span class="cc-pulse__d t-dim">sinais pulsando agora</span>
+    </div>
+    <div class="cc-pulse is-measured">
+      <span class="cc-pulse__k"><i data-lucide="radar"></i> Varreduras / 24h</span>
+      <span class="cc-pulse__v" id="kSweeps">412</span>
+      <span class="cc-pulse__d stat__delta--up">▲ bairros varridos</span>
+    </div>
+    <div class="cc-pulse is-measured">
+      <span class="cc-pulse__k"><i data-lucide="file-check"></i> Dossiês Prontos</span>
+      <span class="cc-pulse__v" id="kDoss">38</span>
+      <span class="cc-pulse__d t-dim">aguardando aprovação</span>
+    </div>
+    <div class="cc-pulse is-projected">
+      <span class="cc-pulse__k"><i data-lucide="trending-up"></i> Pipeline Projetado</span>
+      <span class="cc-pulse__v"><span class="revenue is-projected" id="kRev">R$ 2,4M</span></span>
+      <span class="cc-pulse__d tag-projected">estimado · faixa ±18%</span>
+    </div>
+  </section>
+
+  <!-- ============ MAIN GRID ============ -->
+  <main class="cc-grid">
+
+    <!-- LEFT: COCKPIT GAUGES + ROSTER -->
+    <aside class="cc-panel">
+      <div class="cc-panel__head">
+        <span class="cc-panel__title"><i data-lucide="gauge"></i> Subsistemas</span>
+        <span class="small-caps" id="healthAll" style="color:var(--ok)">nominal</span>
+      </div>
+      <div class="glass" style="padding:var(--sp-4); border-radius:var(--r-lg);">
+        <div class="gauges" id="gaugeBank"></div>
+      </div>
+
+      <div class="cc-panel__head" style="margin-top:var(--sp-5);">
+        <span class="cc-panel__title"><i data-lucide="cpu"></i> Roster · 44 agentes</span>
+        <div class="seg" id="rosterFilter">
+          <button class="on" data-f="all">Todos</button>
+          <button data-f="run">Rodando</button>
+          <button data-f="crit">Crítico</button>
+        </div>
+      </div>
+      <div class="glass" style="padding:var(--sp-4); border-radius:var(--r-lg); flex:1;">
+        <div class="roster" id="roster"></div>
+        <p class="t-xs t-dim" style="margin-top:var(--sp-3);">Geronimo opera <b style="color:var(--text-mid)">40+ agentes</b> de marketing &amp; software-house. Hermes orquestra, dispara e monitora — sem virar dashboard deles.</p>
+      </div>
+    </aside>
+
+    <!-- CENTER: NERVOUS-SYSTEM GRAPH -->
+    <section class="cc-panel">
+      <div class="cc-panel__head">
+        <span class="cc-panel__title"><i data-lucide="share-2"></i> Sistema Nervoso · Grafo Vivo</span>
+        <div class="row" style="gap:var(--sp-2);">
+          <button class="btn btn-sm btn-ghost" id="pulseBtn"><i data-lucide="zap"></i> Pulsar</button>
+          <button class="btn btn-sm btn-ghost" id="perfBtn"><i data-lucide="activity"></i> Leve</button>
+        </div>
+      </div>
+
+      <div class="stage glass-hero glass-spec" id="stage">
+        <div class="stage__sweep" aria-hidden="true"></div>
+        <div id="graph"></div>
+        <div class="stage__scrim-top"></div>
+
+        <div class="stage__hud">
+          <div class="stage__legend glass-deep">
+            <span class="lk lk--core"><i></i>Hermes Core</span>
+            <span class="lk lk--run"><i></i>Executando</span>
+            <span class="lk lk--idle"><i></i>Pronto</span>
+            <span class="lk lk--crit"><i></i>Atenção</span>
+            <span class="lk lk--xp"><i></i>Cross-project</span>
+          </div>
+          <div class="glass-deep" style="padding:var(--sp-2) var(--sp-3); border-radius:var(--r-pill); display:flex; align-items:center; gap:var(--sp-2);">
+            <span class="live-dot live-dot--purple" aria-hidden="true"></span>
+            <span class="t-xs t-mono" style="color:var(--text-mid)"><span id="edgeCount">0</span> sinais/s</span>
+          </div>
+        </div>
+
+        <div class="stage__zoom">
+          <button class="zbtn glass-deep" id="zin" aria-label="Zoom in"><i data-lucide="plus"></i></button>
+          <button class="zbtn glass-deep" id="zout" aria-label="Zoom out"><i data-lucide="minus"></i></button>
+          <button class="zbtn glass-deep" id="zfit" aria-label="Centralizar"><i data-lucide="maximize"></i></button>
+        </div>
+
+        <div class="nodecard glass-deep glass-spec" id="nodeCard">
+          <div class="row row-between" style="align-items:flex-start;">
+            <div class="nodecard__name" id="ncName">—</div>
+            <span class="nodecard__pill" id="ncPill">—</span>
+          </div>
+          <div class="nodecard__role" id="ncRole">—</div>
+          <div class="nodecard__bars" id="ncBars"></div>
+          <div class="row" style="margin-top:var(--sp-3); gap:var(--sp-2);">
+            <button class="btn btn-sm btn-energy" id="ncRun"><i data-lucide="play"></i> Disparar</button>
+            <button class="btn btn-sm btn-ghost" id="ncLog"><i data-lucide="scroll-text"></i> Fluxo</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT RAIL: TICKER + CROSS-PROJECT -->
+    <aside class="cc-panel rail">
+      <div>
+        <div class="cc-panel__head">
+          <span class="cc-panel__title"><i data-lucide="radio"></i> Decisões ao Vivo</span>
+          <span class="row" style="gap:6px;"><span class="live-dot" aria-hidden="true"></span></span>
+        </div>
+        <div class="ticker glass">
+          <div class="ticker__feed"><div class="ticker__list" id="tickerList"></div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="cc-panel__head">
+          <span class="cc-panel__title"><i data-lucide="send"></i> Disparar Cross-Project</span>
+        </div>
+        <div class="xproj glass">
+          <div class="xcard xcard--vuecra" data-x="vuecra" tabindex="0" role="button" aria-label="Disparar Vuecra para gerar site">
+            <div class="xcard__logo">V</div>
+            <div class="xcard__body">
+              <div class="xcard__name">Vuecra · Site Builder</div>
+              <div class="xcard__sub"><span class="live-dot" style="background:var(--st-consolidated);box-shadow:0 0 8px var(--st-consolidated)"></span> 3 sites em build</div>
+            </div>
+            <i data-lucide="arrow-up-right" class="go"></i>
+          </div>
+          <div class="xcard xcard--geronimo" data-x="geronimo" tabindex="0" role="button" aria-label="Disparar Geronimo para gerar estratégia">
+            <div class="xcard__logo">G</div>
+            <div class="xcard__body">
+              <div class="xcard__name">Geronimo · 40+ Agentes</div>
+              <div class="xcard__sub"><span class="live-dot"></span> 7 estratégias rodando</div>
+            </div>
+            <i data-lucide="arrow-up-right" class="go"></i>
+          </div>
+          <button class="btn btn-primary" style="justify-content:center;" id="dispatchAll"><i data-lucide="rocket"></i> Aprovar &amp; Enviar lote (38)</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- COMMAND DOCK -->
+<div class="cmddock glass-deep glass-spec">
+  <span class="cmddock__hint"><i data-lucide="command" style="width:14px;height:14px"></i> Ações</span>
+  <span class="vd"></span>
+  <button class="btn btn-sm btn-energy" id="dockSweep"><i data-lucide="radar"></i> Varrer bairro</button>
+  <button class="btn btn-sm" id="dockAudit"><i data-lucide="search-check"></i> Auditar</button>
+  <button class="btn btn-sm" id="dockApprove"><i data-lucide="check-check"></i> Aprovar dossiê</button>
+  <span class="vd"></span>
+  <span class="cmddock__hint"><kbd>⌘</kbd><kbd>K</kbd></span>
+</div>
+
+<!-- COMMAND PALETTE -->
+<div class="scrim" id="paletteScrim" hidden>
+  <div class="palette" role="dialog" aria-modal="true" aria-label="Paleta de comandos">
+    <input class="palette__input" id="paletteInput" placeholder="Comandar Hermes…  varrer Jardim das Américas · auditar · enviar Geronimo" autocomplete="off">
+    <div id="paletteResults" style="max-height:48vh; overflow:auto; padding-bottom:var(--sp-3);"></div>
+  </div>
+</div>
+
+<!-- TOAST MOUNT -->
+<div id="toasts" aria-live="polite"></div>
+
+<!-- ===================== LIBS ===================== -->
+<script src="https://cdn.jsdelivr.net/npm/graphology@0.25.4/dist/graphology.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sigma@3.0.0/dist/sigma.min.js"></script>
+<script>
+/* ------------------------------------------------------------------
+   HERMES COMMAND CENTER — runtime
+   Honest data law: solid=measured, translucent=projected.
+   prefers-reduced-motion respected throughout.
+------------------------------------------------------------------ */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ---- OKLCH -> rgb hex helpers (so canvas/sigma get real colors) ---- */
+function oklchToHex(L, C, H){
+  const hr = H*Math.PI/180;
+  const a = Math.cos(hr)*C, b = Math.sin(hr)*C;
+  const l_=L+0.3963377774*a+0.2158037573*b, m_=L-0.1055613458*a-0.0638541728*b, s_=L-0.0894841775*a-1.2914855480*b;
+  const l=l_**3, m=m_**3, s=s_**3;
+  let r= +4.0767416621*l -3.3077115913*m +0.2309699292*s;
+  let g= -1.2684380046*l +2.6097574011*m -0.3413193965*s;
+  let bb=-0.0041960863*l -0.7034186147*m +1.7076147010*s;
+  const f=x=>{x=x<=0.0031308?12.92*x:1.055*Math.pow(x,1/2.4)-0.055;return Math.max(0,Math.min(1,x));};
+  const h=x=>Math.round(f(x)*255).toString(16).padStart(2,'0');
+  return '#'+h(r)+h(g)+h(bb);
+}
+const COL = {
+  core:     oklchToHex(0.80,0.22,295),
+  coreIn:   oklchToHex(0.55,0.20,295),
+  coreGlow: oklchToHex(0.70,0.20,295),
+  run:      oklchToHex(0.92,0.21,118),
+  idle:     oklchToHex(0.66,0.15,250),
+  crit:     oklchToHex(0.78,0.20,38),
+  xp:       oklchToHex(0.62,0.014,285),
+  vuecra:   oklchToHex(0.66,0.16,250),
+  geronimo: oklchToHex(0.78,0.20,38),
+  edge:     oklchToHex(0.40,0.045,292),
+  edgeHot:  oklchToHex(0.60,0.12,295),
+  text:     oklchToHex(0.94,0.008,292),
+};
+
+/* ============ CLOCK ============ */
+const clock = $('#clock');
+function tick(){ const d=new Date(); clock.textContent = d.toLocaleTimeString('pt-BR',{hour12:false}); }
+tick(); setInterval(tick,1000);
+
+/* ============ CSS NEEDLE GAUGES (pure SVG, no lib) ============ */
+const GAUGES = [
+  {k:'Sweep Engine', v:88, crit:false},
+  {k:'Audit Pipeline', v:74, crit:false},
+  {k:'LinkedIn Health', v:42, crit:true},
+  {k:'VPS Contabo', v:67, crit:false},
+  {k:'Brain Latency', v:81, crit:false},
+  {k:'Email Warmup', v:95, crit:false},
+];
+/* gauge geometry: 180deg arc, radius 42, center (50,56) */
+const GA = { cx:50, cy:56, r:42, sw:6.5 };
+function gArcLen(pct){ return (pct/100) * (Math.PI*GA.r); }           /* dash length along 180deg */
+function gPoint(pct, r){ const a = Math.PI - (pct/100)*Math.PI; return [GA.cx + Math.cos(a)*r, GA.cy - Math.sin(a)*r]; }
+function gColor(v, crit){ return crit ? COL.crit : (v>=70?COL.run : v>=45?COL.idle : COL.crit); }
+function buildTicks(){
+  let t='';
+  for(let i=0;i<=10;i++){
+    const major = i%5===0;
+    const [x1,y1]=gPoint(i*10, GA.r+5.5);
+    const [x2,y2]=gPoint(i*10, GA.r+ (major?1.5:3.5));
+    t += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${major?'oklch(0.62 0.03 292 / .7)':'oklch(0.5 0.03 292 / .4)'}" stroke-width="${major?1.1:0.7}" stroke-linecap="round"/>`;
+  }
+  return t;
+}
+const TICKS = buildTicks();
+function buildGauge(g){
+  const el = document.createElement('div');
+  el.className = 'ngauge' + (g.crit?' ngauge--crit':'');
+  const ang = -90 + (g.v/100)*180;
+  const arcCol = gColor(g.v, g.crit);
+  const full = Math.PI*GA.r;
+  el.innerHTML = `
+    <div class="ngauge__dial">
+      <svg viewBox="0 0 100 62" aria-hidden="true">
+        <defs>
+          <radialGradient id="gh-${g.id}" cx="50%" cy="100%" r="80%">
+            <stop offset="0%" stop-color="${arcCol}" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="${arcCol}" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <path d="M${GA.cx-GA.r} ${GA.cy} A ${GA.r} ${GA.r} 0 0 1 ${GA.cx+GA.r} ${GA.cy}" fill="url(#gh-${g.id})"/>
+        ${TICKS}
+        <!-- track -->
+        <path d="M${GA.cx-GA.r} ${GA.cy} A ${GA.r} ${GA.r} 0 0 1 ${GA.cx+GA.r} ${GA.cy}" fill="none" stroke="oklch(0.28 0.02 292 / .85)" stroke-width="${GA.sw}" stroke-linecap="round"/>
+        <!-- redline danger zone (last 22%) -->
+        <path d="M${GA.cx-GA.r} ${GA.cy} A ${GA.r} ${GA.r} 0 0 1 ${GA.cx+GA.r} ${GA.cy}" fill="none" stroke="oklch(0.62 0.18 28 / .55)" stroke-width="${GA.sw}" stroke-linecap="round"
+              stroke-dasharray="0 ${gArcLen(78).toFixed(1)} ${gArcLen(22).toFixed(1)} 400"/>
+        <!-- value arc -->
+        <path class="ngauge__arc" d="M${GA.cx-GA.r} ${GA.cy} A ${GA.r} ${GA.r} 0 0 1 ${GA.cx+GA.r} ${GA.cy}" fill="none" stroke="${arcCol}" stroke-width="${GA.sw}" stroke-linecap="round"
+              stroke-dasharray="${gArcLen(g.v).toFixed(1)} 400" style="filter:drop-shadow(0 0 3px ${arcCol}); transition:stroke-dasharray 1.2s var(--ease-spring), stroke .6s;"/>
+        <g class="ngauge__needle" style="transform:rotate(${ang}deg)">
+          <line x1="${GA.cx}" y1="${GA.cy}" x2="${GA.cx}" y2="18" stroke="${COL.text}" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="${GA.cx}" y1="${GA.cy}" x2="${GA.cx}" y2="62" stroke="${COL.text}" stroke-width="2.2" stroke-linecap="round" opacity="0.35"/>
+        </g>
+        <circle cx="${GA.cx}" cy="${GA.cy}" r="5" fill="oklch(0.2 0.02 292)" stroke="${arcCol}" stroke-width="1.2"/>
+        <circle cx="${GA.cx}" cy="${GA.cy}" r="2" fill="${arcCol}"/>
+      </svg>
+    </div>
+    <div class="ngauge__val"><span class="ngauge__num">${g.v}</span><span style="font-size:.6em;color:var(--text-faint)">%</span></div>
+    <div class="ngauge__lbl">${g.k}</div>
+    ${g.crit?'<span class="ngauge__dot"></span>':''}`;
+  return el;
+}
+const bank = $('#gaugeBank');
+GAUGES.forEach((g,i)=>{ g.id=i; bank.appendChild(buildGauge(g)); });
+/* drift gauges live — needle + arc + number + color all track */
+if(!REDUCED) setInterval(()=>{
+  const dials = bank.querySelectorAll('.ngauge');
+  dials.forEach((d,i)=>{
+    const base = GAUGES[i].v;
+    const nv = Math.max(8, Math.min(99, Math.round(base + (Math.random()*8-4))));
+    const ang = -90 + (nv/100)*180;
+    const col = gColor(nv, GAUGES[i].crit);
+    d.querySelector('.ngauge__needle').style.transform = `rotate(${ang}deg)`;
+    const arc = d.querySelector('.ngauge__arc');
+    if(arc){ arc.setAttribute('stroke-dasharray', gArcLen(nv).toFixed(1)+' 400'); arc.style.stroke=col; arc.style.filter=`drop-shadow(0 0 3px ${col})`; }
+    const num = d.querySelector('.ngauge__num'); if(num) num.textContent = nv;
+  });
+}, 2600);
+
+/* ============ AGENT MODEL — Hermes core + 40 agents + 2 cross-proj ============ */
+const HERMES_SUB = ['Sweep','Geo Scanner','Audit','Revenue Model','Dossier','Brain','LinkedIn Sync','Email Warmup'];
+const GERONIMO_AG = ['SEO Strategist','SEM Buyer','Copy Director','Creative Gen','Funnel Architect','Brand Voice','Competitor Recon','Adversarial Report','Market Dominance','Social Pulse','Ad Estimator','Landing Smith','CRM Sync','Outreach Bot','Reply Triage','Dealcloser','Persona Builder','Pricing Analyst','Content Calendar','Video Hook','Review Miner','Local SEO','Schema Gen','A/B Pilot','Churn Sentinel','Upsell Scout','Whitelabel Build','Software Dir','Backend Smith','Frontend Smith','QA Runner','Deploy Ops','Tracking Pixel','Lookalike','Retarget','Email Seq','WhatsApp Bot','Voice Caller','Report Weaver','Insight Distill'];
+const STATES = ['run','idle','crit'];
+function pickState(){ const r=Math.random(); return r<0.5?'run':(r<0.9?'idle':'crit'); }
+
+const ICONS = { Sweep:'radar', 'Geo Scanner':'map-pinned', Audit:'search-check', 'Revenue Model':'trending-up', Dossier:'file-text', Brain:'brain-circuit', 'LinkedIn Sync':'linkedin', 'Email Warmup':'mail-check' };
+function agIcon(name){ return ICONS[name] || 'bot'; }
+
+/* ============ GRAPH (graphology + sigma) ============ */
+const Graph = graphology.Graph;
+const graph = new Graph({ multi:true });
+const W = 1000, H = 700, cx = W*0.42, cy = H*0.5;
+
+function metricsFor(){
+  return [['Carga', 40+Math.random()*55|0],['Throughput', 30+Math.random()*65|0],['Sucesso', 60+Math.random()*38|0],['Fila', Math.random()*40|0]];
+}
+
+/* core */
+graph.addNode('hermes', { x:cx, y:cy, size:30, label:'HERMES', color:COL.core, kind:'core', role:'Núcleo orquestrador 24/7', mx:metricsFor() });
+
+/* hermes subsystems — inner ring */
+HERMES_SUB.forEach((n,i)=>{
+  const a = (i/HERMES_SUB.length)*Math.PI*2 - Math.PI/2;
+  const id = 'h'+i;
+  const st = i===6 ? 'crit' : (Math.random()<0.7?'run':'idle');
+  graph.addNode(id, { x:cx+Math.cos(a)*138, y:cy+Math.sin(a)*138, size:14, label:n, color: st==='run'?COL.run:(st==='crit'?COL.crit:COL.idle), kind:'sub', state:st, role:'Subsistema Hermes', mx:metricsFor() });
+  graph.addEdge('hermes', id, { size:2.4, color: st==='run'?COL.edgeHot:COL.core, type:'line', wflight:st==='run' });
+});
+
+/* geronimo cross-project anchor */
+graph.addNode('geronimo', { x:cx+340, y:cy-155, size:22, label:'GERONIMO', color:COL.geronimo, kind:'xproj', role:'Agência agêntica · 40+ agentes', mx:metricsFor() });
+graph.addEdge('hermes','geronimo', { size:4, color:COL.geronimo, type:'arrow', trigger:true, label:'run-strategy' });
+
+/* vuecra cross-project anchor */
+graph.addNode('vuecra', { x:cx+305, y:cy+205, size:20, label:'VUECRA', color:COL.vuecra, kind:'xproj', role:'Construtor de sites autônomo', mx:metricsFor() });
+graph.addEdge('hermes','vuecra', { size:4, color:COL.vuecra, type:'arrow', trigger:true, label:'build-site' });
+
+/* geronimo's 40 agents — outer cluster around geronimo */
+const gx = cx+330, gy = cy-150;
+const agentIds = [];
+GERONIMO_AG.forEach((n,i)=>{
+  const ring = i<14?0:(i<28?1:2);
+  const perRing = [14,14,12][ring];
+  const idx = ring===0?i:(ring===1?i-14:i-28);
+  const rad = [120,185,250][ring];
+  const a = (idx/perRing)*Math.PI*2 + ring*0.4;
+  const id='g'+i;
+  const st = pickState();
+  agentIds.push({id, st, name:n});
+  graph.addNode(id, { x:gx+Math.cos(a)*rad, y:gy+Math.sin(a)*rad, size:7+Math.random()*3, label:n, color: st==='run'?COL.run:(st==='crit'?COL.crit:COL.idle), kind:'agent', state:st, role:'Agente Geronimo', mx:metricsFor() });
+  graph.addEdge('geronimo', id, { size:1, color:COL.edge, type:'line', wflight:st==='run' });
+});
+
+/* ---- sigma renderer ---- */
+const renderer = new Sigma(graph, $('#graph'), {
+  defaultEdgeType:'line',
+  renderEdgeLabels:false,
+  defaultNodeColor: COL.idle,
+  labelColor:{ color: COL.text },
+  labelFont:'Geist Mono, monospace',
+  labelSize:11, labelWeight:'600',
+  labelRenderedSizeThreshold: 13,
+  labelDensity: 0.7,
+  edgeLabelColor:{ color: COL.text },
+  zIndex:true,
+  enableEdgeEvents:false,
+  minCameraRatio:0.45, maxCameraRatio:2.2,
+});
+renderer.getCamera().setState({ ratio:1.12, x:0.52, y:0.5 });
+
+/* node reducer — halo for running, dim cross-project agents on hover focus */
+let hoveredNode = null, focusFilter = 'all';
+const DIM = oklchToHex(0.30,0.012,285);
+renderer.setSetting('nodeReducer', (node, data) => {
+  const d = { ...data };
+  if(hoveredNode){
+    const neigh = graph.neighbors(hoveredNode);
+    if(node===hoveredNode){ d.size = data.size*1.18; d.highlighted = true; }
+    else if(!neigh.includes(node)){ d.color = DIM; d.label=''; d.zIndex=0; }
+  }
+  if(focusFilter!=='all' && data.kind==='agent' && data.state!==focusFilter){ d.color = DIM; }
+  /* always-on labels for the anchors */
+  if(data.kind==='core'||data.kind==='xproj'){ d.forceLabel = true; }
+  return d;
+});
+/* edge reducer — fade non-incident edges on hover so the active path glows */
+renderer.setSetting('edgeReducer', (edge, data) => {
+  const d = { ...data };
+  if(hoveredNode){
+    const [s,t] = graph.extremities(edge);
+    if(s!==hoveredNode && t!==hoveredNode){ d.color = oklchToHex(0.24,0.01,292); d.hidden=false; }
+  }
+  return d;
+});
+
+/* ---- hover & click -> node card ---- */
+const nodeCard = $('#nodeCard');
+const PILL_LABEL = { run:'executando', idle:'pronto', crit:'atenção', core:'núcleo' };
+function showCard(node){
+  const a = graph.getNodeAttributes(node);
+  $('#ncName').textContent = a.label;
+  $('#ncRole').textContent = a.role;
+  const st = a.kind==='core' ? 'core' : (a.kind==='xproj' ? 'run' : (a.state||'idle'));
+  const pill = $('#ncPill');
+  pill.textContent = a.kind==='core' ? 'núcleo' : (PILL_LABEL[st]||'pronto');
+  pill.dataset.st = a.kind==='core' ? 'core' : st;
+  const bars = $('#ncBars'); bars.innerHTML='';
+  (a.mx||metricsFor()).forEach(([k,v])=>{
+    const r=document.createElement('div'); r.className='mbar';
+    r.innerHTML=`<span>${k}</span><div class="mbar__track"><div class="mbar__fill" style="width:${v}%"></div></div><span class="mbar__n">${v}</span>`;
+    bars.appendChild(r);
+  });
+  nodeCard.classList.add('show');
+}
+renderer.on('enterNode', ({node})=>{ hoveredNode=node; renderer.refresh(); showCard(node); $('#graph').style.cursor='pointer'; });
+renderer.on('leaveNode', ()=>{ hoveredNode=null; renderer.refresh(); $('#graph').style.cursor='default'; });
+renderer.on('clickNode', ({node})=>{ showCard(node); pulseFromNode(node); });
+$('#ncRun').onclick = ()=>{ toast('Agente disparado — execução iniciada', 'energy'); pulseFromNode('hermes'); };
+$('#ncLog').onclick = ()=>{ toast('Abrindo fluxo de execução em tempo real…'); };
+
+/* ============ GLOW + EDGE PARTICLES — additive bloom layer over sigma ============ */
+const stageEl = $('#stage');
+/* glow canvas sits BELOW sigma's node canvas so halos read as emission, not stickers */
+const gcanvas = document.createElement('canvas');
+gcanvas.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:1;';
+/* particle canvas sits ABOVE everything — work travelling the wires */
+const pcanvas = document.createElement('canvas');
+pcanvas.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:5;';
+const graphEl = $('#graph');
+graphEl.prepend(gcanvas);
+graphEl.appendChild(pcanvas);
+const gctx = gcanvas.getContext('2d');
+const pctx = pcanvas.getContext('2d');
+function sizeCanvas(){
+  const r=stageEl.getBoundingClientRect();
+  [gcanvas,pcanvas].forEach(c=>{ c.width=r.width*devicePixelRatio; c.height=r.height*devicePixelRatio; });
+  gctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  pctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+sizeCanvas(); addEventListener('resize',()=>{ sizeCanvas(); });
+
+/* particle = a unit of work travelling an edge */
+let particles = [];
+function spawnParticle(src, dst, color, big){
+  particles.push({src,dst,t:0, speed:0.006+Math.random()*0.01, color, big:!!big, life:1});
+}
+function seedParticles(){
+  graph.forEachEdge((e, attr, s, t)=>{
+    if(attr.wflight && Math.random()<0.5) spawnParticle(s,t, COL.run);
+    /* steady cross-project heartbeat so the trigger wires always feel alive */
+    if(attr.trigger && Math.random()<0.5){
+      const col = t==='geronimo'?COL.geronimo : t==='vuecra'?COL.vuecra : COL.run;
+      spawnParticle(s,t,col, Math.random()<0.4);
+    }
+  });
+}
+
+/* cross-project trigger firing — periodic bright bursts */
+function fireTrigger(target){
+  const color = target==='geronimo'?COL.geronimo:COL.vuecra;
+  for(let i=0;i<7;i++) setTimeout(()=>spawnParticle('hermes',target,color,true), i*70);
+  toast(target==='geronimo' ? 'Hermes → Geronimo: run-strategy disparado' : 'Hermes → Vuecra: build-site disparado', target==='geronimo'?'opp':'info');
+  pushDecision(target==='geronimo'
+    ? {cls:'xp', ico:'send', t:'Lote de 4 leads → <b>Geronimo</b> · run-strategy'}
+    : {cls:'xp', ico:'globe', t:'Auto Peças MT aprovado → <b>Vuecra</b> · build-site'});
+}
+function pulseFromNode(node){
+  graph.forEachNeighbor(node, (nb)=>{ spawnParticle(node, nb, COL.run, true); });
+}
+
+function graphPos(node){
+  const a = graph.getNodeAttributes(node);
+  const v = renderer.graphToViewport({x:a.x, y:a.y});
+  return v;
+}
+/* radial glow sprite cache (one per color) for cheap additive halos */
+const haloCache = {};
+function halo(color, R){
+  const key = color+'@'+R;
+  if(haloCache[key]) return haloCache[key];
+  const c = document.createElement('canvas'); c.width=c.height=R*2;
+  const x=c.getContext('2d');
+  const g=x.createRadialGradient(R,R,0,R,R,R);
+  g.addColorStop(0, color); g.addColorStop(0.35, color); g.addColorStop(1,'transparent');
+  x.fillStyle=g; x.globalAlpha=1; x.beginPath(); x.arc(R,R,R,0,7); x.fill();
+  haloCache[key]=c; return c;
+}
+/* breathing phase for living pulse */
+let phase=0, lastTime=performance.now(), edgesPerSec=0, edgeAcc=0;
+function drawHalo(ctx, pos, color, radius, alpha){
+  const spr = halo(color, 64);
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(spr, pos.x-radius, pos.y-radius, radius*2, radius*2);
+  ctx.globalAlpha = 1;
+}
+function animateParticles(now){
+  const dt = Math.min(50, now-lastTime); lastTime=now;
+  phase += dt/1000;
+  gctx.clearRect(0,0,gcanvas.width,gcanvas.height);
+  pctx.clearRect(0,0,pcanvas.width,pcanvas.height);
+  const ratio = renderer.getCamera().ratio;
+  const scale = 1/ratio;
+
+  /* ---- node glow halos (additive) — running=lime, core=purple, xproj branded, crit=coral ---- */
+  gctx.globalCompositeOperation = 'lighter';
+  graph.forEachNode((id, a)=>{
+    let col=null, base=0;
+    if(a.kind==='core'){ col=COL.coreGlow; base=a.size*2.6; }
+    else if(a.kind==='xproj'){ col = id==='geronimo'?COL.geronimo:COL.vuecra; base=a.size*2.3; }
+    else if(a.state==='run'){ col=COL.run; base=a.size*1.9; }
+    else if(a.state==='crit'){ col=COL.crit; base=a.size*1.9; }
+    else return; /* idle = no glow (honest: only active emits) */
+    const breath = REDUCED ? 1 : (1 + Math.sin(phase*1.6 + (a.x+a.y)*0.01)*0.14);
+    const pos = graphPos(id);
+    const R = base*scale*breath*1.4;
+    drawHalo(gctx, pos, col, R, a.kind==='core'?0.5 : a.kind==='xproj'?0.42 : 0.34);
+  });
+  gctx.globalCompositeOperation = 'source-over';
+
+  /* ---- particles travelling wires (additive bloom) ---- */
+  pctx.globalCompositeOperation = 'lighter';
+  {
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];
+      if(!REDUCED){ p.t += p.speed*(dt/16.6); if(p.t>=1){ particles.splice(i,1); edgeAcc++; continue; } }
+      const s=graphPos(p.src), d=graphPos(p.dst);
+      /* gentle curve for trigger/big particles so cross-project arcs feel like signals, not lines */
+      const mx=(s.x+d.x)/2, my=(s.y+d.y)/2;
+      const nx=-(d.y-s.y), ny=(d.x-s.x), nl=Math.hypot(nx,ny)||1;
+      const bend = p.big? 26 : 8;
+      const cxp=mx+nx/nl*bend, cyp=my+ny/nl*bend;
+      const t=p.t, mt=1-t;
+      const x=mt*mt*s.x+2*mt*t*cxp+t*t*d.x, y=mt*mt*s.y+2*mt*t*cyp+t*t*d.y;
+      const r=(p.big?3.4:1.9)*Math.max(0.7,scale);
+      /* tail */
+      const t2=Math.max(0,p.t-0.08);
+      const tx=mt*mt*s.x; const ty=mt*mt*s.y;
+      const px2=(1-t2)*(1-t2)*s.x+2*(1-t2)*t2*cxp+t2*t2*d.x;
+      const py2=(1-t2)*(1-t2)*s.y+2*(1-t2)*t2*cyp+t2*t2*d.y;
+      pctx.beginPath(); pctx.moveTo(px2,py2); pctx.lineTo(x,y);
+      pctx.strokeStyle=p.color; pctx.globalAlpha=0.4; pctx.lineWidth=r*1.1; pctx.lineCap='round'; pctx.stroke(); pctx.globalAlpha=1;
+      /* head with bloom */
+      pctx.beginPath(); pctx.arc(x,y,r,0,7); pctx.fillStyle=p.color; pctx.shadowBlur=p.big?18:9; pctx.shadowColor=p.color; pctx.fill();
+      pctx.beginPath(); pctx.arc(x,y,r*0.45,0,7); pctx.fillStyle='#ffffff'; pctx.globalAlpha=0.85; pctx.fill(); pctx.globalAlpha=1;
+    }
+    pctx.shadowBlur=0;
+  }
+  pctx.globalCompositeOperation = 'source-over';
+  requestAnimationFrame(animateParticles);
+}
+requestAnimationFrame(animateParticles);
+
+/* sustain work-in-flight + count signals */
+const edgeCountEl=$('#edgeCount');
+if(!REDUCED){
+  setInterval(seedParticles, 900);
+  setInterval(()=>{ edgesPerSec=edgeAcc; edgeAcc=0; edgeCountEl.textContent = (edgesPerSec*1.1+12|0); }, 1000);
+  /* periodic cross-project triggers */
+  setInterval(()=>fireTrigger(Math.random()<0.55?'geronimo':'vuecra'), 6500);
+  seedParticles();
+} else {
+  /* reduced-motion: still read as "alive" — freeze a snapshot of signals mid-flight (the rAF loop paints them, just doesn't advance) */
+  edgeCountEl.textContent='~24';
+  graph.forEachEdge((e, attr, s, t)=>{
+    if((attr.wflight||attr.trigger) && Math.random()<0.6){
+      const col = t==='geronimo'?COL.geronimo : t==='vuecra'?COL.vuecra : COL.run;
+      particles.push({src:s,dst:t,t:0.2+Math.random()*0.6,speed:0,color:col,big:!!attr.trigger,life:1});
+    }
+  });
+}
+
+/* zoom controls */
+$('#zin').onclick = ()=>renderer.getCamera().animatedZoom(1.3);
+$('#zout').onclick = ()=>renderer.getCamera().animatedUnzoom(1.3);
+$('#zfit').onclick = ()=>renderer.getCamera().animatedReset();
+
+/* ============ ROSTER STRIP ============ */
+const rosterEl=$('#roster');
+function buildRoster(){
+  rosterEl.innerHTML='';
+  const all = [...HERMES_SUB.map((n,i)=>({name:n, st:(i===6?'crit':'run'), core:true})), ...agentIds.map(a=>({name:a.name, st:a.st}))];
+  all.forEach(a=>{
+    const el=document.createElement('div');
+    el.className='ag'+(a.st==='run'?' ag--run':a.st==='crit'?' ag--crit':'');
+    el.dataset.st=a.st;
+    el.title=a.name+' · '+(a.st==='run'?'rodando':a.st==='crit'?'atenção':'pronto');
+    el.innerHTML=`<i data-lucide="${a.core?agIcon(a.name):'bot'}"></i>`;
+    el.onclick=()=>toast(a.name+' selecionado');
+    rosterEl.appendChild(el);
+  });
+  if(window.lucide) lucide.createIcons();
+}
+buildRoster();
+$('#rosterFilter').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  $$('#rosterFilter button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  const f=b.dataset.f;
+  $$('#roster .ag').forEach(a=>{ a.style.display = (f==='all'||a.dataset.st===f)?'':'none'; });
+});
+
+/* ============ DECISION TICKER ============ */
+const tickerList=$('#tickerList');
+const SEED_DECISIONS=[
+  {cls:'act', ico:'radar', t:'Varredura <b>Jardim das Américas</b> concluída · 47 negócios'},
+  {cls:'xp',  ico:'send', t:'<b>Padaria Trigo Dourado</b> → Geronimo · adversarial-report'},
+  {cls:'act', ico:'trending-up', t:'<b>Auto Center MT</b> · receita projetada R$ 38k/mês'},
+  {cls:'warn',ico:'alert-triangle', t:'LinkedIn Sync em cooldown · rate-limit 42%'},
+  {cls:'act', ico:'search-check', t:'Re-auditoria <b>Clínica Vida+</b> · score 71 → 88'},
+  {cls:'xp',  ico:'globe', t:'<b>Restaurante Peixe Vivo</b> → Vuecra · site no ar em 6min'},
+];
+function timeStr(off=0){ const d=new Date(Date.now()-off*1000); return d.toLocaleTimeString('pt-BR',{hour12:false}).slice(0,8); }
+function makeTk(d, age){
+  const el=document.createElement('div');
+  el.className='tk tk--'+d.cls;
+  el.innerHTML=`<div class="tk__ico"><i data-lucide="${d.ico}"></i></div><div><div class="tk__txt">${d.t}</div><div class="tk__t">${timeStr(age||0)}</div></div>`;
+  return el;
+}
+SEED_DECISIONS.forEach((d,i)=>tickerList.appendChild(makeTk(d, (i+1)*37)));
+if(window.lucide) lucide.createIcons();
+function pushDecision(d){
+  const el=makeTk(d,0);
+  tickerList.prepend(el);
+  if(window.lucide) lucide.createIcons();
+  while(tickerList.children.length>14) tickerList.lastChild.remove();
+}
+const LIVE_FEED=[
+  {cls:'act', ico:'radar', t:'Sweep automático <b>Bairro Goiabeiras</b> iniciado'},
+  {cls:'act', ico:'file-text', t:'Dossiê gerado · <b>Ótica Visão Clara</b> · 5 concorrentes'},
+  {cls:'xp',  ico:'send', t:'3 leads premium → <b>Geronimo</b> · SEO+SEM strategy'},
+  {cls:'act', ico:'brain-circuit', t:'Brain decidiu: priorizar nicho <b>clínicas sem site</b>'},
+  {cls:'warn',ico:'shield-alert', t:'Guardrail: ação destrutiva pediu confirmação'},
+  {cls:'act', ico:'mail-check', t:'Warmup e-mail dia 11/14 · entregabilidade 95%'},
+];
+if(!REDUCED) setInterval(()=>pushDecision(LIVE_FEED[Math.random()*LIVE_FEED.length|0]), 4200);
+
+/* ============ TOASTS ============ */
+function toast(msg, kind){
+  const t=document.createElement('div'); t.className='toast';
+  const ic = kind==='energy'?'zap':kind==='opp'?'send':kind==='info'?'globe':'check';
+  t.style.borderColor = kind==='energy'?'var(--line-lime)':kind==='opp'?'oklch(0.74 0.18 38 / .5)':'var(--glass-border)';
+  t.innerHTML=`<span style="display:flex;align-items:center;gap:8px;"><i data-lucide="${ic}" style="width:16px;height:16px;color:${kind==='energy'?'var(--lime)':kind==='opp'?'var(--st-opportunity)':'var(--lime)'}"></i>${msg}</span>`;
+  $('#toasts').appendChild(t);
+  if(window.lucide) lucide.createIcons();
+  setTimeout(()=>{ t.style.transition='opacity .3s, transform .3s'; t.style.opacity='0'; t.style.transform='translateY(8px)'; setTimeout(()=>t.remove(),300); }, 3200);
+}
+
+/* ============ CROSS-PROJECT + DOCK + PALETTE WIRING ============ */
+$$('.xcard').forEach(c=>{ const go=()=>fireTrigger(c.dataset.x); c.onclick=go; c.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}}; });
+$('#dispatchAll').onclick=()=>{ toast('38 dossiês aprovados — enviando em lote para Geronimo','opp'); fireTrigger('geronimo'); };
+$('#dockSweep').onclick=()=>{ toast('Varredura disparada — workflow automático ativo','energy'); pulseFromNode('hermes'); pushDecision({cls:'act',ico:'radar',t:'Sweep manual disparado pelo comando'}); };
+$('#dockAudit').onclick=()=>{ toast('Auditoria em fila'); pushDecision({cls:'act',ico:'search-check',t:'Auditoria manual enfileirada'}); };
+$('#dockApprove').onclick=()=>{ toast('Dossiê aprovado','energy'); };
+$('#pulseBtn').onclick=()=>{ pulseFromNode('hermes'); GERONIMO_AG.forEach((_,i)=>spawnParticle('geronimo','g'+i,COL.run)); };
+$('#perfBtn').onclick=function(){ document.body.classList.toggle('perf-lite'); this.classList.toggle('chip'); toast('Modo leve '+(document.body.classList.contains('perf-lite')?'ligado':'desligado')); };
+
+/* ---- command palette ---- */
+const PALETTE_CMDS=[
+  {g:'Varredura', i:'radar', b:'Varrer bairro…', s:'Iniciar sweep automático de uma região', a:()=>$('#dockSweep').click()},
+  {g:'Varredura', i:'map-pinned', b:'Varrer cidade inteira', s:'Cuiabá · todos os bairros pendentes', a:()=>toast('Sweep de cidade enfileirado','energy')},
+  {g:'Auditoria', i:'search-check', b:'Auditar negócio…', s:'Rodar audit + revenue model', a:()=>$('#dockAudit').click()},
+  {g:'Auditoria', i:'refresh-cw', b:'Re-auditar dossiês frios', s:'Atualizar scores defasados', a:()=>toast('Re-auditoria em lote iniciada')},
+  {g:'Cross-Project', i:'send', b:'Enviar para Geronimo', s:'run-strategy / software-house', a:()=>fireTrigger('geronimo')},
+  {g:'Cross-Project', i:'globe', b:'Enviar para Vuecra', s:'build-site autônomo', a:()=>fireTrigger('vuecra')},
+  {g:'Aprovação', i:'check-check', b:'Aprovar lote de dossiês', s:'38 prontos para contato', a:()=>$('#dispatchAll').click()},
+  {g:'Sistema', i:'activity', b:'Alternar modo leve', s:'Reduzir efeitos pesados', a:()=>$('#perfBtn').click()},
+];
+const pScrim=$('#paletteScrim'), pInput=$('#paletteInput'), pRes=$('#paletteResults');
+function openPalette(){ pScrim.hidden=false; pInput.value=''; renderPalette(''); pInput.focus(); }
+function closePalette(){ pScrim.hidden=true; }
+function renderPalette(q){
+  q=q.toLowerCase();
+  const matches=PALETTE_CMDS.filter(c=>(c.b+c.s+c.g).toLowerCase().includes(q));
+  let html='', lastG='';
+  matches.forEach((c,i)=>{
+    if(c.g!==lastG){ html+=`<div class="palette__group">${c.g}</div>`; lastG=c.g; }
+    html+=`<div class="palette__item" data-i="${PALETTE_CMDS.indexOf(c)}" ${i===0?'aria-selected="true"':''}>
+      <div class="palette__icn"><i data-lucide="${c.i}"></i></div>
+      <div class="pm"><b>${c.b}</b><span>${c.s}</span></div>
+      <kbd class="k">↵</kbd></div>`;
+  });
+  pRes.innerHTML=html||`<div style="padding:var(--sp-5);color:var(--text-dim);text-align:center">Nenhum comando</div>`;
+  if(window.lucide) lucide.createIcons();
+  $$('.palette__item').forEach(it=>it.onclick=()=>{ PALETTE_CMDS[+it.dataset.i].a(); closePalette(); });
+}
+pInput && pInput.addEventListener('input', e=>renderPalette(e.target.value));
+$('#openPalette').onclick=openPalette;
+pScrim.addEventListener('click', e=>{ if(e.target===pScrim) closePalette(); });
+addEventListener('keydown', e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); pScrim.hidden?openPalette():closePalette(); }
+  if(e.key==='Escape'){ closePalette(); }
+  if(!pScrim.hidden && e.key==='Enter'){ const sel=$('.palette__item[aria-selected="true"]')||$('.palette__item'); if(sel) sel.click(); }
+});
+
+/* ============ animated KPI count-ups (lightweight) ============ */
+function countUp(el, to, suffix=''){
+  if(REDUCED){ el.textContent=to+suffix; return; }
+  let cur=0; const step=to/40;
+  const iv=setInterval(()=>{ cur+=step; if(cur>=to){cur=to;clearInterval(iv);} el.textContent=Math.round(cur)+suffix; },22);
+}
+countUp($('#kActive'),23); countUp($('#kFlight'),187); countUp($('#kSweeps'),412); countUp($('#kDoss'),38);
+
+/* drift the flight number to feel alive */
+if(!REDUCED) setInterval(()=>{ const e=$('#kFlight'); e.textContent = (180+Math.random()*22|0); }, 3000);
+
+/* init icons */
+window.addEventListener('load', ()=>{ if(window.lucide) lucide.createIcons(); });
+setTimeout(()=>{ if(window.lucide) lucide.createIcons(); }, 300);
+</script>
+</body>
+</html>

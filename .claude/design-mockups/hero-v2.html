@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes 2.0 — Início</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="design-system-v2.css">
+<style>
+/* ---- inicio / lobby: tela calma, um foco, sem scroll longo ----
+   LEIS v2: minimalismo robusto. Conteudo SEMPRE visivel (base inline);
+   animacao so como enhancement sob no-preference. Uma cor de destaque
+   (roxo) cirurgica; warm/good so com significado. */
+.wrap{padding-bottom:56px}
+
+/* saudacao + estado do motor numa linha calma */
+.hello{padding:38px 4px 4px}
+.hello h1{font-size:30px;font-weight:600;letter-spacing:-0.03em;line-height:1.12}
+.hello h1 .soft{color:var(--tx3);font-weight:450}
+.engine{display:inline-flex;align-items:center;gap:9px;margin-top:15px;font-size:13px;color:var(--tx2);
+  background:var(--surface);border:0.5px solid var(--line);border-radius:999px;padding:7px 14px 7px 12px}
+.engine .d{width:7px;height:7px;border-radius:50%;background:var(--good);flex-shrink:0}
+@media(prefers-reduced-motion:no-preference){.engine .d{animation:beat 2.4s var(--ease) infinite}}
+.engine b{color:var(--tx);font-weight:500}
+.engine .sweep{color:var(--tx3)}
+
+/* glance da operacao — discreto, herda .glance do design-system */
+.glance{margin-top:26px}
+
+/* secao: cabecalho calmo, hover revela o link */
+.sec{display:flex;align-items:baseline;gap:10px;padding:40px 4px 2px}
+.sec h2{font-size:14px;font-weight:500;color:var(--tx);letter-spacing:-0.01em}
+.sec .hint{font-size:12px;color:var(--tx3)}
+.sec .spacer{flex:1}
+.sec .lnk{font-size:12.5px;color:var(--tx3);text-decoration:none;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;transition:all .2s var(--ease)}
+.sec .lnk:hover{background:var(--surface);color:var(--tx)}
+.sec .lnk i{font-size:15px;transition:transform .25s var(--ease)}
+.sec .lnk:hover i{transform:translateX(2px)}
+
+/* 3 oportunidades mais quentes — hover-expand igual esteira */
+.hot3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.opp-card{padding:18px 18px 16px;display:flex;flex-direction:column;gap:13px;cursor:pointer;text-decoration:none;color:inherit}
+.opp-card.hot{box-shadow:0 0 0 0.5px var(--warm-soft), -1px 0 0 var(--warm) inset}
+.card.hot.h:hover{box-shadow:var(--shadow), -1px 0 0 var(--warm) inset, 0 0 40px -22px var(--warm)}
+.opp-top{display:flex;align-items:flex-start;gap:13px}
+.opp-ico{width:42px;height:42px;border-radius:12px;background:radial-gradient(circle at 30% 25%,var(--surface-2),var(--bg-2));border:0.5px solid var(--line-2);display:grid;place-items:center;color:var(--tx2);font-size:20px;flex-shrink:0;transition:color .3s,border-color .3s}
+.card.h:hover .opp-ico{color:var(--tx);border-color:var(--line-2)}
+.opp-id{min-width:0;flex:1}
+.opp-id b{font-weight:500;font-size:15px;line-height:1.25;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opp-id .sub{color:var(--tx3);font-size:12px;margin-top:3px;display:flex;align-items:center;gap:5px}
+.opp-id .sub i{font-size:13px;opacity:.7}
+.opp-card .gapline{font-size:12.5px;color:var(--tx2);line-height:1.45}
+.opp-card .gapline .hl{color:var(--warm)}
+
+/* faixa de dinheiro: fatura hoje -> poderia faturar. Revela no hover. */
+.opp-money{display:grid;grid-template-rows:0fr;transition:grid-template-rows .42s var(--ease)}
+.card.h:hover .opp-money{grid-template-rows:1fr}
+.opp-money>.in{overflow:hidden;min-height:0}
+.opp-money .bars{padding-top:3px;display:flex;flex-direction:column;gap:7px}
+.opp-money .ln{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--tx3)}
+.opp-money .ln .k{width:84px;flex-shrink:0;font-variant-numeric:tabular-nums}
+.opp-money .ln .track{flex:1;height:5px;border-radius:3px;background:var(--bg-2);border:0.5px solid var(--line);overflow:hidden}
+.opp-money .ln .track i{display:block;height:100%;border-radius:3px;width:0;transition:width .6s var(--ease)}
+.opp-money .ln.now .track i{background:var(--tx4)}
+.opp-money .ln.pot .track i{background:linear-gradient(90deg,var(--good),var(--good-soft))}
+.opp-money .ln .v{width:78px;text-align:right;flex-shrink:0;color:var(--tx2);font-weight:500;font-variant-numeric:tabular-nums}
+.opp-money .ln.pot .v{color:var(--good)}
+
+.opp-foot{display:flex;align-items:center;gap:9px;margin-top:auto;padding-top:4px}
+.opp-foot .go{font-size:12px;color:var(--tx3);display:inline-flex;align-items:center;gap:5px;transition:color .25s}
+.opp-foot .go i{font-size:15px;transition:transform .25s var(--ease)}
+.card.h:hover .opp-foot .go{color:var(--tx2)}
+.card.h:hover .opp-foot .go i{transform:translateX(2px)}
+.opp-foot .spacer{flex:1}
+.tagh{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:500;color:var(--warm);background:var(--warm-soft);padding:3px 8px;border-radius:6px;letter-spacing:.03em;text-transform:uppercase}
+.tagh .hd{width:5px;height:5px;border-radius:50%;background:var(--warm)}
+@media(prefers-reduced-motion:no-preference){.tagh .hd{box-shadow:0 0 7px var(--warm)}}
+.tagg{color:var(--good);background:var(--good-soft)}
+.tagg .hd{background:var(--good)}
+@media(prefers-reduced-motion:no-preference){.tagg .hd{box-shadow:0 0 7px var(--good)}}
+
+/* atalhos para as 4 superficies */
+.surf{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.surf-card{padding:18px 17px;display:flex;flex-direction:column;gap:11px;cursor:pointer;text-decoration:none;color:inherit;position:relative;overflow:hidden}
+.surf-card .si{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:19px;border:0.5px solid var(--line-2);background:var(--bg-2);color:var(--tx2);transition:color .3s,transform .3s var(--ease-2),border-color .3s}
+.card.h:hover .si{color:var(--tx);transform:translateY(-2px);border-color:var(--line-2)}
+.surf-card b{font-weight:500;font-size:14px}
+.surf-card .sd{font-size:11.5px;color:var(--tx3);line-height:1.45}
+.surf-card .cnt{position:absolute;top:16px;right:16px;font-size:12px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.surf-card .cnt b{color:var(--tx2);font-weight:600}
+
+@media(max-width:860px){
+  .hot3{grid-template-columns:1fr}
+  .surf{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-windmill"></i></div>
+      <b>Hermes</b><span class="dim">· Cuiabá / MT</span>
+    </div>
+    <nav class="nav">
+      <a href="hero-v2.html" class="on">Início</a>
+      <a href="map-v2.html">Mapa</a>
+      <a href="02b-esteira-v2.html">Esteira</a>
+      <a href="dossier-v2.html">Dossiê</a>
+      <a href="competitors-v2.html">Concorrência</a>
+      <a href="cmd-v2.html">Central</a>
+      <a href="agent-v2.html">Agente</a>
+      <a href="myday-v2.html">Meu dia</a>
+    </nav>
+    <span class="spacer"></span>
+    <span class="pulse"><span class="d"></span>Motor 24/7</span>
+  </header>
+
+  <!-- saudacao + estado do motor numa linha calma -->
+  <section class="hello reveal">
+    <h1>Bom dia, Caio. <span class="soft">3 negócios novos pra você hoje.</span></h1>
+    <div class="engine" title="O motor procura negócios sozinho, sem parar. Agora está olhando este bairro.">
+      <span class="d"></span>
+      <span>Procurando negócios em <b>Jardim das Américas</b> agora</span>
+      <span class="sweep" id="sweep">· quarteirão 8 de 14 · achou 2 nesta volta</span>
+    </div>
+  </section>
+
+  <!-- glance da operacao (base inline visivel; count-up so como enhancement) -->
+  <div class="glance reveal" style="animation-delay:.06s">
+    <div class="m"><span class="n acc" data-cnt="47">47</span><span class="l">negócios encontrados</span></div>
+    <div class="m"><span class="n good" data-cnt="12">12</span><span class="l">prontos pra você falar</span></div>
+    <div class="m"><span class="n warm">R$ 1,4M</span><span class="l">a ganhar no mês · estimativa</span></div>
+    <div class="m"><span class="n" data-cnt="9">9</span><span class="l">bairros vasculhados · 23 na fila</span></div>
+  </div>
+
+  <!-- 3 oportunidades mais quentes -->
+  <div class="sec reveal" style="animation-delay:.12s">
+    <h2>As 3 melhores oportunidades de hoje</h2>
+    <span class="hint">maior chance de fechar agora</span>
+    <span class="spacer"></span>
+    <a class="lnk" href="02b-esteira-v2.html" data-tip="Ver a lista completa de negócios, do mais quente ao mais frio">Ver lista completa <i class="ti ti-arrow-right"></i></a>
+  </div>
+  <div class="hot3" id="hot3"></div>
+
+  <!-- atalhos para as superficies -->
+  <div class="sec reveal" style="animation-delay:.2s">
+    <h2>Para onde ir</h2>
+    <span class="hint">as quatro telas do dia</span>
+  </div>
+  <div class="surf reveal" style="animation-delay:.24s">
+    <a class="card h surf-card" href="map-v2.html" data-tip="Veja num mapa de Cuiabá onde estão os negócios">
+      <div class="si"><i class="ti ti-map-2"></i></div>
+      <b>Mapa</b>
+      <span class="sd">Onde estão os negócios, bairro por bairro</span>
+      <span class="cnt"><b>9</b> bairros</span>
+    </a>
+    <a class="card h surf-card" href="02b-esteira-v2.html" data-tip="A fila de quem vale abordar primeiro, do mais quente ao mais frio">
+      <div class="si"><i class="ti ti-windmill"></i></div>
+      <b>Esteira</b>
+      <span class="sd">A fila de quem vale abordar primeiro</span>
+      <span class="cnt"><b>12</b> prontos</span>
+    </a>
+    <a class="card h surf-card" href="cmd-v2.html" data-tip="O painel que mostra o que o motor está fazendo agora">
+      <div class="si"><i class="ti ti-layout-dashboard"></i></div>
+      <b>Central</b>
+      <span class="sd">O que o motor está fazendo agora</span>
+      <span class="cnt"><b>5</b> rodando</span>
+    </a>
+    <a class="card h surf-card" href="competitors-v2.html" data-tip="Quem domina cada tipo de negócio e onde está a brecha pra entrar">
+      <div class="si"><i class="ti ti-swords"></i></div>
+      <b>Concorrência</b>
+      <span class="sd">Quem domina o ramo e onde está a brecha</span>
+      <span class="cnt"><b>6</b> ramos</span>
+    </a>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-check"></i><span></span></div>
+
+<script>
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const HOT = [
+  { name:'Clube dos Bichos', niche:'Pet shop', icon:'ti-paw', area:'Jardim das Américas',
+    opp:91, col:'warm', now:18, pot:56,
+    gap:'Loja cheia, 312 avaliações no Google — e <span class="hl">nenhum site</span>. O concorrente anuncia, ela não.' },
+  { name:'Padaria Trigo Dourado', niche:'Padaria', icon:'ti-bread', area:'Goiabeiras',
+    opp:88, col:'warm', now:45, pot:98,
+    gap:'Grande e movimentada, 5 km sem concorrente forte — <span class="hl">nunca anunciou</span> uma vez sequer.' },
+  { name:'Clínica Vida+', niche:'Saúde', icon:'ti-heartbeat', area:'Quilombo',
+    opp:84, col:'good', now:60, pot:120,
+    gap:'Atende bem e tem espaço pra crescer. O concorrente <span class="hl">gasta muito em anúncios</span> e leva os clientes.' },
+];
+
+const hot3 = document.getElementById('hot3');
+
+function ringCol(c){ return c==='warm' ? 'var(--warm)' : c==='good' ? 'var(--good)' : 'var(--accent-2)'; }
+
+hot3.innerHTML = HOT.map((h,i)=>{
+  const nowPct = Math.round(h.now/h.pot*100);
+  const hot = h.col==='warm';
+  return `
+  <a class="card h opp-card reveal ${hot?'hot':''}" href="dossier-v2.html" style="animation-delay:${0.16+i*0.05}s" data-tip="Abre o relatório de venda: quanto fatura, onde está a brecha e a proposta pronta">
+    <div class="opp-top">
+      <div class="opp-ico"><i class="ti ${h.icon}"></i></div>
+      <div class="opp-id">
+        <b>${h.name}</b>
+        <span class="sub"><i class="ti ${h.icon}"></i>${h.niche} <span style="opacity:.4">·</span> <i class="ti ti-map-pin"></i>${h.area}</span>
+      </div>
+      <div class="ring" style="--sz:46px;--val:${h.opp};--col:${ringCol(h.col)}" data-val="${h.opp}" title="Chance de fechar: ${h.opp} de 100"><b>${h.opp}</b></div>
+    </div>
+    <p class="gapline">${h.gap}</p>
+    <div class="opp-money"><div class="in"><div class="bars">
+      <div class="ln now"><span class="k">Fatura hoje</span><span class="track"><i data-w="${nowPct}" style="width:${nowPct}%"></i></span><span class="v">R$ ${h.now}k/mês</span></div>
+      <div class="ln pot"><span class="k">Poderia faturar</span><span class="track"><i data-w="100" style="width:100%"></i></span><span class="v">R$ ${h.pot}k/mês</span></div>
+    </div></div></div>
+    <div class="opp-foot">
+      <span class="tagh ${hot?'':'tagg'}"><span class="hd"></span>${hot?'Dinheiro no chão':'Brecha clara'}</span>
+      <span class="spacer"></span>
+      <span class="go">Abrir relatório <i class="ti ti-arrow-right"></i></span>
+    </div>
+  </a>`;
+}).join('');
+
+/* ---- count-up + ring fill: SO enhancement sob no-preference.
+   Base ja renderizada inline (numeros e larguras), entao com animacao
+   off tudo aparece com o valor real. ---- */
+function countUp(el){
+  const to=+el.dataset.cnt; if(isNaN(to)) return;
+  let s=null; const dur=700; el.textContent='0';
+  function step(t){ if(!s)s=t; const p=Math.min(1,(t-s)/dur); const e=1-Math.pow(1-p,3); el.textContent=Math.round(to*e); if(p<1)requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+}
+function ringUp(el){
+  const to=+el.dataset.val; let s=null; const dur=850; el.style.setProperty('--val',0); const b=el.querySelector('b'); if(b)b.textContent='0';
+  function step(t){ if(!s)s=t; const p=Math.min(1,(t-s)/dur); const e=1-Math.pow(1-p,3); const v=to*e; el.style.setProperty('--val',v); if(b)b.textContent=Math.round(v); if(p<1)requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+}
+if(!RM){
+  const io=new IntersectionObserver((es,o)=>{ es.forEach(en=>{ if(en.isIntersecting){ en.target.dataset.cnt!==undefined?countUp(en.target):ringUp(en.target); o.unobserve(en.target); } }); },{threshold:.6});
+  document.querySelectorAll('[data-cnt]').forEach(e=>io.observe(e));
+  document.querySelectorAll('.ring[data-val]').forEach(e=>io.observe(e));
+}
+
+/* estado vivo do motor (cosmetico, nao essencial; base ja escrita no HTML) */
+const sweeps=[
+  '· quarteirão 8 de 14 · achou 2 nesta volta',
+  '· quarteirão 9 de 14 · conferindo no Google',
+  '· quarteirão 10 de 14 · achou +1 nesta volta',
+];
+if(!RM){
+  let i=0; const sw=document.getElementById('sweep');
+  if(sw) setInterval(()=>{ i=(i+1)%sweeps.length; sw.style.opacity=0; setTimeout(()=>{ sw.textContent=sweeps[i]; sw.style.transition='opacity .4s'; sw.style.opacity=1; },300); },4200);
+}
+
+/* toasts dos atalhos / cards (navegacao mock) */
+const toast=document.getElementById('toast');
+function showToast(msg){ toast.querySelector('span').textContent=msg; toast.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>toast.classList.remove('show'),2000); }
+document.querySelectorAll('.opp-card').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); showToast('Abrindo relatório · '+a.querySelector('.opp-id b').textContent); }));
+document.querySelectorAll('.surf-card').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault(); showToast('Abrindo '+a.querySelector('b').textContent); }));
+const lnk=document.querySelector('.lnk');
+if(lnk) lnk.addEventListener('click',e=>{ e.preventDefault(); showToast('Abrindo lista completa'); });
+</script>
+</body>
+</html>

@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System · Hermes Cloud Studio 2.0</title>
+
+<!-- design system (always first) -->
+<link rel="stylesheet" href="design-system.css">
+
+<!-- Geist font -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5/index.css">
+
+<!-- Icons -->
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+
+<!-- Charts: ECharts (gauge), ApexCharts (sparkline) -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js" defer></script>
+
+<!-- Motion: GSAP + ScrollTrigger -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js" defer></script>
+
+<!-- Counting numerics -->
+<script src="https://cdn.jsdelivr.net/npm/countup.js@2.10.0/dist/countUp.umd.js" defer></script>
+
+<style>
+  /* ---- page-local layout only; everything visual comes from design-system.css ---- */
+  .ds-page { padding: var(--sp-7) 0 var(--sp-9); }
+
+  /* ============ HERO — layered light, aurora bleed, conic rim ============ */
+  .ds-hero {
+    position: relative;
+    padding: clamp(var(--sp-6), 4vw, var(--sp-8)) clamp(var(--sp-5), 4vw, var(--sp-8));
+    border-radius: var(--r-2xl);
+    overflow: hidden;
+    background:
+      radial-gradient(120% 130% at 12% -10%, oklch(0.42 0.16 295 / 0.55), transparent 55%),
+      radial-gradient(90% 120% at 100% 0%, oklch(0.5 0.15 320 / 0.30), transparent 60%),
+      radial-gradient(80% 120% at 88% 110%, oklch(0.55 0.16 118 / 0.14), transparent 60%),
+      linear-gradient(160deg, oklch(0.20 0.03 292 / 0.85), oklch(0.135 0.02 292 / 0.65));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--elev-3), inset 0 1px 0 oklch(0.99 0.02 292 / 0.10);
+    isolation: isolate;
+  }
+  /* conic specular rim — the premium "lit from one corner" tell */
+  .ds-hero::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; z-index: 2;
+    background: linear-gradient(135deg, var(--glass-sheen), transparent 30%, transparent 72%, oklch(0.78 0.22 295 / 0.45));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+  }
+  /* slow-drifting aurora bleed behind hero text */
+  .ds-hero__aura {
+    position: absolute; inset: -40%; z-index: 0; pointer-events: none;
+    filter: blur(60px); opacity: 0.8;
+    background:
+      radial-gradient(30% 40% at 25% 35%, oklch(0.6 0.22 295 / 0.55), transparent 70%),
+      radial-gradient(26% 34% at 70% 28%, oklch(0.85 0.20 118 / 0.16), transparent 70%);
+    animation: hero-aura 24s var(--ease-inout) infinite;
+  }
+  @keyframes hero-aura { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(4%,-3%,0) scale(1.12); } }
+  .ds-hero__grid {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0.35;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 46px 46px;
+    -webkit-mask-image: radial-gradient(75% 90% at 28% 26%, #000, transparent 72%);
+    mask-image: radial-gradient(75% 90% at 28% 26%, #000, transparent 72%);
+  }
+  .ds-hero__inner { position: relative; z-index: 3; max-width: 780px; }
+  .ds-hero .t-display { text-wrap: balance; }
+  .ds-hero__stats { display: flex; align-items: stretch; gap: var(--sp-5); flex-wrap: wrap; margin-top: var(--sp-6); }
+  .ds-hero__stat-sep { width: 1px; align-self: stretch; background: linear-gradient(var(--line), transparent); border: 0; margin: 0; }
+
+  /* gentle entrance choreography for hero pieces */
+  .reveal-seq > * { opacity: 0; transform: translateY(14px); animation: reveal-up var(--d-slow) var(--ease-out) forwards; }
+  .reveal-seq > *:nth-child(1){ animation-delay: .05s } .reveal-seq > *:nth-child(2){ animation-delay: .13s }
+  .reveal-seq > *:nth-child(3){ animation-delay: .21s } .reveal-seq > *:nth-child(4){ animation-delay: .30s }
+
+  /* ============ STICKY NAV — scroll-spy active pill ============ */
+  .ds-nav {
+    position: sticky; top: var(--sp-3); z-index: var(--z-sticky);
+    margin: var(--sp-6) 0;
+    padding: 0;
+  }
+  .ds-nav__bar {
+    display: flex; gap: var(--sp-1); flex-wrap: wrap; align-items: center;
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--r-pill);
+    background: var(--glass-tint-deep);
+    backdrop-filter: blur(18px) saturate(var(--glass-sat));
+    -webkit-backdrop-filter: blur(18px) saturate(var(--glass-sat));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--elev-3), inset 0 1px 0 oklch(0.99 0.02 292 / 0.12);
+  }
+  .ds-nav a {
+    position: relative; color: var(--text-mid); font-size: var(--fs-xs); font-weight: 600;
+    padding: 0.4em 0.75em; border-radius: var(--r-pill);
+    letter-spacing: 0.01em; transition: color var(--d-fast) var(--ease-out), background var(--d-fast) var(--ease-out);
+  }
+  .ds-nav a:hover { color: var(--text-hi); background: oklch(0.5 0.03 292 / 0.18); }
+  .ds-nav a.is-active {
+    color: var(--lime-ink); background: var(--lime);
+    box-shadow: 0 0 16px oklch(0.92 0.21 118 / 0.4);
+  }
+
+  section.ds-sec { scroll-margin-top: 96px; margin-top: var(--sp-9); }
+  .ds-sec__head { display: flex; align-items: baseline; gap: var(--sp-3); margin-bottom: var(--sp-5); flex-wrap: wrap; }
+  .ds-sec__num {
+    position: relative;
+    font-family: var(--font-mono); font-size: var(--fs-sm); font-weight: 600; color: var(--lime);
+    border: 1px solid var(--line-lime); border-radius: var(--r-sm);
+    padding: 0.2em 0.55em; box-shadow: 0 0 16px oklch(0.92 0.21 118 / 0.20), inset 0 0 10px oklch(0.92 0.21 118 / 0.08);
+    background: oklch(0.92 0.21 118 / 0.04);
+  }
+  .ds-sec__head .t-h2 { background: linear-gradient(180deg, var(--text-hi), oklch(0.82 0.01 292)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* swatch grid */
+  .swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-3); }
+  .swatch {
+    position: relative; border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--line);
+    background: var(--bg-2); box-shadow: var(--elev-1); text-align: left;
+    transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base) var(--ease-out), border-color var(--d-base);
+  }
+  .swatch:hover { transform: translateY(-3px); box-shadow: var(--elev-3); border-color: var(--line-strong); }
+  .swatch:active { transform: translateY(-1px) scale(0.99); }
+  .swatch__chip { height: 76px; position: relative; }
+  .swatch__chip::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(150deg, oklch(1 0 0 / 0.16), transparent 42%),
+                linear-gradient(0deg, oklch(0 0 0 / 0.18), transparent 35%);
+  }
+  /* copy affordance icon, revealed on hover */
+  .swatch__copy {
+    position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; display: grid; place-items: center;
+    border-radius: var(--r-xs); background: oklch(0.12 0.02 292 / 0.55); color: oklch(0.98 0 0 / 0.9);
+    opacity: 0; transform: translateY(-2px); transition: opacity var(--d-fast), transform var(--d-fast);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  }
+  .swatch:hover .swatch__copy, .swatch:focus-visible .swatch__copy { opacity: 1; transform: translateY(0); }
+  .swatch__copy svg { width: 13px; height: 13px; }
+  .swatch__meta { padding: var(--sp-2) var(--sp-3); }
+  .swatch__name { font-size: var(--fs-xs); color: var(--text-hi); font-weight: 600; }
+  .swatch__var { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--text-dim); }
+
+  .ramp { position: relative; display: flex; height: 60px; border-radius: var(--r-md); overflow: hidden; box-shadow: var(--elev-2); border: 1px solid var(--line); }
+  .ramp::after { content:""; position:absolute; inset:0; pointer-events:none; background: linear-gradient(180deg, oklch(1 0 0 / 0.12), transparent 40%); }
+  .ramp > div { flex: 1; display: grid; place-items: end center; padding-bottom: 5px; font-family: var(--font-mono); font-size: var(--fs-2xs); color: oklch(0.1 0 0 / 0.78); font-weight: 700; }
+
+  /* demo tiles — inset well + spotlight on hover */
+  .demo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--sp-4); }
+  .demo-tile {
+    position: relative; overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 50% 120%, oklch(0.24 0.03 292 / 0.6), transparent 60%),
+      var(--bg-1);
+    border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: var(--sp-6) var(--sp-5) var(--sp-5);
+    display: grid; place-items: center; gap: var(--sp-3);
+    min-height: 162px; text-align: center;
+    box-shadow: var(--elev-1), inset 0 1px 0 oklch(0.99 0.02 292 / 0.05);
+    transition: border-color var(--d-base), box-shadow var(--d-base), transform var(--d-base) var(--ease-out);
+  }
+  .demo-tile:hover { border-color: var(--line-strong); transform: translateY(-2px); box-shadow: var(--elev-2); }
+  .demo-tile .t-label { position: absolute; top: var(--sp-3); left: var(--sp-4); color: var(--text-mid); }
+  .demo-box {
+    width: 96px; height: 96px; border-radius: var(--r-lg); background: var(--bg-2);
+    display: grid; place-items: center; color: var(--text-mid);
+    font-size: var(--fs-sm); font-weight: 600;
+  }
+
+  .type-row { display: flex; align-items: baseline; gap: var(--sp-4); padding: var(--sp-3) 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; transition: background var(--d-fast); border-radius: var(--r-xs); }
+  .type-row:hover { background: oklch(0.5 0.03 292 / 0.05); }
+  .type-row .meta { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--text-dim); min-width: 120px; }
+
+  .chart-card { min-height: 200px; }
+  .chart-mount { width: 100%; height: 170px; }
+
+  .copy-toast {
+    position: fixed; left: 50%; bottom: var(--sp-6); transform: translateX(-50%) translateY(20px);
+    opacity: 0; pointer-events: none; transition: all var(--d-base) var(--ease-spring);
+    z-index: var(--z-toast);
+  }
+  .copy-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .legend-card { padding: var(--sp-6); }
+  .legend-card .legend { gap: var(--sp-5); }
+  .meaning { display: grid; grid-template-columns: repeat(auto-fit, minmax(244px, 1fr)); gap: var(--sp-4); }
+  .meaning__item {
+    display: flex; gap: var(--sp-3); align-items: flex-start; padding: var(--sp-4);
+    background: var(--bg-1); border: 1px solid var(--line); border-radius: var(--r-md);
+    transition: border-color var(--d-base), transform var(--d-base) var(--ease-out), background var(--d-base);
+  }
+  .meaning__item:hover { transform: translateY(-2px); border-color: var(--line-strong); background: var(--bg-2); }
+  .meaning__sw { width: 42px; height: 42px; border-radius: var(--r-sm); flex: none; box-shadow: 0 0 20px -2px currentColor, inset 0 1px 0 oklch(1 0 0 / 0.25); }
+
+  .honest-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); align-items: stretch; }
+  @media (max-width: 640px){ .honest-compare { grid-template-columns: 1fr; } }
+  .honest-panel { padding: var(--sp-5); border-radius: var(--r-lg); border: 1px solid var(--line); }
+
+  .badge-flow { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+  .badge-flow .sep { color: var(--text-faint); }
+
+  /* richer copy-toast */
+  .copy-toast { display: inline-flex; align-items: center; gap: var(--sp-2); }
+
+  /* code chips inside lead copy read as real inline tokens */
+  code.t-mono {
+    background: var(--bg-inset); border: 1px solid var(--line);
+    padding: 0.08em 0.4em; border-radius: var(--r-xs); font-size: 0.92em; color: var(--lime-soft);
+  }
+
+  @media (max-width: 560px){
+    .ds-hero__stats { gap: var(--sp-4); }
+    .ds-hero__stat-sep { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .ds-hero__aura { animation: none; }
+    .reveal-seq > * { opacity: 1; transform: none; animation: none; }
+  }
+</style>
+</head>
+
+<body>
+<!-- living background -->
+<div class="bg-base"></div>
+<div class="bg-mesh"></div>
+<div class="bg-grain"></div>
+
+<main class="app-shell ds-page">
+  <div class="container">
+
+    <!-- ============ HERO ============ -->
+    <header class="ds-hero anim-reveal">
+      <div class="ds-hero__aura"></div>
+      <div class="ds-hero__grid"></div>
+      <div class="ds-hero__inner reveal-seq">
+        <div class="row wrap" style="margin-bottom:var(--sp-4)">
+          <span class="badge badge--ready"><span class="live-dot"></span>&nbsp;Living style guide</span>
+          <span class="t-label">v2.0 · OKLCH · Geist · WCAG&nbsp;AA</span>
+        </div>
+        <h1 class="t-display">Hermes <span class="t-gradient">Design System</span></h1>
+        <p class="t-lead" style="margin-top:var(--sp-4); max-width:62ch">
+          One luminous, deep, honest visual language for the whole engine —
+          <strong class="t-mid" style="color:var(--text)">Sweep&nbsp;Map</strong>,
+          <strong class="t-mid" style="color:var(--text)">Lead&nbsp;Conveyor</strong>,
+          <strong class="t-mid" style="color:var(--text)">Dossier</strong> &amp;
+          <strong class="t-mid" style="color:var(--text)">Command&nbsp;Center</strong>.
+          Every token, glow, glass panel and component — proven on one page.
+        </p>
+        <div class="ds-hero__stats">
+          <span class="stat">
+            <span class="stat__label">Color tokens</span>
+            <span class="stat__value tglow-energy countup" data-count="48">0</span>
+          </span>
+          <hr class="ds-hero__stat-sep">
+          <span class="stat">
+            <span class="stat__label">Utility classes</span>
+            <span class="stat__value countup" data-count="96">0</span>
+          </span>
+          <hr class="ds-hero__stat-sep">
+          <span class="stat">
+            <span class="stat__label">Components</span>
+            <span class="stat__value countup" data-count="34">0</span>
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ STICKY NAV ============ -->
+    <nav class="ds-nav" aria-label="Section navigation">
+      <div class="ds-nav__bar">
+        <span class="t-label" style="padding-left:var(--sp-2)">JUMP</span>
+        <a href="#color">Color</a>
+        <a href="#meaning">Color = Meaning</a>
+        <a href="#type">Type</a>
+        <a href="#bluf">BLUF</a>
+        <a href="#glow">Glow</a>
+        <a href="#glass">Glass</a>
+        <a href="#honest">Honest data</a>
+        <a href="#rings">Rings &amp; Gauges</a>
+        <a href="#buttons">Buttons</a>
+        <a href="#chips">Chips</a>
+        <a href="#cards">Cards</a>
+        <a href="#badges">States</a>
+        <a href="#motion">Motion</a>
+      </div>
+    </nav>
+
+    <!-- ============ 01 · COLOR TOKENS ============ -->
+    <section id="color" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">01</span>
+        <h2 class="t-h2">Color tokens — OKLCH</h2>
+        <span class="t-lead grow">Perceptually-even glow from brand purple to energy lime. Click any swatch to copy its variable.</span>
+      </div>
+
+      <h3 class="t-h3" style="margin-bottom:var(--sp-3)">Brand &amp; energy</h3>
+      <div class="swatch-grid" id="swatch-brand"></div>
+
+      <h3 class="t-h3" style="margin:var(--sp-6) 0 var(--sp-3)">Status semantics</h3>
+      <div class="swatch-grid" id="swatch-status"></div>
+
+      <h3 class="t-h3" style="margin:var(--sp-6) 0 var(--sp-3)">Surface ladder (deep brand-tinted near-black)</h3>
+      <div class="swatch-grid" id="swatch-bg"></div>
+
+      <h3 class="t-h3" style="margin:var(--sp-6) 0 var(--sp-3)">Opportunity ramp — cold → white-hot</h3>
+      <div class="ramp">
+        <div style="background:var(--opp-0)">0</div>
+        <div style="background:var(--opp-1)">1</div>
+        <div style="background:var(--opp-2)">2</div>
+        <div style="background:var(--opp-3)">3</div>
+        <div style="background:var(--opp-4)">4</div>
+        <div style="background:var(--opp-5)">5</div>
+      </div>
+    </section>
+
+    <!-- ============ 02 · COLOR AS MEANING ============ -->
+    <section id="meaning" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">02</span>
+        <h2 class="t-h2">Color as meaning — the legend</h2>
+        <span class="t-lead grow">Map zones, pipeline states and agents all read the same key. Warm = act now. Cool = consolidated. Gray = cold.</span>
+      </div>
+      <div class="card glass-spec legend-card">
+        <div class="meaning">
+          <div class="meaning__item">
+            <span class="meaning__sw" style="background:var(--st-opportunity);color:var(--st-opp-bleed)"></span>
+            <div>
+              <div class="row" style="gap:var(--sp-2)"><strong class="t-hi">High opportunity</strong><span class="badge badge--opportunity">act now</span></div>
+              <p class="t-sm t-dim" style="margin-top:4px">Business with movement &amp; reviews but no site/channels. Biggest revenue lift.</p>
+            </div>
+          </div>
+          <div class="meaning__item">
+            <span class="meaning__sw" style="background:var(--st-consolidated);color:var(--st-cons-bleed)"></span>
+            <div>
+              <strong class="t-hi">Consolidated</strong>
+              <p class="t-sm t-dim" style="margin-top:4px">Already has site / marketing / complete digital presence. Lower priority.</p>
+            </div>
+          </div>
+          <div class="meaning__item">
+            <span class="meaning__sw" style="background:var(--lime);color:var(--lime-bleed)"></span>
+            <div>
+              <strong class="t-hi">Niche opportunity</strong>
+              <p class="t-sm t-dim" style="margin-top:4px">Energy lime = the hottest signal in any view. Rare, high-conviction.</p>
+            </div>
+          </div>
+          <div class="meaning__item">
+            <span class="meaning__sw" style="background:var(--st-unexplored-fill);color:transparent;box-shadow:none;border:1px solid var(--line)"></span>
+            <div>
+              <strong class="t-hi">Unexplored</strong>
+              <p class="t-sm t-dim" style="margin-top:4px">Cold gray, no glow. Zone never swept — click on the map to dispatch a sweep.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 03 · TYPOGRAPHY ============ -->
+    <section id="type" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">03</span>
+        <h2 class="t-h2">Typography — Geist + Geist Mono</h2>
+        <span class="t-lead grow">Fluid scale, negative tracking on display, tabular numerics everywhere a number can change.</span>
+      </div>
+      <div class="card">
+        <div class="type-row"><span class="meta">.t-display</span><span class="t-display">Cuiabá swept.</span></div>
+        <div class="type-row"><span class="meta">.t-h1</span><span class="t-h1">2 048 negócios mapeados</span></div>
+        <div class="type-row"><span class="meta">.t-h2</span><span class="t-h2">Bairro Jardim das Américas</span></div>
+        <div class="type-row"><span class="meta">.t-h3</span><span class="t-h3">Restaurante &amp; oportunidade</span></div>
+        <div class="type-row"><span class="meta">.t-lead</span><span class="t-lead">Lead paragraph — secondary tone for context lines and summaries that sit under a heading.</span></div>
+        <div class="type-row"><span class="meta">body</span><span>Body text on the default tier — measured, calm, AA-verified on every surface in the ladder.</span></div>
+        <div class="type-row"><span class="meta">.t-sm .t-dim</span><span class="t-sm t-dim">Caption / tertiary — timestamps, footnotes, audit metadata.</span></div>
+        <div class="type-row"><span class="meta">.t-mono</span><span class="t-mono">R$ 0.000.000,00 · 14.3% · 1.247 reviews</span></div>
+        <div class="type-row" style="border:0"><span class="meta">.t-label</span><span class="t-label">Section label · uppercase · tracked</span></div>
+      </div>
+    </section>
+
+    <!-- ============ 04 · BLUF NUMERICS ============ -->
+    <section id="bluf" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">04</span>
+        <h2 class="t-h2">BLUF numerics</h2>
+        <span class="t-lead grow">Bottom line up front. The committed figure is the loudest thing on the surface.</span>
+      </div>
+      <div class="card-grid">
+        <div class="card glass-spec pool-lime text-scrim">
+          <span class="t-label">Projected annual lift · ready-to-contact</span>
+          <div class="revenue" id="bluf-revenue" style="font-size:var(--fs-display)">R$ 0</div>
+          <span class="tag-measured t-sm"><span class="t-mono">measured base</span> + projected services</span>
+        </div>
+        <div class="card">
+          <span class="t-label">Total businesses</span>
+          <div class="bluf countup" data-count="2048" style="font-size:var(--fs-h1)">0</div>
+          <span class="stat__delta stat__delta--up t-mono">▲ 312 this week</span>
+        </div>
+        <div class="card">
+          <span class="t-label">High-opportunity</span>
+          <div class="bluf tglow-energy countup" data-count="187" style="font-size:var(--fs-h1)">0</div>
+          <span class="t-sm t-dim">9.1% of swept</span>
+        </div>
+        <div class="card">
+          <span class="t-label">Avg score · ready set</span>
+          <div class="bluf countup" data-count="84" data-suffix="" style="font-size:var(--fs-h1)">0</div>
+          <span class="t-sm t-dim">out of 100</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 05 · GLOW UTILITIES ============ -->
+    <section id="glow" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">05</span>
+        <h2 class="t-h2">Glow utilities</h2>
+        <span class="t-lead grow">Hierarchy law: ONE <code class="t-mono">.glow-energy</code> per viewport. Purple = active-but-secondary. Cold = nothing.</span>
+      </div>
+      <div class="demo-grid">
+        <div class="demo-tile"><span class="t-label">.glow-energy</span><div class="demo-box glow-energy">hottest</div></div>
+        <div class="demo-tile"><span class="t-label">.glow-purple</span><div class="demo-box glow-purple">active</div></div>
+        <div class="demo-tile"><span class="t-label">.glow-opportunity</span><div class="demo-box glow-opportunity">warm</div></div>
+        <div class="demo-tile"><span class="t-label">.glow-soft</span><div class="demo-box glow-soft">resting</div></div>
+        <div class="demo-tile"><span class="t-label">.breathe</span><div class="demo-box breathe">pulse</div></div>
+        <div class="demo-tile"><span class="t-label">.breathe--purple</span><div class="demo-box breathe breathe--purple">pulse</div></div>
+        <div class="demo-tile"><span class="t-label">.edge-light</span><div class="demo-box edge-light">edge</div></div>
+        <div class="demo-tile"><span class="t-label">.energized.running</span><div class="demo-box energized running" style="background:linear-gradient(var(--bg-2),var(--bg-2)) padding-box,conic-gradient(from var(--angle),var(--lime),var(--purple-hot),var(--lime)) border-box">sweep</div></div>
+        <div class="demo-tile"><span class="t-label">.tglow-energy</span><div class="demo-box" style="background:transparent"><span class="t-h2 tglow-energy">R$ 1.2M</span></div></div>
+        <div class="demo-tile"><span class="t-label">.tglow-purple</span><div class="demo-box" style="background:transparent"><span class="t-h2 tglow-purple">Geronimo</span></div></div>
+        <div class="demo-tile"><span class="t-label">.iglow-energy</span><div class="demo-box" style="background:transparent"><i data-lucide="zap" class="iglow-energy" style="width:48px;height:48px;color:var(--lime)"></i></div></div>
+        <div class="demo-tile"><span class="t-label">.pool-purple</span><div class="demo-box pool-purple">light pool</div></div>
+      </div>
+    </section>
+
+    <!-- ============ 06 · GLASS PANELS ============ -->
+    <section id="glass" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">06</span>
+        <h2 class="t-h2">Glass panels</h2>
+        <span class="t-lead grow">Flat optical glass — dark tint, low-alpha catch-light, one specular corner. Glass is accent, never wallpaper.</span>
+      </div>
+      <div class="card-grid">
+        <div class="glass glass-spec lift" style="padding:var(--sp-5)">
+          <span class="t-label">.glass · .glass-spec · .lift</span>
+          <h3 class="t-h3" style="margin-top:var(--sp-2)">Frosted floating panel</h3>
+          <p class="t-sm t-mid" style="margin-top:var(--sp-2)">Hover me — dive-in lift on focus. The bright corner reads as a real light source.</p>
+        </div>
+        <div class="glass glass-hero glass-spec" style="padding:var(--sp-5)">
+          <span class="t-label">.glass-hero</span>
+          <h3 class="t-h3" style="margin-top:var(--sp-2)">Hero blur (22px)</h3>
+          <p class="t-sm t-mid" style="margin-top:var(--sp-2)">Stronger backdrop blur for modals, drawers and the command palette.</p>
+        </div>
+        <div class="glass glass-deep glass-spec" style="padding:var(--sp-5)">
+          <span class="t-label">.glass-deep</span>
+          <h3 class="t-h3" style="margin-top:var(--sp-2)">Deep tint</h3>
+          <p class="t-sm t-mid" style="margin-top:var(--sp-2)">Opaquer floor for dense panels that sit over the living map.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 07 · HONEST DATA ============ -->
+    <section id="honest" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">07</span>
+        <h2 class="t-h2">Honest data law</h2>
+        <span class="t-lead grow">Solid material = <strong class="tag-measured">measured</strong>. Translucent + dashed = <em class="tag-projected">projected</em>. Never fake precision.</span>
+      </div>
+      <div class="honest-compare">
+        <div class="honest-panel is-measured glass-spec">
+          <span class="badge badge--ready">Measured</span>
+          <h3 class="t-h3" style="margin:var(--sp-3) 0">Google Maps reviews</h3>
+          <div class="revenue" style="font-size:var(--fs-h1)">1 247</div>
+          <p class="t-sm t-mid" style="margin-top:var(--sp-2)">Opaque, full glow — a committed number pulled from a real source. 4.6★ avg, 5 yrs active.</p>
+        </div>
+        <div class="honest-panel is-projected">
+          <span class="badge">Projected</span>
+          <h3 class="t-h3" style="margin:var(--sp-3) 0">Revenue with our services <span class="tag-projected"></span></h3>
+          <div class="num" style="font-size:var(--fs-h1);color:var(--text-hi)">R$ 38k–61k<span style="font-size:var(--fs-base);color:var(--text-dim)">/mo</span></div>
+          <p class="t-sm t-mid" style="margin-top:var(--sp-2)">Translucent, dashed border — an estimate. Shown as a committed midpoint with an optional range.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 08 · RINGS, GAUGES, CHARTS ============ -->
+    <section id="rings" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">08</span>
+        <h2 class="t-h2">Score rings, gauges &amp; live charts</h2>
+        <span class="t-lead grow">Conic score rings, half-circle market-dominance gauge, plus real ECharts &amp; ApexCharts mounts.</span>
+      </div>
+      <div class="card-grid">
+        <div class="card" style="display:grid;place-items:center;gap:var(--sp-4)">
+          <span class="t-label">.score-ring (high / mid / low)</span>
+          <div class="row" style="gap:var(--sp-5)">
+            <div class="score-ring score-ring--high" style="--pct:88"><span class="score-val">88</span></div>
+            <div class="score-ring score-ring--mid" style="--pct:62"><span class="score-val">62</span></div>
+            <div class="score-ring score-ring--low" style="--pct:34"><span class="score-val">34</span></div>
+          </div>
+        </div>
+        <div class="card" style="display:grid;place-items:center;gap:var(--sp-3)">
+          <span class="t-label">.gauge — market dominance</span>
+          <div class="gauge" style="--val:71"></div>
+          <span class="t-mono t-h3">71%</span>
+        </div>
+        <div class="card chart-card">
+          <span class="t-label">ECharts · opportunity gauge</span>
+          <div id="echart-gauge" class="chart-mount"></div>
+        </div>
+        <div class="card chart-card">
+          <span class="t-label">ApexCharts · weekly sweeps</span>
+          <div id="apex-spark" class="chart-mount"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 09 · BUTTONS ============ -->
+    <section id="buttons" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">09</span>
+        <h2 class="t-h2">Buttons</h2>
+        <span class="t-lead grow">ONE <code class="t-mono">.btn-energy</code> per view = the single critical action (sweep / send / close).</span>
+      </div>
+      <div class="card">
+        <div class="row wrap" style="gap:var(--sp-4)">
+          <button class="btn btn-energy"><i data-lucide="radar"></i> Sweep neighborhood</button>
+          <button class="btn btn-primary"><i data-lucide="file-text"></i> Generate dossier</button>
+          <button class="btn"><i data-lucide="user-check"></i> Mark contacted</button>
+          <button class="btn btn-ghost"><i data-lucide="git-compare"></i> Compare competitors</button>
+          <button class="btn btn-icon" aria-label="More"><i data-lucide="more-horizontal"></i></button>
+        </div>
+        <hr class="divider">
+        <div class="row wrap" style="gap:var(--sp-4)">
+          <button class="btn btn-sm btn-primary">.btn-sm</button>
+          <button class="btn btn-primary">.btn (base)</button>
+          <button class="btn btn-lg btn-primary">.btn-lg</button>
+          <button class="btn" disabled>disabled</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 10 · CHIPS / FILTERS ============ -->
+    <section id="chips" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">10</span>
+        <h2 class="t-h2">Chips &amp; filters</h2>
+        <span class="t-lead grow">Click to toggle — active chip glows. On the map, active filters re-paint zones; the rest go cold gray.</span>
+      </div>
+      <div class="card">
+        <div class="row wrap" id="chip-row" style="gap:var(--sp-2)">
+          <button class="chip active" aria-pressed="true"><span class="chip-dot"></span> High opportunity</button>
+          <button class="chip" aria-pressed="false">Restaurantes</button>
+          <button class="chip" aria-pressed="false">Clínicas</button>
+          <button class="chip" aria-pressed="false">No site</button>
+          <button class="chip" aria-pressed="false">5+ anos</button>
+          <button class="chip chip--purple" aria-pressed="false">Consolidados</button>
+          <button class="chip" aria-pressed="false">Ready-to-contact</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 11 · CARDS ============ -->
+    <section id="cards" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">11</span>
+        <h2 class="t-h2">Cards — never tables</h2>
+        <span class="t-lead grow">The lead conveyor unit. Real Cuiabá sample data. The single top opportunity gets the rotating <code class="t-mono">.card-hot</code> ring.</span>
+      </div>
+      <div class="card-grid stagger">
+        <!-- HOT card -->
+        <article class="card card-hot lift">
+          <div class="row-between">
+            <div>
+              <h3 class="t-h3">Churrascaria Boi na Brasa</h3>
+              <span class="t-sm t-dim">Restaurante · Coxipó, Cuiabá</span>
+            </div>
+            <div class="score-ring score-ring--high" style="--pct:91"><span class="score-val">91</span></div>
+          </div>
+          <hr class="divider" style="margin:var(--sp-4) 0">
+          <div class="row wrap" style="gap:var(--sp-4)">
+            <div class="stat"><span class="stat__label">Porte</span><span class="t-mono t-hi">Médio</span></div>
+            <div class="stat"><span class="stat__label">Receita est.</span><span class="num tag-projected" style="color:var(--text-hi)">R$ 240k/mo</span></div>
+            <div class="stat"><span class="stat__label">Reviews</span><span class="num" style="color:var(--lime)">1 247</span></div>
+          </div>
+          <div class="row" style="margin-top:var(--sp-3);gap:var(--sp-2)">
+            <i data-lucide="instagram" class="iglow-purple" style="width:18px;color:var(--purple-hot)"></i>
+            <span class="t-sm t-dim">sem site · sem ads · 5+ anos</span>
+          </div>
+          <div class="row" style="margin-top:var(--sp-4);gap:var(--sp-2)">
+            <span class="badge badge--ready">Ready</span>
+            <button class="btn btn-energy btn-sm grow"><i data-lucide="send"></i> Send to Geronimo</button>
+          </div>
+        </article>
+
+        <article class="card lift">
+          <div class="row-between">
+            <div>
+              <h3 class="t-h3">Clínica OdontoVida</h3>
+              <span class="t-sm t-dim">Odontologia · Jardim Cuiabá</span>
+            </div>
+            <div class="score-ring score-ring--mid" style="--pct:67"><span class="score-val">67</span></div>
+          </div>
+          <hr class="divider" style="margin:var(--sp-4) 0">
+          <div class="row wrap" style="gap:var(--sp-4)">
+            <div class="stat"><span class="stat__label">Porte</span><span class="t-mono t-hi">Pequeno</span></div>
+            <div class="stat"><span class="stat__label">Receita est.</span><span class="num tag-projected" style="color:var(--text-hi)">R$ 95k/mo</span></div>
+            <div class="stat"><span class="stat__label">Reviews</span><span class="num">418</span></div>
+          </div>
+          <div class="row" style="margin-top:var(--sp-4);gap:var(--sp-2)">
+            <span class="badge badge--audited">Audited</span>
+            <button class="btn btn-sm grow"><i data-lucide="file-text"></i> Gerar dossiê</button>
+          </div>
+        </article>
+
+        <article class="card lift">
+          <div class="row-between">
+            <div>
+              <h3 class="t-h3">Auto Center Pantanal</h3>
+              <span class="t-sm t-dim">Oficina · Santa Rosa</span>
+            </div>
+            <div class="score-ring score-ring--low" style="--pct:38"><span class="score-val">38</span></div>
+          </div>
+          <hr class="divider" style="margin:var(--sp-4) 0">
+          <div class="row wrap" style="gap:var(--sp-4)">
+            <div class="stat"><span class="stat__label">Porte</span><span class="t-mono t-hi">Pequeno</span></div>
+            <div class="stat"><span class="stat__label">Receita est.</span><span class="num tag-projected" style="color:var(--text-hi)">R$ 52k/mo</span></div>
+            <div class="stat"><span class="stat__label">Reviews</span><span class="num">96</span></div>
+          </div>
+          <div class="row" style="margin-top:var(--sp-4);gap:var(--sp-2)">
+            <span class="badge badge--consolidated">Consolidado</span>
+            <button class="btn btn-ghost btn-sm grow"><i data-lucide="eye"></i> Ver auditoria</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ 12 · STATE BADGES + KANBAN ============ -->
+    <section id="badges" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">12</span>
+        <h2 class="t-h2">Pipeline states</h2>
+        <span class="t-lead grow">Glow rises with readiness. Lifecycle: found → audited → ready → contacted → sent → won.</span>
+      </div>
+      <div class="card" style="margin-bottom:var(--sp-5)">
+        <div class="badge-flow">
+          <span class="badge badge--found">Found</span><i data-lucide="chevron-right" class="sep" style="width:16px"></i>
+          <span class="badge badge--audited">Audited</span><i data-lucide="chevron-right" class="sep" style="width:16px"></i>
+          <span class="badge badge--ready">Ready</span><i data-lucide="chevron-right" class="sep" style="width:16px"></i>
+          <span class="badge badge--contacted">Contacted</span><i data-lucide="chevron-right" class="sep" style="width:16px"></i>
+          <span class="badge badge--sent">Sent</span><i data-lucide="chevron-right" class="sep" style="width:16px"></i>
+          <span class="badge badge--won">Won</span>
+        </div>
+        <div class="legend" style="margin-top:var(--sp-5)">
+          <span class="legend__item"><span class="legend__swatch legend__swatch--opportunity"></span> Opportunity</span>
+          <span class="legend__item"><span class="legend__swatch legend__swatch--consolidated"></span> Consolidated</span>
+          <span class="legend__item"><span class="legend__swatch legend__swatch--niche"></span> Niche</span>
+          <span class="legend__item"><span class="legend__swatch legend__swatch--unexplored"></span> Unexplored</span>
+        </div>
+      </div>
+
+      <div class="kanban">
+        <div class="kanban-col">
+          <div class="kanban-col__head"><span>Found</span><span class="kanban-col__count">142</span></div>
+          <div class="card" style="padding:var(--sp-3)"><strong class="t-sm">Padaria Trigo Dourado</strong><br><span class="t-xs t-dim">CPA · sem auditoria</span></div>
+          <div class="skeleton" style="height:48px"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col__head"><span>Audited</span><span class="kanban-col__count">63</span></div>
+          <div class="card" style="padding:var(--sp-3)"><strong class="t-sm">Pet Shop Amigo Fiel</strong><br><span class="badge badge--audited" style="margin-top:4px">Audited</span></div>
+        </div>
+        <div class="kanban-col kanban-col--ready">
+          <div class="kanban-col__head"><span style="color:var(--lime)">Ready</span><span class="kanban-col__count">29</span></div>
+          <div class="card card-hot" style="padding:var(--sp-3)"><strong class="t-sm">Boi na Brasa</strong><br><span class="badge badge--ready" style="margin-top:4px">Ready</span></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col__head"><span>Sent</span><span class="kanban-col__count">11</span></div>
+          <div class="card" style="padding:var(--sp-3)"><strong class="t-sm">OdontoVida</strong><br><span class="badge badge--sent" style="margin-top:4px">→ Geronimo</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 13 · MOTION ============ -->
+    <section id="motion" class="ds-sec">
+      <div class="ds-sec__head">
+        <span class="ds-sec__num">13</span>
+        <h2 class="t-h2">Motion samples</h2>
+        <span class="t-lead grow">CSS keyframes + GSAP, all gated by <code class="t-mono">prefers-reduced-motion</code>. Animate only opacity / transform.</span>
+      </div>
+      <div class="demo-grid">
+        <div class="demo-tile"><span class="t-label">.anim-float</span><div class="demo-box anim-float"><i data-lucide="map-pin" style="color:var(--lime)"></i></div></div>
+        <div class="demo-tile"><span class="t-label">.live-dot</span><div class="demo-box" style="background:transparent"><span class="live-dot" style="transform:scale(2)"></span></div></div>
+        <div class="demo-tile"><span class="t-label">.live-dot--purple</span><div class="demo-box" style="background:transparent"><span class="live-dot live-dot--purple" style="transform:scale(2)"></span></div></div>
+        <div class="demo-tile"><span class="t-label">.sweep-overlay</span><div class="demo-box sweep-overlay" style="width:100%">sweeping…</div></div>
+        <div class="demo-tile"><span class="t-label">.skeleton</span><div class="skeleton" style="width:100%;height:60px"></div></div>
+        <div class="demo-tile"><span class="t-label">GSAP reveal</span><div class="demo-box gsap-pop">pop</div></div>
+        <div class="demo-tile"><span class="t-label">.flow-line (SVG)</span>
+          <svg viewBox="0 0 160 60" style="width:100%;height:60px"><path class="flow-line flow-line--active" d="M4 30 C 50 4, 110 56, 156 30"/></svg>
+        </div>
+        <div class="demo-tile"><span class="t-label">.energized.running</span><div class="demo-box energized running" style="background:linear-gradient(var(--bg-2),var(--bg-2)) padding-box,conic-gradient(from var(--angle),var(--purple-hot),var(--lime),var(--purple-hot)) border-box"><i data-lucide="bot" style="color:var(--lime)"></i></div></div>
+      </div>
+    </section>
+
+    <footer style="margin-top:var(--sp-9);padding-top:var(--sp-6);border-top:1px solid var(--line)" class="row-between wrap">
+      <span class="t-sm t-dim">Hermes Cloud Studio 2.0 · design-system.css · Cuiabá / MT · $0 self-hosted</span>
+      <span class="t-sm t-dim t-mono">OKLCH · Geist · WCAG AA · prefers-reduced-motion ✓</span>
+    </footer>
+
+  </div>
+</main>
+
+<div class="toast copy-toast" id="copyToast"><i data-lucide="clipboard-check" style="width:16px;color:var(--lime);vertical-align:-3px"></i> Copied <span id="copyToastVar" class="t-mono"></span></div>
+
+<script>
+(function () {
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- swatches ---------- */
+  const brand = [
+    ['Purple','--purple'],['Purple hot','--purple-hot'],['Purple soft','--purple-soft'],['Purple bleed','--purple-bleed'],
+    ['Lime','--lime'],['Lime hot','--lime-hot'],['Lime soft','--lime-soft'],['Lime bleed','--lime-bleed'],
+  ];
+  const status = [
+    ['Opportunity','--st-opportunity'],['Opp hot','--st-opp-hot'],['Consolidated','--st-consolidated'],['Niche','--st-niche'],
+    ['Unexplored','--st-unexplored-fill'],['OK','--ok'],['Warn','--warn'],['Danger','--danger'],
+  ];
+  const bg = [
+    ['Void','--bg-void'],['BG 0','--bg-0'],['BG 1','--bg-1'],['BG 2','--bg-2'],['BG 3','--bg-3'],['Inset','--bg-inset'],
+    ['Text hi','--text-hi'],['Text dim','--text-dim'],
+  ];
+  function renderSwatches(id, arr) {
+    const host = document.getElementById(id);
+    if (!host) return;
+    host.innerHTML = arr.map(([name, v]) =>
+      `<button class="swatch" data-var="${v}" aria-label="Copy var(${v}) to clipboard">
+         <div class="swatch__chip" style="background:var(${v})">
+           <span class="swatch__copy" aria-hidden="true"><i data-lucide="copy"></i></span>
+         </div>
+         <div class="swatch__meta">
+           <div class="swatch__name">${name}</div>
+           <div class="swatch__var">${v}</div>
+         </div>
+       </button>`).join('');
+  }
+  renderSwatches('swatch-brand', brand);
+  renderSwatches('swatch-status', status);
+  renderSwatches('swatch-bg', bg);
+
+  /* ---------- copy-to-clipboard ---------- */
+  const toast = document.getElementById('copyToast');
+  const toastVar = document.getElementById('copyToastVar');
+  let toastTimer;
+  document.addEventListener('click', (e) => {
+    const sw = e.target.closest('[data-var]');
+    if (!sw) return;
+    const v = sw.dataset.var;
+    const text = `var(${v})`;
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.resolve())
+      .catch(()=>{}).finally(() => {
+        toastVar.textContent = v;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
+      });
+  });
+
+  /* ---------- chip toggles ---------- */
+  document.getElementById('chip-row').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const on = chip.getAttribute('aria-pressed') === 'true';
+    chip.setAttribute('aria-pressed', String(!on));
+    chip.classList.toggle('active', !on);
+  });
+
+  /* ---------- smooth nav + scroll-spy ---------- */
+  const navLinks = Array.from(document.querySelectorAll('.ds-nav a'));
+  navLinks.forEach(a => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href');
+      const t = document.querySelector(id);
+      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth' }); }
+    });
+  });
+  // highlight the section currently in view
+  (function scrollSpy(){
+    const linkFor = {};
+    navLinks.forEach(a => { linkFor[a.getAttribute('href').slice(1)] = a; });
+    const secs = document.querySelectorAll('section.ds-sec');
+    if (!('IntersectionObserver' in window) || !secs.length) return;
+    let active = null;
+    const spy = new IntersectionObserver((ents) => {
+      ents.forEach(en => {
+        if (en.isIntersecting) {
+          const link = linkFor[en.target.id];
+          if (link && link !== active) {
+            if (active) active.classList.remove('is-active');
+            link.classList.add('is-active');
+            active = link;
+          }
+        }
+      });
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
+    secs.forEach(s => spy.observe(s));
+  })();
+
+  function ready(fn){ if(document.readyState!=='loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+  // libs are loaded with defer; run after full load so globals exist
+  window.addEventListener('load', init);
+
+  function init() {
+    if (window.lucide) lucide.createIcons();
+
+    /* ---------- count-ups ---------- */
+    document.querySelectorAll('.countup').forEach(el => {
+      const end = parseFloat(el.dataset.count);
+      if (window.countUp && !REDUCED) {
+        const c = new countUp.CountUp(el, end, { duration: 1.8, separator: '.' });
+        if (!c.error) {
+          // run when scrolled into view
+          const io = new IntersectionObserver((ents) => {
+            ents.forEach(en => { if (en.isIntersecting) { c.start(); io.disconnect(); } });
+          }, { threshold: 0.4 });
+          io.observe(el);
+        } else { el.textContent = end.toLocaleString('pt-BR'); }
+      } else { el.textContent = end.toLocaleString('pt-BR'); }
+    });
+
+    /* ---------- BLUF revenue count-up (currency) ---------- */
+    const rev = document.getElementById('bluf-revenue');
+    if (rev) {
+      const target = 14280000;
+      if (window.countUp && !REDUCED) {
+        const c = new countUp.CountUp(rev, target, {
+          duration: 2.4, separator: '.',
+          formattingFn: (n) => 'R$ ' + Math.round(n).toLocaleString('pt-BR')
+        });
+        const io = new IntersectionObserver((ents) => {
+          ents.forEach(en => { if (en.isIntersecting) { c.start(); io.disconnect(); } });
+        }, { threshold: 0.4 });
+        io.observe(rev);
+      } else { rev.textContent = 'R$ ' + target.toLocaleString('pt-BR'); }
+    }
+
+    /* ---------- ECharts opportunity gauge ---------- */
+    const ge = document.getElementById('echart-gauge');
+    if (ge && window.echarts) {
+      const chart = echarts.init(ge, null, { renderer: 'canvas' });
+      chart.setOption({
+        series: [{
+          type: 'gauge', startAngle: 210, endAngle: -30, min: 0, max: 100,
+          radius: '96%', center: ['50%','58%'],
+          progress: { show: true, width: 12, roundCap: true,
+            itemStyle: { color: new echarts.graphic.LinearGradient(0,0,1,0,[
+              {offset:0,color:'#608ede'},{offset:0.6,color:'#d1fe17'},{offset:1,color:'#f78a5c'}])} },
+          pointer: { show: true, length: '62%', width: 4, itemStyle:{ color:'#d1fe17' } },
+          axisLine: { lineStyle: { width: 12, color: [[1,'rgba(120,120,135,0.25)']] } },
+          axisTick: { show: false }, splitLine: { show: false },
+          axisLabel: { show: false },
+          anchor: { show: true, size: 8, itemStyle:{ color:'#d1fe17' } },
+          detail: { valueAnimation: !REDUCED, fontSize: 26, fontFamily: 'Geist Mono, monospace',
+            fontWeight: 600, color: '#f5f5f7', offsetCenter: [0,'34%'], formatter: '{value}' },
+          data: [{ value: REDUCED ? 84 : 0 }]
+        }]
+      });
+      if (!REDUCED) {
+        const io = new IntersectionObserver((ents)=>{ ents.forEach(en=>{ if(en.isIntersecting){ chart.setOption({series:[{data:[{value:84}]}]}); io.disconnect(); } }); }, {threshold:0.4});
+        io.observe(ge);
+      }
+      addEventListener('resize', () => chart.resize());
+    }
+
+    /* ---------- ApexCharts weekly sweeps sparkline ---------- */
+    const sp = document.getElementById('apex-spark');
+    if (sp && window.ApexCharts) {
+      const data = [12, 19, 14, 27, 23, 38, 31, 47, 52, 44, 61, 73];
+      const a = new ApexCharts(sp, {
+        chart: { type: 'area', height: 170, sparkline: { enabled: true }, animations: { enabled: !REDUCED } },
+        stroke: { curve: 'smooth', width: 2.5, colors: ['#d1fe17'] },
+        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.02,
+          colorStops: [{offset:0,color:'#d1fe17',opacity:0.45},{offset:100,color:'#7c3aed',opacity:0.02}] } },
+        series: [{ name: 'Sweeps', data }],
+        tooltip: { theme: 'dark', x: { show: false },
+          y: { formatter: (v) => v + ' zonas varridas' } },
+        markers: { size: 0, hover: { size: 5 } }
+      });
+      a.render();
+    }
+
+    /* ---------- GSAP motion sample + scroll reveals ---------- */
+    if (window.gsap && !REDUCED) {
+      if (window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
+
+      // looping pop demo tile
+      gsap.to('.gsap-pop', {
+        scale: 1.12, duration: 0.9, repeat: -1, yoyo: true, ease: 'sine.inOut',
+        boxShadow: '0 0 30px rgba(209,254,23,0.4)'
+      });
+
+      // section reveals on scroll
+      if (window.ScrollTrigger) {
+        gsap.utils.toArray('.ds-sec').forEach((sec) => {
+          gsap.from(sec.querySelectorAll('.card, .demo-tile, .swatch, .honest-panel, .glass'), {
+            scrollTrigger: { trigger: sec, start: 'top 82%' },
+            y: 24, opacity: 0, duration: 0.6, stagger: 0.04, ease: 'power3.out'
+          });
+        });
+      }
+    }
+  }
+})();
+</script>
+</body>
+</html>

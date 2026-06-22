@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Cloud Studio — Sweep Map</title>
+
+<link rel="stylesheet" href="design-system.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5/index.css">
+
+<!-- MapLibre GL -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.5.0/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.5.0/dist/maplibre-gl.js"></script>
+<!-- deck.gl (standalone bundle pinned to a build whose internal modules are stable) -->
+<script src="https://cdn.jsdelivr.net/npm/deck.gl@9.0.38/dist.min.js"></script>
+<!-- h3 (used ONLY by our own code — deck H3 layers are deliberately avoided) -->
+<script src="https://cdn.jsdelivr.net/npm/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+<!-- icons -->
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<!-- countUp -->
+<script src="https://cdn.jsdelivr.net/npm/countup.js@2.8.0/dist/countUp.umd.js"></script>
+
+<style>
+  html, body { height: 100%; overflow: hidden; }
+
+  /* ---- App frame ---- */
+  .map-app { position: fixed; inset: 0; }
+  #map { position: absolute; inset: 0; background: var(--bg-void); }
+  #deck-canvas { position: absolute; inset: 0; pointer-events: none; }
+  .maplibregl-ctrl-attrib { background: oklch(0.13 0.02 292 / 0.55) !important; color: var(--text-faint) !important; font-size: 9px; backdrop-filter: blur(4px); }
+  .maplibregl-ctrl-attrib a { color: var(--text-dim) !important; }
+  .maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right { display:none; }
+  canvas { outline: none; }
+
+  /* ===== ATMOSPHERE — layered depth over the basemap ===== */
+  /* deep brand vignette pulling focus to center, blending map into the void */
+  .map-vignette {
+    position: absolute; inset: 0; pointer-events: none; z-index: 3;
+    background:
+      radial-gradient(135% 115% at 50% 34%, transparent 44%, oklch(0.10 0.022 292 / 0.42) 74%, oklch(0.08 0.02 292 / 0.78) 100%);
+  }
+  /* faint top-light brand wash so the whole frame feels lit from above */
+  .map-toplight {
+    position: absolute; inset: 0; pointer-events: none; z-index: 3; opacity: .9;
+    background:
+      radial-gradient(80% 50% at 18% -8%, oklch(0.5 0.18 295 / 0.16), transparent 60%),
+      radial-gradient(70% 45% at 92% -6%, oklch(0.6 0.16 320 / 0.12), transparent 60%),
+      radial-gradient(60% 50% at 50% 112%, oklch(0.7 0.18 118 / 0.07), transparent 60%);
+    mix-blend-mode: screen;
+  }
+  /* extremely subtle scanline texture — premium CRT signal feel, not cheap */
+  .map-scan {
+    position: absolute; inset: 0; pointer-events: none; z-index: 3; opacity: .22;
+    background: repeating-linear-gradient(0deg, transparent 0 3px, oklch(0 0 0 / .10) 3px 4px);
+    mix-blend-mode: overlay;
+  }
+  /* film grain */
+  .map-grain {
+    position: absolute; inset: 0; pointer-events: none; z-index: 3; opacity: .045; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  /* radar sweep cone that slowly rotates over the map — signature motion */
+  .radar-sweep {
+    position: absolute; left: 50%; top: 38%; width: 180vmax; height: 180vmax; z-index: 2;
+    transform: translate(-50%,-50%); pointer-events: none; opacity: .14; mix-blend-mode: screen;
+    background: conic-gradient(from 0deg,
+      oklch(0.92 0.21 118 / 0.42) 0deg, oklch(0.92 0.21 118 / 0.10) 14deg, transparent 44deg, transparent 360deg);
+    border-radius: 50%;
+    animation: radar-rot 14s linear infinite;
+    will-change: transform;
+  }
+  @keyframes radar-rot { to { transform: translate(-50%,-50%) rotate(360deg); } }
+  .perf-lite .radar-sweep, .perf-lite .map-grain { display: none; }
+
+  /* ---- Top bar ---- */
+  .topbar {
+    position: absolute; top: var(--sp-4); left: var(--sp-4); right: var(--sp-4); z-index: var(--z-sticky);
+    display: flex; align-items: center; gap: var(--sp-4); justify-content: space-between;
+    pointer-events: none;
+  }
+  .topbar > * { pointer-events: auto; }
+  .brand {
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4); border-radius: var(--r-lg);
+    animation: reveal-up var(--d-slow) var(--ease-out) both;
+  }
+  .brand__mark {
+    position: relative; width: 40px; height: 40px; border-radius: var(--r-md); display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--purple-hot), var(--purple));
+    box-shadow: 0 0 0 1px oklch(0.78 0.22 295 / .5), 0 6px 22px oklch(0.5 0.16 295 / .5), inset 0 1px 0 oklch(0.99 0.02 295 / .5);
+    color: var(--purple-ink); overflow: hidden;
+  }
+  .brand__mark::after { content:""; position:absolute; inset:0; border-radius:inherit;
+    background: conic-gradient(from var(--angle), transparent 0 70%, oklch(0.92 0.21 118 / .55) 82%, transparent 92%);
+    animation: spin 4.5s linear infinite; mix-blend-mode: screen; }
+  .brand__mark svg { width: 22px; height: 22px; position: relative; z-index: 1; filter: drop-shadow(0 1px 1px oklch(0 0 0 /.3)); }
+  .brand__txt { display: flex; flex-direction: column; line-height: 1.05; }
+  .brand__name { font-weight: 680; font-size: var(--fs-sm); color: var(--text-hi); letter-spacing: -0.01em; }
+  .brand__sub { font-size: var(--fs-2xs); color: var(--text-dim); letter-spacing: 0.06em; display:flex; align-items:center; gap:6px; }
+  .brand__sub b { color: var(--lime-soft); font-weight: 600; }
+
+  .search-wrap {
+    display: flex; align-items: center; gap: var(--sp-2); flex: 1; max-width: 440px;
+    padding: var(--sp-2) var(--sp-3); border-radius: var(--r-pill);
+    transition: box-shadow var(--d-base) var(--ease-out), border-color var(--d-base);
+    animation: reveal-up var(--d-slow) var(--ease-out) .05s both;
+  }
+  .search-wrap:focus-within { box-shadow: var(--elev-2), 0 0 0 1px var(--line-lime), 0 0 22px oklch(0.92 0.21 118 / .18); }
+  .search-wrap svg { width: 16px; height: 16px; color: var(--text-dim); flex-shrink: 0; }
+  .search-wrap:focus-within svg { color: var(--lime-soft); }
+  .search-wrap input { flex: 1; background: transparent; border: none; font-size: var(--fs-sm); color: var(--text-hi); min-width:0; }
+  .search-wrap input::placeholder { color: var(--text-faint); }
+  .search-wrap kbd { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--text-dim); padding: 2px 6px; border: 1px solid var(--line); border-radius: var(--r-xs); }
+
+  .topbar__right { display: flex; align-items: center; gap: var(--sp-2); animation: reveal-up var(--d-slow) var(--ease-out) .1s both; }
+  .live-pill { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-pill); font-size: var(--fs-xs); color: var(--text-mid); white-space: nowrap; }
+  .live-pill b { color: var(--text-hi); }
+
+  /* ---- Zoom scope segmented control (animated thumb) ---- */
+  .scope-ctrl {
+    position: absolute; top: calc(var(--sp-4) + 72px); left: 50%; transform: translateX(-50%); z-index: var(--z-sticky);
+    display: flex; gap: 2px; padding: 4px; border-radius: var(--r-pill); isolation: isolate;
+    animation: reveal-up var(--d-slow) var(--ease-out) .12s both;
+  }
+  .scope-ctrl button {
+    padding: 0.42em 1.15em; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 600;
+    color: var(--text-mid); transition: color var(--d-base) var(--ease-out); position: relative; z-index: 1;
+  }
+  .scope-ctrl button[aria-pressed="true"] { color: var(--purple-ink); }
+  .scope-ctrl button:hover:not([aria-pressed="true"]) { color: var(--text-hi); }
+  .scope-thumb {
+    position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 4px; width: 80px; border-radius: var(--r-pill);
+    background: linear-gradient(180deg, var(--purple-hot), var(--purple));
+    box-shadow: 0 0 18px oklch(0.62 0.2 295 / .5), inset 0 1px 0 oklch(0.99 0.02 295 / .4);
+    transition: transform var(--d-slow) var(--ease-spring), width var(--d-base) var(--ease-out);
+  }
+
+  /* ---- Left panel: filters / legend ---- */
+  .panel-left {
+    position: absolute; top: calc(var(--sp-4) + 72px); left: var(--sp-4); z-index: var(--z-content);
+    width: 290px; max-height: calc(100dvh - 134px); overflow: hidden auto;
+    padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4);
+    animation: reveal-up var(--d-slow) var(--ease-out) .16s both;
+    scrollbar-width: thin;
+  }
+  .panel-left::-webkit-scrollbar { width: 6px; }
+  .psection { position: relative; }
+  .psection__title { display: flex; align-items: center; gap: var(--sp-2); }
+  .psection__title svg { width: 14px; height: 14px; color: var(--purple-hot); filter: drop-shadow(0 0 5px oklch(0.78 0.22 295 / .5)); }
+
+  .legend-row {
+    display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-2); border-radius: var(--r-sm);
+    cursor: pointer; transition: background var(--d-fast), opacity var(--d-base), transform var(--d-fast); user-select: none;
+    border: 1px solid transparent;
+  }
+  .legend-row:hover { background: oklch(0.5 0.03 292 / .14); border-color: var(--line); }
+  .legend-row:active { transform: scale(.98); }
+  .legend-row[aria-pressed="false"] { opacity: .34; }
+  .legend-row[aria-pressed="false"] .legend__swatch { filter: grayscale(1) brightness(.7); box-shadow:none; }
+  .legend-row .legend__swatch { width: 14px; height: 14px; flex-shrink:0; transition: filter var(--d-base); }
+  .legend-row .lr-label { font-size: var(--fs-sm); color: var(--text); flex: 1; }
+  .legend-row .lr-count { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+  .chips-flow { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .chip { transition: all var(--d-fast) var(--ease-out), box-shadow var(--d-base); }
+  .chip:active { transform: scale(.95); }
+
+  .filter-counter {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+    padding: var(--sp-3); border-radius: var(--r-md); margin-top: var(--sp-1);
+    position: relative; overflow: hidden;
+  }
+  .filter-counter::before { content:""; position:absolute; inset:0;
+    background: var(--pool-lime); opacity:.5; pointer-events:none; }
+  .filter-counter .fc-num { font-family: var(--font-mono); font-size: var(--fs-h3); font-weight: 600; color: var(--lime);
+    text-shadow: 0 0 14px oklch(0.92 0.21 118 / .5); position:relative; transition: transform var(--d-fast) var(--ease-spring); }
+  .filter-counter.bump .fc-num { transform: scale(1.18); }
+
+  /* range slider */
+  .range-row label { font-size: var(--fs-xs); color: var(--text-mid); display: flex; justify-content: space-between; margin-bottom: 8px; align-items:center; }
+  input[type=range] { width: 100%; -webkit-appearance: none; appearance:none; height: 5px; border-radius: var(--r-pill);
+    background: linear-gradient(90deg, var(--lime) 0%, var(--lime) var(--fill,0%), oklch(0.32 0.02 292) var(--fill,0%));
+    outline: none; cursor:pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 3px oklch(0.13 0.02 292), 0 0 12px oklch(0.92 0.21 118 / .7); cursor: pointer; transition: transform var(--d-fast); }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: none; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 3px oklch(0.13 0.02 292), 0 0 12px oklch(0.92 0.21 118 / .7); cursor: pointer; }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-2) 0; }
+  .toggle-row span { font-size: var(--fs-sm); color: var(--text); display:flex; align-items:center; gap:8px; }
+  .toggle-row span svg { width:14px; height:14px; color: var(--text-dim); }
+  .switch { position: relative; width: 42px; height: 23px; border-radius: var(--r-pill); background: oklch(0.3 0.02 292); transition: background var(--d-base), box-shadow var(--d-base); cursor: pointer; flex-shrink: 0; border:1px solid var(--line); }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 15px; height: 15px; border-radius: 50%; background: var(--text-mid); transition: all var(--d-base) var(--ease-spring); }
+  .switch[aria-pressed="true"] { background: var(--lime); box-shadow: 0 0 16px oklch(0.92 0.21 118 / .45); }
+  .switch[aria-pressed="true"]::after { transform: translateX(19px); background: var(--lime-ink); }
+
+  /* ---- Right panel: progress ring + sweep ---- */
+  .panel-right {
+    position: absolute; top: calc(var(--sp-4) + 72px); right: var(--sp-4); z-index: var(--z-content);
+    width: 270px; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4);
+    animation: reveal-up var(--d-slow) var(--ease-out) .2s both;
+  }
+
+  /* corner progress ring */
+  .progress-ring { position: relative; width: 158px; height: 158px; margin: 0 auto; }
+  .progress-ring::before { content:""; position:absolute; inset:18px; border-radius:50%; background: var(--pool-lime); opacity:.6; filter: blur(8px); }
+  .progress-ring svg { transform: rotate(-90deg); position:relative; }
+  .pr-track { fill: none; stroke: oklch(0.3 0.02 292 / .55); stroke-width: 9; }
+  .pr-glow  { fill:none; stroke: oklch(0.92 0.21 118 / .25); stroke-width: 14; stroke-linecap: round; filter: blur(5px);
+    transition: stroke-dashoffset 1.4s var(--ease-out); }
+  .pr-fill { fill: none; stroke: url(#prGrad); stroke-width: 9; stroke-linecap: round;
+    filter: drop-shadow(0 0 6px oklch(0.92 0.21 118 / .7)); transition: stroke-dashoffset 1.4s var(--ease-out); }
+  .pr-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+  .pr-pct { font-family: var(--font-mono); font-size: 2rem; font-weight: 600; color: var(--text-hi); line-height: 1; font-variant-numeric: tabular-nums; }
+  .pr-label { font-size: var(--fs-2xs); color: var(--text-dim); letter-spacing: 0.14em; text-transform: uppercase; margin-top:2px; }
+
+  .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+  .mini-stat { padding: var(--sp-3); border-radius: var(--r-md); background: oklch(0.5 0.03 292 / .1); border: 1px solid var(--line); position:relative; overflow:hidden; transition: border-color var(--d-base), background var(--d-base); }
+  .mini-stat:hover { border-color: var(--line-strong); background: oklch(0.5 0.03 292 / .16); }
+  .mini-stat .ms-val { font-family: var(--font-mono); font-size: var(--fs-lg); font-weight: 600; color: var(--text-hi); font-variant-numeric: tabular-nums; line-height:1.1; }
+  .mini-stat .ms-lbl { font-size: var(--fs-2xs); color: var(--text-dim); text-transform: uppercase; letter-spacing: .08em; margin-top:3px; }
+
+  .sweep-status { padding: var(--sp-3); border-radius: var(--r-md); display: none; }
+  .sweep-status.active { display: block; animation: pop-in var(--d-base) var(--ease-spring) both; }
+  .sweep-bar { height: 5px; border-radius: var(--r-pill); background: oklch(0.3 0.02 292); overflow: hidden; margin-top: var(--sp-2); position:relative; }
+  .sweep-bar i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--purple-hot), var(--lime)); transition: width .25s var(--ease-out); box-shadow: 0 0 12px var(--lime); }
+  .sweep-bar::after { content:""; position:absolute; inset:0; background: linear-gradient(90deg, transparent, oklch(1 0 0 /.4), transparent); transform: translateX(-100%); animation: sweep-line 1.4s var(--ease-inout) infinite; }
+
+  /* ---- Tooltip (deck.gl + custom) ---- */
+  #tt {
+    position: fixed; z-index: var(--z-tooltip); pointer-events: none; display: none;
+    padding: var(--sp-3); border-radius: var(--r-md); min-width: 200px;
+    background: var(--glass-tint-deep); backdrop-filter: blur(16px) saturate(180%); -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--glass-border); box-shadow: var(--elev-3);
+    transition: opacity .12s, transform .12s var(--ease-out);
+  }
+  #tt::before { content:""; position:absolute; inset:0; border-radius:inherit; padding:1px; pointer-events:none;
+    background: linear-gradient(135deg, var(--glass-sheen), transparent 40%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+  #tt .tt-name { font-weight: 650; font-size: var(--fs-sm); color: var(--text-hi); margin-bottom: 2px; display:flex; align-items:center; gap:6px; }
+  #tt .tt-name .tt-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  #tt .tt-sub { font-size: var(--fs-2xs); color: var(--text-dim); margin-bottom: var(--sp-2); text-transform: uppercase; letter-spacing: .08em; }
+  #tt .tt-row { display: flex; justify-content: space-between; gap: var(--sp-4); font-size: var(--fs-xs); padding: 2px 0; color: var(--text-mid); }
+  #tt .tt-row b { font-family: var(--font-mono); color: var(--text-hi); font-variant-numeric: tabular-nums; }
+  #tt .tt-hint { margin-top: var(--sp-2); padding-top: var(--sp-2); border-top: 1px solid var(--line); font-size: var(--fs-2xs); color: var(--lime-soft); display:flex; align-items:center; gap:5px; }
+  #tt .tt-hint svg { width:11px; height:11px; }
+
+  /* ---- Click-region modal ---- */
+  .region-modal { width: min(840px, 94vw); }
+  .donut-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); margin: var(--sp-5) 0; }
+  .donut-card { padding: var(--sp-4) var(--sp-4) var(--sp-3); border-radius: var(--r-lg); text-align: center; border:1px solid var(--line); position:relative; overflow:hidden; }
+  .donut { position: relative; width: 124px; height: 124px; margin: 0 auto var(--sp-3); }
+  .donut svg { transform: rotate(-90deg); }
+  .donut-center { position: absolute; inset: 0; display: grid; place-items: center; }
+  .donut-num { font-family: var(--font-mono); font-size: 1.8rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+  .donut-lbl { font-size: var(--fs-xs); color: var(--text-mid); font-weight:550; }
+  .donut-sub { font-size: var(--fs-2xs); color: var(--text-dim); margin-top: 3px; }
+
+  .biz-preview { display: flex; flex-direction: column; gap: var(--sp-2); max-height: 230px; overflow: auto; margin-top: var(--sp-3); scrollbar-width:thin; padding-right:2px; }
+  .biz-mini { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-md); background: oklch(0.5 0.03 292 / .1); border: 1px solid var(--line); transition: all var(--d-fast) var(--ease-out); cursor: pointer; }
+  .biz-mini:hover { background: oklch(0.5 0.03 292 / .2); border-color: var(--line-strong); transform: translateX(4px); }
+  .biz-mini .bm-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .biz-mini .bm-info { flex: 1; min-width: 0; }
+  .biz-mini .bm-name { font-size: var(--fs-sm); font-weight: 600; color: var(--text-hi); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .biz-mini .bm-meta { font-size: var(--fs-2xs); color: var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .biz-mini .bm-rev { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--lime-soft); }
+
+  .modal-close { position: absolute; top: var(--sp-4); right: var(--sp-4); width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: oklch(0.5 0.03 292 / .15); color: var(--text-mid); transition: all var(--d-fast); z-index:2; }
+  .modal-close:hover { background: oklch(0.5 0.03 292 / .3); color: var(--text-hi); transform: rotate(90deg); }
+
+  /* ---- Bottom dock: sweep CTA ---- */
+  .map-dock {
+    position: absolute; bottom: var(--sp-5); left: 50%; transform: translateX(-50%); z-index: var(--z-dock);
+    display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
+    border-radius: var(--r-pill); animation: reveal-up var(--d-slow) var(--ease-out) .24s both;
+  }
+  .map-dock .dock-label { font-size: var(--fs-xs); color: var(--text-mid); white-space:nowrap; }
+  .map-dock .dock-label kbd { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--lime-soft); }
+
+  /* mode toggle bottom-left */
+  .view-toggle { position: absolute; bottom: var(--sp-5); left: var(--sp-4); z-index: var(--z-dock); display: flex; gap: 2px; padding: 4px; border-radius: var(--r-pill); isolation:isolate; animation: reveal-up var(--d-slow) var(--ease-out) .24s both; }
+  .view-toggle button { padding: .42em .9em; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 600; color: var(--text-mid); display: flex; align-items: center; gap: 6px; position:relative; z-index:1; transition: color var(--d-base); }
+  .view-toggle button svg { width: 14px; height: 14px; }
+  .view-toggle button[aria-pressed="true"] { color: var(--lime-ink); }
+  .vt-thumb { position:absolute; z-index:0; top:4px; bottom:4px; left:4px; width:70px; border-radius: var(--r-pill); background: var(--lime); box-shadow: 0 0 16px oklch(0.92 0.21 118 /.45); transition: transform var(--d-base) var(--ease-spring), width var(--d-base); }
+
+  /* zoom buttons bottom-right */
+  .zoom-ctrl { position: absolute; bottom: var(--sp-5); right: var(--sp-4); z-index: var(--z-dock); display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: var(--r-lg); animation: reveal-up var(--d-slow) var(--ease-out) .24s both; }
+  .zoom-ctrl button { width: 38px; height: 38px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--text-mid); transition: all var(--d-fast); }
+  .zoom-ctrl button:hover { color: var(--text-hi); background: oklch(0.5 0.03 292 / .2); }
+  .zoom-ctrl button:active { transform: scale(.92); }
+  .zoom-ctrl button svg { width: 18px; height: 18px; }
+  .zoom-ctrl .zc-div { height:1px; background: var(--line); margin: 2px 4px; }
+
+  /* sweep cursor cue */
+  .map-app.sweeping #map { cursor: crosshair; }
+  .map-app.sweeping #map::after { content:""; }
+  .sweep-hint { position: absolute; bottom: calc(var(--sp-5) + 56px); left: 50%; transform: translateX(-50%); z-index: var(--z-dock); padding: var(--sp-2) var(--sp-4); border-radius: var(--r-pill); font-size: var(--fs-xs); color: var(--lime); display: none; align-items:center; gap:8px; }
+  .sweep-hint svg { width:14px; height:14px; }
+  .map-app.sweeping .sweep-hint { display: flex; animation: pop-in var(--d-base) var(--ease-spring) both; }
+  .map-app.sweeping .dockSweepBtn { box-shadow: 0 0 2px var(--lime), 0 0 18px oklch(0.92 0.21 118 / .7), 0 0 50px oklch(0.7 0.18 118 / .4); }
+
+  /* reticle that follows cursor while sweeping */
+  .reticle { position: fixed; z-index: var(--z-tooltip); width: 64px; height: 64px; pointer-events:none; display:none; transform: translate(-50%,-50%); }
+  .map-app.sweeping .reticle { display:block; }
+  .reticle::before, .reticle::after { content:""; position:absolute; inset:0; border-radius:50%; border:1.5px solid var(--lime); opacity:.7; }
+  .reticle::after { animation: pulse-ring 1.6s var(--ease-out) infinite; border-color: var(--lime); }
+  .reticle .rx, .reticle .ry { position:absolute; background: var(--lime); box-shadow:0 0 6px var(--lime); }
+  .reticle .rx { left:50%; top:-10px; bottom:-10px; width:1px; transform:translateX(-.5px); }
+  .reticle .ry { top:50%; left:-10px; right:-10px; height:1px; transform:translateY(-.5px); }
+
+  /* legend swatch glow color (status semantics) */
+  .legend__swatch--niche { background: var(--lime); color: var(--lime-bleed); }
+
+  @media (max-width: 980px) {
+    .panel-left, .panel-right { display: none; }
+    .scope-ctrl { top: calc(var(--sp-4) + 66px); }
+    .map-dock .dock-label { display:none; }
+  }
+</style>
+</head>
+<body class="map-app">
+
+<div class="bg-base"></div>
+
+<div class="map-app">
+  <div id="map"></div>
+  <canvas id="deck-canvas"></canvas>
+  <div class="radar-sweep"></div>
+  <div class="map-toplight"></div>
+  <div class="map-vignette"></div>
+  <div class="map-scan"></div>
+  <div class="map-grain"></div>
+
+  <!-- ===== TOP BAR ===== -->
+  <header class="topbar">
+    <div class="brand glass glass-spec">
+      <div class="brand__mark"><i data-lucide="radar"></i></div>
+      <div class="brand__txt">
+        <span class="brand__name">Hermes Cloud Studio</span>
+        <span class="brand__sub"><span class="live-dot" style="width:6px;height:6px"></span> SWEEP MAP · <b>Cuiabá / MT</b></span>
+      </div>
+    </div>
+
+    <div class="search-wrap glass glass-spec">
+      <i data-lucide="search"></i>
+      <input id="search" type="text" placeholder="Buscar bairro, cidade ou estado…" aria-label="Buscar região">
+      <kbd>/</kbd>
+    </div>
+
+    <div class="topbar__right">
+      <div class="live-pill glass">
+        <span class="live-dot"></span>
+        <span>Varredura ativa · <b class="t-mono" id="liveCount">0</b> negócios</span>
+      </div>
+      <button class="btn btn-ghost glass" id="perfToggle" title="Modo leve (performance)" aria-label="Alternar modo leve"><i data-lucide="zap"></i></button>
+    </div>
+  </header>
+
+  <!-- ===== SCOPE (city/state/country) ===== -->
+  <nav class="scope-ctrl glass glass-spec" aria-label="Escopo de zoom">
+    <span class="scope-thumb" id="scopeThumb"></span>
+    <button data-scope="city" aria-pressed="true">Cidade</button>
+    <button data-scope="state" aria-pressed="false">Estado</button>
+    <button data-scope="country" aria-pressed="false">País</button>
+  </nav>
+
+  <!-- ===== LEFT: filters + legend ===== -->
+  <aside class="panel-left glass glass-spec text-scrim">
+    <div class="psection">
+      <div class="psection__title"><i data-lucide="layers"></i><span class="t-label">Status (clique p/ filtrar)</span></div>
+      <div style="margin-top:var(--sp-2)">
+        <div class="legend-row" data-status="opportunity" aria-pressed="true">
+          <span class="legend__swatch legend__swatch--opportunity"></span>
+          <span class="lr-label">Alta oportunidade</span>
+          <span class="lr-count" data-count="opportunity">0</span>
+        </div>
+        <div class="legend-row" data-status="niche" aria-pressed="true">
+          <span class="legend__swatch legend__swatch--niche"></span>
+          <span class="lr-label">Nicho-oportunidade</span>
+          <span class="lr-count" data-count="niche">0</span>
+        </div>
+        <div class="legend-row" data-status="consolidated" aria-pressed="true">
+          <span class="legend__swatch legend__swatch--consolidated"></span>
+          <span class="lr-label">Consolidado</span>
+          <span class="lr-count" data-count="consolidated">0</span>
+        </div>
+        <div class="legend-row" data-status="unexplored" aria-pressed="true">
+          <span class="legend__swatch legend__swatch--unexplored"></span>
+          <span class="lr-label">Não explorado</span>
+          <span class="lr-count" data-count="unexplored">0</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" style="margin:0">
+
+    <div class="psection">
+      <div class="psection__title"><i data-lucide="utensils"></i><span class="t-label">Nicho</span></div>
+      <div class="chips-flow" id="nicheChips" style="margin-top:var(--sp-3)"></div>
+    </div>
+
+    <div class="psection">
+      <div class="psection__title"><i data-lucide="building-2"></i><span class="t-label">Porte / Sinais</span></div>
+      <div class="chips-flow" id="signalChips" style="margin-top:var(--sp-3)"></div>
+    </div>
+
+    <div class="range-row">
+      <label>Score mínimo <span class="t-mono" id="scoreVal" style="color:var(--lime)">0</span></label>
+      <input type="range" id="scoreRange" min="0" max="100" value="0" aria-label="Score mínimo">
+    </div>
+
+    <div>
+      <div class="toggle-row"><span><i data-lucide="flame"></i> Heatmap de oportunidade</span><button class="switch" id="heatToggle" aria-pressed="false" role="switch" aria-label="Heatmap"></button></div>
+      <div class="toggle-row"><span><i data-lucide="cloud-fog"></i> Névoa de guerra</span><button class="switch" id="fogToggle" aria-pressed="true" role="switch" aria-label="Névoa"></button></div>
+      <div class="toggle-row"><span><i data-lucide="map-pin"></i> Pins de negócios</span><button class="switch" id="pinToggle" aria-pressed="true" role="switch" aria-label="Pins"></button></div>
+    </div>
+
+    <div class="filter-counter glass" style="background:oklch(0.5 0.03 292 / .08)">
+      <div style="position:relative;z-index:1">
+        <div class="t-label" style="margin-bottom:2px">Match dos filtros</div>
+        <div class="t-xs t-dim">recolorindo mapa ao vivo</div>
+      </div>
+      <div class="fc-num" id="matchCount">0</div>
+    </div>
+  </aside>
+
+  <!-- ===== RIGHT: progress + sweep ===== -->
+  <aside class="panel-right glass glass-spec text-scrim">
+    <div>
+      <div class="psection__title"><i data-lucide="compass"></i><span class="t-label">Cobertura da varredura</span></div>
+      <div class="progress-ring" style="margin-top:var(--sp-3)">
+        <svg width="158" height="158" viewBox="0 0 158 158">
+          <defs>
+            <linearGradient id="prGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="oklch(0.78 0.22 295)"/>
+              <stop offset="55%" stop-color="oklch(0.85 0.20 200)"/>
+              <stop offset="100%" stop-color="oklch(0.92 0.21 118)"/>
+            </linearGradient>
+          </defs>
+          <circle class="pr-track" cx="79" cy="79" r="67"/>
+          <circle class="pr-glow" id="prGlow" cx="79" cy="79" r="67" stroke-dasharray="421" stroke-dashoffset="421"/>
+          <circle class="pr-fill" id="prFill" cx="79" cy="79" r="67" stroke-dasharray="421" stroke-dashoffset="421"/>
+        </svg>
+        <div class="pr-center">
+          <div class="pr-pct" id="prPct">0%</div>
+          <div class="pr-label">varrido</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mini-stats">
+      <div class="mini-stat"><div class="ms-val" id="msZones">0</div><div class="ms-lbl">zonas</div></div>
+      <div class="mini-stat"><div class="ms-val tglow-energy" id="msOpps">0</div><div class="ms-lbl">oportun.</div></div>
+      <div class="mini-stat" style="grid-column:1/-1"><div class="ms-val revenue" id="msRev">R$ 0</div><div class="ms-lbl">receita projetada <span class="tag-projected">est</span></div></div>
+    </div>
+
+    <div class="sweep-status glass" id="sweepStatus" style="background:oklch(0.5 0.03 292 / .1)">
+      <div class="row-between"><span class="t-sm" style="color:var(--lime);display:flex;align-items:center;gap:6px"><span class="live-dot"></span> Varrendo zona…</span><span class="t-mono t-xs" id="sweepPctTxt">0%</span></div>
+      <div class="sweep-bar"><i id="sweepBar"></i></div>
+      <div class="t-2xs t-dim" id="sweepMsg" style="margin-top:8px">iniciando workflow…</div>
+    </div>
+
+    <button class="btn btn-ghost" id="startSweepBtn" style="justify-content:center">
+      <i data-lucide="crosshair"></i> Pintar zona p/ varrer
+    </button>
+  </aside>
+
+  <!-- ===== Bottom controls ===== -->
+  <div class="view-toggle glass glass-spec">
+    <span class="vt-thumb" id="vtThumb"></span>
+    <button data-view="hex" aria-pressed="true"><i data-lucide="hexagon"></i> Hex</button>
+    <button data-view="heat" aria-pressed="false"><i data-lucide="flame"></i> Calor</button>
+  </div>
+
+  <div class="map-dock glass glass-spec">
+    <span class="dock-label">Clique no mapa p/ varrer área · atalho <kbd>S</kbd></span>
+    <button class="btn btn-energy dockSweepBtn" id="dockSweep"><i data-lucide="radar"></i> Iniciar varredura</button>
+  </div>
+
+  <div class="sweep-hint glass"><i data-lucide="mouse-pointer-click"></i> Clique em qualquer ponto do mapa para disparar a varredura automática</div>
+
+  <div class="zoom-ctrl glass glass-spec">
+    <button id="zoomIn" title="Aproximar" aria-label="Aproximar"><i data-lucide="plus"></i></button>
+    <button id="zoomOut" title="Afastar" aria-label="Afastar"><i data-lucide="minus"></i></button>
+    <div class="zc-div"></div>
+    <button id="zoomReset" title="Reenquadrar" aria-label="Reenquadrar"><i data-lucide="locate-fixed"></i></button>
+  </div>
+
+  <!-- reticle + tooltip -->
+  <div class="reticle"><span class="rx"></span><span class="ry"></span></div>
+  <div id="tt"></div>
+</div>
+
+<!-- ===== REGION MODAL ===== -->
+<div class="scrim" id="regionScrim" hidden>
+  <div class="modal region-modal glass-spec" role="dialog" aria-modal="true" aria-labelledby="rmTitle">
+    <button class="modal-close" id="rmClose" aria-label="Fechar"><i data-lucide="x"></i></button>
+    <div class="t-label" id="rmScope">ZONA · CUIABÁ</div>
+    <h2 class="t-h2" id="rmTitle" style="margin-top:4px">Bairro</h2>
+    <p class="t-lead t-sm" id="rmSub">Resumo da zona varrida</p>
+
+    <div class="donut-grid">
+      <div class="donut-card glass" style="background:oklch(0.5 0.03 292 / .08)">
+        <div class="donut">
+          <svg width="124" height="124" viewBox="0 0 124 124">
+            <circle cx="62" cy="62" r="50" fill="none" stroke="oklch(0.3 0.02 292 / .6)" stroke-width="10"/>
+            <circle id="dTotal" cx="62" cy="62" r="50" fill="none" stroke="var(--text-mid)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="0" style="transition:stroke-dashoffset 1s var(--ease-out)"/>
+          </svg>
+          <div class="donut-center"><div class="donut-num" id="dTotalNum" style="color:var(--text-hi)">0</div></div>
+        </div>
+        <div class="donut-lbl">Total de negócios</div>
+        <div class="donut-sub tag-measured">medido</div>
+      </div>
+
+      <div class="donut-card glass" style="background:oklch(0.42 0.12 40 / .08)">
+        <div class="donut">
+          <svg width="124" height="124" viewBox="0 0 124 124">
+            <circle cx="62" cy="62" r="50" fill="none" stroke="oklch(0.3 0.02 292 / .6)" stroke-width="10"/>
+            <circle id="dOpp" cx="62" cy="62" r="50" fill="none" stroke="var(--st-opportunity)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314" style="filter:drop-shadow(0 0 6px var(--st-opp-bleed));transition:stroke-dashoffset 1s var(--ease-out)"/>
+          </svg>
+          <div class="donut-center"><div class="donut-num" id="dOppNum" style="color:var(--st-opportunity)">0</div></div>
+        </div>
+        <div class="donut-lbl">Oportunidades</div>
+        <div class="donut-sub tag-measured">medido</div>
+      </div>
+
+      <div class="donut-card glass" style="background:oklch(0.46 0.12 118 / .08)">
+        <div class="donut">
+          <svg width="124" height="124" viewBox="0 0 124 124">
+            <circle cx="62" cy="62" r="50" fill="none" stroke="oklch(0.3 0.02 292 / .6)" stroke-width="10"/>
+            <circle id="dNiche" cx="62" cy="62" r="50" fill="none" stroke="var(--lime)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314" style="filter:drop-shadow(0 0 6px var(--lime-bleed));transition:stroke-dashoffset 1s var(--ease-out)"/>
+          </svg>
+          <div class="donut-center"><div class="donut-num tglow-energy" id="dNicheNum" style="color:var(--lime)">0</div></div>
+        </div>
+        <div class="donut-lbl">Nicho-oportunidade</div>
+        <div class="donut-sub tag-measured">medido</div>
+      </div>
+    </div>
+
+    <div class="row-between" style="margin-bottom:var(--sp-2)">
+      <span class="t-label">Top negócios da zona</span>
+      <span class="t-xs t-dim" id="rmRevenue">receita projetada total: <b class="revenue" id="rmRevNum">R$ 0</b></span>
+    </div>
+    <div class="biz-preview" id="bizPreview"></div>
+
+    <hr class="divider">
+    <div class="row wrap" style="justify-content:flex-end">
+      <button class="btn btn-ghost" id="rmExpand"><i data-lucide="list"></i> Ver todos no Conveyor</button>
+      <button class="btn btn-energy" id="rmHandoff"><i data-lucide="send"></i> Enviar zona ao Geronimo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   HERMES SWEEP MAP — logic
+   Robustness notes:
+   - deck H3 layers are DELIBERATELY avoided (the standalone bundle's internal
+     h3 binding is fragile). All hexagons are built as plain PolygonLayer data
+     from our own h3-js cellToBoundary calls -> zero deck<->h3 coupling.
+   - All h3 calls go through guarded helpers; if h3 ever fails to load the page
+     still renders pins + heatmap.
+   ========================================================================= */
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const H3_OK = (typeof h3 !== 'undefined' && typeof h3.latLngToCell === 'function');
+
+/* ---- color tokens mirrored to RGB for deck.gl (match design-system rgb mirrors) ---- */
+const COL = {
+  opportunity:  [247,138,92],
+  niche:        [209,254,23],
+  consolidated: [96,142,222],
+  unexplored:   [120,120,135],
+  cold:         [70,72,86],
+  fog:          [40,42,58],
+};
+
+/* ---- Cuiabá / MT realistic data ---- */
+const CENTER = [-56.0949, -15.6014]; // Cuiabá
+const NICHES = ['Restaurante','Clínica','Academia','Pet Shop','Advocacia','Construtora','Estética','Auto Center','Imobiliária','Contabilidade','Hotel','E-commerce'];
+const SIGNALS = ['5+ anos','Sem site','Sem redes','Tem ads','Reviews altos','Crescendo','Sem Google','Movimento alto'];
+const BAIRROS = [
+  ['Centro Sul', -56.097, -15.601], ['Jardim Cuiabá', -56.072, -15.575], ['Goiabeiras', -56.085, -15.583],
+  ['Santa Rosa', -56.078, -15.595], ['Bosque da Saúde', -56.06, -15.59], ['Quilombo', -56.092, -15.612],
+  ['Coxipó', -56.04, -15.64], ['Morada do Ouro', -56.05, -15.555], ['CPA', -56.07, -15.54],
+  ['Várzea Grande', -56.13, -15.64], ['Jardim Itália', -56.065, -15.57], ['Dom Aquino', -56.105, -15.6],
+  ['Poção', -56.11, -15.615], ['Pedra 90', -56.02, -15.67], ['Tijucal', -56.03, -15.66],
+];
+const NAMES_BY_NICHE = {
+  'Restaurante': ['Sabor do Pantanal','Peixaria Manjuba','Cantina Bella','Mistura Cuiabana','Grelhados do Cerrado'],
+  'Clínica': ['Clínica VidaPlena','OdontoCuiabá','Saúde Total MT','Espaço Bem-Estar','CardioCenter'],
+  'Academia': ['PowerFit Cuiabá','Iron Box','Studio Movimento','Cross Pantanal','Energia Total'],
+  'Pet Shop': ['Mundo Pet MT','AuAu Center','Reino Animal','Patas Felizes','PetVida'],
+  'Advocacia': ['Almeida & Sócios','Justa Causa Adv.','Lima Advocacia','Direito MT','Pantanal Legal'],
+  'Construtora': ['Constrular MT','Edifica Cuiabá','Alicerce Forte','Cerrado Obras','Base Engenharia'],
+  'Estética': ['Bella Estética','Studio Glow','Espaço da Beleza','Renove Estética','Lumiére'],
+  'Auto Center': ['MultiCar Cuiabá','TurboMecânica','Auto Pantanal','PitStop MT','RodaViva'],
+  'Imobiliária': ['Lar Cuiabano','Imóveis Cerrado','Chave de Ouro','Pantanal Imóveis','Habitar MT'],
+  'Contabilidade': ['Contábil Express','Números MT','Gestão Contábil','Balanço Certo','FiscalPro'],
+  'Hotel': ['Hotel Cuiabá Plaza','Pousada do Cerrado','Pantanal Suites','Hotel Aurora','Refúgio MT'],
+  'E-commerce': ['Loja Cerrado','MT Shop Online','Compra Fácil','Bazar Pantanal','Direto MT'],
+};
+
+function rand(a,b){ return a + Math.random()*(b-a); }
+function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+/* generate ~520 businesses scattered, weighted toward bairros */
+function genBusinesses(){
+  const arr = [];
+  let id = 0;
+  BAIRROS.forEach((b, bi) => {
+    const n = Math.floor(rand(22, 48));
+    for(let i=0;i<n;i++){
+      const niche = pick(NICHES);
+      const lng = b[1] + rand(-0.012, 0.012);
+      const lat = b[2] + rand(-0.010, 0.010);
+      const explored = Math.random() < (bi < 9 ? 0.86 : 0.35);
+      let status, score, rev;
+      const hasSite = Math.random() < 0.42;
+      const years = Math.floor(rand(1, 18));
+      const reviews = Math.floor(rand(0, 480));
+      if(!explored){ status='unexplored'; score=0; rev=0; }
+      else if(!hasSite && years>=5 && reviews>80){ status = Math.random()<0.5?'opportunity':'niche'; score=Math.floor(rand(72,97)); rev=Math.floor(rand(8,42))*1000; }
+      else if(hasSite){ status='consolidated'; score=Math.floor(rand(28,58)); rev=Math.floor(rand(3,16))*1000; }
+      else { status='opportunity'; score=Math.floor(rand(55,84)); rev=Math.floor(rand(5,28))*1000; }
+      const sigs = [];
+      if(years>=5) sigs.push('5+ anos');
+      if(!hasSite) sigs.push('Sem site');
+      if(Math.random()<0.4) sigs.push('Sem redes');
+      if(Math.random()<0.3) sigs.push('Tem ads');
+      if(reviews>200) sigs.push('Reviews altos');
+      if(Math.random()<0.35) sigs.push('Crescendo');
+      arr.push({ id:id++, name: pick(NAMES_BY_NICHE[niche]||['Negócio MT']), niche, lng, lat, status, score, rev, bairro:b[0], years, reviews, sigs, explored });
+    }
+  });
+  return arr;
+}
+
+const BIZ = genBusinesses();
+
+/* state */
+const state = {
+  status: { opportunity:true, niche:true, consolidated:true, unexplored:true },
+  niches: new Set(),
+  signals: new Set(),
+  minScore: 0,
+  heat: false,
+  fog: true,
+  pins: true,
+  scope: 'city',
+};
+
+/* ---- MapLibre dark style (CARTO dark raster, restyled toward brand purple) ---- */
+const map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    sources: {
+      'carto-dark': {
+        type: 'raster',
+        tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+                'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+                'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'],
+        tileSize: 256,
+        attribution: '© OpenStreetMap, © CARTO'
+      }
+    },
+    layers: [
+      { id:'bg', type:'background', paint:{ 'background-color':'#0c0c13' } },
+      { id:'carto', type:'raster', source:'carto-dark', paint:{ 'raster-opacity':0.74, 'raster-saturation':-0.5, 'raster-contrast':0.22, 'raster-brightness-max':0.82, 'raster-hue-rotate':270 } }
+    ]
+  },
+  center: CENTER,
+  zoom: 12.2,
+  pitch: 48,
+  bearing: -14,
+  antialias: true,
+  attributionControl: { compact: true },
+});
+
+/* ---- deck.gl overlay ---- */
+let deckOverlay;
+const { MapboxOverlay, ScatterplotLayer, HeatmapLayer, PolygonLayer } = deck;
+
+/* h3 helpers — guarded. We only call boundary/index funcs, never deck H3 layers. */
+function hexRes(){ return state.scope === 'country' ? 5 : state.scope === 'state' ? 6 : 8; }
+function cellPoly(h){ try { return h3.cellToBoundary(h, true); } catch(e){ return null; } } // [ [lng,lat], ... ]
+function llToCell(lat,lng,res){ try { return h3.latLngToCell(lat,lng,res); } catch(e){ return null; } }
+
+/* build H3 hex aggregation */
+function buildHexData(){
+  if(!H3_OK) return [];
+  const res = hexRes();
+  const cells = {};
+  visibleBiz().forEach(b => {
+    const h = llToCell(b.lat, b.lng, res); if(!h) return;
+    if(!cells[h]) cells[h] = { hex:h, count:0, opp:0, niche:0, cons:0, rev:0, scoreSum:0 };
+    const c = cells[h];
+    c.count++; c.rev += b.rev; c.scoreSum += b.score;
+    if(b.status==='opportunity') c.opp++;
+    else if(b.status==='niche') c.niche++;
+    else if(b.status==='consolidated') c.cons++;
+  });
+  return Object.values(cells).map(c => ({ ...c, polygon: cellPoly(c.hex) })).filter(c=>c.polygon);
+}
+/* all-biz hexes incl unexplored for fog */
+function buildFogData(){
+  if(!H3_OK) return [];
+  const res = hexRes();
+  const cells = {};
+  BIZ.forEach(b => {
+    const h = llToCell(b.lat, b.lng, res); if(!h) return;
+    if(!cells[h]) cells[h] = { hex:h, explored:0, total:0 };
+    cells[h].total++;
+    if(b.explored) cells[h].explored++;
+  });
+  return Object.values(cells).filter(c => c.explored/c.total < 0.5).map(c => ({ ...c, polygon: cellPoly(c.hex) })).filter(c=>c.polygon);
+}
+
+/* choropleth colour by zone status mix. Filters recolor live:
+   matching cells glow warm/lime, everything else falls cold gray. */
+function hexColor(d){
+  const oppRatio = (d.opp + d.niche) / Math.max(1, d.count);
+  if(d.niche > d.opp && d.niche >= d.cons) return [...COL.niche, 205];
+  if(oppRatio > 0.4) return [...COL.opportunity, Math.round(120 + oppRatio*125)];
+  if(d.cons > d.opp + d.niche) return [...COL.consolidated, 165];
+  return [...COL.cold, 120];
+}
+
+function visibleBiz(){
+  return BIZ.filter(b => {
+    if(!state.status[b.status]) return false;
+    if(b.status !== 'unexplored' && b.score < state.minScore) return false;
+    if(state.niches.size && !state.niches.has(b.niche)) return false;
+    if(state.signals.size && ![...state.signals].some(s => b.sigs.includes(s))) return false;
+    return true;
+  });
+}
+
+let SWEEP_ZONES = []; // painted swept polygons {polygon:[...], t:fillProgress 0..1}
+
+function buildLayers(){
+  const layers = [];
+  const hexData = buildHexData();
+
+  // fog of war (unexplored painted zones)
+  if(state.fog && H3_OK){
+    layers.push(new PolygonLayer({
+      id:'fog',
+      data: buildFogData(),
+      getPolygon: d => d.polygon,
+      getFillColor: [...COL.fog, 160],
+      getLineColor: [58,60,80,70],
+      lineWidthMinPixels: 1,
+      extruded: false,
+      stroked: true, filled: true,
+      pickable: false,
+    }));
+  }
+
+  if(!state.heat && H3_OK){
+    layers.push(new PolygonLayer({
+      id:'hexbins',
+      data: hexData,
+      getPolygon: d => d.polygon,
+      getFillColor: hexColor,
+      getElevation: d => (d.opp + d.niche) * 60,
+      elevationScale: state.scope==='city' ? 1 : 0.4,
+      extruded: state.scope==='city',
+      wireframe: false,
+      stroked: true, filled: true,
+      getLineColor: [255,255,255,26],
+      lineWidthMinPixels: 1,
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: [209,254,23,90],
+      material: { ambient:0.55, diffuse:0.6, shininess:32, specularColor:[209,254,23] },
+      transitions: { getFillColor: 380, getElevation: 520 },
+      updateTriggers: { getFillColor: [state.minScore, [...state.niches].join(), [...state.signals].join(), JSON.stringify(state.status)] },
+      onClick: info => { if(info.object) openRegion(info.object, info.coordinate); },
+      onHover: info => hexHover(info),
+    }));
+  } else if(state.heat){
+    layers.push(new HeatmapLayer({
+      id:'heat',
+      data: visibleBiz().filter(b=>b.status!=='unexplored'),
+      getPosition: d => [d.lng, d.lat],
+      getWeight: d => (d.status==='opportunity'||d.status==='niche') ? d.score : d.score*0.3,
+      radiusPixels: 64,
+      intensity: 1.25,
+      threshold: 0.04,
+      colorRange: [[70,72,86],[96,142,222],[112,200,180],[209,254,23],[247,180,90],[247,138,92]],
+    }));
+  }
+
+  // swept zones (player-painted, animated fill)
+  if(SWEEP_ZONES.length){
+    layers.push(new PolygonLayer({
+      id:'swept',
+      data: SWEEP_ZONES,
+      getPolygon: d => d.polygon,
+      getFillColor: d => [124,58,237, Math.round(20 + (d.t||0)*70)],
+      getLineColor: d => [209,254,23, Math.round(120 + (d.t||0)*120)],
+      lineWidthMinPixels: 2,
+      stroked: true, filled: true,
+      updateTriggers: { getFillColor:[Date.now()], getLineColor:[Date.now()] },
+    }));
+  }
+
+  // business pins
+  if(state.pins){
+    layers.push(new ScatterplotLayer({
+      id:'pins',
+      data: visibleBiz().filter(b=>b.status!=='unexplored'),
+      getPosition: d => [d.lng, d.lat],
+      getRadius: d => 14 + d.score/6,
+      radiusUnits: 'meters',
+      radiusMinPixels: 2.5,
+      radiusMaxPixels: 9,
+      getFillColor: d => [...(COL[d.status]||COL.cold), 225],
+      getLineColor: [10,10,18,170],
+      lineWidthMinPixels: 0.5,
+      stroked: true,
+      pickable: true,
+      autoHighlight: true,
+      highlightColor: [255,255,255,140],
+      transitions: { getFillColor: 320, getRadius: 320 },
+      updateTriggers: { getFillColor: [state.minScore], getRadius:[state.minScore] },
+      onHover: info => pinHover(info),
+      onClick: info => { if(info.object){ const z=fakeZoneForBiz(info.object); openRegion(z, [info.object.lng, info.object.lat]); } },
+    }));
+  }
+
+  return layers;
+}
+
+function refreshDeck(){
+  if(deckOverlay) deckOverlay.setProps({ layers: buildLayers() });
+  updateCounters();
+}
+
+/* ---- tooltip ---- */
+const tt = $('#tt');
+function pinHover(info){
+  if(!info.object){ tt.style.display='none'; return; }
+  const b = info.object;
+  const rgb = (COL[b.status]||COL.cold).join(',');
+  tt.innerHTML = `<div class="tt-name"><span class="tt-dot" style="background:rgb(${rgb});box-shadow:0 0 8px rgb(${rgb})"></span>${b.name}</div>
+    <div class="tt-sub">${b.niche} · ${b.bairro}</div>
+    <div class="tt-row"><span>Score</span><b>${b.score}</b></div>
+    <div class="tt-row"><span>Receita proj.</span><b>R$ ${b.rev.toLocaleString('pt-BR')}/mês</b></div>
+    <div class="tt-row"><span>Sinais</span><b>${b.sigs.slice(0,2).join(', ')||'—'}</b></div>
+    <div class="tt-hint">› clique p/ abrir dossiê</div>`;
+  posTT(info.x, info.y);
+}
+function hexHover(info){
+  if(!info.object){ tt.style.display='none'; return; }
+  const d = info.object;
+  tt.innerHTML = `<div class="tt-name">Zona · ${d.count} negócios</div>
+    <div class="tt-sub">${scopeLabel()}</div>
+    <div class="tt-row"><span>Oportunidades</span><b style="color:var(--st-opportunity)">${d.opp}</b></div>
+    <div class="tt-row"><span>Nicho</span><b style="color:var(--lime)">${d.niche}</b></div>
+    <div class="tt-row"><span>Consolidados</span><b style="color:var(--st-consolidated)">${d.cons}</b></div>
+    <div class="tt-row"><span>Receita proj.</span><b>R$ ${(d.rev/1000).toFixed(0)}k</b></div>
+    <div class="tt-hint">› clique p/ explodir a zona</div>`;
+  posTT(info.x, info.y);
+}
+function posTT(x,y){
+  tt.style.display='block';
+  const r = tt.getBoundingClientRect();
+  let nx = x+18, ny = y+18;
+  if(nx + r.width > window.innerWidth) nx = x - r.width - 18;
+  if(ny + r.height > window.innerHeight) ny = y - r.height - 18;
+  tt.style.left = nx+'px'; tt.style.top = ny+'px';
+}
+
+function scopeLabel(){ return state.scope==='city'?'CUIABÁ · MT':state.scope==='state'?'MATO GROSSO':'BRASIL'; }
+
+/* fabricate a "zone" obj from a single biz click (for pin -> modal) */
+function fakeZoneForBiz(b){
+  const near = BIZ.filter(x => Math.abs(x.lat-b.lat)<0.01 && Math.abs(x.lng-b.lng)<0.012);
+  return {
+    bairro: b.bairro, count: near.length,
+    opp: near.filter(x=>x.status==='opportunity').length,
+    niche: near.filter(x=>x.status==='niche').length,
+    cons: near.filter(x=>x.status==='consolidated').length,
+    rev: near.reduce((s,x)=>s+x.rev,0), _biz: near,
+  };
+}
+
+/* ===== REGION MODAL ===== */
+const scrim = $('#regionScrim');
+function openRegion(d, coord){
+  let biz;
+  if(d._biz){ biz = d._biz; }
+  else if(H3_OK && d.hex){
+    const res = hexRes();
+    biz = BIZ.filter(b => llToCell(b.lat,b.lng,res) === d.hex);
+  } else { biz = []; }
+  const total = biz.length;
+  const opp = biz.filter(b=>b.status==='opportunity').length;
+  const niche = biz.filter(b=>b.status==='niche').length;
+  const cons = biz.filter(b=>b.status==='consolidated').length;
+  const rev = biz.reduce((s,b)=>s+b.rev,0);
+
+  $('#rmScope').textContent = scopeLabel() + ' · ZONA VARRIDA';
+  $('#rmTitle').textContent = d.bairro || biz[0]?.bairro || 'Zona';
+  $('#rmSub').textContent = `${total} negócios mapeados · ${opp+niche} prontos para abordagem`;
+
+  // donut rings (max = total) — reset then animate after paint
+  setDonut('dTotal', 0, total);
+  setDonut('dOpp', 0, total);
+  setDonut('dNiche', 0, total);
+  $('#dTotalNum').textContent = '0'; $('#dOppNum').textContent='0'; $('#dNicheNum').textContent='0';
+
+  scrim.hidden = false;
+
+  requestAnimationFrame(()=> requestAnimationFrame(()=>{
+    setDonut('dTotal', total, total);
+    setDonut('dOpp', opp, total);
+    setDonut('dNiche', niche, total);
+    animNum('#dTotalNum', total);
+    animNum('#dOppNum', opp);
+    animNum('#dNicheNum', niche);
+  }));
+
+  $('#rmRevNum').textContent = 'R$ ' + (rev/1000).toFixed(0) + 'k';
+
+  // biz preview
+  const sorted = [...biz].sort((a,b)=>b.score-a.score).slice(0,12);
+  $('#bizPreview').innerHTML = sorted.map(b => `
+    <div class="biz-mini">
+      <span class="bm-dot" style="background:rgb(${(COL[b.status]||COL.cold).join(',')});box-shadow:0 0 8px rgb(${(COL[b.status]||COL.cold).join(',')})"></span>
+      <div class="bm-info">
+        <div class="bm-name">${b.name}</div>
+        <div class="bm-meta">${b.niche} · ${b.years} anos · ${b.reviews} reviews · ${b.sigs.slice(0,2).join(' · ')||'—'}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="bm-rev">R$ ${(b.rev/1000).toFixed(1)}k</div>
+        <div class="bm-meta">score ${b.score}</div>
+      </div>
+    </div>`).join('') || '<div class="t-dim t-sm">Nenhum negócio nessa zona.</div>';
+
+  if(window.lucide) lucide.createIcons();
+
+  if(coord && state.scope==='city'){ map.flyTo({ center: coord, zoom: Math.max(map.getZoom(), 13.5), pitch: 52, duration: REDUCED?0:1200, essential:true }); }
+}
+function setDonut(id, val, max){
+  const c = $('#'+id);
+  const circ = 314;
+  const pct = max ? val/max : 0;
+  c.style.strokeDashoffset = circ - circ*pct;
+}
+function animNum(sel, to){
+  const el = $(sel);
+  if(REDUCED){ el.textContent = to.toLocaleString('pt-BR'); return; }
+  try{ new countUp.CountUp(el, to, { duration:1.2, separator:'.' }).start(); }
+  catch(e){ el.textContent = to.toLocaleString('pt-BR'); }
+}
+$('#rmClose').onclick = ()=> scrim.hidden = true;
+scrim.onclick = e => { if(e.target===scrim) scrim.hidden = true; };
+$('#rmHandoff').onclick = ()=> { toast('Zona enviada ao Geronimo · estratégia em fila', 'send'); scrim.hidden = true; };
+$('#rmExpand').onclick = ()=> toast('Abrindo Lead Conveyor com filtro de zona…', 'list');
+
+/* ===== Counters / progress ===== */
+function updateCounters(){
+  const vis = visibleBiz().filter(b=>b.status!=='unexplored');
+  const mc = $('#matchCount');
+  const prev = +mc.textContent;
+  mc.textContent = vis.length;
+  if(prev !== vis.length){ const fc = mc.closest('.filter-counter'); fc.classList.add('bump'); setTimeout(()=>fc.classList.remove('bump'), 220); }
+  ['opportunity','niche','consolidated','unexplored'].forEach(s=>{
+    const n = BIZ.filter(b=>b.status===s).length;
+    const el = $(`[data-count="${s}"]`); if(el) el.textContent = n;
+  });
+  $('#msOpps').textContent = BIZ.filter(b=>b.status==='opportunity'||b.status==='niche').length;
+  $('#msZones').textContent = buildHexData().length;
+  const rev = BIZ.filter(b=>b.status!=='unexplored').reduce((s,b)=>s+b.rev,0);
+  $('#msRev').textContent = 'R$ ' + (rev/1000000).toFixed(2) + 'M';
+}
+
+/* progress ring (coverage = explored/total) */
+function setProgress(){
+  const explored = BIZ.filter(b=>b.explored).length;
+  const pct = Math.round(explored/BIZ.length*100);
+  const circ = 421;
+  const off = circ - circ*(pct/100);
+  $('#prFill').style.strokeDashoffset = off;
+  $('#prGlow').style.strokeDashoffset = off;
+  if(REDUCED){ $('#prPct').textContent = pct+'%'; }
+  else { try{ new countUp.CountUp('prPct', pct, { suffix:'%', duration:1.8 }).start(); }catch(e){ $('#prPct').textContent=pct+'%'; } }
+}
+
+/* live count ticker */
+function liveTicker(){
+  const target = BIZ.length;
+  if(REDUCED){ $('#liveCount').textContent = target.toLocaleString('pt-BR'); return; }
+  try{ new countUp.CountUp('liveCount', target, { duration:2.2, separator:'.' }).start(); }
+  catch(e){ $('#liveCount').textContent = target.toLocaleString('pt-BR'); }
+}
+
+/* ===== FILTERS UI ===== */
+const nicheWrap = $('#nicheChips');
+NICHES.forEach(n => {
+  const c = document.createElement('button');
+  c.className='chip'; c.textContent=n; c.setAttribute('aria-pressed','false');
+  c.onclick = ()=>{
+    const on = c.getAttribute('aria-pressed')==='true';
+    c.setAttribute('aria-pressed', String(!on)); c.classList.toggle('active', !on);
+    if(on) state.niches.delete(n); else state.niches.add(n);
+    refreshDeck();
+  };
+  nicheWrap.appendChild(c);
+});
+const sigWrap = $('#signalChips');
+SIGNALS.forEach(n => {
+  const c = document.createElement('button');
+  c.className='chip chip--purple'; c.textContent=n; c.setAttribute('aria-pressed','false');
+  c.onclick = ()=>{
+    const on = c.getAttribute('aria-pressed')==='true';
+    c.setAttribute('aria-pressed', String(!on)); c.classList.toggle('active', !on);
+    if(on) state.signals.delete(n); else state.signals.add(n);
+    refreshDeck();
+  };
+  sigWrap.appendChild(c);
+});
+
+// legend rows toggle status (click + keyboard)
+$$('.legend-row').forEach(row=>{
+  row.setAttribute('tabindex','0'); row.setAttribute('role','switch');
+  const toggle = ()=>{
+    const s = row.dataset.status;
+    const on = row.getAttribute('aria-pressed')==='true';
+    row.setAttribute('aria-pressed', String(!on));
+    state.status[s] = !on;
+    refreshDeck();
+  };
+  row.onclick = toggle;
+  row.onkeydown = e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); } };
+});
+
+// score range (fills track + recolors)
+const scoreRange = $('#scoreRange');
+function syncRangeFill(){ scoreRange.style.setProperty('--fill', scoreRange.value+'%'); }
+scoreRange.oninput = e => { state.minScore = +e.target.value; $('#scoreVal').textContent = e.target.value; syncRangeFill(); refreshDeck(); };
+syncRangeFill();
+
+// toggles
+function bindSwitch(id, key, cb){
+  const el = $('#'+id);
+  el.onclick = ()=>{
+    const on = el.getAttribute('aria-pressed')==='true';
+    el.setAttribute('aria-pressed', String(!on));
+    state[key] = !on;
+    if(cb) cb(!on);
+    refreshDeck();
+  };
+}
+bindSwitch('heatToggle','heat', on => { syncView(on?'heat':'hex'); });
+bindSwitch('fogToggle','fog');
+bindSwitch('pinToggle','pins');
+
+// view toggle (hex/heat) sync + animated thumb
+const vtThumb = $('#vtThumb');
+function moveVtThumb(){
+  const active = $('.view-toggle button[aria-pressed="true"]');
+  if(!active) return;
+  const wrap = active.parentElement;
+  vtThumb.style.width = active.offsetWidth+'px';
+  vtThumb.style.transform = `translateX(${active.offsetLeft-4}px)`;
+}
+function syncView(v){
+  state.heat = v==='heat';
+  $$('.view-toggle button').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.view===v)));
+  $('#heatToggle').setAttribute('aria-pressed', String(state.heat));
+  moveVtThumb();
+}
+$$('.view-toggle button').forEach(b=> b.onclick = ()=>{ syncView(b.dataset.view); refreshDeck(); });
+
+/* ===== SCOPE: city/state/country flyTo + animated thumb ===== */
+const SCOPES = {
+  city:    { center:CENTER, zoom:12.2, pitch:48, bearing:-14 },
+  state:   { center:[-55.5, -14.0], zoom:6.2, pitch:30, bearing:0 },
+  country: { center:[-51.9, -14.5], zoom:3.7, pitch:0, bearing:0 },
+};
+const scopeThumb = $('#scopeThumb');
+function moveScopeThumb(){
+  const active = $('.scope-ctrl button[aria-pressed="true"]');
+  if(!active) return;
+  scopeThumb.style.width = active.offsetWidth+'px';
+  scopeThumb.style.transform = `translateX(${active.offsetLeft-4}px)`;
+}
+$$('.scope-ctrl button').forEach(b=>{
+  b.onclick = ()=>{
+    $$('.scope-ctrl button').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true');
+    moveScopeThumb();
+    state.scope = b.dataset.scope;
+    const s = SCOPES[state.scope];
+    map.flyTo({ ...s, duration: REDUCED?0:1700, essential:true, curve:1.5 });
+    setTimeout(refreshDeck, REDUCED?0:450);
+  };
+});
+
+/* ===== ZOOM buttons ===== */
+$('#zoomIn').onclick = ()=> map.zoomIn({ duration: REDUCED?0:300 });
+$('#zoomOut').onclick = ()=> map.zoomOut({ duration: REDUCED?0:300 });
+$('#zoomReset').onclick = ()=> { map.flyTo({ ...SCOPES.city, duration: REDUCED?0:1300, curve:1.5 }); };
+
+/* ===== SWEEP workflow ===== */
+let sweepMode = false;
+const reticle = $('.reticle');
+$('#dockSweep').onclick = ()=> toggleSweepMode();
+$('#startSweepBtn').onclick = ()=> toggleSweepMode();
+function toggleSweepMode(){
+  sweepMode = !sweepMode;
+  document.querySelector('.map-app').classList.toggle('sweeping', sweepMode);
+  if(sweepMode) toast('Modo varredura ON · clique no mapa', 'radar');
+  else reticle.style.display='none';
+}
+window.addEventListener('mousemove', e=>{
+  if(!sweepMode) return;
+  reticle.style.left = e.clientX+'px'; reticle.style.top = e.clientY+'px';
+});
+map.on('click', e => {
+  if(!sweepMode) return;
+  runSweep(e.lngLat);
+});
+function runSweep(lngLat){
+  sweepMode = false;
+  document.querySelector('.map-app').classList.remove('sweeping');
+
+  // paint a hex zone around click with animated fill-in
+  let zone;
+  if(H3_OK){
+    const r = hexRes();
+    const cell = llToCell(lngLat.lat, lngLat.lng, r);
+    const boundary = cell ? cellPoly(cell) : null;
+    if(boundary){ zone = { polygon: boundary, t:0 }; SWEEP_ZONES.push(zone); }
+  }
+  refreshDeck();
+
+  // animate the swept-zone fill creeping in
+  if(zone && !REDUCED){
+    const start = performance.now();
+    const grow = (now)=>{ zone.t = Math.min(1, (now-start)/700); if(deckOverlay) deckOverlay.setProps({layers:buildLayers()}); if(zone.t<1) requestAnimationFrame(grow); };
+    requestAnimationFrame(grow);
+  } else if(zone){ zone.t = 1; }
+
+  // status UI
+  const ss = $('#sweepStatus'); ss.classList.add('active');
+  const bar = $('#sweepBar'), pctTxt = $('#sweepPctTxt'), msg = $('#sweepMsg');
+  const steps = ['Coletando Google Maps…','Detectando site/redes…','Estimando receita…','Cruzando concorrentes…','Pontuando oportunidade…'];
+  let p=0, si=-1;
+  bar.style.width='0%'; pctTxt.textContent='0%';
+  map.flyTo({ center:[lngLat.lng,lngLat.lat], zoom: Math.max(map.getZoom(),13.2), duration: REDUCED?0:900 });
+  const iv = setInterval(()=>{
+    p += rand(6,16);
+    if(p>=100){ p=100; }
+    bar.style.width = p+'%'; pctTxt.textContent = Math.round(p)+'%';
+    const ns = Math.min(steps.length-1, Math.floor(p/20));
+    if(ns!==si){ si=ns; msg.textContent = steps[si]; }
+    if(p>=100){
+      clearInterval(iv);
+      msg.textContent = 'Varredura concluída · +'+Math.floor(rand(8,22))+' negócios';
+      toast('Zona varrida · novos negócios adicionados', 'check-check');
+      setTimeout(()=> ss.classList.remove('active'), 2600);
+    }
+  }, REDUCED?20:260);
+}
+
+/* ===== TOAST ===== */
+let toastT;
+function toast(msg, icon){
+  let el = $('#toastEl');
+  if(!el){ el = document.createElement('div'); el.id='toastEl'; el.className='toast'; el.style.display='flex'; el.style.alignItems='center'; el.style.gap='10px'; document.body.appendChild(el); }
+  el.innerHTML = (icon ? `<i data-lucide="${icon}" style="width:16px;height:16px;color:var(--lime)"></i>` : `<span class="live-dot"></span>`) + `<span>${msg}</span>`;
+  el.style.display='flex';
+  if(window.lucide) lucide.createIcons();
+  clearTimeout(toastT);
+  toastT = setTimeout(()=> el.style.display='none', 3200);
+}
+
+/* ===== SEARCH ===== */
+$('#search').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    const q = e.target.value.toLowerCase().trim();
+    if(!q) return;
+    const b = BAIRROS.find(x => x[0].toLowerCase().includes(q));
+    if(b){ map.flyTo({ center:[b[1],b[2]], zoom:14, pitch:52, duration:REDUCED?0:1400, curve:1.5 }); toast('Voando para '+b[0], 'navigation'); }
+    else toast('Região não encontrada: '+q, 'search-x');
+  }
+});
+document.addEventListener('keydown', e=>{
+  const inSearch = document.activeElement===$('#search');
+  if(e.key==='/' && !inSearch){ e.preventDefault(); $('#search').focus(); }
+  if((e.key==='s'||e.key==='S') && !inSearch){ e.preventDefault(); toggleSweepMode(); }
+  if(e.key==='Escape'){ scrim.hidden=true; if(sweepMode) toggleSweepMode(); }
+});
+
+/* perf toggle */
+$('#perfToggle').onclick = ()=>{ document.body.classList.toggle('perf-lite'); toast(document.body.classList.contains('perf-lite')?'Modo leve ON':'Modo leve OFF', 'zap'); };
+
+/* ===== INIT ===== */
+map.on('load', ()=>{
+  deckOverlay = new MapboxOverlay({ interleaved: false, layers: buildLayers() });
+  map.addControl(deckOverlay);
+  updateCounters();
+  setProgress();
+  liveTicker();
+  $$('.legend-row').forEach(r=> r.setAttribute('aria-pressed','true'));
+  moveScopeThumb();
+  moveVtThumb();
+  if(window.lucide) lucide.createIcons();
+  if(!H3_OK) toast('h3 indisponível · exibindo pins + heatmap', 'triangle-alert');
+});
+map.on('error', e => console.warn('map err', e?.error?.message||e));
+
+window.addEventListener('resize', ()=>{ moveScopeThumb(); moveVtThumb(); });
+
+// icons immediately for static UI
+if(window.lucide) lucide.createIcons();
+window.addEventListener('load', ()=> { if(window.lucide) lucide.createIcons(); moveScopeThumb(); moveVtThumb(); });
+</script>
+</body>
+</html>

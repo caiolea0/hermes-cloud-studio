@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Cloud Studio — Inteligência Competitiva Adversarial</title>
+
+<!-- design system (always first) -->
+<link rel="stylesheet" href="design-system.css">
+
+<!-- Geist font -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5/index.css">
+
+<!-- Icons -->
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+
+<!-- Apache ECharts (Surface C charting) -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<!-- GSAP for reveal motion -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<!-- countUp for honest numbers -->
+<script src="https://cdn.jsdelivr.net/npm/countup.js@2.10.0/dist/countUp.umd.js"></script>
+
+<style>
+  /* ============================================================
+     PAGE-LOCAL LAYOUT — Surface 05 Competitors.
+     Everything color/motion/elevation comes from design-system.css.
+     ============================================================ */
+  .cmp-shell { padding: var(--sp-5) 0 var(--sp-9); }
+
+  /* ---------- HERO / VERSUS ---------- */
+  .hero { position: relative; padding: var(--sp-6) 0 var(--sp-3); }
+  .hero-eyebrow { display:inline-flex; align-items:center; gap:var(--sp-2); }
+  .hero-h1 { margin-top:var(--sp-3); max-width:24ch; }
+
+  /* combat arena — two cards joined by a tension beam */
+  .versus {
+    position:relative;
+    display:grid; grid-template-columns: 1fr auto 1fr; align-items:stretch; gap:var(--sp-4);
+    margin-top: var(--sp-5);
+  }
+  /* the tension line behind the orb */
+  .versus::before{
+    content:""; position:absolute; left:8%; right:8%; top:50%; height:2px; transform:translateY(-50%);
+    background:linear-gradient(90deg,
+      transparent 0%, var(--purple-hot) 22%, transparent 40%,
+      transparent 60%, var(--lime) 78%, transparent 100%);
+    opacity:.5; filter:blur(.3px); z-index:0; pointer-events:none;
+  }
+  .versus::after{
+    content:""; position:absolute; left:8%; right:8%; top:50%; height:2px; transform:translateY(-50%);
+    background:linear-gradient(90deg, transparent, oklch(0.99 0.02 292 / .9), transparent);
+    background-size:40% 100%; background-repeat:no-repeat; opacity:0;
+    z-index:0; pointer-events:none; animation: vs-spark 3.4s var(--ease-inout) infinite;
+  }
+  @keyframes vs-spark{ 0%{ background-position:-20% 0; opacity:0 } 30%{ opacity:.85 } 60%{ opacity:.85 } 100%{ background-position:120% 0; opacity:0 } }
+
+  .vs-side {
+    position:relative; z-index:1;
+    padding: var(--sp-4) var(--sp-5); border-radius: var(--r-lg);
+    display:flex; flex-direction:column; gap:var(--sp-1);
+    transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base) var(--ease-out);
+  }
+  .vs-side:hover{ transform:translateY(-2px); }
+  .vs-side--you { text-align:right; align-items:flex-end; }
+  .vs-side--you::before{
+    content:""; position:absolute; inset:0; border-radius:inherit; z-index:-1; pointer-events:none;
+    background: radial-gradient(120% 90% at 100% 0%, oklch(0.34 0.10 295 / .35), transparent 65%);
+  }
+  .vs-side--them::before{
+    content:""; position:absolute; inset:0; border-radius:inherit; z-index:-1; pointer-events:none;
+    background: radial-gradient(120% 90% at 0% 0%, oklch(0.46 0.13 118 / .22), transparent 65%);
+  }
+  .vs-name { font-size: var(--fs-h3); font-weight:680; color:var(--text-hi); letter-spacing:-0.015em; line-height:1.05; }
+  .vs-meta { display:flex; gap:var(--sp-3); flex-wrap:wrap; }
+  .vs-side--you .vs-meta{ justify-content:flex-end; }
+  .vs-stat { display:flex; flex-direction:column; gap:1px; }
+  .vs-stat b { font-family:var(--font-mono); font-size:var(--fs-base); color:var(--text-hi); font-variant-numeric:tabular-nums; line-height:1; }
+  .vs-stat span { font-size:var(--fs-2xs); color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; }
+
+  .vs-center{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--sp-2); z-index:2; }
+  .vs-orb {
+    position:relative;
+    width:72px; height:72px; border-radius:50%; display:grid; place-items:center;
+    font-family:var(--font-mono); font-weight:700; font-size:var(--fs-lg); color:var(--text-hi);
+    background:
+      radial-gradient(circle at 36% 30%, oklch(0.5 0.10 292 / .95), oklch(0.16 0.02 292) 75%);
+    border:1px solid var(--line-strong);
+    box-shadow:
+      inset 0 1px 0 oklch(0.99 0.02 292 / .25),
+      0 0 0 1px oklch(0.78 0.22 295 / .35),
+      0 0 24px oklch(0.6 0.2 295 / .35),
+      0 8px 24px oklch(0 0 0 / .5);
+  }
+  .vs-orb::before{
+    content:""; position:absolute; inset:-7px; border-radius:50%; pointer-events:none;
+    border:1px solid transparent;
+    background: conic-gradient(from var(--angle), var(--purple-hot), var(--lime), var(--purple-hot)) border-box;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor; mask-composite:exclude;
+    opacity:.85; animation: spin 7s linear infinite;
+  }
+
+  /* KPI strip */
+  .kpi-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sp-4); margin-top:var(--sp-5); }
+  @media (max-width:760px){ .kpi-strip{grid-template-columns:1fr 1fr;} }
+  .kpi { position:relative; padding:var(--sp-4) var(--sp-5); overflow:hidden; border-radius:var(--r-lg); }
+  .kpi::after{ /* faint top edge light, color-coded */
+    content:""; position:absolute; left:var(--sp-5); right:var(--sp-5); top:0; height:2px; border-radius:0 0 var(--r-pill) var(--r-pill);
+    background:var(--kpi-accent, var(--line-strong)); opacity:.65;
+    box-shadow:0 0 12px var(--kpi-accent, transparent);
+  }
+  .kpi--rev{ --kpi-accent: var(--lime); }
+  .kpi--gaps{ --kpi-accent: var(--st-opportunity); }
+  .kpi--kw{ --kpi-accent: var(--purple-hot); }
+  .kpi--dom{ --kpi-accent: var(--st-consolidated); }
+  .kpi .stat__value{ margin-top:var(--sp-2); font-size:var(--fs-h2); }
+  .kpi .kpi-spark{ position:absolute; right:var(--sp-4); top:var(--sp-4); width:54px; height:22px; opacity:.85; }
+
+  /* ---------- GRID ---------- */
+  .grid-main {
+    display:grid; gap:var(--sp-5);
+    grid-template-columns: 1.18fr 0.82fr;
+    margin-top: var(--sp-6);
+  }
+  @media (max-width: 1020px){ .grid-main{ grid-template-columns:1fr; } }
+  @media (max-width: 720px){ .versus{grid-template-columns:1fr; gap:var(--sp-3);} .versus::before,.versus::after{display:none;} .vs-side--you{text-align:left; align-items:flex-start;} .vs-side--you .vs-meta{justify-content:flex-start;} }
+
+  .panel { position:relative; padding: var(--sp-5); border-radius:var(--r-xl); }
+  .panel-head { margin-bottom: var(--sp-4); }
+  .panel-title { display:flex; align-items:center; gap:var(--sp-2); font-size:var(--fs-lg); font-weight:650; color:var(--text-hi); letter-spacing:-0.01em; }
+  .panel-title svg { width:1.05em; height:1.05em; color:var(--lime); filter:drop-shadow(0 0 6px oklch(0.92 0.21 118 / .5)); }
+  .panel-sub { font-size:var(--fs-sm); color:var(--text-dim); margin-top:6px; line-height:1.5; }
+
+  .chart { width:100%; }
+  #radar { height: 400px; }
+  #treemap { height: 360px; }
+  #heatmap { height: 340px; }
+  #keywords { height: 380px; }
+
+  .grid-bottom { display:grid; gap:var(--sp-5); grid-template-columns:1fr 1fr; margin-top:var(--sp-5); }
+  @media (max-width:1020px){ .grid-bottom{grid-template-columns:1fr;} }
+
+  /* ---------- GAP VECTORS -> OFFER ---------- */
+  .vector-list { display:flex; flex-direction:column; gap:var(--sp-2); }
+  .vector {
+    position:relative;
+    display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) var(--sp-4);
+    border-radius:var(--r-md); background:oklch(0.225 0.028 292 / .55); border:1px solid var(--line);
+    cursor:pointer; text-align:left; width:100%;
+    transition: transform var(--d-fast) var(--ease-out), border-color var(--d-fast), background var(--d-fast), box-shadow var(--d-fast);
+  }
+  .vector:hover { border-color:var(--line-lime); transform:translateX(3px); background:oklch(0.265 0.030 292 / .6); }
+  .vector[aria-pressed="true"] {
+    border-color:var(--line-lime);
+    background:oklch(0.3 0.06 118 / .1);
+    box-shadow:0 0 0 1px var(--line-lime), 0 0 24px -6px oklch(0.92 0.21 118 / .55), inset 0 0 0 1px oklch(0.92 0.21 118 / .08);
+  }
+  .vector[aria-pressed="true"]::before{ /* selected marker rail */
+    content:""; position:absolute; left:0; top:14%; bottom:14%; width:3px; border-radius:var(--r-pill);
+    background:var(--lime); box-shadow:0 0 10px var(--lime);
+  }
+  .vector__ic { width:36px; height:36px; border-radius:var(--r-sm); display:grid; place-items:center; background:var(--bg-inset); border:1px solid var(--line); flex-shrink:0; transition:border-color var(--d-fast); }
+  .vector[aria-pressed="true"] .vector__ic{ border-color:var(--line-lime); }
+  .vector__ic svg { width:18px; height:18px; color:var(--lime); }
+  .vector__body{ display:flex; flex-direction:column; gap:6px; flex:1; min-width:0; }
+  .vector__label{ color:var(--text-hi); font-weight:600; font-size:var(--fs-sm); }
+  .vector__bar { width:100%; height:6px; border-radius:var(--r-pill); background:var(--bg-inset); overflow:hidden; position:relative; }
+  .vector__bar i { position:absolute; inset:0 auto 0 0; width:0; border-radius:inherit;
+    background:linear-gradient(90deg,var(--st-opportunity),var(--lime));
+    box-shadow:0 0 8px var(--lime);
+    transition: width var(--d-slower) var(--ease-out); }
+  .vector__gap { font-family:var(--font-mono); font-weight:700; font-size:var(--fs-lg); flex-shrink:0; min-width:2.2ch; text-align:right; }
+  .vector__sub { font-size:var(--fs-2xs); color:var(--text-dim); white-space:nowrap; }
+
+  /* offer reveal */
+  .offer-panel { min-height: 300px; display:flex; flex-direction:column; }
+  .offer-empty { flex:1; display:grid; place-items:center; text-align:center; color:var(--text-dim); padding:var(--sp-6) var(--sp-4); }
+  .offer-empty svg { width:42px; height:42px; opacity:0.45; margin-bottom:var(--sp-3); color:var(--lime); }
+  .offer-card { animation: pop-in var(--d-base) var(--ease-spring) both; }
+  .offer-metric-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-3); margin:var(--sp-4) 0; }
+  .offer-metric { position:relative; padding:var(--sp-3); border-radius:var(--r-md); background:var(--bg-inset); border:1px solid var(--line); overflow:hidden; }
+  .offer-metric::after{ content:""; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--lime); opacity:.55; box-shadow:0 0 8px var(--lime); }
+  .offer-metric .val { font-family:var(--font-mono); font-size:var(--fs-h3); font-weight:600; color:var(--text-hi); line-height:1; }
+  .offer-metric .lbl { font-size:var(--fs-2xs); color:var(--text-dim); text-transform:uppercase; letter-spacing:0.07em; margin-top:5px; }
+
+  /* ---------- segmented control ---------- */
+  .seg { display:inline-flex; background:var(--bg-inset); border:1px solid var(--line); border-radius:var(--r-pill); padding:3px; gap:2px; }
+  .seg button { padding:0.32em 0.85em; border-radius:var(--r-pill); font-size:var(--fs-xs); font-weight:600; color:var(--text-mid); transition:all var(--d-fast) var(--ease-out); }
+  .seg button:hover{ color:var(--text-hi); }
+  .seg button.active { background:var(--purple); color:var(--purple-ink); box-shadow:0 0 14px oklch(0.62 0.2 295 / .4); }
+
+  .opp-pill { display:inline-flex; align-items:center; gap:6px; padding:0.3em 0.7em; border-radius:var(--r-pill);
+    background:oklch(0.3 0.08 118 / .14); border:1px solid var(--line-lime); color:var(--lime); font-size:var(--fs-2xs); font-weight:650; letter-spacing:.02em; }
+  .opp-pill svg{ width:12px; height:12px; }
+
+  .legend-inline { margin-top:var(--sp-3); }
+  .src-note { font-size:var(--fs-2xs); color:var(--text-faint); margin-top:var(--sp-3); display:flex; align-items:flex-start; gap:var(--sp-2); line-height:1.45; }
+  .src-note svg{ width:13px; height:13px; flex-shrink:0; margin-top:1px; }
+
+  /* keyword legend chips row */
+  .kw-legend{ display:flex; gap:var(--sp-4); flex-wrap:wrap; margin-top:var(--sp-3); font-size:var(--fs-2xs); color:var(--text-dim); }
+  .kw-legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .kw-dot{ width:9px; height:9px; border-radius:50%; box-shadow:0 0 8px currentColor; }
+</style>
+</head>
+<body>
+
+<!-- living background -->
+<div class="bg-base"></div>
+<div class="bg-mesh"></div>
+<div class="bg-grain"></div>
+
+<main class="app-shell cmp-shell">
+  <div class="container">
+
+    <!-- ============ HERO / VERSUS ============ -->
+    <header class="hero text-scrim">
+      <div class="row hero-eyebrow">
+        <span class="live-dot"></span>
+        <span class="t-label">Hermes Cloud Studio · Inteligência Competitiva Adversarial</span>
+      </div>
+      <h1 class="t-h1 hero-h1">
+        Onde o <span class="tglow-energy">líder do mercado</span> domina — e onde está <span class="tglow-purple">exposto</span>.
+      </h1>
+      <p class="t-lead" style="max-width:62ch; margin-top:var(--sp-3);">
+        Dossiê adversarial de <strong style="color:var(--text-hi)">Odontologia Premium · Cuiabá-MT</strong>. O prospect
+        <strong style="color:var(--text-hi)">Sorriso Vivo</strong> contra o concorrente dominante da praça.
+        Cada brecha do líder vira uma oferta pronta.
+        <span class="tag-measured">sólido = medido</span> · <span class="tag-projected">translúcido = projetado</span>.
+      </p>
+
+      <div class="versus">
+        <div class="vs-side vs-side--you glass glass-spec">
+          <span class="opp-pill"><span class="chip-dot"></span> ALVO · score 87</span>
+          <div class="vs-name">Sorriso Vivo</div>
+          <div class="vs-meta">
+            <div class="vs-stat"><b>6 anos</b><span>operando</span></div>
+            <div class="vs-stat"><b>4%</b><span>share</span></div>
+            <div class="vs-stat"><b>sem site</b><span>presença</span></div>
+          </div>
+        </div>
+
+        <div class="vs-center">
+          <div class="vs-orb">VS</div>
+          <span class="t-2xs t-dim t-mono">adversarial</span>
+        </div>
+
+        <div class="vs-side vs-side--them glass">
+          <span class="badge badge--consolidated" style="align-self:flex-start;">DOMINANTE</span>
+          <div class="vs-name">OdontoClin Center</div>
+          <div class="vs-meta">
+            <div class="vs-stat"><b>9 anos</b><span>operando</span></div>
+            <div class="vs-stat"><b>41%</b><span>share</span></div>
+            <div class="vs-stat"><b>full digital</b><span>presença</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI strip -->
+      <div class="kpi-strip stagger">
+        <div class="kpi kpi--gaps glass">
+          <svg class="kpi-spark" viewBox="0 0 54 22" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="stat__label">Vetores de gap</div>
+          <div class="stat__value" id="kpi-gaps">0</div>
+          <div class="stat__delta stat__delta--up">canais onde ele ganha</div>
+        </div>
+        <div class="kpi kpi--rev glass">
+          <svg class="kpi-spark" viewBox="0 0 54 22" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="stat__label">Receita recuperável <span class="tag-projected"></span></div>
+          <div class="stat__value revenue" id="kpi-rev">R$0</div>
+          <div class="stat__delta t-dim">projeção 12 meses</div>
+        </div>
+        <div class="kpi kpi--kw glass">
+          <svg class="kpi-spark" viewBox="0 0 54 22" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="stat__label">Keywords abertas</div>
+          <div class="stat__value" id="kpi-kw">0</div>
+          <div class="stat__delta stat__delta--up">baixa concorrência Ads</div>
+        </div>
+        <div class="kpi kpi--dom glass">
+          <svg class="kpi-spark" viewBox="0 0 54 22" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="stat__label">Índice de domínio</div>
+          <div class="stat__value" id="kpi-dom">0%</div>
+          <div class="stat__delta t-dim">share do líder na praça</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ TOP ROW: RADAR + GAP VECTORS->OFFER ============ -->
+    <section class="grid-main">
+
+      <!-- Radar / stellar chart -->
+      <div class="panel glass glass-spec anim-reveal pool-purple">
+        <div class="panel-head row-between wrap">
+          <div>
+            <div class="panel-title"><i data-lucide="radar"></i> Mapa estelar competitivo</div>
+            <p class="panel-sub">Seis eixos digitais. Quanto maior a área, mais forte o competidor. A lacuna entre as formas é o território a tomar.</p>
+          </div>
+          <div class="seg" role="tablist" aria-label="Escopo do radar">
+            <button class="active" data-scope="prospect">vs Líder</button>
+            <button data-scope="market">vs Média</button>
+          </div>
+        </div>
+        <div id="radar" class="chart" role="img" aria-label="Radar comparando SEO, Ads, site, social, reviews e Maps entre prospect e concorrente dominante"></div>
+        <div class="legend legend-inline">
+          <span class="legend__item"><span class="legend__swatch legend__swatch--niche"></span> OdontoClin (líder · medido)</span>
+          <span class="legend__item"><span class="legend__swatch" style="background:var(--purple-hot);color:var(--purple-bleed);"></span> Sorriso Vivo (prospect · medido)</span>
+        </div>
+        <div class="src-note"><i data-lucide="shield-check"></i> Fontes: Google Maps, PageSpeed Insights, Meta Ad Library, SerpAPI orgânico. Eixos sólidos = medidos, sem estimativa.</div>
+      </div>
+
+      <!-- Gap vectors -> recommended offer -->
+      <div class="panel glass anim-reveal" style="display:flex; flex-direction:column;">
+        <div class="panel-head">
+          <div class="panel-title"><i data-lucide="crosshair"></i> Vetores de gap reverso</div>
+          <p class="panel-sub">O que o líder <strong style="color:var(--text)">tem</strong> e o prospect <strong style="color:var(--lime)">não tem</strong>. Clique um vetor — a oferta recomendada se materializa abaixo.</p>
+        </div>
+
+        <div class="vector-list" id="vectorList" role="list"></div>
+
+        <div class="divider"></div>
+
+        <div class="offer-panel" id="offerPanel">
+          <div class="offer-empty" id="offerEmpty">
+            <div>
+              <i data-lucide="mouse-pointer-click"></i>
+              <div class="t-sm">Selecione um vetor de gap acima</div>
+              <div class="t-xs t-dim" style="margin-top:4px;">cada brecha vira um serviço pronto pra ofertar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ BOTTOM ROW: HEATMAP + TREEMAP ============ -->
+    <section class="grid-bottom">
+
+      <!-- Reverse-gap matrix heatmap -->
+      <div class="panel glass anim-reveal">
+        <div class="panel-head row-between wrap">
+          <div class="panel-title"><i data-lucide="grid-3x3"></i> Matriz de gap reverso</div>
+          <span class="opp-pill"><i data-lucide="zap"></i> verde = brecha aberta</span>
+        </div>
+        <div id="heatmap" class="chart" role="img" aria-label="Heatmap cruzando recursos digitais por concorrentes; células verdes indicam brechas exploráveis na linha do prospect"></div>
+        <div class="src-note"><i data-lucide="info"></i> Linha do prospect (topo) destacada. Célula quente = o líder tem, o prospect não — receita parada na mesa.</div>
+      </div>
+
+      <!-- Market-dominance treemap -->
+      <div class="panel glass anim-reveal">
+        <div class="panel-head row-between wrap">
+          <div class="panel-title"><i data-lucide="layout-dashboard"></i> Domínio de mercado</div>
+          <span class="t-2xs t-mono t-dim">share da praça · Cuiabá-MT</span>
+        </div>
+        <div id="treemap" class="chart" role="img" aria-label="Treemap de participação de mercado por clínica odontológica em Cuiabá, dimensionado por share estimado"></div>
+        <div class="src-note"><i data-lucide="triangle-alert"></i> Share <span class="tag-projected">projetado</span> de reviews + presença + tráfego orgânico estimado. Não é faturamento declarado.</div>
+      </div>
+    </section>
+
+    <!-- ============ FULL ROW: SEO/SEM KEYWORD OPPORTUNITY ============ -->
+    <section style="margin-top:var(--sp-5);">
+      <div class="panel glass glass-spec anim-reveal">
+        <div class="panel-head row-between wrap">
+          <div>
+            <div class="panel-title"><i data-lucide="search"></i> Oportunidade SEO / SEM · keywords-alvo</div>
+            <p class="panel-sub">
+              Bolha = keyword. <strong style="color:var(--text)">→ direita</strong>: mais volume. <strong style="color:var(--text)">↑ cima</strong>: prospect já rankeia melhor.
+              <strong style="color:var(--lime)">Maior &amp; mais verde</strong> = menor concorrência de Ads. Quadrante inferior-direito = <span class="tglow-energy">ouro</span>.
+            </p>
+          </div>
+          <div class="row wrap" style="gap:var(--sp-2);">
+            <button class="chip active" data-kwfilter="all" aria-pressed="true">Todas</button>
+            <button class="chip" data-kwfilter="quickwin" aria-pressed="false"><span class="chip-dot" style="background:var(--lime)"></span> Quick-wins</button>
+            <button class="chip" data-kwfilter="local" aria-pressed="false">Local SEO</button>
+            <button class="chip" data-kwfilter="ads" aria-pressed="false">Google Ads</button>
+          </div>
+        </div>
+        <div id="keywords" class="chart" role="img" aria-label="Gráfico de bolhas de oportunidade de keywords: volume de busca por posição atual, dimensionado por dificuldade de Ads"></div>
+        <div class="kw-legend">
+          <span><span class="kw-dot" style="color:var(--lime);background:var(--lime)"></span> conc. Ads baixa (alvo)</span>
+          <span><span class="kw-dot" style="color:#a4d62a;background:#a4d62a"></span> média</span>
+          <span><span class="kw-dot" style="color:var(--st-opportunity);background:var(--st-opportunity)"></span> alta (cara)</span>
+          <span style="margin-left:auto;color:var(--text-faint)">tamanho ∝ facilidade de Ads</span>
+        </div>
+        <div class="src-note"><i data-lucide="shield-check"></i> Volume e CPC <span class="tag-projected">estimados</span> via Keyword Planner público + SERP scraping. Posição atual <span class="tag-measured">medida</span>.</div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script>
+/* ============================================================
+   HERMES — Surface 05 Competitors. ECharts dark + glow.
+   Data: realistic Cuiabá/MT dental-clinic competitive intel.
+   Honest: solid/full-glow = measured, soft/dashed = projected.
+   ============================================================ */
+(function(){
+  "use strict";
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+  // resolve OKLCH tokens to concrete rgb (ECharts canvas needs hex/rgb)
+  function resolve(varName){
+    const p = document.createElement('span');
+    p.style.color = css(varName) || varName;
+    document.body.appendChild(p);
+    const c = getComputedStyle(p).color;
+    p.remove();
+    return c;
+  }
+  // alpha helper on a resolved "rgb(r, g, b)" string
+  function rgba(rgbStr, a){
+    const m = rgbStr.match(/[\d.]+/g);
+    if(!m) return rgbStr;
+    return `rgba(${m[0]}, ${m[1]}, ${m[2]}, ${a})`;
+  }
+
+  const C = {
+    lime:    resolve('--lime'),
+    limeHot: resolve('--lime-hot'),
+    limeSoft:resolve('--lime-soft'),
+    purple:  resolve('--purple'),
+    purpleHot: resolve('--purple-hot'),
+    opp:     resolve('--st-opportunity'),
+    oppHot:  resolve('--st-opp-hot'),
+    cons:    resolve('--st-consolidated'),
+    textHi:  resolve('--text-hi'),
+    text:    resolve('--text-mid'),
+    dim:     resolve('--text-dim'),
+    faint:   resolve('--text-faint'),
+    bg2:     resolve('--bg-2'),
+    inset:   resolve('--bg-inset')
+  };
+  C.line   = 'rgba(150,150,170,0.16)';
+  C.gridLn = 'rgba(150,150,170,0.07)';
+
+  const tooltipBase = {
+    backgroundColor: 'rgba(18,16,26,0.94)',
+    borderColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    padding: [9,12],
+    textStyle: { color: C.textHi, fontFamily:'Geist Mono, monospace', fontSize:12 },
+    extraCssText: 'backdrop-filter:blur(14px);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,0.55);'
+  };
+
+  const charts = [];
+  function reg(c){ charts.push(c); return c; }
+  let rTimer;
+  window.addEventListener('resize', () => { clearTimeout(rTimer); rTimer=setTimeout(()=>charts.forEach(c=>c&&c.resize()),120); });
+
+  /* ---------- 1. RADAR / STELLAR ---------- */
+  const radar = reg(echarts.init(document.getElementById('radar'), null, {renderer:'canvas'}));
+  const radarIndicators = [
+    { name:'SEO Orgânico', max:100 },
+    { name:'Google Ads', max:100 },
+    { name:'Site / UX', max:100 },
+    { name:'Social / Conteúdo', max:100 },
+    { name:'Reviews / Reputação', max:100 },
+    { name:'Local / Maps', max:100 }
+  ];
+  const radarData = {
+    prospect: { leader:[88,74,92,81,69,85], you:[24,8,12,46,71,63] },
+    market:   { leader:[57,41,55,49,58,60], you:[24,8,12,46,71,63] }
+  };
+  // gradient fills (radial from center)
+  const leaderFill = new echarts.graphic.RadialGradient(0.5,0.5,0.75,[
+    {offset:0, color: rgba(C.lime,0.34)},
+    {offset:1, color: rgba(C.lime,0.04)}
+  ]);
+  const youFill = new echarts.graphic.RadialGradient(0.5,0.5,0.75,[
+    {offset:0, color: rgba(C.purpleHot,0.40)},
+    {offset:1, color: rgba(C.purpleHot,0.05)}
+  ]);
+  function radarOpt(scope){
+    const d = radarData[scope];
+    const leaderName = scope==='prospect' ? 'OdontoClin (líder · medido)' : 'Média do mercado · medido';
+    return {
+      tooltip: { ...tooltipBase, trigger:'item' },
+      legend: { show:false },
+      radar: {
+        indicator: radarIndicators,
+        center:['50%','55%'], radius:'70%',
+        startAngle: 90,
+        axisName:{ color:C.text, fontSize:11, fontFamily:'Geist, sans-serif',
+          formatter:(n)=>n, padding:[2,4] },
+        splitNumber:4,
+        splitLine:{ lineStyle:{ color:'rgba(150,150,170,0.10)' } },
+        splitArea:{ areaStyle:{ color:['rgba(124,58,237,0.02)','rgba(124,58,237,0.05)'] } },
+        axisLine:{ lineStyle:{ color:'rgba(150,150,170,0.12)' } }
+      },
+      series:[{
+        type:'radar',
+        symbol:'circle', symbolSize:5,
+        emphasis:{ lineStyle:{ width:4 }, areaStyle:{ opacity:0.9 } },
+        blur:{ areaStyle:{ opacity:0.18 } },
+        data:[
+          { value:d.leader, name:leaderName,
+            lineStyle:{ color:C.lime, width:2.5, shadowColor:rgba(C.lime,0.9), shadowBlur:16 },
+            itemStyle:{ color:C.limeHot, borderColor:'#0c0c10', borderWidth:1 },
+            areaStyle:{ color:leaderFill } },
+          { value:d.you, name:'Sorriso Vivo (prospect · medido)',
+            lineStyle:{ color:C.purpleHot, width:2.5, shadowColor:rgba(C.purple,0.8), shadowBlur:14 },
+            itemStyle:{ color:C.purpleHot, borderColor:'#0c0c10', borderWidth:1 },
+            areaStyle:{ color:youFill } }
+        ]
+      }],
+      animationDuration: REDUCED?0:900, animationEasing:'cubicOut'
+    };
+  }
+  radar.setOption(radarOpt('prospect'));
+  document.querySelectorAll('[data-scope]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('[data-scope]').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      radar.setOption(radarOpt(b.dataset.scope), true);
+    });
+  });
+
+  /* ---------- 2. REVERSE-GAP HEATMAP ---------- */
+  const heat = reg(echarts.init(document.getElementById('heatmap')));
+  const features = ['Site rápido','Google Ads','SEO blog','Instagram','Reviews auto','WhatsApp API','Agend. online','Tour 360°'];
+  // prospect first so its row sits at TOP (yAxis renders bottom->top, so put it last in array)
+  const competitors = ['Sorridents Cba','OralCare','Clínica Dental MT','OdontoClin','Sorriso Vivo (prospect)'];
+  // value 0..2 (ausente/parcial/forte) per [featureIdx, compIdx]
+  const heatRaw = [
+    // Sorridents (idx0)
+    [0,0,1],[1,0,2],[2,0,0],[3,0,1],[4,0,2],[5,0,1],[6,0,2],[7,0,0],
+    // OralCare (idx1)
+    [0,1,1],[1,1,1],[2,1,1],[3,1,2],[4,1,0],[5,1,1],[6,1,0],[7,1,0],
+    // Clínica Dental MT (idx2)
+    [0,2,2],[1,2,1],[2,2,1],[3,2,2],[4,2,1],[5,2,2],[6,2,1],[7,2,0],
+    // OdontoClin leader (idx3)
+    [0,3,2],[1,3,2],[2,3,2],[3,3,2],[4,3,2],[5,3,2],[6,3,1],[7,3,1],
+    // Sorriso Vivo prospect (idx4)
+    [0,4,0],[1,4,0],[2,4,0],[3,4,1],[4,4,0],[5,4,0],[6,4,0],[7,4,0]
+  ];
+  heat.setOption({
+    tooltip:{ ...tooltipBase, position:'top',
+      formatter:(p)=>{
+        const v=p.data[2]; const lab=['ausente','parcial','forte'][v];
+        const comp = competitors[p.data[1]];
+        const isProspect = comp.includes('prospect');
+        const leaderHas = heatRaw.find(r=>r[0]===p.data[0]&&r[1]===3)[2];
+        let extra='';
+        if(isProspect && v===0 && leaderHas===2) extra = `<br><span style="color:${C.lime}">▲ brecha aberta — o líder domina aqui</span>`;
+        return `<b>${features[p.data[0]]}</b><br>${comp}: <b>${lab}</b>${extra}`;
+      }},
+    grid:{ left:128, right:16, top:8, bottom:62 },
+    xAxis:{ type:'category', data:features,
+      splitArea:{show:true,areaStyle:{color:['rgba(255,255,255,0.012)','rgba(255,255,255,0.0)']}},
+      axisLabel:{ color:C.dim, fontSize:10, interval:0, rotate:34 }, axisLine:{lineStyle:{color:C.line}}, axisTick:{show:false} },
+    yAxis:{ type:'category', data:competitors,
+      axisLabel:{ color:C.text, fontSize:10,
+        formatter:(v)=> v.includes('prospect') ? `{p|${v}}` : v,
+        rich:{ p:{ color:C.purpleHot, fontWeight:700, fontFamily:'Geist, sans-serif' } } },
+      axisLine:{lineStyle:{color:C.line}}, axisTick:{show:false} },
+    visualMap:{ min:0, max:2, calculable:false, show:false,
+      inRange:{ color:['rgba(120,120,135,0.16)', rgba(C.cons,0.85), C.lime] } },
+    series:[{
+      type:'heatmap', data:heatRaw,
+      label:{ show:false },
+      itemStyle:{ borderColor:'rgba(10,10,14,0.55)', borderWidth:3, borderRadius:5 },
+      emphasis:{ itemStyle:{ shadowBlur:16, shadowColor:rgba(C.lime,0.8), borderColor:rgba(C.lime,0.5) } },
+      // mark prospect's open gaps with a glow ring via custom markPoint-ish: use a second scatter overlay
+      markPoint:{
+        symbol:'circle', symbolSize:4, silent:true,
+        itemStyle:{ color:'transparent' },
+        data:[]
+      }
+    },{
+      // overlay: pulse dots on the prospect's open-gap cells (feature has leader=2, prospect=0)
+      type:'scatter', coordinateSystem:'cartesian2d',
+      symbol:'circle', symbolSize:7, silent:true, z:5,
+      itemStyle:{ color:C.lime, shadowBlur:12, shadowColor:C.lime, borderColor:'#0c0c10', borderWidth:1 },
+      data: features.map((f,fi)=>{
+        const leaderHas = heatRaw.find(r=>r[0]===fi&&r[1]===3)[2];
+        const prospectHas = heatRaw.find(r=>r[0]===fi&&r[1]===4)[2];
+        return (leaderHas===2 && prospectHas===0) ? [fi,4] : null;
+      }).filter(Boolean)
+    }],
+    animationDuration: REDUCED?0:700
+  });
+
+  /* ---------- 3. MARKET-DOMINANCE TREEMAP ---------- */
+  const tree = reg(echarts.init(document.getElementById('treemap')));
+  const grad = (a,b)=> new echarts.graphic.LinearGradient(0,0,1,1,[{offset:0,color:a},{offset:1,color:b}]);
+  tree.setOption({
+    tooltip:{ ...tooltipBase, formatter:(p)=>`<b>${p.name}</b><br>share ~${p.value}%` },
+    series:[{
+      type:'treemap', roam:false, nodeClick:false,
+      breadcrumb:{show:false},
+      width:'100%', height:'100%',
+      label:{ show:true, color:'#0c0c10', fontWeight:700, fontFamily:'Geist, sans-serif',
+        formatter:(p)=>`${p.name}\n${p.value}%`, fontSize:12, lineHeight:16 },
+      upperLabel:{ show:false },
+      itemStyle:{ borderColor:'rgba(10,10,14,0.7)', borderWidth:4, gapWidth:4 },
+      levels:[{ itemStyle:{ borderWidth:0, gapWidth:4 } }],
+      data:[
+        { name:'OdontoClin Center', value:41, itemStyle:{ color:grad(C.limeHot,'#9fd11f') } },
+        { name:'Clínica Dental MT', value:19, itemStyle:{ color:grad('#a4d62a','#7fae28') } },
+        { name:'OralCare', value:13, itemStyle:{ color:grad(C.cons, rgba(C.cons,0.7)) } },
+        { name:'Sorridents Cba', value:9, itemStyle:{ color:grad('#5a7fb5','#46618c') } },
+        { name:'Sorriso Vivo', value:4, label:{ color:'#f4f4ff' },
+          itemStyle:{ color:grad(C.purpleHot,C.purple), borderColor:C.lime, borderWidth:2,
+            shadowColor:rgba(C.purple,0.7), shadowBlur:18 } },
+        { name:'Cauda longa', value:14, itemStyle:{ color:grad('rgba(120,120,135,0.42)','rgba(120,120,135,0.22)') }, label:{ color:'#c9c9d4' } }
+      ]
+    }],
+    animationDuration: REDUCED?0:800, animationEasing:'cubicOut'
+  });
+
+  /* ---------- 4. SEO/SEM KEYWORD OPPORTUNITY ---------- */
+  const kw = reg(echarts.init(document.getElementById('keywords')));
+  // [searchVolume, prospectPositionScore(0-100, higher=better rank), adDifficulty(1-100), name, tags, cpc]
+  const KW = [
+    [3200, 18, 22, 'implante dentário cuiabá', ['quickwin','local','ads'], 7.4],
+    [2600, 34, 31, 'clareamento dental cuiabá', ['quickwin','local'], 4.1],
+    [1900, 12, 18, 'dentista 24h cuiabá', ['quickwin','ads'], 9.2],
+    [4100, 52, 64, 'ortodontia preço', ['ads'], 5.8],
+    [1500, 27, 15, 'aparelho invisível mato grosso', ['quickwin','local','ads'], 6.6],
+    [880,  41, 12, 'lente de contato dental cba', ['quickwin','local'], 8.1],
+    [5200, 70, 78, 'plano odontológico', ['ads'], 3.2],
+    [1200, 22, 24, 'extração siso cuiabá', ['quickwin','local'], 4.9],
+    [2300, 58, 55, 'prótese dentária', ['ads','local'], 5.1],
+    [760,  35, 11, 'urgência odontológica goiabeiras', ['quickwin','local'], 7.7],
+    [3400, 64, 71, 'harmonização facial', ['ads'], 6.3],
+    [640,  19, 9,  'limpeza dental bairro jardim', ['quickwin','local'], 3.4]
+  ];
+  function kwSeries(filter){
+    const inRange = (tags)=> filter==='all' || tags.includes(filter);
+    return KW.filter(d=>inRange(d[4])).map(d=>{
+      const ease = (110-d[2]); // lower ad difficulty -> bigger/hotter
+      const hot = d[2] < 25;
+      return {
+        name:d[3],
+        value:[d[0], d[1], d[2], d[3], d[5]],
+        symbolSize: 14 + ease*0.34,
+        itemStyle:{
+          color: hot ? C.lime : (d[2] < 50 ? '#a4d62a' : C.opp),
+          shadowBlur: hot ? 20 : (d[2]<50? 8 : 4),
+          shadowColor: hot ? C.lime : (d[2]<50? rgba('rgb(164,214,42)',0.6) : 'transparent'),
+          borderColor:'rgba(8,8,12,0.45)', borderWidth:1, opacity:0.94
+        }
+      };
+    });
+  }
+  function kwOpt(filter){
+    return {
+      tooltip:{ ...tooltipBase, formatter:(p)=>{
+        const [vol,pos,diff,name,cpc]=p.data.value;
+        const posLab = pos>50?'top 3':pos>30?'pág. 1':'pág. 2+';
+        const diffLab = diff<25?'baixa ✓':diff<50?'média':'alta';
+        return `<b>${name}</b><br>volume: ${vol.toLocaleString('pt-BR')}/mês<br>sua posição: ${posLab}<br>conc. Ads: ${diff}/100 (${diffLab})<br>CPC est: R$ ${cpc.toFixed(2).replace('.',',')}`;
+      }},
+      grid:{ left:58, right:28, top:24, bottom:50 },
+      xAxis:{ name:'Volume de busca / mês  →', nameLocation:'middle', nameGap:32, nameTextStyle:{color:C.dim,fontSize:10,fontWeight:600},
+        type:'value', min:0, axisLabel:{color:C.dim,fontSize:10}, splitLine:{lineStyle:{color:C.gridLn}}, axisLine:{lineStyle:{color:C.line}} },
+      yAxis:{ name:'↑ posição atual do prospect', nameTextStyle:{color:C.dim,fontSize:10,fontWeight:600,align:'left'}, nameGap:12, max:100, min:0,
+        type:'value', axisLabel:{color:C.dim,fontSize:10, formatter:(v)=> v>=70?'top':v>=40?'pág.1':v>=20?'pág.2':'baixo'},
+        splitLine:{lineStyle:{color:C.gridLn}}, axisLine:{lineStyle:{color:C.line}} },
+      series:[{ type:'scatter', data:kwSeries(filter), z:3,
+        emphasis:{ scale:1.25, focus:'self', itemStyle:{ shadowBlur:26, shadowColor:C.limeHot } },
+        labelLayout:{ hideOverlap:true },
+        // gold zone: high volume + low current position (the opportunity quadrant, bottom-right)
+        markArea:{ silent:true,
+          itemStyle:{ color: rgba(C.lime,0.05), borderColor:rgba(C.lime,0.25), borderWidth:1, borderType:'dashed' },
+          label:{ show:true, position:['88%','86%'], color:rgba(C.lime,0.65), fontSize:10, fontWeight:700, formatter:'ZONA OURO' },
+          data:[[{xAxis:2000,yAxis:0},{xAxis:'max',yAxis:45}]] }
+      }],
+      animationDuration: REDUCED?0:700, animationEasing:'cubicOut'
+    };
+  }
+  kw.setOption(kwOpt('all'));
+  document.querySelectorAll('[data-kwfilter]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('[data-kwfilter]').forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false');});
+      b.classList.add('active'); b.setAttribute('aria-pressed','true');
+      kw.setOption(kwOpt(b.dataset.kwfilter), true);
+    });
+  });
+
+  /* ---------- 5. GAP VECTORS -> RECOMMENDED OFFER ---------- */
+  const VECTORS = [
+    { id:'site', icon:'globe', label:'Site institucional + UX', gap:80, sub:'líder 92 · prospect 0',
+      offer:{ title:'Site de Alta Conversão (via Vuecra)', tag:'Vuecra · auto-build',
+        desc:'O líder converte 92/100 no site; o prospect não tem site. Geramos um site otimizado para agendamento em 48h, com SEO local embutido.',
+        metrics:[['+R$ 14,2k','receita/mês proj.'],['48h','entrega'],['92→','meta de UX score'],['R$ 0','custo p/ você']],
+        cta:'Disparar Vuecra' } },
+    { id:'ads', icon:'megaphone', label:'Google Ads / SEM', gap:66, sub:'líder 12 anúncios · prospect 0',
+      offer:{ title:'Campanha Google Ads geo-segmentada', tag:'Geronimo · 40 agentes',
+        desc:'Líder roda 12 anúncios ativos; prospect tem 0. 9 keywords de baixa concorrência (CPC R$3-8) prontas para captar busca de alta intenção em Cuiabá.',
+        metrics:[['9','keywords quick-win'],['R$ 3,40','CPC mínimo'],['+38','leads/mês est.'],['ROAS 4,2x','projetado']],
+        cta:'Briefar diretor de Ads' } },
+    { id:'seo', icon:'trending-up', label:'SEO orgânico / blog', gap:64, sub:'líder rankeia 7 termos · prospect 0',
+      offer:{ title:'Motor de Conteúdo SEO local', tag:'Geronimo · conteúdo',
+        desc:'Líder rankeia em 7 termos de topo; prospect em nenhum. Calendário de 16 artigos/mês mirando "implante", "clareamento", "ortodontia" + bairros.',
+        metrics:[['16','artigos/mês'],['12','keywords-alvo'],['90d','para pág. 1'],['+2,8k','visitas/mês est.']],
+        cta:'Ativar motor SEO' } },
+    { id:'whatsapp', icon:'message-circle', label:'WhatsApp API + agendamento', gap:55, sub:'líder bot 24/7 · prospect manual',
+      offer:{ title:'Agendamento via WhatsApp Business API', tag:'Hermes · integração',
+        desc:'Líder tem agendamento online e WhatsApp API; prospect responde manual. Bot de qualificação + agenda integrada reduz no-show e libera a recepção.',
+        metrics:[['-31%','no-show est.'],['24/7','atendimento'],['+R$ 6,8k','receita/mês'],['<2min','resposta']],
+        cta:'Implantar bot' } },
+    { id:'reviews', icon:'star', label:'Coleta automática de reviews', gap:38, sub:'prospect 71/100 sem automação',
+      offer:{ title:'Motor de Reviews no Google Maps', tag:'Hermes · automação',
+        desc:'Prospect tem 71/100 em reputação — bom! Mas sem coleta automática. Líder pede review a cada paciente. Automação WhatsApp pós-consulta.',
+        metrics:[['+22','reviews/mês est.'],['4,9★','meta'],['100%','automatizado'],['+rank','boost no Maps']],
+        cta:'Ligar automação' } },
+    { id:'social', icon:'instagram', label:'Social / Instagram', gap:35, sub:'líder 5x/sem · prospect inativo 40d',
+      offer:{ title:'Gestão de Social + Reels', tag:'Geronimo · social',
+        desc:'Prospect tem Instagram mas inativo (último post 40d). Líder posta 5x/semana. Plano de 20 posts + 8 reels/mês com prova social de pacientes.',
+        metrics:[['20','posts/mês'],['8','reels/mês'],['+1,4k','alcance/post'],['DM→lead','funil pronto']],
+        cta:'Briefar diretor social' } }
+  ];
+  const list = document.getElementById('vectorList');
+  const offerPanel = document.getElementById('offerPanel');
+  const offerEmpty = document.getElementById('offerEmpty');
+
+  VECTORS.forEach((v)=>{
+    const btn = document.createElement('button');
+    btn.className='vector'; btn.setAttribute('role','listitem');
+    btn.setAttribute('aria-pressed','false');
+    btn.dataset.id=v.id;
+    btn.innerHTML = `
+      <span class="vector__ic"><i data-lucide="${v.icon}"></i></span>
+      <span class="vector__body">
+        <span class="row-between" style="gap:var(--sp-2);">
+          <span class="vector__label">${v.label}</span>
+          <span class="vector__gap tglow-energy">${v.gap}</span>
+        </span>
+        <span class="vector__bar"><i data-w="${v.gap}"></i></span>
+        <span class="vector__sub">${v.sub}</span>
+      </span>`;
+    btn.addEventListener('click', ()=> selectVector(v.id));
+    list.appendChild(btn);
+  });
+
+  function selectVector(id){
+    const v = VECTORS.find(x=>x.id===id);
+    document.querySelectorAll('.vector').forEach(b=>b.setAttribute('aria-pressed', b.dataset.id===id ? 'true':'false'));
+    offerEmpty.hidden = true;
+    const o = v.offer;
+    offerPanel.innerHTML = `
+      <div class="offer-card">
+        <div class="row-between" style="align-items:flex-start; gap:var(--sp-3);">
+          <div>
+            <span class="t-label" style="color:var(--lime);">Oferta recomendada</span>
+            <h3 class="t-h3" style="margin-top:4px;">${o.title}</h3>
+          </div>
+          <span class="badge badge--ready" style="flex-shrink:0;">${o.tag}</span>
+        </div>
+        <p class="t-sm t-mid" style="margin-top:var(--sp-3);line-height:1.55;">${o.desc}</p>
+        <div class="offer-metric-grid">
+          ${o.metrics.map(m=>`<div class="offer-metric"><div class="val">${m[0]}</div><div class="lbl">${m[1]}</div></div>`).join('')}
+        </div>
+        <button class="btn btn-energy btn-lg" style="width:100%;justify-content:center;">
+          <i data-lucide="send"></i> ${o.cta}
+        </button>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+    if (!REDUCED && window.gsap){
+      gsap.from('.offer-card .offer-metric',{opacity:0,y:14,stagger:0.06,duration:0.4,ease:'power2.out'});
+      gsap.from('.offer-card .btn-energy',{opacity:0,y:10,duration:0.35,delay:0.18,ease:'power2.out'});
+    }
+  }
+
+  /* ---------- 6. COUNT-UP KPIs (honest numbers) ---------- */
+  function countUp(id, end, opts){
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (REDUCED || !window.countUp){ el.textContent = (opts&&opts.prefix||'')+end.toLocaleString('pt-BR')+(opts&&opts.suffix||''); return; }
+    new countUp.CountUp(el, end, Object.assign({duration:1.6, separator:'.'}, opts||{})).start();
+  }
+
+  /* ---------- 6b. KPI sparklines (tiny SVG polylines) ---------- */
+  function spark(svg, pts, color){
+    if(!svg) return;
+    const W=54,H=22, max=Math.max(...pts), min=Math.min(...pts), span=(max-min)||1;
+    const step=W/(pts.length-1);
+    const xy=pts.map((p,i)=>[ (i*step).toFixed(1), (H-2 - ((p-min)/span)*(H-5)).toFixed(1) ]);
+    const d=xy.map((c,i)=>(i?'L':'M')+c[0]+' '+c[1]).join(' ');
+    const area=d+` L ${W} ${H} L 0 ${H} Z`;
+    svg.innerHTML=`
+      <defs><linearGradient id="${svg.dataset.gid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${color}" stop-opacity=".35"/>
+        <stop offset="1" stop-color="${color}" stop-opacity="0"/>
+      </linearGradient></defs>
+      <path d="${area}" fill="url(#${svg.dataset.gid})"/>
+      <path d="${d}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"
+        style="filter:drop-shadow(0 0 4px ${color})"/>
+      <circle cx="${xy[xy.length-1][0]}" cy="${xy[xy.length-1][1]}" r="1.8" fill="${color}"/>`;
+  }
+  document.querySelectorAll('.kpi-spark').forEach((s,i)=> s.dataset.gid='spk'+i);
+  spark(document.querySelector('.kpi--gaps .kpi-spark'), [2,3,3,4,5,5,6], C.opp);
+  spark(document.querySelector('.kpi--rev .kpi-spark'),  [6,9,11,14,18,21,24.8], C.lime);
+  spark(document.querySelector('.kpi--kw .kpi-spark'),   [4,5,5,7,8,9,9], C.purpleHot);
+  spark(document.querySelector('.kpi--dom .kpi-spark'),  [33,35,36,38,40,41,41], C.cons);
+
+  /* ---------- 7. icons + reveal + boot ---------- */
+  function boot(){
+    if (window.lucide) lucide.createIcons();
+    countUp('kpi-gaps', 6);
+    countUp('kpi-rev', 24800, {prefix:'R$ '});
+    countUp('kpi-kw', 9);
+    countUp('kpi-dom', 41, {suffix:'%'});
+    // animate vector bars in
+    document.querySelectorAll('.vector__bar i').forEach((bar,i)=>{
+      const w = bar.dataset.w + '%';
+      if (REDUCED){ bar.style.width = w; return; }
+      setTimeout(()=> bar.style.width = w, 200 + i*70);
+    });
+    if (!REDUCED && window.gsap){
+      gsap.from('.anim-reveal',{opacity:0,y:28,stagger:0.08,duration:0.6,ease:'power2.out',delay:0.1});
+      gsap.from('.vs-side',{opacity:0,y:16,stagger:0.12,duration:0.5,ease:'power2.out'});
+    }
+    // default-select highest-gap vector so the offer surface is alive on load
+    setTimeout(()=>selectVector('site'), REDUCED?0:520);
+    // ensure charts size correctly after layout settles
+    setTimeout(()=>charts.forEach(c=>c&&c.resize()), 60);
+  }
+  if (document.readyState!=='loading') boot();
+  else document.addEventListener('DOMContentLoaded', boot);
+})();
+</script>
+</body>
+</html>

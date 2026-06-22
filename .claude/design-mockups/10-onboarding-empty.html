@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes Cloud Studio — Primeiro Contato</title>
+
+<link rel="stylesheet" href="design-system.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5/index.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tsparticles/slim@3.5.0/tsparticles.slim.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+
+<style>
+  /* ---- page-local layout only; everything visual reuses design-system tokens ---- */
+  html, body { height: 100%; }
+  body { overflow-x: hidden; }
+
+  .stage {
+    position: relative; z-index: var(--z-content);
+    min-height: 100dvh;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+
+  /* ---- top chrome ---- */
+  .topbar {
+    position: sticky; top: 0; z-index: var(--z-sticky);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-4) clamp(var(--sp-4), 4vw, var(--sp-7));
+  }
+  /* fading frosted scrim behind the topbar so it reads cleanly over the panning map */
+  .topbar::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(180deg, oklch(0.14 0.018 292 / 0.82), oklch(0.14 0.018 292 / 0.0));
+    backdrop-filter: blur(9px) saturate(140%);
+    -webkit-backdrop-filter: blur(9px) saturate(140%);
+    -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
+            mask-image: linear-gradient(180deg, #000 55%, transparent);
+  }
+  .brand { display: flex; align-items: center; gap: var(--sp-3); }
+  .brand__mark {
+    position: relative; overflow: hidden;
+    width: 40px; height: 40px; border-radius: var(--r-md);
+    display: grid; place-items: center;
+    background: linear-gradient(140deg, var(--purple-hot), var(--purple) 68%, oklch(0.3 0.06 295));
+    box-shadow:
+      0 0 0 1px var(--line-purple),
+      0 6px 22px oklch(0.45 0.16 295 / 0.45),
+      inset 0 1px 0 oklch(0.99 0.04 295 / 0.5),
+      inset 0 -4px 10px oklch(0.3 0.1 295 / 0.6);
+    color: var(--purple-ink);
+  }
+  .brand__mark::after { /* top sheen */
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: radial-gradient(80% 60% at 30% 0%, oklch(0.99 0.05 295 / 0.35), transparent 60%);
+  }
+  .brand__mark svg { width: 21px; height: 21px; filter: drop-shadow(0 1px 1px oklch(0.25 0.08 295 / 0.6)); position: relative; }
+  .brand__name { font-weight: 680; letter-spacing: -0.02em; font-size: var(--fs-lg); color: var(--text-hi); white-space: nowrap; }
+  .brand__sub { font-size: var(--fs-2xs); letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
+  @media (max-width: 560px){ .brand__sub { display: none; } }
+
+  .topbar__right { display: flex; align-items: center; gap: var(--sp-3); }
+  .setup-pill {
+    display: inline-flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-4);
+    border-radius: var(--r-pill);
+    background: var(--glass-tint); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+    font-size: var(--fs-xs); color: var(--text-mid);
+  }
+  .setup-pill__track { width: 88px; height: 5px; border-radius: var(--r-pill); background: oklch(0.3 0.02 292 / 0.7); overflow: hidden; }
+  .setup-pill__fill { height: 100%; width: 25%; border-radius: inherit; background: linear-gradient(90deg, var(--purple-hot), var(--lime)); box-shadow: 0 0 10px oklch(0.92 0.21 118 / 0.5); transition: width var(--d-slow) var(--ease-out); }
+
+  /* ---- main split: hero map + side rail ---- */
+  .hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  /* ---- the empty map canvas ---- */
+  .map-wrap { position: relative; inset: 0; min-height: 62vh; }
+  #map { position: absolute; inset: 0; }
+  .map-wrap::after { /* vignette so the empty map reads as a void waiting to be filled */
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+    background:
+      radial-gradient(58% 50% at 50% 46%, oklch(0.46 0.13 118 / 0.06), transparent 70%),
+      radial-gradient(125% 95% at 50% 40%, transparent 28%, oklch(0.13 0.018 292 / 0.58) 74%, oklch(0.10 0.015 292 / 0.94) 100%),
+      linear-gradient(180deg, oklch(0.13 0.018 292 / 0.5) 0%, transparent 14%, transparent 80%, oklch(0.13 0.018 292 / 0.6) 100%);
+  }
+  /* faint horizontal scan-grain over the void (CRT-radar feel) */
+  .map-wrap::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2; opacity: 0.4;
+    background: repeating-linear-gradient(180deg, transparent 0 3px, oklch(0.5 0.06 118 / 0.018) 3px 4px);
+    mix-blend-mode: screen;
+  }
+  .maplibregl-ctrl-attrib { background: oklch(0.13 0.018 292 / 0.6) !important; }
+  .maplibregl-ctrl-attrib a { color: var(--text-dim) !important; }
+
+  /* ---- the central glowing call — "sweep your first neighborhood" ---- */
+  .first-call {
+    position: absolute; z-index: 5; inset: 0;
+    display: grid; place-items: center;
+    pointer-events: none;
+    padding: var(--sp-5);
+  }
+  .first-call__inner {
+    position: relative;
+    pointer-events: auto;
+    width: min(580px, 92vw);
+    text-align: center;
+    padding: clamp(var(--sp-6), 4.5vw, var(--sp-8)) clamp(var(--sp-5), 4vw, var(--sp-7));
+    border-radius: var(--r-2xl);
+    background:
+      radial-gradient(120% 90% at 50% -10%, oklch(0.46 0.13 118 / 0.16), transparent 60%),
+      var(--glass-tint-deep);
+    backdrop-filter: blur(var(--glass-blur-hero)) saturate(var(--glass-sat));
+    -webkit-backdrop-filter: blur(var(--glass-blur-hero)) saturate(var(--glass-sat));
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      var(--elev-4),
+      0 0 70px -28px oklch(0.7 0.18 118 / 0.55),
+      inset 0 1px 0 oklch(0.99 0.01 292 / 0.16);
+    overflow: hidden;
+  }
+  /* specular corner sheen — the premium "light source" tell */
+  .first-call__inner::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+    background: linear-gradient(135deg, var(--glass-sheen), transparent 34%, transparent 66%, oklch(0.92 0.21 118 / 0.3));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+  }
+  /* faint scanning sweep line drifting across the card surface */
+  .first-call__inner::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 40%; pointer-events: none;
+    background: linear-gradient(90deg, transparent, oklch(0.92 0.21 118 / 0.07), transparent);
+    transform: translateX(-130%); animation: sweep-line 5.5s var(--ease-inout) infinite;
+  }
+
+  /* breathing radar reticle behind the call */
+  .reticle {
+    position: relative; width: 152px; height: 152px; margin: 0 auto var(--sp-5);
+    display: grid; place-items: center;
+  }
+  /* concentric range rings */
+  .reticle__ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1.5px solid var(--line-lime);
+    box-shadow: inset 0 0 24px -8px oklch(0.92 0.21 118 / 0.45);
+  }
+  .reticle__ring2 {
+    position: absolute; inset: 22px; border-radius: 50%;
+    border: 1px dashed oklch(0.92 0.21 118 / 0.28);
+    animation: spin-cw 26s linear infinite;
+  }
+  /* the rotating radar sweep arm (conic wedge) */
+  .reticle__sweep {
+    position: absolute; inset: 1px; border-radius: 50%; pointer-events: none;
+    background: conic-gradient(from 0deg,
+      oklch(0.92 0.21 118 / 0.0) 0deg,
+      oklch(0.92 0.21 118 / 0.0) 300deg,
+      oklch(0.92 0.21 118 / 0.10) 340deg,
+      oklch(0.92 0.21 118 / 0.42) 360deg);
+    -webkit-mask: radial-gradient(closest-side, transparent 30%, #000 31%);
+            mask: radial-gradient(closest-side, transparent 30%, #000 31%);
+    animation: spin-cw 3.4s linear infinite;
+  }
+  @keyframes spin-cw { to { transform: rotate(360deg); } }
+  .reticle__ping {
+    position: absolute; inset: 8px; border-radius: 50%;
+    box-shadow: 0 0 0 0 oklch(0.92 0.21 118 / 0.5);
+    animation: pulse-ring 2.4s var(--ease-out) infinite;
+  }
+  .reticle__ping.delay { animation-delay: 1.2s; }
+  .reticle__core {
+    width: 60px; height: 60px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: radial-gradient(circle at 35% 28%, var(--lime-hot), var(--lime) 52%, oklch(0.58 0.16 118));
+    color: var(--lime-ink);
+    box-shadow:
+      0 0 2px var(--lime),
+      0 0 18px oklch(0.92 0.21 118 / 0.65),
+      0 0 50px oklch(0.7 0.18 118 / 0.4),
+      inset 0 -3px 8px oklch(0.45 0.12 118 / 0.5),
+      inset 0 2px 5px oklch(0.99 0.05 118 / 0.6);
+  }
+  .reticle__core svg { width: 27px; height: 27px; filter: drop-shadow(0 1px 1px oklch(0.3 0.08 118 / 0.5)); }
+  .reticle__crosshair { position: absolute; inset: -14px; pointer-events: none; opacity: 0.55; }
+  .reticle__crosshair span {
+    position: absolute; background: linear-gradient(var(--line-lime), transparent);
+  }
+  .reticle__crosshair span:nth-child(1){ top:50%; left:-8px; width:22px; height:1px; background: linear-gradient(90deg, transparent, var(--line-lime)); }
+  .reticle__crosshair span:nth-child(2){ top:50%; right:-8px; width:22px; height:1px; background: linear-gradient(90deg, var(--line-lime), transparent); }
+  .reticle__crosshair span:nth-child(3){ left:50%; top:-8px; height:22px; width:1px; background: linear-gradient(180deg, transparent, var(--line-lime)); }
+  .reticle__crosshair span:nth-child(4){ left:50%; bottom:-8px; height:22px; width:1px; background: linear-gradient(180deg, var(--line-lime), transparent); }
+
+  .first-call__kicker { justify-content: center; margin-bottom: var(--sp-3); }
+  .first-call h1 { margin-bottom: var(--sp-3); }
+  .first-call__hl { color: var(--lime); text-shadow: 0 0 18px oklch(0.92 0.21 118 / 0.45); }
+  .first-call p { margin: 0 auto var(--sp-5); max-width: 44ch; }
+  .first-call__cta { display: flex; gap: var(--sp-3); justify-content: center; flex-wrap: wrap; }
+  .first-call__hint { margin-top: var(--sp-4); font-size: var(--fs-2xs); color: var(--text-faint); }
+  .first-call__hint kbd { font-family: var(--font-mono); padding: 1px 6px; border: 1px solid var(--line); border-radius: var(--r-xs); color: var(--text-dim); background: oklch(0.5 0.03 292 / 0.14); box-shadow: 0 1px 0 oklch(0 0 0 / 0.3); }
+
+  /* legend over the map */
+  .map-legend {
+    position: absolute; left: clamp(var(--sp-4), 4vw, var(--sp-7)); bottom: var(--sp-5); z-index: 5;
+    padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md);
+    background: var(--glass-tint-deep); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    box-shadow: var(--elev-2), inset 0 1px 0 oklch(0.99 0.01 292 / 0.12);
+  }
+  .map-legend .t-label { margin-bottom: var(--sp-2); }
+  .map-scope {
+    position: absolute; right: clamp(var(--sp-4), 4vw, var(--sp-7)); bottom: var(--sp-5); z-index: 5;
+    display: flex; gap: 2px; padding: 3px; border-radius: var(--r-pill);
+    background: var(--glass-tint-deep); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+    box-shadow: var(--elev-2), inset 0 1px 0 oklch(0.99 0.01 292 / 0.12);
+  }
+  .map-scope button { padding: 0.34em 0.95em; border-radius: var(--r-pill); font-size: var(--fs-xs); color: var(--text-dim); transition: color var(--d-fast), background var(--d-fast); }
+  .map-scope button:hover { color: var(--text-hi); }
+  .map-scope button.active { color: var(--purple-ink); background: linear-gradient(180deg, var(--purple-hot), var(--purple)); box-shadow: 0 0 14px oklch(0.62 0.2 295 / 0.45), inset 0 1px 0 oklch(0.99 0.04 295 / 0.4); }
+
+  /* ---- the "machine explained visually" strip ---- */
+  .explainer { padding: clamp(var(--sp-6), 6vw, var(--sp-9)) clamp(var(--sp-4), 4vw, var(--sp-7)) var(--sp-7); }
+  .explainer__head { text-align: center; margin-bottom: var(--sp-7); }
+  .pipeline {
+    display: grid; gap: var(--sp-4);
+    grid-template-columns: repeat(5, 1fr);
+    position: relative;
+  }
+  /* the live data spine running behind the 5 stages */
+  .pipeline::before {
+    content: ""; position: absolute; left: 6%; right: 6%; top: 86px; height: 2px; z-index: 0; pointer-events: none;
+    background: linear-gradient(90deg, var(--purple) 0%, oklch(0.78 0.22 295 / 0.5) 80%, var(--lime) 100%);
+    opacity: 0.35;
+    -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 10px, transparent 10px 18px);
+            mask-image: repeating-linear-gradient(90deg, #000 0 10px, transparent 10px 18px);
+    animation: spine-flow 1.4s linear infinite;
+  }
+  @keyframes spine-flow { to { -webkit-mask-position: 18px 0; mask-position: 18px 0; } }
+  @media (max-width: 900px) { .pipeline { grid-template-columns: repeat(2, 1fr); } .pipeline::before { display: none; } }
+  @media (max-width: 540px) { .pipeline { grid-template-columns: 1fr; } }
+
+  .stage-card {
+    position: relative; z-index: 1; padding: var(--sp-5);
+    border-radius: var(--r-lg);
+    background: linear-gradient(180deg, var(--bg-2), oklch(0.20 0.024 292));
+    border: 1px solid var(--line);
+    box-shadow: var(--elev-1);
+    overflow: hidden;
+    transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base) var(--ease-out), border-color var(--d-base);
+  }
+  /* hairline top edge-light */
+  .stage-card::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; pointer-events: none;
+    background: linear-gradient(90deg, transparent, oklch(0.78 0.22 295 / 0.5), transparent);
+    opacity: 0; transition: opacity var(--d-base);
+  }
+  .stage-card:hover { transform: translateY(-5px); box-shadow: var(--elev-3), 0 0 36px -16px oklch(0.62 0.2 295 / 0.6); border-color: var(--line-purple); }
+  .stage-card:hover::after { opacity: 1; }
+  .stage-card:hover .stage-card__icon { color: var(--purple-ink); background: linear-gradient(180deg, var(--purple-hot), var(--purple)); border-color: transparent; box-shadow: 0 0 18px oklch(0.62 0.2 295 / 0.45); transform: translateY(-1px); }
+  .stage-card__num { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--text-faint); letter-spacing: 0.1em; }
+  .stage-card__icon {
+    width: 46px; height: 46px; border-radius: var(--r-md); display: grid; place-items: center;
+    margin: var(--sp-3) 0 var(--sp-4);
+    background: oklch(0.5 0.03 292 / 0.18); border: 1px solid var(--line);
+    color: var(--purple-hot);
+    transition: color var(--d-base), background var(--d-base), border-color var(--d-base), box-shadow var(--d-base), transform var(--d-base);
+  }
+  .stage-card__icon svg { width: 22px; height: 22px; }
+  .stage-card h3 { font-size: var(--fs-base); margin-bottom: var(--sp-2); }
+  .stage-card p { font-size: var(--fs-xs); color: var(--text-dim); line-height: 1.5; }
+  .stage-card__flow {
+    position: absolute; top: 86px; right: -11px; z-index: 4;
+    width: 22px; height: 22px; display: grid; place-items: center;
+    color: var(--purple-hot); transform: translateY(-50%);
+    filter: drop-shadow(0 0 6px oklch(0.7 0.2 295 / 0.6));
+  }
+  .stage-card.is-feed .stage-card__flow { color: var(--lime); filter: drop-shadow(0 0 6px oklch(0.85 0.2 118 / 0.6)); }
+  @media (max-width: 900px){ .stage-card__flow { display: none; } }
+  .stage-card.is-feed { border-color: var(--line-lime); background: linear-gradient(180deg, oklch(0.22 0.03 292), oklch(0.20 0.024 292)); }
+  .stage-card.is-feed::after { background: linear-gradient(90deg, transparent, var(--line-lime), transparent); }
+  .stage-card.is-feed .stage-card__icon { color: var(--lime); border-color: var(--line-lime); background: oklch(0.5 0.12 118 / 0.1); }
+  .stage-card.is-feed:hover { border-color: var(--line-lime); box-shadow: var(--elev-3), 0 0 36px -14px oklch(0.85 0.2 118 / 0.5); }
+  .stage-card.is-feed:hover .stage-card__icon { color: var(--lime-ink); background: linear-gradient(180deg, var(--lime-hot), var(--lime)); border-color: transparent; box-shadow: 0 0 18px oklch(0.85 0.2 118 / 0.45); }
+  .feed-targets { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap; }
+  .feed-targets .chip { cursor: default; }
+
+  /* ---- the empty-states gallery for each surface ---- */
+  .surfaces { padding: 0 clamp(var(--sp-4), 4vw, var(--sp-7)) var(--sp-9); }
+  .surfaces__head { display: flex; align-items: end; justify-content: space-between; gap: var(--sp-4); margin-bottom: var(--sp-5); flex-wrap: wrap; }
+  .surface-grid { display: grid; gap: var(--sp-5); grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 900px){ .surface-grid { grid-template-columns: 1fr; } }
+
+  .empty-panel {
+    position: relative; border-radius: var(--r-xl);
+    background: linear-gradient(180deg, var(--bg-1), oklch(0.165 0.02 292));
+    border: 1px solid var(--line);
+    box-shadow: var(--elev-2);
+    overflow: hidden;
+    min-height: 300px;
+    display: flex; flex-direction: column;
+    transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base) var(--ease-out), border-color var(--d-base);
+  }
+  .empty-panel:hover { transform: translateY(-3px); box-shadow: var(--elev-3); border-color: var(--line-strong); }
+  /* soft inner light pool at top so the empty panel still feels "alive" */
+  .empty-panel__body::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    background: radial-gradient(70% 60% at 50% 0%, oklch(0.4 0.08 292 / 0.16), transparent 70%);
+  }
+  .empty-panel__bar {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, oklch(0.5 0.03 292 / 0.12), oklch(0.5 0.03 292 / 0.04));
+  }
+  .empty-panel__bar .dot { width: 9px; height: 9px; border-radius: 50%; background: oklch(0.4 0.02 292 / 0.7); box-shadow: inset 0 0 0 0.5px oklch(0 0 0 / 0.3); }
+  .empty-panel__bar .dot:nth-child(1){ background: oklch(0.62 0.16 25 / 0.55); }
+  .empty-panel__bar .dot:nth-child(2){ background: oklch(0.78 0.14 85 / 0.5); }
+  .empty-panel__bar .dot:nth-child(3){ background: oklch(0.7 0.16 150 / 0.5); }
+  .empty-panel__title { font-size: var(--fs-xs); font-weight: 600; color: var(--text-mid); margin-left: var(--sp-2); }
+  .empty-panel__body { position: relative; flex: 1; display: grid; place-items: center; padding: var(--sp-6); text-align: center; }
+  .empty-panel__body > * { position: relative; z-index: 1; }
+
+  .empty-illus { width: 100%; max-width: 360px; margin: 0 auto var(--sp-4); position: relative; }
+
+  /* conveyor skeleton cards */
+  .sk-row { display: flex; gap: var(--sp-3); width: 100%; }
+  .sk-card { flex: 1; border-radius: var(--r-md); padding: var(--sp-3); background: linear-gradient(180deg, oklch(0.5 0.03 292 / 0.1), oklch(0.5 0.03 292 / 0.04)); border: 1px solid var(--line); box-shadow: var(--elev-1); }
+  .sk-card .skeleton[style*="border-radius:50%"] { box-shadow: 0 0 0 1px var(--line-purple); }
+  .sk-line { height: 9px; border-radius: var(--r-pill); margin-bottom: var(--sp-2); }
+
+  .empty-msg h3 { font-size: var(--fs-base); margin-bottom: var(--sp-2); }
+  .empty-msg p { font-size: var(--fs-xs); color: var(--text-dim); max-width: 34ch; margin: 0 auto var(--sp-4); }
+
+  /* dossier ghost — projected figure shown HONESTLY (translucent + dashed) */
+  .ghost-doc {
+    width: 240px; margin: 0 auto var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2);
+    padding: var(--sp-4); border-radius: var(--r-md);
+    background: var(--glass-tint-projected); border: 1px dashed var(--line-strong);
+  }
+  .ghost-doc .skeleton { height: 10px; }
+  .ghost-num { font-family: var(--font-mono); font-size: var(--fs-h1); color: var(--text-faint); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+  /* command-center loading agents grid */
+  .agent-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; width: 100%; max-width: 320px; margin: 0 auto var(--sp-4); }
+  .agent-dot { aspect-ratio: 1; border-radius: var(--r-xs); background: oklch(0.3 0.02 292 / 0.6); box-shadow: inset 0 0 0 1px oklch(0.5 0.03 292 / 0.18); transition: background var(--d-base), box-shadow var(--d-base); }
+
+  .live-status {
+    display: inline-flex; align-items: center; gap: var(--sp-2);
+    font-size: var(--fs-2xs); color: var(--text-mid);
+    padding: 4px 11px 4px 9px; border-radius: var(--r-pill);
+    background: linear-gradient(180deg, oklch(0.5 0.03 292 / 0.16), oklch(0.5 0.03 292 / 0.08));
+    border: 1px solid var(--line); box-shadow: inset 0 1px 0 oklch(0.99 0.01 292 / 0.08);
+  }
+
+  /* footer dock */
+  .footer-note { text-align: center; padding: 0 var(--sp-5) var(--sp-7); color: var(--text-faint); font-size: var(--fs-2xs); }
+  .footer-note .legend { justify-content: center; margin-top: var(--sp-3); }
+
+  /* tour spotlight */
+  .tour-scrim { position: fixed; inset: 0; z-index: var(--z-modal); background: oklch(0.1 0.02 292 / 0.62); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  .tour-card {
+    position: fixed; z-index: calc(var(--z-modal) + 1);
+    width: min(360px, 90vw); padding: var(--sp-5);
+    border-radius: var(--r-xl);
+    background: var(--glass-tint-deep);
+    backdrop-filter: blur(var(--glass-blur-hero)) saturate(var(--glass-sat));
+    -webkit-backdrop-filter: blur(var(--glass-blur-hero)) saturate(var(--glass-sat));
+    border: 1px solid var(--glass-border); box-shadow: var(--elev-4);
+  }
+  .tour-card .t-label { color: var(--lime); }
+  .tour-dots { display: flex; gap: 6px; }
+  .tour-dots span { width: 7px; height: 7px; border-radius: 50%; background: oklch(0.4 0.02 292 / 0.8); transition: all var(--d-base); }
+  .tour-dots span.active { background: var(--lime); width: 18px; border-radius: var(--r-pill); box-shadow: 0 0 10px oklch(0.92 0.21 118 / 0.5); }
+</style>
+</head>
+<body class="bg-base">
+<h2 class="sr-only">Tela de primeiro contato do Hermes Cloud Studio: mapa vazio com chamada para varrer o primeiro bairro, explicação visual da maquina e estados vazios das quatro superficies.</h2>
+
+<div class="bg-mesh" aria-hidden="true"></div>
+<div class="bg-particles" id="tsparticles" aria-hidden="true"></div>
+<div class="bg-grain" aria-hidden="true"></div>
+
+<div class="stage app-shell">
+
+  <!-- ============ TOP CHROME ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true"><i data-lucide="hexagon"></i></span>
+      <div class="col" style="gap:2px">
+        <span class="brand__name">Hermes Cloud Studio</span>
+        <span class="brand__sub">Lead-discovery engine · v2.0</span>
+      </div>
+    </div>
+    <div class="topbar__right">
+      <span class="setup-pill">
+        <i data-lucide="rocket" style="width:15px;height:15px;color:var(--lime)"></i>
+        Configuração
+        <span class="setup-pill__track"><span class="setup-pill__fill" id="setupFill"></span></span>
+        <span class="t-mono" style="color:var(--text-mid)" id="setupPct">1 / 4</span>
+      </span>
+      <button class="btn btn-ghost btn-sm" id="tourBtn"><i data-lucide="compass" style="width:15px;height:15px"></i> Tour de 30s</button>
+    </div>
+  </header>
+
+  <div class="hero">
+    <!-- ============ SURFACE A — THE EMPTY MAP + FIRST CALL ============ -->
+    <section class="map-wrap" aria-label="Mapa de varredura — vazio, aguardando primeiro bairro">
+      <div id="map"></div>
+
+      <!-- map status legend -->
+      <div class="map-legend">
+        <div class="t-label">Como o mapa fica vivo</div>
+        <div class="legend">
+          <span class="legend__item"><span class="legend__swatch legend__swatch--opportunity"></span> Oportunidade alta</span>
+          <span class="legend__item"><span class="legend__swatch legend__swatch--consolidated"></span> Consolidado</span>
+          <span class="legend__item"><span class="legend__swatch legend__swatch--niche"></span> Nicho-oportunidade</span>
+          <span class="legend__item"><span class="legend__swatch legend__swatch--unexplored"></span> Zona não explorada</span>
+        </div>
+      </div>
+
+      <!-- zoom scope -->
+      <div class="map-scope" role="group" aria-label="Escopo do mapa">
+        <button data-scope="city" class="active">Cidade</button>
+        <button data-scope="state">Estado</button>
+        <button data-scope="country">País</button>
+      </div>
+
+      <!-- THE glowing first-run call -->
+      <div class="first-call">
+        <div class="first-call__inner anim-reveal" id="firstCall">
+          <div class="reticle" aria-hidden="true">
+            <span class="reticle__ping"></span>
+            <span class="reticle__ping delay"></span>
+            <span class="reticle__ring"></span>
+            <span class="reticle__ring2"></span>
+            <span class="reticle__sweep"></span>
+            <span class="reticle__crosshair"><span></span><span></span><span></span><span></span></span>
+            <span class="reticle__core breathe"><i data-lucide="radar"></i></span>
+          </div>
+          <div class="row first-call__kicker">
+            <span class="t-label tglow-energy">Mapa vazio · nada varrido ainda</span>
+          </div>
+          <h1 class="t-h1">Varra seu primeiro <span class="first-call__hl">bairro</span><br>de Cuiabá</h1>
+          <p class="t-lead">Escolha uma zona no mapa. O Hermes encontra cada negócio, audita o digital de cada um e pinta o mapa por oportunidade — sozinho, 24/7.</p>
+          <div class="first-call__cta">
+            <button class="btn btn-energy btn-lg" id="sweepBtn"><i data-lucide="radar"></i> Varrer o Centro de Cuiabá</button>
+            <button class="btn btn-ghost btn-lg" id="pickBtn"><i data-lucide="map-pin-plus"></i> Escolher zona no mapa</button>
+          </div>
+          <div class="first-call__hint">Dica: clique em qualquer ponto do mapa para iniciar a varredura — ou pressione <kbd>S</kbd></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ THE MACHINE, EXPLAINED VISUALLY ============ -->
+  <section class="explainer text-scrim">
+    <div class="explainer__head">
+      <span class="t-label" style="color:var(--purple-hot)">A máquina em 5 passos</span>
+      <h2 class="t-h2" style="margin-top:var(--sp-2)">Você aponta um bairro. Ela faz o resto.</h2>
+    </div>
+
+    <div class="pipeline stagger">
+      <div class="stage-card">
+        <span class="stage-card__num">01 · ENCONTRA</span>
+        <span class="stage-card__icon"><i data-lucide="scan-search"></i></span>
+        <h3>Descobre negócios</h3>
+        <p>Varre a zona e cataloga cada empresa real: nome, nicho, porte, presença digital.</p>
+        <span class="stage-card__flow" aria-hidden="true"><i data-lucide="chevron-right"></i></span>
+      </div>
+      <div class="stage-card">
+        <span class="stage-card__num">02 · AUDITA</span>
+        <span class="stage-card__icon"><i data-lucide="stethoscope"></i></span>
+        <h3>Audita o digital</h3>
+        <p>Site, SEO, redes, anúncios, reviews no Maps. Mede o que existe e o que falta.</p>
+        <span class="stage-card__flow" aria-hidden="true"><i data-lucide="chevron-right"></i></span>
+      </div>
+      <div class="stage-card">
+        <span class="stage-card__num">03 · PROJETA</span>
+        <span class="stage-card__icon"><i data-lucide="trending-up"></i></span>
+        <h3>Projeta receita</h3>
+        <p>Com dados reais estima faturamento atual vs. potencial com seus serviços.</p>
+        <span class="stage-card__flow" aria-hidden="true"><i data-lucide="chevron-right"></i></span>
+      </div>
+      <div class="stage-card">
+        <span class="stage-card__num">04 · PRIORIZA</span>
+        <span class="stage-card__icon"><i data-lucide="target"></i></span>
+        <h3>Aponta oportunidade</h3>
+        <p>Pinta o mapa por score e monta o dossiê de vendas pronto pra você abordar.</p>
+        <span class="stage-card__flow" aria-hidden="true"><i data-lucide="chevron-right"></i></span>
+      </div>
+      <div class="stage-card is-feed">
+        <span class="stage-card__num">05 · ALIMENTA</span>
+        <span class="stage-card__icon"><i data-lucide="share-2"></i></span>
+        <h3>Aciona os irmãos</h3>
+        <p>Manda pros projetos-irmãos executarem a entrega.</p>
+        <div class="feed-targets">
+          <span class="chip"><span class="chip-dot" style="color:var(--purple-hot)"></span> Vuecra · site</span>
+          <span class="chip"><span class="chip-dot" style="color:var(--lime)"></span> Geronimo · 40 agentes</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ EMPTY / SKELETON STATES FOR EACH SURFACE ============ -->
+  <section class="surfaces">
+    <div class="surfaces__head">
+      <div>
+        <span class="t-label" style="color:var(--purple-hot)">As quatro superfícies</span>
+        <h2 class="t-h2" style="margin-top:var(--sp-2)">Tudo começa vazio. Uma varredura acende tudo.</h2>
+      </div>
+      <span class="live-status"><span class="live-dot"></span> Aguardando a primeira varredura</span>
+    </div>
+
+    <div class="surface-grid stagger">
+
+      <!-- B: LEAD CONVEYOR — skeleton loading state -->
+      <article class="empty-panel">
+        <div class="empty-panel__bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="empty-panel__title">Esteira de Leads</span>
+          <span class="badge badge--found" style="margin-left:auto">vazio</span>
+        </div>
+        <div class="empty-panel__body">
+          <div class="empty-illus">
+            <div class="sk-row sweep-overlay">
+              <div class="sk-card">
+                <div class="row" style="margin-bottom:var(--sp-3)">
+                  <div class="skeleton" style="width:34px;height:34px;border-radius:50%"></div>
+                  <div class="grow"><div class="skeleton sk-line" style="width:70%"></div><div class="skeleton sk-line" style="width:45%;margin:0"></div></div>
+                </div>
+                <div class="skeleton sk-line" style="width:90%"></div>
+                <div class="skeleton sk-line" style="width:60%"></div>
+              </div>
+              <div class="sk-card">
+                <div class="row" style="margin-bottom:var(--sp-3)">
+                  <div class="skeleton" style="width:34px;height:34px;border-radius:50%"></div>
+                  <div class="grow"><div class="skeleton sk-line" style="width:65%"></div><div class="skeleton sk-line" style="width:50%;margin:0"></div></div>
+                </div>
+                <div class="skeleton sk-line" style="width:85%"></div>
+                <div class="skeleton sk-line" style="width:55%"></div>
+              </div>
+            </div>
+          </div>
+          <div class="empty-msg">
+            <h3>Os negócios aparecem aqui como cards</h3>
+            <p>Nome, score, nicho, porte, receita estimada e canais — nunca em tabela. A varredura preenche a esteira em minutos.</p>
+            <button class="btn btn-sm" data-jumpsweep><i data-lucide="radar" style="width:14px;height:14px"></i> Iniciar varredura</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- C: DOSSIER — empty state -->
+      <article class="empty-panel">
+        <div class="empty-panel__bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="empty-panel__title">Dossiê de Vendas</span>
+          <span class="badge badge--found" style="margin-left:auto">vazio</span>
+        </div>
+        <div class="empty-panel__body">
+          <div class="ghost-doc" aria-hidden="true">
+            <div class="row" style="justify-content:space-between">
+              <span class="ghost-num">R$ —</span>
+              <span class="badge badge--opportunity" style="opacity:.5">projeção</span>
+            </div>
+            <div class="skeleton" style="width:100%"></div>
+            <div class="skeleton" style="width:80%"></div>
+            <div class="row" style="gap:var(--sp-2);margin-top:var(--sp-2)">
+              <div class="skeleton" style="width:48%;height:38px;border-radius:var(--r-sm)"></div>
+              <div class="skeleton" style="width:48%;height:38px;border-radius:var(--r-sm)"></div>
+            </div>
+          </div>
+          <div class="empty-msg">
+            <h3>Cada negócio vira um relatório de venda</h3>
+            <p>Receita real vs. potencial, concorrentes, o que eles fazem que o prospect não faz — números honestos pra fechar.</p>
+            <span class="live-status"><i data-lucide="lock" style="width:13px;height:13px"></i> Liberado após auditar um negócio</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- A overview: still empty regions -->
+      <article class="empty-panel">
+        <div class="empty-panel__bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="empty-panel__title">Mapa de Varredura</span>
+          <span class="badge badge--unexplored" style="margin-left:auto">0 zonas</span>
+        </div>
+        <div class="empty-panel__body">
+          <div class="empty-illus" aria-hidden="true">
+            <svg viewBox="0 0 320 120" style="width:100%;height:auto">
+              <g fill="none" stroke="var(--st-unexplored)" stroke-width="1" stroke-dasharray="4 5" opacity="0.55">
+                <rect x="8" y="12" width="92" height="44" rx="8"/>
+                <rect x="112" y="12" width="96" height="44" rx="8"/>
+                <rect x="220" y="12" width="92" height="44" rx="8"/>
+                <rect x="8" y="68" width="96" height="44" rx="8"/>
+                <rect x="116" y="68" width="92" height="44" rx="8"/>
+                <rect x="220" y="68" width="92" height="44" rx="8"/>
+              </g>
+              <circle cx="160" cy="62" r="6" fill="var(--lime)" opacity="0.9"/>
+              <circle cx="160" cy="62" r="6" fill="none" stroke="var(--lime)" stroke-width="1">
+                <animate attributeName="r" values="6;26;6" dur="2.6s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0.8;0;0.8" dur="2.6s" repeatCount="indefinite"/>
+              </circle>
+            </svg>
+          </div>
+          <div class="empty-msg">
+            <h3>Zonas cinzas = não exploradas</h3>
+            <p>Clique numa zona pra varrer. Ela acende: coral para oportunidade, azul para consolidado, lime para nicho.</p>
+            <button class="btn btn-sm" data-jumpsweep><i data-lucide="map-pin-plus" style="width:14px;height:14px"></i> Acender a primeira zona</button>
+          </div>
+        </div>
+      </article>
+
+      <!-- D: COMMAND CENTER — agents idle/loading -->
+      <article class="empty-panel">
+        <div class="empty-panel__bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="empty-panel__title">Central de Comando · 40+ agentes</span>
+          <span class="badge badge--audited" style="margin-left:auto"><span class="live-dot live-dot--purple" style="width:6px;height:6px"></span> ocioso</span>
+        </div>
+        <div class="empty-panel__body">
+          <div class="agent-grid" id="agentGrid" aria-hidden="true"></div>
+          <div class="empty-msg">
+            <h3>A frota está pronta e ociosa</h3>
+            <p>40+ agentes esperando trabalho. Assim que houver leads, eles auditam, escrevem dossiês e disparam pra Vuecra e Geronimo.</p>
+            <span class="live-status"><span class="live-dot live-dot--purple"></span> 0 em execução · 40 em standby</span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+
+    <div class="footer-note">
+      <div>Inteligência honesta — <span class="tag-measured t-mono">sólido = medido</span> · <span class="tag-projected t-mono">translúcido = projetado</span>. Nunca inventamos precisão.</div>
+      <div class="legend">
+        <span class="legend__item">$0 de orçamento</span>
+        <span style="color:var(--line-strong)">·</span>
+        <span class="legend__item">self-hosted · Contabo VPS</span>
+        <span style="color:var(--line-strong)">·</span>
+        <span class="legend__item">Cuiabá / Mato Grosso · Brasil</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============ ONBOARDING TOUR (spotlight) ============ -->
+<div id="tour" hidden>
+  <div class="tour-scrim" id="tourScrim"></div>
+  <div class="tour-card" id="tourCard">
+    <div class="row-between" style="margin-bottom:var(--sp-3)">
+      <span class="t-label" id="tourStep">Passo 1 de 4</span>
+      <button class="btn btn-icon btn-ghost btn-sm" id="tourClose" aria-label="Fechar tour"><i data-lucide="x" style="width:16px;height:16px"></i></button>
+    </div>
+    <h3 class="t-h3" id="tourTitle" style="margin-bottom:var(--sp-2)">O mapa é o coração</h3>
+    <p class="t-sm t-mid" id="tourBody" style="margin-bottom:var(--sp-5)">Tudo nasce de uma varredura. Clique numa zona e o Hermes encontra, audita e pinta cada negócio por oportunidade.</p>
+    <div class="row-between">
+      <div class="tour-dots" id="tourDots"></div>
+      <button class="btn btn-primary btn-sm" id="tourNext">Próximo <i data-lucide="arrow-right" style="width:15px;height:15px"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- toast mount -->
+<div id="toastMount"></div>
+
+<script>
+(function () {
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- icons ---------- */
+  function icons(){ if (window.lucide) window.lucide.createIcons(); }
+  if (document.readyState !== 'loading') icons(); else document.addEventListener('DOMContentLoaded', icons);
+  window.addEventListener('load', icons);
+
+  /* ---------- ambient particle field (tsParticles, slim) ---------- */
+  if (!REDUCED && window.tsParticles) {
+    tsParticles.load({
+      id: 'tsparticles',
+      options: {
+        fullScreen: { enable: false },
+        fpsLimit: 45,
+        detectRetina: true,
+        particles: {
+          number: { value: 46, density: { enable: true, area: 900 } },
+          color: { value: ['#7c3aed', '#d1fe17', '#9f7bff'] },
+          opacity: { value: { min: 0.08, max: 0.4 } },
+          size: { value: { min: 0.6, max: 2.2 } },
+          move: { enable: true, speed: 0.3, direction: 'none', outModes: 'out', random: true },
+          links: { enable: true, distance: 130, color: '#6b51b5', opacity: 0.14, width: 1 }
+        },
+        interactivity: { events: { onHover: { enable: true, mode: 'grab' } },
+          modes: { grab: { distance: 150, links: { opacity: 0.3 } } } }
+      }
+    });
+  }
+
+  /* ---------- agent grid (command center idle state) ---------- */
+  const grid = document.getElementById('agentGrid');
+  if (grid) {
+    for (let i = 0; i < 40; i++) {
+      const d = document.createElement('span');
+      d.className = 'agent-dot';
+      grid.appendChild(d);
+    }
+    if (!REDUCED) {
+      // gentle idle "fleet heartbeat" — a diagonal wave sweeping the standby grid
+      const dots = [...grid.children];
+      const COLS = 8;
+      let phase = 0;
+      setInterval(() => {
+        phase += 1;
+        dots.forEach((d, idx) => {
+          const col = idx % COLS, rowi = Math.floor(idx / COLS);
+          const dist = (col + rowi - phase) % (COLS + 5);
+          if (dist === 0) {
+            d.style.background = 'oklch(0.55 0.17 295 / 0.6)';
+            d.style.boxShadow = '0 0 10px oklch(0.78 0.22 295 / 0.55), inset 0 0 0 1px oklch(0.78 0.22 295 / 0.4)';
+          } else if (dist === 1) {
+            d.style.background = 'oklch(0.42 0.1 295 / 0.45)';
+            d.style.boxShadow = 'inset 0 0 0 1px oklch(0.6 0.12 295 / 0.25)';
+          } else {
+            d.style.background = '';
+            d.style.boxShadow = 'inset 0 0 0 1px oklch(0.5 0.03 292 / 0.18)';
+          }
+        });
+      }, 160);
+    }
+  }
+
+  /* ---------- the empty MapLibre canvas (dark, brand-tinted) ---------- */
+  const CUIABA = [-56.0949, -15.6014];
+  let map;
+  const MAP_BG = '#1a1726';
+
+  function buildStyle() {
+    return {
+      version: 8,
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+      sources: {
+        carto: {
+          type: 'raster',
+          tiles: ['https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+                  'https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png'],
+          tileSize: 256,
+          attribution: '© OpenStreetMap · © CARTO'
+        }
+      },
+      layers: [
+        { id: 'bg', type: 'background', paint: { 'background-color': MAP_BG } },
+        { id: 'carto', type: 'raster', source: 'carto', paint: { 'raster-opacity': 0.62, 'raster-saturation': -0.55, 'raster-contrast': 0.05 } }
+      ]
+    };
+  }
+
+  try {
+    map = new maplibregl.Map({
+      container: 'map',
+      style: buildStyle(),
+      center: CUIABA,
+      zoom: 11.4,
+      pitch: 38,
+      bearing: -12,
+      attributionControl: { compact: true },
+      cooperativeGestures: false
+    });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+
+    map.on('load', () => {
+      // overlay an empty "scan grid" — the unexplored zones waiting to be lit
+      const cell = 0.018, n = 7;
+      const features = [];
+      for (let i = -3; i <= 3; i++) {
+        for (let j = -3; j <= 3; j++) {
+          const x0 = CUIABA[0] + i * cell, y0 = CUIABA[1] + j * cell;
+          features.push({
+            type: 'Feature',
+            properties: { d: Math.hypot(i, j) },
+            geometry: { type: 'Polygon', coordinates: [[
+              [x0, y0], [x0 + cell, y0], [x0 + cell, y0 + cell], [x0, y0 + cell], [x0, y0]
+            ]] }
+          });
+        }
+      }
+      map.addSource('grid', { type: 'geojson', data: { type: 'FeatureCollection', features } });
+      map.addLayer({
+        id: 'grid-fill', type: 'fill', source: 'grid',
+        paint: { 'fill-color': 'rgba(120,120,135,0.04)' }
+      });
+      map.addLayer({
+        id: 'grid-line', type: 'line', source: 'grid',
+        paint: { 'line-color': 'rgba(124,58,237,0.16)', 'line-width': 0.8, 'line-dasharray': [3, 3] }
+      });
+
+      // the breathing "first sweep here" hotspot at the city centre — layered glow
+      const hot = { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: CUIABA } }] };
+      map.addSource('hot', { type: 'geojson', data: hot });
+      // soft outer halo (large, blurred, faint) → the light bleeding into the void
+      map.addLayer({
+        id: 'hot-halo', type: 'circle', source: 'hot',
+        paint: { 'circle-radius': 34, 'circle-color': 'rgba(209,254,23,0.16)', 'circle-blur': 1 }
+      });
+      // an expanding "invitation" radar ring (animated outward)
+      map.addLayer({
+        id: 'hot-invite', type: 'circle', source: 'hot',
+        paint: { 'circle-radius': 10, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': 'rgba(209,254,23,0.6)', 'circle-stroke-width': 1.5 }
+      });
+      // bright committed core (solid = a real, measured anchor point)
+      map.addLayer({
+        id: 'hot-glow', type: 'circle', source: 'hot',
+        paint: {
+          'circle-radius': 7,
+          'circle-color': 'rgba(209,254,23,0.95)',
+          'circle-blur': 0.5,
+          'circle-stroke-color': 'rgba(209,254,23,0.5)',
+          'circle-stroke-width': 1.5
+        }
+      });
+
+      if (!REDUCED) {
+        // pulse the bright core radius + breathe the halo
+        let t = 0;
+        setInterval(() => {
+          t += 0.08;
+          if (map.getLayer('hot-glow')) map.setPaintProperty('hot-glow', 'circle-radius', 6.5 + Math.sin(t) * 2.5);
+          if (map.getLayer('hot-halo')) map.setPaintProperty('hot-halo', 'circle-radius', 32 + Math.sin(t) * 7);
+        }, 60);
+        // expanding invitation ring — radar ping that says "start here"
+        let ir = 10;
+        setInterval(() => {
+          ir += 1.4; if (ir > 44) ir = 10;
+          const a = Math.max(0, 0.6 * (1 - (ir - 10) / 34));
+          if (map.getLayer('hot-invite')) {
+            map.setPaintProperty('hot-invite', 'circle-radius', ir);
+            map.setPaintProperty('hot-invite', 'circle-stroke-color', 'rgba(209,254,23,' + a.toFixed(3) + ')');
+          }
+        }, 40);
+        // slow ambient rotation so the empty void feels alive
+        let rot = -12;
+        const spin = () => { rot += 0.012; if (map) { map.setBearing(rot); requestAnimationFrame(spin); } };
+        requestAnimationFrame(spin);
+      }
+    });
+
+    // click-to-sweep: any click on the empty map fires the sweep workflow
+    map.on('click', (e) => startSweep(e.lngLat));
+    map.on('mouseenter', 'grid-fill', () => { map.getCanvas().style.cursor = 'crosshair'; });
+    map.on('mouseleave', 'grid-fill', () => { map.getCanvas().style.cursor = ''; });
+  } catch (err) {
+    // graceful fallback if tiles/CDN blocked
+    const m = document.getElementById('map');
+    if (m) m.style.background = 'radial-gradient(120% 100% at 50% 30%, oklch(0.22 0.04 292), var(--bg-void))';
+    console.warn('Map fallback:', err);
+  }
+
+  /* ---------- scope switch (city / state / country) ---------- */
+  const SCOPES = {
+    city:    { center: CUIABA, zoom: 11.4, label: 'Cuiabá · MT' },
+    state:   { center: [-55.9, -13.5], zoom: 6.2, label: 'Mato Grosso' },
+    country: { center: [-52.0, -14.2], zoom: 3.6, label: 'Brasil' }
+  };
+  document.querySelectorAll('.map-scope button').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.map-scope button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const s = SCOPES[b.dataset.scope];
+      if (map && s) map.flyTo({ center: s.center, zoom: s.zoom, duration: REDUCED ? 0 : 1600, essential: true });
+    });
+  });
+
+  /* ---------- toast ---------- */
+  function toast(html) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = html;
+    document.getElementById('toastMount').appendChild(t);
+    setTimeout(() => { t.style.transition = 'opacity .4s, transform .4s'; t.style.opacity = '0'; t.style.transform = 'translateY(8px)'; }, 3600);
+    setTimeout(() => t.remove(), 4200);
+  }
+
+  /* ---------- the SWEEP workflow (first-run conversion) ---------- */
+  let swept = false;
+  function startSweep(lngLat) {
+    const target = lngLat || { lng: CUIABA[0], lat: CUIABA[1] };
+    if (map) map.flyTo({ center: [target.lng, target.lat], zoom: 13.4, pitch: 50, duration: REDUCED ? 0 : 1400, essential: true });
+
+    // dismiss the central call with a confident exit — hide ONLY the overlay,
+    // never the map itself (the sweep reveals the map, it must stay visible)
+    const call = document.getElementById('firstCall');
+    const overlay = call ? call.closest('.first-call') : null;
+    if (overlay && window.gsap && !REDUCED) {
+      gsap.to(call, { scale: 0.92, opacity: 0, y: -10, duration: 0.5, ease: 'power3.in',
+        onComplete: () => { overlay.style.display = 'none'; } });
+    } else if (overlay) {
+      overlay.style.display = 'none';
+    }
+
+    // drop a sweeping ring + start painting status dots on the empty grid
+    paintSweep([target.lng, target.lat]);
+
+    // progress the setup meter
+    setSetup(2);
+    swept = true;
+    toast('<div class="row"><span class="live-dot"></span><div><b style="color:var(--text-hi)">Varredura iniciada</b><div class="t-xs t-dim">Encontrando negócios em volta do ponto…</div></div></div>');
+    setTimeout(() => toast('<div class="row"><i data-lucide="check" style="color:var(--lime);width:18px;height:18px"></i><div><b style="color:var(--text-hi)">14 negócios encontrados</b><div class="t-xs t-dim">5 oportunidades altas · auditando…</div></div></div>') || icons(), 2400);
+  }
+
+  function paintSweep(center) {
+    if (!map || !map.getSource) return;
+    // retire the resting hotspot — the void is being claimed now
+    ['hot-invite','hot-halo'].forEach(id => { if (map.getLayer(id)) map.setPaintProperty(id, 'circle-opacity', 0); });
+
+    // animate an expanding radar sweep ring + trailing soft glow
+    ['sweep-ring','sweep-fill'].forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
+    if (map.getSource('sweep')) map.removeSource('sweep');
+    map.addSource('sweep', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'Point', coordinates: center } } });
+    map.addLayer({ id: 'sweep-fill', type: 'circle', source: 'sweep',
+      paint: { 'circle-radius': 4, 'circle-color': 'rgba(209,254,23,0.10)', 'circle-blur': 1 } });
+    map.addLayer({ id: 'sweep-ring', type: 'circle', source: 'sweep',
+      paint: { 'circle-radius': 4, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': 'rgba(209,254,23,0.85)', 'circle-stroke-width': 2 } });
+
+    // colour expression for the grid (honest status semantics)
+    const colorExpr = [
+      'case',
+      ['<', ['get', 'd'], 1.5], 'rgba(247,138,92,0.55)',   // coral — high opportunity
+      ['<', ['get', 'd'], 2.5], 'rgba(209,254,23,0.5)',    // lime — niche-opportunity
+      ['<', ['get', 'd'], 3.2], 'rgba(96,142,222,0.5)',    // blue — consolidated
+      'rgba(120,120,135,0.04)'
+    ];
+
+    if (!REDUCED) {
+      // light cells up progressively as the ring passes over them (radial reveal)
+      let r = 4;
+      const grow = setInterval(() => {
+        r += 6;
+        if (map.getLayer('sweep-ring')) map.setPaintProperty('sweep-ring', 'circle-radius', r);
+        if (map.getLayer('sweep-fill')) map.setPaintProperty('sweep-fill', 'circle-radius', r * 0.9);
+        // reveal threshold in grid units (~ r maps to distance index)
+        const reach = r / 34;
+        map.setPaintProperty('grid-fill', 'fill-color', [
+          'case', ['<', ['get','d'], reach], colorExpr, 'rgba(120,120,135,0.04)'
+        ]);
+        if (r > 130) {
+          clearInterval(grow);
+          if (map.getLayer('sweep-ring')) map.setPaintProperty('sweep-ring', 'circle-stroke-color', 'rgba(209,254,23,0)');
+          if (map.getLayer('sweep-fill')) map.setPaintProperty('sweep-fill', 'circle-color', 'rgba(209,254,23,0)');
+          dropFinds(center);
+        }
+      }, 40);
+    } else {
+      map.setPaintProperty('grid-fill', 'fill-color', colorExpr);
+      dropFinds(center);
+    }
+    map.setPaintProperty('grid-line', 'line-color', 'rgba(209,254,23,0.22)');
+  }
+
+  // drop a few discovered-business markers so the swept void visibly fills with life
+  function dropFinds(center) {
+    if (!map || map.getSource('finds')) return;
+    const jitter = (n) => (Math.random() - 0.5) * n;
+    const cats = [
+      { c: 'rgba(247,138,92,0.95)', n: 5 },  // high-opportunity (coral)
+      { c: 'rgba(96,142,222,0.9)',  n: 6 },  // consolidated (blue)
+      { c: 'rgba(209,254,23,0.95)', n: 3 }   // niche (lime)
+    ];
+    const feats = [];
+    cats.forEach(cat => { for (let k=0;k<cat.n;k++) feats.push({ type:'Feature', properties:{ c: cat.c }, geometry:{ type:'Point', coordinates:[ center[0]+jitter(0.05), center[1]+jitter(0.05) ] } }); });
+    map.addSource('finds', { type:'geojson', data:{ type:'FeatureCollection', features: feats } });
+    map.addLayer({ id:'finds-glow', type:'circle', source:'finds',
+      paint:{ 'circle-radius': 7, 'circle-color': ['get','c'], 'circle-blur': 0.7, 'circle-opacity': 0,
+              'circle-stroke-color': ['get','c'], 'circle-stroke-width': 0.5 } });
+    // fade them in
+    let o = 0; const fade = setInterval(() => { o += 0.08; if (o>=0.9){ o=0.9; clearInterval(fade);} if (map.getLayer('finds-glow')) map.setPaintProperty('finds-glow','circle-opacity', o); }, REDUCED ? 999999 : 60);
+    if (REDUCED && map.getLayer('finds-glow')) map.setPaintProperty('finds-glow','circle-opacity', 0.9);
+  }
+
+  /* ---------- setup meter ---------- */
+  function setSetup(step) {
+    const pct = (step / 4) * 100;
+    const fill = document.getElementById('setupFill');
+    const lbl = document.getElementById('setupPct');
+    if (fill) fill.style.width = pct + '%';
+    if (lbl) lbl.textContent = step + ' / 4';
+  }
+
+  /* ---------- wire the CTAs ---------- */
+  document.getElementById('sweepBtn')?.addEventListener('click', () => startSweep());
+  document.getElementById('pickBtn')?.addEventListener('click', () => {
+    toast('<div class="row"><i data-lucide="map-pin" style="color:var(--purple-hot);width:18px;height:18px"></i><div><b style="color:var(--text-hi)">Modo seleção</b><div class="t-xs t-dim">Clique em qualquer zona do mapa pra varrer.</div></div></div>');
+    icons();
+    if (map) map.getCanvas().style.cursor = 'crosshair';
+  });
+  document.querySelectorAll('[data-jumpsweep]').forEach(b => b.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: REDUCED ? 'auto' : 'smooth' });
+    setTimeout(() => startSweep(), REDUCED ? 0 : 600);
+  }));
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 's' || e.key === 'S') && !swept && !/input|textarea/i.test(document.activeElement?.tagName || '')) startSweep();
+  });
+
+  /* ---------- onboarding tour ---------- */
+  const TOUR = [
+    { t: 'O mapa é o coração', b: 'Tudo nasce de uma varredura. Clique numa zona e o Hermes encontra, audita e pinta cada negócio por oportunidade.' },
+    { t: 'A esteira de leads', b: 'Cada negócio vira um card com score, nicho, porte e receita estimada. Nunca uma tabela — você decide num relance.' },
+    { t: 'O dossiê de vendas', b: 'Receita real vs. potencial, concorrentes e o que falta no digital deles. O argumento de venda pronto pra impactar.' },
+    { t: 'A central de comando', b: '40+ agentes monitorados ao vivo. Dispare varreduras, aprove dossiês e mande pra Vuecra e Geronimo executarem.' }
+  ];
+  let ti = 0;
+  const tourEl = document.getElementById('tour');
+  const dotsEl = document.getElementById('tourDots');
+  TOUR.forEach((_, i) => { const s = document.createElement('span'); if (i === 0) s.className = 'active'; dotsEl.appendChild(s); });
+
+  function renderTour() {
+    document.getElementById('tourStep').textContent = `Passo ${ti + 1} de ${TOUR.length}`;
+    document.getElementById('tourTitle').textContent = TOUR[ti].t;
+    document.getElementById('tourBody').textContent = TOUR[ti].b;
+    [...dotsEl.children].forEach((s, i) => s.classList.toggle('active', i === ti));
+    document.getElementById('tourNext').innerHTML = ti === TOUR.length - 1
+      ? 'Começar a varrer <i data-lucide="radar" style="width:15px;height:15px"></i>'
+      : 'Próximo <i data-lucide="arrow-right" style="width:15px;height:15px"></i>';
+    icons();
+  }
+  function openTour() {
+    ti = 0; renderTour(); tourEl.hidden = false;
+    if (window.gsap && !REDUCED) gsap.fromTo('#tourCard', { y: 16, opacity: 0, scale: .96 }, { y: 0, opacity: 1, scale: 1, duration: .4, ease: 'back.out(1.5)' });
+  }
+  function closeTour() { tourEl.hidden = true; setSetup(Math.max(1, swept ? 2 : 1)); }
+  document.getElementById('tourBtn')?.addEventListener('click', openTour);
+  document.getElementById('tourClose')?.addEventListener('click', closeTour);
+  document.getElementById('tourScrim')?.addEventListener('click', closeTour);
+  document.getElementById('tourNext')?.addEventListener('click', () => {
+    if (ti < TOUR.length - 1) {
+      ti++; renderTour();
+      if (window.gsap && !REDUCED) gsap.fromTo('#tourCard', { x: 14, opacity: .4 }, { x: 0, opacity: 1, duration: .3, ease: 'power2.out' });
+    } else { closeTour(); startSweep(); }
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !tourEl.hidden) closeTour(); });
+
+  /* ---------- entrance choreography (GSAP) ---------- */
+  if (window.gsap && !REDUCED) {
+    gsap.from('.topbar', { y: -14, opacity: 0, duration: .6, ease: 'power3.out' });
+    gsap.from('.reticle', { scale: .7, opacity: 0, duration: .7, delay: .15, ease: 'back.out(1.6)' });
+  }
+
+  /* ---------- pipeline flow lines pulse on scroll into view ---------- */
+  if ('IntersectionObserver' in window && !REDUCED) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(en => { if (en.isIntersecting) { en.target.style.animationPlayState = 'running'; } });
+    }, { threshold: 0.2 });
+    document.querySelectorAll('.stage-card').forEach(c => io.observe(c));
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes 2.0 — Concorrência</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="design-system-v2.css">
+<style>
+/* ---- pagina-especifico: tudo herda dos tokens do design-system-v2 ---- */
+
+/* contexto: quem estou olhando vs quem domina */
+.context{display:flex;align-items:center;gap:14px;padding:22px 4px 4px;flex-wrap:wrap}
+.who{display:flex;align-items:center;gap:11px}
+.who .ava{width:38px;height:38px;border-radius:11px;background:radial-gradient(circle at 30% 25%,var(--surface-2),var(--bg-2));border:0.5px solid var(--line-2);display:grid;place-items:center;font-size:19px;color:var(--tx2);flex-shrink:0}
+.who .ava.lead{background:linear-gradient(145deg,var(--cool-soft),transparent);color:var(--cool);box-shadow:0 0 18px -8px var(--cool)}
+.who .nm{display:flex;flex-direction:column;gap:1px;line-height:1.2}
+.who .nm b{font-weight:500;font-size:14.5px}
+.who .nm span{font-size:11.5px;color:var(--tx3)}
+.vs{font-size:11px;color:var(--tx4);text-transform:uppercase;letter-spacing:.14em;font-weight:500;padding:0 2px}
+
+/* layout principal: 2 colunas fluidas */
+.grid2{display:grid;grid-template-columns:1.12fr 0.88fr;gap:18px;margin-top:20px}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+.section-k{display:flex;align-items:center;gap:9px;padding:2px 2px 14px}
+.section-k i{font-size:17px;color:var(--tx3)}
+.section-k b{font-weight:500;font-size:14px}
+.section-k .hint{font-size:11.5px;color:var(--tx4);font-weight:400}
+.pad{padding:20px}
+
+/* ===== (a) Voce vs o lider — barras pareadas, eixos em PT ===== */
+.cmp{display:flex;flex-direction:column;gap:15px}
+.cmp .leg{display:flex;align-items:center;gap:18px;font-size:11.5px;color:var(--tx3);padding-bottom:2px}
+.cmp .leg span{display:inline-flex;align-items:center;gap:6px}
+.cmp .leg .sw{width:9px;height:9px;border-radius:3px}
+.cmp .leg .sw.you{background:var(--accent)}
+.cmp .leg .sw.them{background:var(--cool)}
+.crow{display:flex;flex-direction:column;gap:7px}
+.crow .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.crow .axis{font-size:13px;color:var(--tx2);display:flex;align-items:center;gap:7px}
+.crow .axis i{font-size:15px;color:var(--tx4)}
+.crow .delta{font-size:11px;color:var(--tx4);font-weight:500}
+.crow .delta.behind{color:var(--warm)}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bln{display:flex;align-items:center;gap:9px}
+.bln .who-k{font-size:10px;color:var(--tx4);width:34px;text-transform:uppercase;letter-spacing:.05em;font-weight:500}
+.bln .track{flex:1;height:9px;border-radius:5px;background:var(--bg-2);border:0.5px solid var(--line);overflow:hidden}
+.bln .fill{display:block;height:100%;border-radius:5px;transition:width .8s var(--ease)}
+.bln .fill.you{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+.bln .fill.them{background:linear-gradient(90deg,var(--cool),var(--cool-soft))}
+.bln .pc{font-size:11.5px;color:var(--tx3);width:34px;text-align:right;font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:reduce){.bln .fill{transition:none}}
+
+/* ===== (d) Quanto cada um domina — share simples (linha empilhada) ===== */
+.share{display:flex;flex-direction:column;gap:14px}
+.sbar{display:flex;height:30px;border-radius:9px;overflow:hidden;border:0.5px solid var(--line)}
+.sbar .seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--bg);transition:flex .6s var(--ease);min-width:0;overflow:hidden;white-space:nowrap}
+.skey{display:flex;flex-direction:column;gap:9px}
+.skey .it{display:flex;align-items:center;gap:10px;font-size:12.5px}
+.skey .dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.skey .it .nm{color:var(--tx2);flex:1;min-width:0}
+.skey .it .nm.me{color:var(--tx);font-weight:500}
+.skey .it .v{color:var(--tx3);font-variant-numeric:tabular-nums}
+.skey .it .v b{color:var(--tx);font-weight:600}
+.skey .it.me-row{background:var(--accent-soft);margin:0 -8px;padding:7px 8px;border-radius:9px}
+
+/* ===== (b) O que o concorrente faz que voce nao — lista de brechas ===== */
+/* progressive disclosure: abre no HOVER (igual esteira) e fixa no CLICK.
+   conteudo abaixo SEMPRE existe no DOM; so a altura anima. */
+.gaps{display:flex;flex-direction:column;gap:9px}
+.gap-it{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-sm);overflow:hidden;transition:border-color .3s var(--ease),background .3s var(--ease),box-shadow .35s var(--ease)}
+.gap-it:hover{border-color:var(--line-2);background:var(--surface-2);box-shadow:var(--shadow-sm)}
+.gap-it.open{border-color:var(--accent);background:var(--surface-2);box-shadow:var(--shadow-sm),0 0 0 1px var(--accent-soft)}
+.gap-head{display:flex;align-items:center;gap:13px;padding:14px 16px;cursor:pointer}
+.gap-ic{width:34px;height:34px;border-radius:10px;background:var(--warm-soft);color:var(--warm);display:grid;place-items:center;font-size:17px;flex-shrink:0;transition:transform .3s var(--ease-2)}
+.gap-it:hover .gap-ic,.gap-it.open .gap-ic{transform:translateY(-1px)}
+.gap-tx{flex:1;min-width:0}
+.gap-tx b{font-weight:500;font-size:14px;display:block;line-height:1.3}
+.gap-tx span{font-size:12px;color:var(--tx3);display:block;margin-top:2px}
+.gap-imp{font-size:10.5px;color:var(--warm);background:var(--warm-soft);border:0.5px solid var(--warm-soft);padding:4px 9px;border-radius:7px;white-space:nowrap;font-weight:500}
+.gap-imp.quick{color:var(--good);background:var(--good-soft);border-color:var(--good-soft)}
+.gap-pin{color:var(--accent-2);font-size:13px;opacity:0;transition:opacity .25s;flex-shrink:0}
+.gap-it.open .gap-pin{opacity:1}
+.gap-chev{color:var(--tx4);font-size:18px;transition:transform .35s var(--ease),color .3s;flex-shrink:0}
+.gap-it:hover .gap-chev,.gap-it.open .gap-chev{transform:rotate(90deg);color:var(--tx2)}
+.gap-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease)}
+.gap-it:hover .gap-body,.gap-it.open .gap-body{grid-template-rows:1fr}
+.gap-body .in{overflow:hidden;min-height:0}
+.gap-pad{padding:2px 16px 16px 63px;display:flex;flex-direction:column;gap:13px}
+.offer{background:var(--bg-2);border:0.5px solid var(--line);border-radius:var(--r-sm);padding:13px 14px;display:flex;flex-direction:column;gap:9px}
+.offer .lab{font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.07em;font-weight:500;display:flex;align-items:center;gap:6px}
+.offer .lab i{color:var(--accent-2);font-size:14px}
+.offer .desc{font-size:13px;color:var(--tx);line-height:1.45}
+.offer .meta-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--tx3)}
+.offer .meta-row b{color:var(--good);font-weight:600}
+.gap-acts{display:flex;gap:7px;flex-wrap:wrap}
+
+/* ===== (c) Palavras pra focar no Google ===== */
+.kw{display:flex;flex-direction:column;gap:2px}
+.kw .kh{display:flex;align-items:center;gap:10px;padding:8px 14px 9px;font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.06em;font-weight:500}
+.kw .kh .kt{flex:1}
+.kw .kh .kd{width:88px;text-align:center}
+.kw .kh .kc{width:96px;text-align:right}
+.kw-it{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--r-sm);cursor:pointer;transition:background .2s var(--ease)}
+.kw-it:hover{background:var(--surface-2)}
+.kw-it .kt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.kw-it .kt b{font-weight:450;font-size:13.5px;color:var(--tx)}
+.kw-it .kt span{font-size:11px;color:var(--tx4)}
+.kw-it .kd{width:88px;display:flex;justify-content:center}
+.diff{font-size:10.5px;font-weight:500;padding:4px 10px;border-radius:7px;white-space:nowrap}
+.diff.facil{color:var(--good);background:var(--good-soft)}
+.diff.medio{color:var(--warm);background:var(--warm-soft)}
+.diff.disputado{color:var(--cool);background:var(--cool-soft)}
+.kw-it .kc{width:96px;text-align:right;font-size:12.5px;color:var(--tx2);font-variant-numeric:tabular-nums}
+.kw-it .kc span{color:var(--tx4);font-size:10.5px}
+
+/* faixa / range toggle subtil */
+.rangebar{display:flex;align-items:center;gap:9px;margin-left:auto;font-size:11.5px;color:var(--tx3)}
+.tgl{position:relative;width:34px;height:19px;border-radius:999px;background:var(--bg-2);border:0.5px solid var(--line-2);cursor:pointer;transition:background .2s}
+.tgl::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--tx3);transition:transform .25s var(--ease),background .2s}
+.tgl.on{background:var(--accent-soft)}
+.tgl.on::after{transform:translateX(15px);background:var(--accent-2)}
+
+/* footer acao */
+.footbar{display:flex;align-items:center;gap:10px;margin-top:22px;padding-top:20px;border-top:0.5px solid var(--line);flex-wrap:wrap}
+.footbar .ftx{font-size:12.5px;color:var(--tx3)}
+.footbar .ftx b{color:var(--tx);font-weight:500}
+</style>
+</head>
+<body>
+<div class="wrap wide">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-windmill"></i></div>
+      <b>Concorrência</b><span class="dim">· Cuiabá / MT</span>
+    </div>
+    <nav class="nav">
+      <a href="cmd-v2.html">Painel</a>
+      <a href="map-v2.html">Mapa</a>
+      <a href="02b-esteira-v2.html">Esteira</a>
+      <a href="dossier-v2.html">Dossiê</a>
+      <a href="competitors-v2.html" class="on">Concorrência</a>
+      <a href="agent-v2.html">Agente</a>
+      <a href="myday-v2.html">Meu dia</a>
+    </nav>
+    <span class="spacer"></span>
+    <label class="search"><i class="ti ti-search"></i><input id="q" placeholder="Trocar de negócio…"></label>
+  </header>
+
+  <!-- quem estou comparando -->
+  <div class="context reveal">
+    <div class="who">
+      <div class="ava"><i class="ti ti-paw"></i></div>
+      <div class="nm"><b>Clube dos Bichos</b><span>Pet shop · Jardim das Américas</span></div>
+    </div>
+    <span class="vs">contra o líder</span>
+    <div class="who">
+      <div class="ava lead"><i class="ti ti-crown"></i></div>
+      <div class="nm"><b>PetCenter Cuiabá</b><span>Quem mais aparece no bairro</span></div>
+    </div>
+    <div class="rangebar">
+      Mostrar como faixa
+      <span class="tgl" id="rangeTgl" role="switch" aria-checked="false" tabindex="0"></span>
+    </div>
+  </div>
+
+  <!-- resumo discreto · numeros base inline (visiveis sem JS/animacao) -->
+  <div class="glance reveal" style="margin-top:14px">
+    <div class="m"><span class="n cool">3º</span><span class="l">posição no bairro hoje</span></div>
+    <div class="m"><span class="n warm" data-cnt="4">4</span><span class="l">brechas pra fechar</span></div>
+    <div class="m"><span class="n acc" id="g-share" data-cnt="14" data-suf="%">14%</span><span class="l">do mercado é seu hoje</span></div>
+    <div class="m"><span class="n good" id="g-pot" data-cnt="38" data-suf="%">38%</span><span class="l">dá pra chegar em 90 dias</span></div>
+  </div>
+
+  <div class="grid2">
+
+    <!-- COLUNA ESQUERDA -->
+    <div class="col" style="gap:18px">
+
+      <!-- (a) Voce vs o lider -->
+      <section class="card reveal" style="animation-delay:60ms">
+        <div class="pad">
+          <div class="section-k">
+            <i class="ti ti-chart-bar"></i>
+            <b>Você contra o líder</b>
+            <span class="hint">o que ele faz melhor — e onde você empata</span>
+          </div>
+          <div class="cmp">
+            <div class="leg">
+              <span><span class="sw you"></span>Clube dos Bichos</span>
+              <span><span class="sw them"></span>PetCenter (líder)</span>
+            </div>
+            <div id="cmpRows"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- (b) Brechas -->
+      <section class="reveal" style="animation-delay:120ms">
+        <div class="section-k">
+          <i class="ti ti-shield-bolt"></i>
+          <b>O que o concorrente faz que você não faz</b>
+          <span class="hint">toque pra ver a solução pronta</span>
+        </div>
+        <div class="gaps" id="gaps"></div>
+      </section>
+
+    </div>
+
+    <!-- COLUNA DIREITA -->
+    <div class="col" style="gap:18px">
+
+      <!-- (d) Quanto cada um domina -->
+      <section class="card reveal" style="animation-delay:90ms">
+        <div class="pad">
+          <div class="section-k">
+            <i class="ti ti-chart-pie"></i>
+            <b>Quanto cada um domina o mercado</b>
+            <span class="hint">pet shops do bairro</span>
+          </div>
+          <div class="share">
+            <div class="sbar" id="sbar"></div>
+            <div class="skey" id="skey"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- (c) Palavras pra focar no Google -->
+      <section class="card reveal" style="animation-delay:150ms">
+        <div class="pad">
+          <div class="section-k">
+            <i class="ti ti-brand-google"></i>
+            <b>Palavras pra focar no Google</b>
+            <span class="hint">onde aparecer pra ser achado</span>
+          </div>
+          <div class="kw">
+            <div class="kh"><span class="kt">Palavra</span><span class="kd">Dificuldade</span><span class="kc">Custo /mês</span></div>
+            <div id="kwList"></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </div>
+
+  <div class="footbar reveal" style="animation-delay:200ms">
+    <span class="ftx">Resolvendo as <b>4 brechas</b>, esse negócio sai de <b>3º</b> pra disputar o <b>1º</b> em ~90 dias.</span>
+    <span class="spacer"></span>
+    <button class="act" data-tip="Roda a análise de novo com dados frescos do Google e das redes" data-act="reaudit"><i class="ti ti-refresh"></i>Auditar de novo</button>
+    <button class="act primary" data-tip="Monta o plano juntando todas as brechas numa proposta só" data-act="plan"><i class="ti ti-bulb"></i>Montar plano pra vencer</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-check"></i><span></span></div>
+
+<script>
+/* ====== DADOS REAIS (Cuiaba/MT) — solido=medido, lighter=projetado ====== */
+
+// (a) eixos em PT plano. you/them = 0..100 (% de presenca/forca medida)
+const CMP = [
+  { axis:'Aparece no Google',  icon:'ti-brand-google',     you:35,  them:88, lead:true },
+  { axis:'Anuncia (pago)',     icon:'ti-speakerphone',     you:0,   them:72, lead:true },
+  { axis:'Tem site',           icon:'ti-world',            you:0,   them:90, lead:true },
+  { axis:'Redes ativas',       icon:'ti-heart',            you:64,  them:58, lead:false },
+  { axis:'Avaliações',         icon:'ti-star',             you:82,  them:70, lead:false },
+];
+
+// (d) share de mercado — me=true marca o nosso negocio
+const SHARE = [
+  { nm:'PetCenter Cuiabá', v:41, col:'var(--cool)' },
+  { nm:'Mundo Animal',     v:24, col:'oklch(0.60 0.09 240)' },
+  { nm:'Clube dos Bichos', v:14, col:'var(--accent)', me:true },
+  { nm:'Outros (8)',       v:21, col:'var(--tx4)' },
+];
+
+// (b) brechas + oferta recomendada (aparece ao abrir)
+const GAPS = [
+  { id:'site', icon:'ti-world-off', title:'Tem site, você não',
+    why:'O líder fecha venda pelo site 24h. Você depende de WhatsApp no horário comercial.',
+    imp:'Alto impacto',
+    offer:{ what:'Site pronto com agendamento de banho e tosa e catálogo de produtos.',
+            time:'Pronto em 5 dias', price:'a partir de R$ 1.200', by:'Vuecra monta automático' },
+    acts:[{k:'site',label:'Mandar fazer o site',icon:'ti-world-bolt',tip:'Vuecra monta um site pronto pra esse negócio',primary:true}] },
+  { id:'ads', icon:'ti-speakerphone', title:'Anuncia no Google e Instagram, você não',
+    why:'Quem busca "pet shop perto de mim" vê o concorrente primeiro. Você fica invisível.',
+    imp:'Alto impacto',
+    offer:{ what:'Campanha local focada no bairro, com orçamento controlado e relatório simples.',
+            time:'No ar em 3 dias', price:'R$ 600/mês de mídia', by:'Geronimo monta a estratégia' },
+    acts:[{k:'strategy',label:'Pedir estratégia',icon:'ti-bulb',tip:'Geronimo monta o plano de anúncios',primary:true},
+          {k:'google',label:'Aparecer no Google',icon:'ti-brand-google',tip:'Quais palavras focar e quanto custa'}] },
+  { id:'google', icon:'ti-map-pin-off', title:'Aparece no topo do mapa, você no 3º',
+    why:'A ficha do Google do líder está completa e respondida. A sua está parada há meses.',
+    imp:'Médio impacto',
+    offer:{ what:'Ficha do Google completa, fotos novas e respostas às avaliações.',
+            time:'Pronto em 2 dias', price:'incluído no plano', by:'Hermes cuida' },
+    acts:[{k:'google',label:'Arrumar o Google',icon:'ti-brand-google',tip:'Completa a ficha pra subir no mapa',primary:true}] },
+  { id:'reviews', icon:'ti-message-off', title:'Responde todas as avaliações, você quase nenhuma',
+    why:'Você tem nota melhor (4.8 vs 4.5), mas não responde. Resposta gera confiança e sobe no Google.',
+    imp:'Ganho rápido',
+    offer:{ what:'Respostas automáticas e educadas a cada nova avaliação, no seu tom.',
+            time:'Ativa hoje', price:'incluído no plano', by:'Hermes responde' },
+    acts:[{k:'reviews',label:'Ativar respostas',icon:'ti-message-check',tip:'Responde avaliações no automático',primary:true}] },
+];
+
+// (c) palavras Google — custo em R$/mes (sem jargao de CPC), dificuldade plana
+const KW = [
+  { term:'banho e tosa cuiabá',        ctx:'muita gente busca',       diff:'medio',     min:280, max:420 },
+  { term:'pet shop jardim das américas',ctx:'seu bairro · pouca briga', diff:'facil',     min:90,  max:160 },
+  { term:'ração entrega cuiabá',       ctx:'compra recorrente',       diff:'disputado', min:520, max:780 },
+  { term:'veterinário perto de mim',   ctx:'urgência · fecha rápido', diff:'medio',     min:340, max:500 },
+  { term:'hotel pet cuiabá',           ctx:'ticket alto · nicho',     diff:'facil',     min:70,  max:130 },
+];
+
+const DIFF_LABEL = { facil:'fácil', medio:'médio', disputado:'disputado' };
+
+/* ====== RENDER ====== */
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let asRange = false;
+
+function reais(v){ return 'R$ '+v.toLocaleString('pt-BR'); }
+
+// (a) barras pareadas — largura inline (base visivel sem anim), anim so realca
+function renderCmp(){
+  document.getElementById('cmpRows').innerHTML = CMP.map(c=>{
+    const behind = c.you < c.them;
+    const d = Math.abs(c.them - c.you);
+    const deltaTx = c.you===0 ? 'líder na frente' : (behind ? d+' pts atrás' : (c.you-c.them)+' pts à frente');
+    return `<div class="crow" style="margin-bottom:14px">
+      <div class="top">
+        <span class="axis"><i class="ti ${c.icon}"></i>${c.axis}</span>
+        <span class="delta ${behind?'behind':''}">${behind?'<i class="ti ti-arrow-down-right" style="font-size:13px;vertical-align:-2px"></i> ':''}${deltaTx}</span>
+      </div>
+      <div class="bars">
+        <div class="bln"><span class="who-k">Você</span><span class="track"><span class="fill you" style="width:${c.you}%"></span></span><span class="pc">${c.you}%</span></div>
+        <div class="bln"><span class="who-k">Líder</span><span class="track"><span class="fill them" style="width:${c.them}%"></span></span><span class="pc">${c.them}%</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// (d) share — flex inline = sempre visivel
+function renderShare(){
+  document.getElementById('sbar').innerHTML = SHARE.map(s=>
+    `<div class="seg" style="flex:${s.v};background:${s.col}" title="${s.nm} ${s.v}%">${s.v>=12?s.v+'%':''}</div>`
+  ).join('');
+  document.getElementById('skey').innerHTML = SHARE.map(s=>{
+    const lo = Math.max(0, s.v-3), hi = s.v+4;
+    const val = asRange ? `<b>${lo}–${hi}%</b>` : `<b>${s.v}%</b>`;
+    return `<div class="it ${s.me?'me-row':''}">
+      <span class="dot" style="background:${s.col}"></span>
+      <span class="nm ${s.me?'me':''}">${s.nm}${s.me?' · você':''}</span>
+      <span class="v">${val}</span>
+    </div>`;
+  }).join('');
+}
+
+// (b) brechas
+function renderGaps(){
+  document.getElementById('gaps').innerHTML = GAPS.map(g=>{
+    const acts = g.acts.map(a=>`<button class="act ${a.primary?'primary':''}" data-tip="${a.tip}" data-act="${a.k}" data-gap="${g.title}"><i class="ti ${a.icon}"></i>${a.label}</button>`).join('');
+    return `<article class="gap-it" data-id="${g.id}" title="Passe o mouse pra ver a solução · clique pra fixar">
+      <div class="gap-head">
+        <div class="gap-ic"><i class="ti ${g.icon}"></i></div>
+        <div class="gap-tx"><b>${g.title}</b><span>${g.why}</span></div>
+        <span class="gap-imp${g.imp==='Ganho rápido'?' quick':''}">${g.imp}</span>
+        <i class="ti ti-pin gap-pin" title="fixado"></i>
+        <i class="ti ti-chevron-right gap-chev"></i>
+      </div>
+      <div class="gap-body"><div class="in"><div class="gap-pad">
+        <div class="offer">
+          <span class="lab"><i class="ti ti-sparkles"></i>O que resolve isso</span>
+          <span class="desc">${g.offer.what}</span>
+          <span class="meta-row"><span><i class="ti ti-clock" style="vertical-align:-2px;font-size:13px"></i> ${g.offer.time}</span><span><b>${g.offer.price}</b></span><span><i class="ti ti-robot" style="vertical-align:-2px;font-size:13px"></i> ${g.offer.by}</span></span>
+        </div>
+        <div class="gap-acts">${acts}
+          <button class="act" data-tip="Marca essa brecha como já resolvida" data-act="done" data-gap="${g.title}"><i class="ti ti-check"></i>Já resolvi</button>
+        </div>
+      </div></div></div>
+    </article>`;
+  }).join('');
+}
+
+// (c) palavras Google
+function renderKw(){
+  document.getElementById('kwList').innerHTML = KW.map(k=>{
+    const cost = asRange ? `${reais(k.min)}–${reais(k.max).replace('R$ ','')}` : reais(Math.round((k.min+k.max)/2));
+    return `<div class="kw-it" data-act="kw" data-gap="${k.term}" data-tip="Cria a campanha pra essa palavra">
+      <div class="kt"><b>${k.term}</b><span>${k.ctx}</span></div>
+      <div class="kd"><span class="diff ${k.diff}">${DIFF_LABEL[k.diff]}</span></div>
+      <div class="kc">${cost} <span>aprox.</span></div>
+    </div>`;
+  }).join('');
+}
+
+/* ====== INTERACOES ====== */
+const toast = document.getElementById('toast');
+function showToast(msg){ toast.querySelector('span').textContent=msg; toast.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>toast.classList.remove('show'),2200); }
+
+// brecha: abre no hover (CSS) e FIXA no click (.open) p/ quem usa toque/teclado.
+// click em acao = toast. conteudo nunca depende de animacao p/ existir.
+document.getElementById('gaps').addEventListener('click',e=>{
+  const act = e.target.closest('.act');
+  if(act){ e.stopPropagation();
+    const map={site:'Pedido de site enviado ao Vuecra',strategy:'Pedido enviado ao Geronimo',google:'Plano de Google em preparo',reviews:'Respostas automáticas ativadas',done:'Brecha marcada como resolvida'};
+    showToast((map[act.dataset.act]||'Resolvendo')+' · '+act.dataset.gap); return;
+  }
+  const head = e.target.closest('.gap-head');
+  if(head){ head.closest('.gap-it').classList.toggle('open'); }
+});
+
+// palavras Google
+document.getElementById('kwList').addEventListener('click',e=>{
+  const it=e.target.closest('.kw-it'); if(it) showToast('Criando campanha · '+it.dataset.gap);
+});
+
+// footer acoes
+document.querySelector('.footbar').addEventListener('click',e=>{
+  const act=e.target.closest('.act'); if(!act)return;
+  showToast(act.dataset.act==='plan'?'Montando plano pra vencer o líder':'Auditando de novo com dados frescos');
+});
+
+// toggle faixa
+const tgl=document.getElementById('rangeTgl');
+function toggleRange(){ asRange=!asRange; tgl.classList.toggle('on',asRange); tgl.setAttribute('aria-checked',asRange);
+  renderShare(); renderKw();
+  document.getElementById('g-share').textContent = asRange?'11–18%':'14%';
+}
+tgl.addEventListener('click',toggleRange);
+tgl.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleRange();} });
+
+// busca (placeholder de troca de negocio) — apenas toast
+document.getElementById('q').addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target.value.trim()) showToast('Trocando análise pra · '+e.target.value.trim()); });
+
+/* ====== BOOT ====== */
+renderCmp(); renderShare(); renderGaps(); renderKw();
+
+// ENHANCEMENT (reduced-motion-safe). Regra de ouro: tudo ja esta renderizado
+// com o VALOR REAL inline (visivel sem JS). Sob no-preference fazemos um sweep
+// 0 -> valor real e SEMPRE terminamos no valor real. Sob reduced-motion: nada
+// roda, tudo permanece visivel exatamente como esta.
+if(!RM){
+  // (a) barras pareadas: 0 -> largura medida
+  const fills=[...document.querySelectorAll('.cmp .fill')];
+  const reals=fills.map(f=>f.style.width);
+  fills.forEach(f=>{ f.style.width='0%'; });
+
+  // (d) share: cada segmento cresce do 0 -> flex real (transition vem do CSS .seg)
+  const segs=[...document.querySelectorAll('#sbar .seg')];
+  const flexReals=segs.map(s=>s.style.flexGrow||s.style.flex);
+  segs.forEach(s=>{ s.style.flex='0'; });
+
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    fills.forEach((f,i)=>{ f.style.width=reals[i]; });
+    segs.forEach((s,i)=>{ s.style.flex=flexReals[i]; });
+  }));
+
+  // glance: contagem ate o valor real (so digitos; sufixo preservado)
+  document.querySelectorAll('.glance [data-cnt]').forEach(el=>{
+    const to=+el.dataset.cnt, suf=el.dataset.suf||''; let s=null; const dur=720;
+    el.textContent='0'+suf;
+    requestAnimationFrame(function step(t){ if(!s)s=t;
+      const p=Math.min(1,(t-s)/dur), e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(to*e)+suf;
+      if(p<1)requestAnimationFrame(step); else el.textContent=to+suf;
+    });
+  });
+}
+</script>
+</body>
+</html>

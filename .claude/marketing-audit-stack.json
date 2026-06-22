@@ -1,0 +1,193 @@
+{
+  "$schema": "internal/hermes-marketing-audit-stack",
+  "sealed": "2026-06-21",
+  "context": {
+    "owner": "Caio",
+    "location": "Cuiaba, Mato Grosso, Brazil",
+    "constraint": "$0-first, self-hosted Contabo, NO mock, NO fabricated precision",
+    "products": ["Geronimo (marketing+automation)", "Vuecra (sites)"],
+    "core_rule": "Every number tagged [FACT] or [EST faixa]. Scrape/parse = FACT. Modeled multiplier = ESTIMATE-with-range. Invented = FORBIDDEN.",
+    "guardrails": [
+      "Playwright/Patchright + browser binaries run ONLY on the VM, NEVER the PC",
+      "Ollama writes PT-BR prose ONLY, never generates facts/numbers",
+      "Scoring path is LLM-free (deterministic, reproducible)",
+      "Throttle all scrapers; VM-only; expect breakage every 2-4 weeks"
+    ]
+  },
+  "feasibility_legend": {
+    "solid-free": "genuinely $0, unlimited or generous, low risk",
+    "with-limits": "$0 works but rate/ToS/range-constrained or per-niche",
+    "proxy-only": "no direct $0 source, use observable proxies",
+    "no-free-way": "requires paid"
+  },
+  "dimensions": [
+    {
+      "id": 1,
+      "name": "presence-social-ads",
+      "feasibility": "solid-free",
+      "primary_tool": "Meta Ad Library (public web) + Google Ads Transparency Center",
+      "outputs": ["networks present/absent map", "ad creatives + count + start dates", "page age", "follower/post counts"],
+      "facts": ["which social networks", "ads running yes/no", "literal creative image/video URLs (downloadable)", "ad start date + active status + platforms", "FB page created date + name changes", "IG followers_count + posts_count"],
+      "estimates": ["posting cadence (visible ~12 posts window, as range)", "reach"],
+      "forbidden": ["exact commercial ad spend in R$", "follower/engagement for networks not fetched", "inferring an ad exists when library returned nothing"],
+      "tools": [
+        {"name": "Meta Ad Library", "free": "truly-free, no login", "url": "https://www.facebook.com/ads/library", "note": "Playwright GraphQL interception on VM; NOT official API (BR commercial=political-only, no creative downloads)"},
+        {"name": "FB Page Transparency tab", "free": "truly-free", "url": "https://www.facebook.com/help/323314944866264"},
+        {"name": "Google Ads Transparency Center", "free": "truly-free, no login", "url": "https://adstransparency.google.com/?region=BR"},
+        {"name": "faniAhmed/GoogleAdsTransparencyScraper", "free": "free OSS, no key", "url": "https://github.com/faniAhmed/GoogleAdsTransparencyScraper", "risk": "scrape-risk, Jul-2023 release may need patch"},
+        {"name": "requests + BeautifulSoup", "free": "truly-free", "url": "https://pypi.org/project/beautifulsoup4/"},
+        {"name": "Instagram public profile fetch", "free": "free, no login", "risk": "scrape-risk, breaks every 2-4wk, datacenter IP blocked"},
+        {"name": "Playwright / Patchright", "free": "free", "note": "VM-ONLY"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "seo-position",
+      "feasibility": "with-limits",
+      "primary_tool": "Lighthouse CLI (tech, unlimited) + Serper free then self-host scraper (rank)",
+      "outputs": ["per-site tech scorecard", "rank + local-pack snapshot", "rank history in Postgres"],
+      "facts": ["organic rank snapshot (date+geo)", "local-pack top-3 occupancy", "Lighthouse perf/SEO/a11y scores + lab CWV", "CrUX field CWV", "title/meta/H1/canonical/robots/sitemap/schema present"],
+      "estimates": ["niche search volume", "lost clicks/leads (volume x CTR curve)", "revenue-at-stake"],
+      "forbidden": ["exact competitor traffic", "exact competitor revenue", "single-point lost-R$ without range", "implying one rank observation is a stable average"],
+      "tools": [
+        {"name": "Lighthouse CLI", "free": "truly-free, unlimited, self-host", "url": "https://developer.chrome.com/docs/lighthouse/overview"},
+        {"name": "PageSpeed Insights API", "free": "free 25k/day", "url": "https://developers.google.com/speed/docs/insights/v5/get-started"},
+        {"name": "CrUX API", "free": "free 150 q/min", "url": "https://developer.chrome.com/docs/crux/api/"},
+        {"name": "Serper", "free": "free-tier 2500 once, no card", "url": "https://serper.dev", "geo": "gl=br, hl=pt-br, location=Cuiaba"},
+        {"name": "SchemaCheck", "free": "truly-free REST", "url": "https://www.schemacheck.dev/"},
+        {"name": "gosom/google-maps-scraper", "free": "free self-host", "url": "https://github.com/gosom/google-maps-scraper", "risk": "scrape-risk"},
+        {"name": "christophebe/serp", "free": "free self-host", "url": "https://github.com/christophebe/serp", "risk": "scrape-risk"},
+        {"name": "Google Keyword Planner / Keyword Surfer", "free": "free w/ Ads acct / free ext", "url": "https://ads.google.com/home/tools/keyword-planner/"}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "competitive-analysis",
+      "feasibility": "with-limits",
+      "primary_tool": "Overpass + Google Maps (set) + Meta/Google ad-presence + PageSpeed",
+      "outputs": ["5-10 ranked competitors", "comparison matrix with color-coded gaps"],
+      "facts": ["rating, review_count, photo_count, GBP claimed, hours, has_website", "running Meta/Google ads + count + copy", "PageSpeed/CWV", "SSL/responsive/title/schema/WhatsApp-CTA", "3-pack/organic rank"],
+      "estimates": ["organic keyword count, backlink count (Semrush/Ubersuggest)", "Domain Authority", "click-share / lead-lift", "revenue projection band"],
+      "forbidden": ["SimilarWeb/Ubersuggest traffic for local (>50% error)", "exact ad spend", "exact competitor revenue/customer count"],
+      "tools": [
+        {"name": "Overpass API (OSM)", "free": "truly-free, no key", "url": "https://overpass-api.de/api/interpreter"},
+        {"name": "Nominatim", "free": "free, no key", "url": "https://nominatim.openstreetmap.org"},
+        {"name": "Google Maps (Playwright)", "free": "$0 self-host", "risk": "scrape-risk, warm session, VM not PC"},
+        {"name": "Apify / Outscraper", "free": "free-tier fallback", "url": "https://apify.com/compass/crawler-google-places"},
+        {"name": "Meta Ad Library", "free": "truly-free", "url": "https://www.facebook.com/ads/library"},
+        {"name": "Google Ads Transparency Center", "free": "truly-free", "url": "https://adstransparency.google.com"},
+        {"name": "PageSpeed Insights API", "free": "free", "url": "https://developers.google.com/speed/docs/insights/v5/get-started"},
+        {"name": "Semrush/Ubersuggest/Moz", "free": "free-tier 1-3/day", "url": "https://www.semrush.com", "use": "EST only"}
+      ]
+    },
+    {
+      "id": 4,
+      "name": "keyword-volume",
+      "feasibility": "with-limits",
+      "primary_tool": "DataForSEO keywords_data/google_ads/search_volume/live",
+      "answer": "EXACT $0 volume IS achievable: DataForSEO $1 free credit (no card) = ~20 requests x 1000 kw = up to 20,000 keywords FREE as EXACT integers, location_name=Brazil language=pt. Official Google Ads API is free but returns RANGES on no-spend accounts; exact needs ~$5-10/day spend. ALL volumes are modeled (+/-20-40%).",
+      "outputs": ["exact monthly volume + 12mo trend + CPC + competition per keyword, cached in Postgres"],
+      "facts": ["DataForSEO exact integers", "Keyword Surfer exact volume in SERP (manual)"],
+      "estimates": ["all volumes are modeled +/-20-40%", "Google Ads API buckets on no-spend acct", "long-tail local often 0/no-data"],
+      "forbidden": ["inventing a number for a no-data term", "presenting Trends 0-100 as searches/month"],
+      "tools": [
+        {"name": "DataForSEO Google Ads Search Volume API", "free": "$1 signup credit no card (~20k kw), then $0.05/request 1000kw, $50 min top-up", "url": "https://docs.dataforseo.com/v3/keywords_data-google_ads-search_volume-live/", "note": "batch 1000kw/request; cache; refresh monthly"},
+        {"name": "Google Ads API (KeywordPlanIdeaService)", "free": "free 15k ops/day but RANGES unless ad spend", "url": "https://developers.google.com/google-ads/api/docs/keyword-planning/generate-keyword-ideas"},
+        {"name": "Keyword Surfer / Glimpse", "free": "truly-free ext, manual", "url": "https://surferseo.com/keyword-surfer-extension/"},
+        {"name": "searchvolume.io / kwresearch.io", "free": "free web UI, ToS limits automation", "url": "https://searchvolume.io/"},
+        {"name": "Google Trends", "free": "free, RELATIVE only", "url": "https://trends.google.com/", "note": "pytrends ARCHIVED Apr 2025; seasonality only"}
+      ]
+    },
+    {
+      "id": 5,
+      "name": "adwords-competition",
+      "feasibility": "with-limits",
+      "primary_tool": "Google Keyword Planner (geo Cuiaba, Expert Mode, skip campaign = $0)",
+      "outputs": ["per-keyword table: CPC range BRL | competition L/M/H | #SERP ad slots | named advertisers | ad longevity"],
+      "facts": ["CPC top-of-page bid range BRL geo-Cuiaba (official Google)", "Competition L/M/H", "who advertises now + ad longevity (Transparency + Meta)", "#ad slots in live SERP snapshot"],
+      "estimates": ["search volume (FAIXAS on no-spend acct)", "effective CPC (varies w/ Quality Score)", "revenue projection band"],
+      "forbidden": ["exact # of advertisers (Google gives only L/M/H)", "exact competitor monthly spend", "national CPC applied to Cuiaba"],
+      "tools": [
+        {"name": "Google Keyword Planner", "free": "free, skip campaign never activate = $0, account-needed", "url": "https://ads.google.com/home/tools/keyword-planner/"},
+        {"name": "Google Ads Transparency Center", "free": "truly-free", "url": "https://adstransparency.google.com/"},
+        {"name": "Google-Ads-Transparency-Scraper", "free": "free OSS no key", "url": "https://github.com/faniAhmed/GoogleAdsTransparencyScraper", "risk": "Jul-2023 release, keep UI fallback"},
+        {"name": "Meta Ad Library", "free": "truly-free UI", "url": "https://www.facebook.com/ads/library/"},
+        {"name": "SERP scrape self-host", "free": "$0 VPS, FRAGILE", "risk": "anti-bot, spot-check manual not 24/7"},
+        {"name": "SearchAPI / Scrape.do", "free": "free-tier 1000 no card", "url": "https://www.searchapi.io/"},
+        {"name": "WordStream / MediaSpearhead", "free": "free, US data sanity-check only", "url": "https://www.wordstream.com/keywords"}
+      ]
+    },
+    {
+      "id": 6,
+      "name": "organic-strategy",
+      "feasibility": "solid-free",
+      "primary_tool": "Google Places Details (10k/mo free) + PageSpeed + on-disk scorers reweighted Whitespark 2026",
+      "outputs": ["0-100 score + letter grade + component bars + P0-P3 actions", "GMB checklist + reviews engine + on-page + cadence + citations", "revenue projection LOW-MID-HIGH"],
+      "facts": ["GMB rating/review_count/reviews/hours/category/photos/business_status", "Lighthouse + CWV", "schema present / NAP match / H1 / title", "competitor review counts", "Whitespark 2026 ranking weights (GBP 32/on-page 19/reviews 16/links 15/behavioral 8/citations 7/personalization 3)"],
+      "estimates": ["GMB views proxy (review-volume)", "projected leads = views x benchmark conversion band x ticket", "review-velocity lift correlation"],
+      "forbidden": ["fabricated +X customers", "invented traffic/revenue", "made-up competitor data", "ANY LLM-generated statistic (Ollama prose-only)"],
+      "tools": [
+        {"name": "Google Places API (Place Details)", "free": "free 10k Essentials events/mo (~300 audits); account+billing card on file", "url": "https://developers.google.com/maps/documentation/places/web-service/usage-and-billing", "note": "field-mask to stay in Essentials SKU; cache in SQLite"},
+        {"name": "PageSpeed Insights API", "free": "free 25k/day", "url": "https://developers.google.com/speed/docs/insights/v5/get-started"},
+        {"name": "Overpass API / OSM", "free": "truly-free no key", "url": "https://wiki.openstreetmap.org/wiki/Overpass_API"},
+        {"name": "local_seo_scorer.py (on disk)", "free": "$0 local", "path": "C:\\Users\\cleao\\.claude\\skills\\logo-architect\\external-skills\\0-shiv-secondstep\\skills\\local-seo-claude\\scripts\\local_seo_scorer.py", "note": "+ nap_checker.py same dir; reweight Whitespark 2026"},
+        {"name": "geo_checker.py (on disk)", "free": "$0 local", "path": "C:\\Users\\cleao\\.agent\\antigravity-awesome-skills\\skills\\geo-fundamentals\\scripts\\geo_checker.py"},
+        {"name": "Ollama (Qwen3 14B/8B)", "free": "$0 self-host VM :11434", "url": "https://ollama.com", "note": "PROSE ONLY, never facts/numbers"},
+        {"name": "httpx + selectolax", "free": "$0 self-host", "url": "https://www.python-httpx.org"}
+      ]
+    },
+    {
+      "id": 7,
+      "name": "revenue-data-pricing",
+      "feasibility": "with-limits",
+      "primary_tool": "gosom/google-maps-scraper + iFood __NEXT_DATA__ price waterfall",
+      "niche_hit_rates": {"food": "70-90%", "beauty/services": "30-50%", "retail/ecom-ish": "10-20%", "image-only-IG": "low -> niche-median fallback"},
+      "outputs": ["real prices (source-tagged) where public", "demand band from reviews + popular_times", "niche-median ticket table"],
+      "facts": ["real prices from iFood/GBP-menu/schema/OCR (quote verbatim)", "review_count, rating, popular_times", "has/lacks website/online-ordering/schema (binary)"],
+      "estimates": ["niche-median ticket (median + p25/p75, show n)", "monthly demand: reviews ~1-3% of transactions -> LOW(reviews/0.03)-HIGH(reviews/0.01)", "capacity ceiling from popular_times x hours x served/hr", "keyword volume = market context only"],
+      "forbidden": ["invented monthly-customer/revenue with no basis", "pytrends absolute volume (archived)", "per-item prices inferred without source or stated niche-median"],
+      "tools": [
+        {"name": "gosom/google-maps-scraper", "free": "free MIT, no key, 33+ fields", "url": "https://github.com/gosom/google-maps-scraper", "note": "best free demand-proxy source"},
+        {"name": "iFood __NEXT_DATA__ extraction", "free": "free DIY", "url": "https://github.com/KenzoBH/Web-Scraping-and-EDA-iFood", "risk": "scrape-risk, ToS gray, rate-limit + rotate UA"},
+        {"name": "extruct", "free": "truly-free OSS", "url": "https://github.com/scrapinghub/extruct"},
+        {"name": "Tesseract + pytesseract", "free": "truly-free Apache2", "url": "https://github.com/tesseract-ocr/tesseract", "note": "-l por --psm 4"},
+        {"name": "pdfplumber", "free": "truly-free MIT", "url": "https://github.com/jsvine/pdfplumber"},
+        {"name": "Google Keyword Planner / Keywords Everywhere", "free": "free / free-credits", "url": "https://ads.google.com/home/tools/keyword-planner/", "use": "market context only"},
+        {"name": "philshem/gmaps_popular_times_scraper", "free": "free OSS", "url": "https://github.com/philshem/gmaps_popular_times_scraper"}
+      ]
+    },
+    {
+      "id": 8,
+      "name": "revenue-projection-method",
+      "feasibility": "with-limits",
+      "primary_tool": "5-factor model on $0 data, 3 scenarios",
+      "formula": "Monthly_uplift = Demand x Capture x Conversion x Ticket x Close",
+      "confidence": "MEDIUM — HIGH that the range is defensible, LOW that any single point is 'the' number; never present a point",
+      "factors": {
+        "demand": "sum monthly volume top 10-20 local kw (Cuiaba ~660k pop -> SMALL volumes, tens-hundreds/mo)",
+        "capture": "incremental CTR delta current->target. Organic FirstPageSage 2024-26: p1=39.8 p2=18.7 p3=10.2 p4=7.2 p5=5.1 p7=3.0 p10=1.6. Ads: p1=7.94 p2=4.55 p3=2.55 (avg 3.17)",
+        "conversion": "BR Neotrust/Ebit 2024: ecommerce 1.65, alimentacao 3.8, saude 3.2, beleza 2.9, moda 1.9, servicos 4.02; mobile 1.2 vs desktop 2.8; local near-me 28% -> purchase",
+        "ticket": "business OWN avg ticket — ASK, never guess",
+        "close": "services lead->client, owner-supplied typ 15-30%"
+      },
+      "scenarios": ["conservative (low volume, pos8->4, low conv, worst ticket, low close)", "likely (midpoint, pos8->3, median conv, avg ticket)", "optimistic (high volume, pos1-2, top-quartile conv, peak ticket)"],
+      "output_format": "R$ X - R$ Y - R$ Z /mo with EVERY multiplier visible and cited",
+      "forbidden": ["single 'you'll make R$X' promise", "any multiplier without cited source", "ticket/close invented instead of owner-supplied"],
+      "data_pipeline": ["Demand: DataForSEO/Keyword Planner ranges", "Position: self-host Playwright SERP scrape (VM)", "CTR/conversion: hardcoded cited BR benchmark tables", "Ticket/close: audit interview"]
+    }
+  ],
+  "stack_tiers": {
+    "truly_free_unlimited": ["Lighthouse CLI", "Overpass", "Nominatim", "extruct", "Tesseract", "pdfplumber", "gosom/google-maps-scraper", "Ollama", "on-disk scorers", "Playwright (VM)"],
+    "free_tier_limit": ["PageSpeed 25k/day", "CrUX 150/min", "Places 10k/mo", "Serper 2500 once", "DataForSEO $1", "Scrape.do 1000", "Semrush/Ubersuggest 1-3/day"],
+    "account_needed": ["Google Keyword Planner", "Google Places (billing card on file even at $0)", "DataForSEO"],
+    "scrape_risk_tos_gray": ["Meta Ad Library scraper", "Google Ads Transparency scraper", "Instagram", "Google Maps", "iFood", "SERP scrapers"]
+  },
+  "open_decisions": [
+    "Spend DataForSEO $1 free credit now to prove EXACT-volume pipeline, then $50 top-up?",
+    "Accept Places API billing card on file (stays $0) vs pure gosom scrape (no card, ToS-gray)?",
+    "Lead with FOOD niche (best price+demand coverage)? Which verticals first Geronimo vs Vuecra?",
+    "Build per-niche ticket+close table from owner knowledge now (required for projection)?",
+    "Rank-tracker cadence (weekly?) given throttle budget?",
+    "Accept scraper maintenance every 2-4 weeks (DOM/doc_id rotation)?"
+  ]
+}

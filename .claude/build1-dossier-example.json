@@ -1,0 +1,156 @@
+{
+  "_meta": {
+    "build": "Hermes 2.0 Build #1 — Diagnosis Engine",
+    "sealed": "2026-06-21",
+    "note": "REAL proof-of-concept dossier. All values from live web data pulled during POC. No mock. Tags: FACT|ESTIMATE|NEEDS-TOOL|NO-DATA. Never a guessed point number.",
+    "tag_legend": {
+      "FACT": "direct extraction (live HTML, observed SERP, public counts, sitemap, Places)",
+      "ESTIMATE": "LLM inference / benchmark extrapolation / formula output — carries visible premise",
+      "NEEDS-TOOL": "data exists but requires headless/free-API not yet wired; explicit gap, not a guess",
+      "NO-DATA": "genuinely unavailable"
+    }
+  },
+  "business": {
+    "name": "Clube dos Bichos — Petshop e Clinica/Hospital Veterinaria 24h",
+    "founded": 2006,
+    "founder": "Dr. Daniela Freire Krakhecke",
+    "website": "https://clubedosbichoscuiaba.com.br/",
+    "niche": "veterinaria + pet shop (combined)",
+    "city": "Cuiaba-MT",
+    "units": [
+      "R. Comandante Costa 1718 - Centro Sul, Cuiaba-MT, 78020-400",
+      "R. Barao de Melgaco 1756 - Porto, Cuiaba-MT, 78025-300"
+    ],
+    "phone_whatsapp": "5565992145232"
+  },
+  "dossier_status": "complete",
+  "confidence": 0.62,
+  "fact_ratio": 0.61,
+  "dim_a_presence": {
+    "status": "partial",
+    "fact_ratio": 0.6,
+    "metrics": [
+      {"label": "Instagram primary @clube.dos.bichos", "value": "4371 followers / 780 posts", "tag": "FACT", "source": "https://www.instagram.com/clube.dos.bichos/", "method": "live_html_parse"},
+      {"label": "Instagram secondary @clubedosbichoscimv", "value": "8520 followers / 1231 posts (real flagship)", "tag": "FACT", "source": "https://www.instagram.com/clubedosbichoscimv/", "method": "live_html_parse"},
+      {"label": "Split-brand problem", "value": "12.9k combined but fragmented across two inconsistent handles", "tag": "FACT", "source": "both IG urls", "method": "synthesis_of_facts"},
+      {"label": "Facebook Clubedosbichoscimv", "value": "~2049 likes, 442 check-ins", "tag": "FACT", "source": "https://www.facebook.com/Clubedosbichoscimv/", "method": "live_html_parse"},
+      {"label": "Website tracking stack", "value": "GTM-N8JQ6R8 + Google Tag GT-TQVKNZR present", "tag": "FACT", "source": "clubedosbichoscuiaba.com.br raw HTML grep", "method": "live_html_parse"},
+      {"label": "Meta Pixel", "value": "ABSENT — no fbq/connect.facebook.net/fbevents.js; cannot retarget 12.9k IG audience or track Meta conversions", "tag": "FACT", "source": "raw HTML grep returned 0", "method": "live_html_parse"},
+      {"label": "Conversion funnel", "value": "WhatsApp 5565992145232 hardcoded 11x on homepage; no booking/form-to-CRM", "tag": "FACT", "source": "raw HTML", "method": "live_html_parse"},
+      {"label": "Engagement rate sample", "value": "211 likes / 8520 = ~2.5% on one reel 2024-11-26 (single data point)", "tag": "ESTIMATE", "source": "https://www.instagram.com/clubedosbichoscimv/reel/DC2a7RXhZee/", "method": "single_post_ratio"},
+      {"label": "Posting cadence per week", "value": "1231 posts implies regular; per-week needs timeline scrape", "tag": "NEEDS-TOOL", "source": "IG timeline scraper", "method": "unavailable_via_plain_http"},
+      {"label": "YouTube @clubedosbichos", "value": "channel indexed, stats JS-walled", "tag": "NEEDS-TOOL", "source": "https://www.youtube.com/@clubedosbichos/videos", "method": "js_rendered"},
+      {"label": "Meta Ad Library active ads", "value": "403 + JS-rendered; no Meta Pixel is strong indirect signal of NO tracked Meta ads", "tag": "NEEDS-TOOL", "source": "facebook.com/ads/library", "method": "js_walled_403"},
+      {"label": "Google Ads Transparency", "value": "JS-rendered login/empty; Google Tag present != proof of campaigns", "tag": "NEEDS-TOOL", "source": "adstransparency.google.com", "method": "js_rendered"},
+      {"label": "Ad creative images", "value": "both ad libraries JS-walled to plain fetch", "tag": "NO-DATA", "source": "Meta + Google ad libraries", "method": "requires_headless_storage"}
+    ],
+    "tool_gaps": ["ig_timeline_scraper", "youtube_js", "meta_ad_library_headless", "google_ads_transparency_headless"],
+    "pitch_angle": "You have 12.9k followers across two Instagram accounts but no Meta Pixel on your site — you're paying for attention you can't measure or re-target. Three gaps: split brand, no pixel, WhatsApp-only untracked funnel."
+  },
+  "dim_b_seo": {
+    "status": "partial",
+    "fact_ratio": 0.7,
+    "metrics": [
+      {"label": "Title tag", "value": "Clinica Veterinaria | Clube dos Bichos | (65) 99214-5232 (keyword-rich)", "tag": "FACT", "source": "raw HTML <title>", "method": "live_html_parse"},
+      {"label": "Meta description", "value": "present, 156 chars, but no neighborhood/city keyword", "tag": "FACT", "source": "meta name=description", "method": "live_html_parse"},
+      {"label": "Mobile viewport + canonical", "value": "both present + correct (canonical guards legacy domains)", "tag": "FACT", "source": "meta viewport + link rel=canonical", "method": "live_html_parse"},
+      {"label": "SEO plugin", "value": "Rank Math on WordPress, OG tags present (actively managed)", "tag": "FACT", "source": "HTML comment + og:* tags", "method": "live_html_parse"},
+      {"label": "Schema gaps", "value": "JSON-LD LocalBusiness minimal — MISSING address, geo, telephone, openingHours, aggregateRating, priceRange; NOT typed VeterinaryCare; lost rich-result eligibility", "tag": "FACT", "source": "script ld+json rank-math block", "method": "live_html_parse"},
+      {"label": "XML sitemap", "value": "Rank Math sitemap_index.xml, ~31 URLs, some updated 2026-04-30", "tag": "FACT", "source": "sitemap_index.xml", "method": "live_fetch"},
+      {"label": "Homepage lead form", "value": "no inline <form> — relies on WhatsApp/phone click", "tag": "FACT", "source": "HTML parse", "method": "live_html_parse"},
+      {"label": "Rank 'clinica veterinaria Centro Sul Cuiaba'", "value": "#1 and #2 (homepage + /sobre-nos)", "tag": "FACT", "source": "WebSearch SERP order", "method": "observed_serp"},
+      {"label": "Rank 'pet shop ... Porto Cuiaba MT'", "value": "top-3 (#2), service pages also indexed", "tag": "FACT", "source": "WebSearch SERP order", "method": "observed_serp"},
+      {"label": "Rank broad 'veterinario Cuiaba melhor clinica'", "value": "present but NOT #1 — outranked by Vivet, Candido Mariano, aggregators", "tag": "FACT", "source": "WebSearch SERP order", "method": "observed_serp"},
+      {"label": "Core Web Vitals / Lighthouse", "value": "heavy galleria 70+ imgs suggests LCP risk; needs PageSpeed Insights", "tag": "NEEDS-TOOL", "source": "PageSpeed Insights API (free)", "method": "unavailable_via_html_parse"},
+      {"label": "Ranked-keyword set + positions over time", "value": "~31 pages confirmed; full ranked set needs Search Console/DataForSEO", "tag": "NEEDS-TOOL", "source": "Search Console / DataForSEO", "method": "unavailable_via_search"},
+      {"label": "Backlink profile / domain authority", "value": "needed to explain broad-term gap; needs Ahrefs/Moz", "tag": "NEEDS-TOOL", "source": "Ahrefs/Moz", "method": "unavailable_via_search"}
+    ],
+    "tool_gaps": ["pagespeed_insights", "search_console_or_dataforseo", "backlink_api"],
+    "pitch_angle": "You OWN neighborhood searches (#1-2) but leak the big head term 'veterinario Cuiaba' to Vivet/Candido Mariano. Two fast wins: turn on the half-empty schema (free rich-result stars + map pin) and add a lead-capture form."
+  },
+  "dim_c_competitive": {
+    "status": "partial",
+    "fact_ratio": 0.65,
+    "competitors": [
+      {"name": "Hospital Veterinario Vivet", "ig_followers": "~17000", "ig_tag": "FACT", "fb_likes": 4528, "fb_tag": "FACT", "google_rating": "4.4 / 250+ (discrepancy 250 vs 49 across sources — reconcile live)", "rating_tag": "NEEDS-TOOL", "hero_claim": "chemo/oncology center + own imaging+lab + 631m2", "source": "vivet.com.br, instagram.com/hospitalvivet, facebook.com/hospitalvivet"},
+      {"name": "Hospital Veterinario Candido Mariano (HVCM)", "ig_followers": "~10000", "ig_tag": "FACT", "fb_likes": "active, count NO-DATA", "fb_tag": "NO-DATA", "google_rating": "not surfaced", "rating_tag": "NEEDS-TOOL", "hero_claim": "ONLY veterinary ICU in MT + 25-vet roster", "source": "hvcm.com.br, instagram.com/hosp.candidomariano"},
+      {"name": "Clinica Veterinaria do Povo", "ig_followers": "not captured", "ig_tag": "NO-DATA", "google_rating": "not surfaced", "rating_tag": "NEEDS-TOOL", "hero_claim": "24h", "source": "web search Cuiaba vet 24h"}
+    ],
+    "target_position": {
+      "ig_followers": "4371 primary / 8520 secondary — LAST of three on reach",
+      "advantages": ["best SEO surface (per-specialty pages)", "integrated pet shop retail (no rival has e-commerce)", "two central locations (rivals single-site)", "established since 2006"],
+      "disadvantages": ["social reach behind (4.4K-8.5K vs 10K-17K)", "no visible Google social-proof", "no hero claim of its own"],
+      "standing": "MIDDLE-to-BEHIND — behind on social/social-proof, AHEAD on SEO breadth + multi-location + retail. Gap is marketing execution, not service capability.",
+      "standing_tag": "ESTIMATE"
+    },
+    "tool_gaps": ["places_exact_rating_target", "places_exact_rating_competitors", "meta_ad_library_per_competitor"],
+    "pitch_angle": "Established since 2006, best website, only one with two central locations AND a pet shop — but Vivet has 4x your Instagram and Candido Mariano owns the 'only ICU in MT' headline. You win on substance, lose on visibility."
+  },
+  "dim_d_keywords": {
+    "status": "partial",
+    "fact_ratio": 0.5,
+    "metrics": [
+      {"term": "veterinario 24 horas Cuiaba", "intent": "emergency/high-commercial", "currently_ranks": true, "ranks_tag": "FACT", "note": "Clube ranks but 6+ rivals contest", "volume_est": "~300-700/mo", "volume_tag": "ESTIMATE", "competition": "MED-HIGH", "comp_tag": "ESTIMATE"},
+      {"term": "clinica veterinaria Cuiaba", "intent": "head/category", "currently_ranks": true, "ranks_tag": "FACT", "note": "saturated SERP 10+ clinics", "volume_est": "part of ~1000-2500/mo head total", "volume_tag": "NEEDS-TOOL", "competition": "HIGH", "comp_tag": "ESTIMATE"},
+      {"term": "pet shop Cuiaba / Centro Sul", "intent": "retail/geo", "currently_ranks": "partial", "ranks_tag": "FACT", "note": "strong geo-anchor 2 units but site buries retail", "volume_tag": "NEEDS-TOOL"},
+      {"term": "banho e tosa Cuiaba", "intent": "high-frequency recurring", "currently_ranks": false, "ranks_tag": "FACT", "note": "Clube INVISIBLE; aggregators win", "volume_est": "~700-1500/mo", "volume_tag": "ESTIMATE", "competition": "MED", "comp_tag": "ESTIMATE"},
+      {"term": "castracao/vacina/microchip Cuiaba", "intent": "mid-funnel service", "currently_ranks": false, "ranks_tag": "FACT", "note": "VetPrev owns positioning; content gap", "volume_tag": "NEEDS-TOOL"},
+      {"term": "oftalmologia/medicina felina/ortopedia veterinaria Cuiaba", "intent": "specialty long-tail", "currently_ranks": "weak", "ranks_tag": "ESTIMATE", "note": "low-volume HIGH-value LOW-competition — easiest wins", "volume_tag": "ESTIMATE", "competition": "LOW", "comp_tag": "ESTIMATE"}
+    ],
+    "own_prices": {"value": "site says 'precos justos' but publishes ZERO R$", "tag": "NO-DATA", "source": "WebFetch /servicos/pet-shop/ + /servicos/consultas/"},
+    "niche_ticket_benchmark": {"consulta_geral": "R$100-250", "consulta_especialista": "R$200-500", "banho_tosa": "R$35-150", "plano_saude_pet": "from R$19,90/mo", "blended_cuiaba": "~R$120-180", "tag": "ESTIMATE", "source": "GetNinjas, AcharVet, Cronoshare, planosaudepets.com.br"},
+    "tool_gaps": ["dataforseo_or_keyword_planner_exact_volume_cpc"],
+    "pitch_angle": "You win 'veterinario 24h Cuiaba' but you're INVISIBLE on the two highest-frequency money searches: 'banho e tosa Cuiaba' and your specialty terms where competitors barely show. Capturing ~27 of those/month is ~R$4k/mo new recurring revenue."
+  },
+  "dim_e_strategy": {
+    "status": "complete",
+    "fact_ratio": 0.0,
+    "all_tag": "ESTIMATE (LLM synthesis of A-D)",
+    "recommendations": [
+      "Consolidate/cross-promote the two Instagram handles to recover fragmented 12.9k reach",
+      "Install Meta Pixel + Conversions API to retarget IG audience and track boosted-post conversions",
+      "Complete LocalBusiness schema (address, geo, telephone, hours, aggregateRating, priceRange) and type as VeterinaryCare for rich results",
+      "Add a 3-field lead-capture form on homepage alongside WhatsApp",
+      "Build dedicated landing pages for banho e tosa + specialty long-tails (oftalmo, felina, ortopedia)",
+      "Publish transparent 'a partir de R$' pricing as a conversion-lift lever",
+      "Push grooming + plano-saude-pet for recurring MRR"
+    ],
+    "quick_wins": ["Meta Pixel install", "schema completion", "homepage form"],
+    "priority_order": ["pixel", "schema", "banho-e-tosa landing pages", "IG consolidation", "lead form", "specialty landing pages", "pricing publish"]
+  },
+  "dim_f_revenue": {
+    "status": "complete",
+    "fact_ratio": 0.2,
+    "ticket": {
+      "value": 150, "tag": "ESTIMATE", "method": "niche_benchmark_blend",
+      "source": "GetNinjas/AcharVet 2025-2026; Cuiaba below SP/RJ",
+      "own_price_status": "NO-DATA",
+      "own_price_note": "site publishes zero R$; replace with sales-call price list"
+    },
+    "premises": {
+      "formula": "new_clients = demand*capture%*conversion%; revenue = clients*ticket",
+      "demand_monthly": {"range": [2500, 5000], "tag": "ESTIMATE", "method": "Cuiaba 660k pop * pet-ownership; NEEDS-TOOL DataForSEO for exact"},
+      "capture_pct": {"range": [0.08, 0.15], "tag": "ESTIMATE"},
+      "conversion_pct": {"range": [0.05, 0.10], "tag": "ESTIMATE"}
+    },
+    "scenarios": {
+      "conservative": {"new_clients_mo": 10, "revenue_mo": 1500, "revenue_yr": 18000, "tag": "ESTIMATE"},
+      "likely": {"new_clients_mo": 27, "revenue_mo": 4000, "revenue_yr": 48000, "tag": "ESTIMATE"},
+      "optimistic": {"new_clients_mo": 75, "revenue_mo": 11250, "revenue_yr": 135000, "tag": "ESTIMATE"}
+    },
+    "recurring_lever": {"value": "grooming client ~R$80 x 8 visits/yr ~= R$640 LTV/yr; plano-saude-pet from R$19,90/mo = MRR", "tag": "ESTIMATE", "source": "planosaudepets.com.br + grooming frequency assumption"},
+    "disclaimer": "Marketing-attributable LIFT, not total revenue. Optimistic = upper bound contingent on full-funnel execution. Cuiaba 660k = deliberately SMALL realistic volumes, NOT inflated."
+  },
+  "tool_gaps_global": [
+    "meta_ad_library_headless", "google_ads_transparency_headless", "places_exact_rating",
+    "pagespeed_insights_cwv", "dataforseo_or_keyword_planner", "ig_timeline_scraper", "backlink_api"
+  ],
+  "pitch_angles_consolidated": [
+    "No Meta Pixel on a site with 12.9k IG audience = paying for attention you can't measure or retarget",
+    "Split brand across two Instagram handles bleeds reach for free",
+    "Own the neighborhood searches but leak the big city head term to Vivet/Candido Mariano",
+    "Half-empty schema = free rich-result stars + map pin left on the table",
+    "Invisible on banho-e-tosa (highest-frequency money search) and on your own specialty terms",
+    "WhatsApp-only funnel with no booking/CRM = every lead untracked"
+  ]
+}

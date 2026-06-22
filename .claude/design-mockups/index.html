@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hermes Cloud Studio 2.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="design-system-v2.css">
+<style>
+  /* index v2 — galeria calma. Idioma herdado de design-system-v2.css.
+     Conteudo SEMPRE visivel; animacao so como enhancement sob no-preference. */
+  .hero{padding:46px 4px 30px;border-bottom:0.5px solid var(--line)}
+  .hero h1{font-size:30px;font-weight:600;letter-spacing:-0.03em;line-height:1.05}
+  .hero p{margin-top:11px;font-size:14.5px;color:var(--tx3);max-width:560px;line-height:1.5}
+
+  .group{padding:34px 0 0}
+  .group + .group{padding-top:30px}
+  .ghead{font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.1em;font-weight:500;padding:0 4px 14px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+
+  .scard{
+    display:flex;flex-direction:column;gap:9px;
+    padding:20px 20px 17px;text-decoration:none;color:inherit;
+    background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r);
+    transition:border-color .3s var(--ease),background .3s var(--ease),transform .3s var(--ease),box-shadow .35s var(--ease);
+  }
+  .scard:hover{border-color:var(--line-2);background:var(--surface-2);box-shadow:var(--shadow);transform:translateY(-2px)}
+  .scard:hover .open{color:var(--accent-2)}
+  .scard:hover .open i{transform:translateX(3px)}
+
+  .scard .ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:18px;color:var(--tx2);background:var(--bg-2);border:0.5px solid var(--line)}
+  .scard h3{font-size:15.5px;font-weight:600;letter-spacing:-0.02em;margin-top:3px}
+  .scard .desc{font-size:13px;color:var(--tx3);line-height:1.5;flex:1}
+  .open{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--tx2);font-weight:500;margin-top:5px;transition:color .2s var(--ease)}
+  .open i{font-size:15px;transition:transform .2s var(--ease)}
+
+  .foot{padding:46px 4px 0;color:var(--tx4);font-size:11.5px}
+
+  @media(prefers-reduced-motion:no-preference){
+    .scard{opacity:0;transform:translateY(12px);animation:riseIn .5s var(--ease) forwards}
+    .scard:hover{transform:translateY(-2px)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-hexagon"></i></div>
+      <b>Hermes Cloud Studio 2.0</b>
+      <span class="dim">telas</span>
+    </div>
+    <div class="spacer"></div>
+    <span class="pulse"><span class="d"></span> idioma visual aprovado</span>
+  </div>
+
+  <div class="hero reveal">
+    <h1>As telas do estudio</h1>
+    <p>Tudo no mesmo idioma calmo: tela limpa por padrao, cor escassa, sem jargao. Escolha uma tela pra abrir.</p>
+  </div>
+
+  <section class="group">
+    <div class="ghead">Comecar</div>
+    <div class="grid">
+
+      <a class="scard" href="hero-v2.html" style="animation-delay:.02s">
+        <div class="ico"><i class="ti ti-home"></i></div>
+        <h3>Inicio</h3>
+        <div class="desc">A porta de entrada: o resumo do dia e os atalhos pra ja sair fazendo.</div>
+        <span class="open">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+
+      <a class="scard" href="onboarding-v2.html" style="animation-delay:.06s">
+        <div class="ico"><i class="ti ti-flag"></i></div>
+        <h3>Onboarding</h3>
+        <div class="desc">O primeiro passo de quem chega: escolher o bairro e deixar o estudio buscar.</div>
+        <span class="open">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+
+    </div>
+  </section>
+
+  <section class="group">
+    <div class="ghead">Onde tem cliente</div>
+    <div class="grid">
+
+      <a class="scard" href="map-v2.html" style="animation-delay:.02s">
+        <div class="ico"><i class="ti ti-map-pin"></i></div>
+        <h3>Mapa</h3>
+        <div class="desc">Os bairros de Cuiaba pintados por onde tem dinheiro pra buscar e onde ja foi varrido.</div>
+        <span class="open">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+
+      <a class="scard" href="competitors-v2.html" style="animation-delay:.06s">
+        <div class="ico"><i class="ti ti-users-group"></i></div>
+        <h3>Concorrentes</h3>
+        <div class="desc">Quem mais disputa esses clientes e as brechas que voce pode aproveitar primeiro.</div>
+        <span class="open">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+
+    </div>
+  </section>
+
+  <section class="group">
+    <div class="ghead">O trabalho do dia</div>
+    <div class="grid">
+
+      <a class="scard" href="02b-esteira-v2.html" style="animation-delay:.02s">
+        <div class="ico"><i class="ti ti-layout-list"></i></div>
+        <h3>Esteira</h3>
+        <div class="desc">A fila de contatos passando pela frente, do primeiro toque ate a venda fechada.</div>
+        <span class="open">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+
+      <a class="scard" href="myday-v2.html" style="animation-delay:.06s">
+        <div class="ico"><i class="ti ti-sun"></i></div>
+        <h3>Meu dia</h3>
+        <div class="desc">Os 7 passos do dia, um de cada vez, pra voce so seguir a sequencia.</div>
+        <span class="open">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+
+      <a class="scard" href="dossier-v2.html" style="animation-delay:.1s">
+        <div class="ico"><i class="ti ti-file-text"></i></div>
+        <h3>Dossie</h3>
+        <div class="desc">O retrato de um cliente: quem e, quanto vale e o melhor jeito de abordar.</div>
+        <span class="open">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+
+      <a class="scard" href="action-dispatch-v2.html" style="animation-delay:.14s">
+        <div class="ico"><i class="ti ti-bolt"></i></div>
+        <h3>Comandar</h3>
+        <div class="desc">As acoes na mao: o que mandar fazer agora, sempre a um toque de distancia.</div>
+        <span class="open">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+
+    </div>
+  </section>
+
+  <section class="group">
+    <div class="ghead">Quem toca tudo</div>
+    <div class="grid">
+
+      <a class="scard" href="cmd-v2.html" style="animation-delay:.02s">
+        <div class="ico"><i class="ti ti-layout-dashboard"></i></div>
+        <h3>Central</h3>
+        <div class="desc">A central: o que esta rodando agora e o que precisa do seu olhar.</div>
+        <span class="open">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+
+      <a class="scard" href="agent-v2.html" style="animation-delay:.06s">
+        <div class="ico"><i class="ti ti-robot"></i></div>
+        <h3>Agente</h3>
+        <div class="desc">O ajudante que trabalha sozinho: o que ele achou e o que ja deixou pronto.</div>
+        <span class="open">Abrir <i class="ti ti-arrow-right"></i></span>
+      </a>
+
+    </div>
+  </section>
+
+  <div class="foot">Hermes Cloud Studio 2.0 — Minimalismo Robusto</div>
+
+</div>
+</body>
+</html>

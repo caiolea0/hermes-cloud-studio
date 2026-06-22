@@ -5,6 +5,20 @@
 
 ---
 
+## 🧭 Hermes 2.0 — mapa de retomada (ler primeiro em sessão Hermes 2.0)
+
+O projeto pivotou pra **Hermes 2.0** (lead-discovery + market-intelligence $0, 24/7; LinkedIn FROZEN). Docs canônicos:
+
+- `HERMES-2.0-PLAN.md` — plano mestre (pivô, arquitetura, fontes $0, contratos Geronimo/Vuecra, **migração Contabo §5**, roadmap H2-F0..F8).
+- `HERMES-2.0-UIUX-PLAN.md` — plano de UI/UX (4 superfícies, stack, 8 decisões).
+- `HERMES-2.0-DESIGN-STATE.md` — **estado do design v2 (minimalismo robusto, APROVADO)** + telas em `design-mockups/` + lições (reduced-motion!).
+- `HERMES-2.0-ACCESS-DEPLOY.md` — **acesso app-desktop↔VPS (Tailscale) + deploy contínuo PC→VPS** (proposta, decisões D1-D4).
+- Memórias agentmemory: `hermes-2.0-uiux-visao`, `design-language-v2-minimalismo-robusto`, `hermes-2.0-design-v2-escalado`.
+
+**Lei de design v2 (inviolável)**: owner tem `prefers-reduced-motion` ATIVO → conteúdo SEMPRE visível; `opacity:0`+animação só sob `@media(prefers-reduced-motion:no-preference)`. Validar toda tela sob reduced-motion antes de aprovar.
+
+---
+
 ## 🚫 NUNCA FAZER
 
 | Erro | Consequência | Por quê |

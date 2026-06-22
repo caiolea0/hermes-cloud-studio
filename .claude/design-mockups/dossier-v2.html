@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes 2.0 — Dossiê de venda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="design-system-v2.css">
+<style>
+/* ---- dossier-specifics: tudo herda do design-system-v2 ---- */
+
+/* header da presa */
+.head{display:flex;align-items:flex-start;gap:18px;padding:30px 0 6px}
+.head .nico{width:54px;height:54px;border-radius:15px;background:radial-gradient(circle at 30% 25%,var(--surface-2),var(--bg-2));border:0.5px solid var(--line-2);display:grid;place-items:center;color:var(--tx);font-size:26px;flex-shrink:0}
+.head h1{font-size:25px;font-weight:600;letter-spacing:-0.03em;line-height:1.1;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.head .sub{color:var(--tx3);font-size:13px;margin-top:6px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.head .sub i{font-size:14px;opacity:.7}
+.head .sub .dot{opacity:.35}
+.tagh{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:500;color:var(--warm);background:var(--warm-soft);padding:4px 9px;border-radius:6px;letter-spacing:.02em;text-transform:uppercase}
+.tagh .hd{width:5px;height:5px;border-radius:50%;background:var(--warm);box-shadow:0 0 7px var(--warm)}
+
+/* BLUF — o veredito primeiro */
+.bluf{display:flex;gap:26px;align-items:center;margin-top:22px;padding:24px;background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.bluf .verdict{flex:1;min-width:0}
+.bluf .vk{font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.09em;font-weight:500;margin-bottom:9px}
+.bluf .vt{font-size:19px;font-weight:450;line-height:1.42;letter-spacing:-0.015em;color:var(--tx)}
+.bluf .vt b{font-weight:600}
+.bluf .vt .hl{color:var(--warm);font-weight:600}
+.bluf .vmeta{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}
+
+/* dual-arc ring — agora dentro, potencial fora; o GAP e o pitch */
+.arc{position:relative;width:188px;height:188px;flex-shrink:0;display:grid;place-items:center}
+.arc svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.arc .track-c{fill:none;stroke:var(--line-2)}
+.arc .now-c{fill:none;stroke:var(--tx3);stroke-linecap:round}
+.arc .pot-c{fill:none;stroke:url(#gpot);stroke-linecap:round}
+/* transicao do anel SO como enhancement; RM = snap instantaneo, conteudo intacto */
+@media(prefers-reduced-motion:no-preference){
+  .arc .now-c,.arc .pot-c{transition:stroke-dashoffset .55s var(--ease)}
+}
+.arc .core{text-align:center;z-index:1}
+.arc .gaplbl{font-size:10px;color:var(--tx4);text-transform:uppercase;letter-spacing:.08em;font-weight:500}
+.arc .gapval{font-size:30px;font-weight:600;letter-spacing:-0.035em;line-height:1;color:var(--warm);margin:5px 0 1px}
+.arc .gapsuf{font-size:11.5px;color:var(--tx3)}
+.arc .legend{display:flex;flex-direction:column;gap:6px;margin-top:11px;align-items:center}
+.arc .lg{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--tx3)}
+.arc .lg .sw{width:9px;height:3px;border-radius:2px}
+.arc .lg .sw.now{background:var(--tx3)}
+.arc .lg .sw.pot{background:var(--good)}
+
+/* range toggle sutil */
+.rangetog{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--tx3);cursor:pointer;user-select:none}
+.rangetog .sw2{width:30px;height:17px;border-radius:999px;background:var(--surface-2);border:0.5px solid var(--line-2);position:relative;transition:background .25s var(--ease)}
+.rangetog .sw2::after{content:'';position:absolute;top:1.5px;left:1.5px;width:12px;height:12px;border-radius:50%;background:var(--tx3);transition:transform .25s var(--ease-2),background .25s}
+.rangetog.on .sw2{background:var(--accent-soft);border-color:var(--accent)}
+.rangetog.on .sw2::after{transform:translateX(13px);background:var(--accent-2)}
+
+/* secoes calmas */
+.sec{margin-top:34px}
+.sec-h{display:flex;align-items:center;gap:10px;margin-bottom:15px}
+.sec-h .ico{width:28px;height:28px;border-radius:9px;background:var(--surface);border:0.5px solid var(--line);display:grid;place-items:center;color:var(--tx2);font-size:15px}
+.sec-h h2{font-size:14.5px;font-weight:600;letter-spacing:-0.01em}
+.sec-h .note{font-size:11.5px;color:var(--tx4);margin-left:auto;display:flex;align-items:center;gap:5px}
+.sec-h .note i{font-size:13px}
+
+/* por que e boa presa — chips de sinal */
+.signals{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:9px}
+.sig{display:flex;align-items:center;gap:12px;padding:13px 15px;background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r-sm);transition:border-color .25s var(--ease),background .25s var(--ease),transform .25s var(--ease)}
+.sig:hover{border-color:var(--line-2);background:var(--surface-2);transform:translateY(-1px)}
+.sig .si{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:17px;flex-shrink:0;background:var(--good-soft);color:var(--good)}
+.sig .si.warm{background:var(--warm-soft);color:var(--warm)}
+.sig .stx{min-width:0}
+.sig .stx b{font-size:13.5px;font-weight:500;display:block;line-height:1.2}
+.sig .stx span{font-size:11.5px;color:var(--tx3);display:block;margin-top:2px}
+
+/* o que falta vs concorrente — side-by-side limpo */
+.versus{background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r);overflow:hidden}
+.vs-top{display:grid;grid-template-columns:1fr 132px 132px;align-items:center;padding:13px 18px;border-bottom:0.5px solid var(--line);background:var(--bg-2)}
+.vs-top .who{font-size:11px;color:var(--tx3);text-align:center;font-weight:500}
+.vs-top .who b{display:block;color:var(--tx);font-size:13px;font-weight:600;margin-top:1px}
+.vs-top .who.them b{color:var(--cool)}
+.vs-top .what{font-size:10.5px;color:var(--tx4);text-transform:uppercase;letter-spacing:.07em;font-weight:500}
+.vs-row{display:grid;grid-template-columns:1fr 132px 132px;align-items:center;padding:14px 18px;border-bottom:0.5px solid var(--line);transition:background .2s var(--ease)}
+.vs-row:last-child{border-bottom:0}
+.vs-row:hover{background:var(--surface-2)}
+.vs-row .item{font-size:13.5px;color:var(--tx);display:flex;align-items:center;gap:9px}
+.vs-row .item i{font-size:16px;color:var(--tx3)}
+.vs-cell{display:flex;justify-content:center}
+.mark{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:5px 11px;border-radius:999px}
+.mark.no{color:var(--warm);background:var(--warm-soft)}
+.mark.yes{color:var(--cool);background:var(--cool-soft)}
+.mark.partial{color:var(--tx2);background:var(--bg-2);border:0.5px solid var(--line)}
+.mark i{font-size:14px}
+
+/* o que da pra oferecer — alavancas que somam ao potencial */
+.levers{display:flex;flex-direction:column;gap:10px}
+.lever{display:flex;align-items:center;gap:16px;padding:16px 18px;background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r);cursor:pointer;transition:border-color .25s var(--ease),background .25s var(--ease),transform .25s var(--ease),box-shadow .3s var(--ease);position:relative;overflow:hidden}
+.lever::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2.5px;background:var(--who-col,var(--tx4));opacity:.5;transition:opacity .25s,width .25s}
+.lever:hover{border-color:var(--line-2);background:var(--surface-2);transform:translateY(-1px)}
+.lever.on{border-color:var(--line-2);background:var(--surface-2);box-shadow:var(--shadow-sm)}
+.lever.on::before{opacity:1;width:3.5px}
+.lever .lcheck{width:24px;height:24px;border-radius:7px;border:1.5px solid var(--line-2);display:grid;place-items:center;color:transparent;flex-shrink:0;transition:all .2s var(--ease-2)}
+.lever.on .lcheck{background:var(--who-col);border-color:transparent;color:var(--bg);box-shadow:0 0 14px -3px var(--who-col)}
+.lever .lcheck i{font-size:15px}
+.lever .ltx{flex:1;min-width:0}
+.lever .ltx b{font-size:14px;font-weight:500;display:block;line-height:1.25}
+.lever .ltx span{font-size:12px;color:var(--tx3);display:block;margin-top:3px}
+.lever .lwho{font-size:10px;font-weight:600;color:var(--who-col);background:var(--who-soft);padding:3px 8px;border-radius:6px;letter-spacing:.02em;flex-shrink:0;text-transform:uppercase}
+.lever .lval{font-size:15px;font-weight:600;letter-spacing:-0.02em;color:var(--good);white-space:nowrap;flex-shrink:0;width:78px;text-align:right}
+.lever:not(.on) .lval{color:var(--tx4)}
+
+/* who color keys */
+.lever[data-who="vuecra"]{--who-col:var(--accent-2);--who-soft:var(--accent-soft)}
+.lever[data-who="geronimo"]{--who-col:var(--good);--who-soft:var(--good-soft)}
+
+/* total bar dinamico */
+.upshot{display:flex;align-items:center;gap:18px;margin-top:14px;padding:18px 20px;background:var(--surface);border:0.5px solid var(--line);border-radius:var(--r);box-shadow:-1px 0 0 var(--warm-soft) inset}
+.upshot .uk{font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;font-weight:500}
+.upshot .uv{font-size:27px;font-weight:600;letter-spacing:-0.035em;color:var(--warm);line-height:1;margin-top:4px}
+.upshot .unote{font-size:11.5px;color:var(--tx3)}
+.upshot .track{flex:1;height:9px;border-radius:5px;background:var(--bg-2);overflow:hidden;position:relative;border:0.5px solid var(--line);min-width:140px}
+.upshot .now{position:absolute;left:0;top:0;height:100%;background:var(--tx4);border-radius:5px}
+.upshot .gain{position:absolute;top:0;height:100%;background:linear-gradient(90deg,var(--warm),var(--warm-soft));border-radius:5px;transition:width .5s var(--ease),left .5s var(--ease)}
+
+/* barra de fechamento fixa */
+.closebar{position:sticky;bottom:0;margin-top:38px;padding:16px 0 22px;background:linear-gradient(transparent,var(--bg) 38%);display:flex;align-items:center;gap:12px;z-index:20}
+.closebar .summary{font-size:13px;color:var(--tx2);flex:1;min-width:0}
+.closebar .summary b{color:var(--tx);font-weight:600}
+.honesty{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:22px;padding-top:16px;border-top:0.5px solid var(--line);font-size:11.5px;color:var(--tx4)}
+.honesty .hk{display:flex;align-items:center;gap:7px}
+.honesty .sw{width:18px;height:9px;border-radius:3px}
+.honesty .sw.solid{background:var(--tx3)}
+.honesty .sw.est{background:repeating-linear-gradient(135deg,var(--tx4),var(--tx4) 2px,transparent 2px,transparent 5px);border:0.5px solid var(--line-2)}
+
+/* encoding honesto: numero estimado/projetado ganha sublinhado pontilhado sutil
+   (casa com a legenda "estimado"); numero medido fica solido. base sempre visivel. */
+.est-num{text-decoration:underline dotted var(--line-2);text-underline-offset:4px;text-decoration-thickness:1px}
+
+@media(max-width:740px){
+  .bluf{flex-direction:column;align-items:stretch}
+  .arc{margin:0 auto}
+  .vs-top,.vs-row{grid-template-columns:1fr 88px 88px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-windmill"></i></div>
+      <b>Hermes</b><span class="dim">· Dossiê de venda</span>
+    </div>
+    <span class="spacer"></span>
+    <nav class="nav">
+      <a href="cmd-v2.html">Painel</a>
+      <a href="map-v2.html">Mapa</a>
+      <a href="02b-esteira-v2.html">Esteira</a>
+      <a href="dossier-v2.html" class="on">Dossiê</a>
+      <a href="competitors-v2.html">Concorrentes</a>
+      <a href="agent-v2.html">Motor</a>
+      <a href="myday-v2.html">Meu dia</a>
+    </nav>
+  </header>
+
+  <!-- cabecalho da presa -->
+  <div class="head reveal">
+    <div class="nico"><i class="ti ti-paw"></i></div>
+    <div class="grow">
+      <h1>Clube dos Bichos <span class="tagh"><span class="hd"></span>Quente</span></h1>
+      <div class="sub">
+        <i class="ti ti-paw"></i>Pet shop
+        <span class="dot">·</span>
+        <i class="ti ti-map-pin"></i>Jardim das Américas, Cuiabá
+        <span class="dot">·</span>
+        <i class="ti ti-star-filled" style="color:var(--warm)"></i>4,8 · 312 avaliações
+      </div>
+    </div>
+    <div class="row" style="gap:8px">
+      <button class="act icon" data-tip="Auditar de novo · busca dados atualizados do negócio"><i class="ti ti-refresh"></i></button>
+      <button class="act icon" data-tip="Compartilhar este dossiê"><i class="ti ti-share-2"></i></button>
+    </div>
+  </div>
+
+  <!-- BLUF: o veredito primeiro + anel duplo -->
+  <section class="bluf reveal" style="animation-delay:.06s">
+    <div class="verdict">
+      <div class="vk"><i class="ti ti-flag-3" style="font-size:12px"></i> Veredito</div>
+      <p class="vt">
+        Negócio <b>forte e movimentado</b>, mas <b>sem site</b> e <b>sem aparecer no Google</b>.
+        Dá pra destravar cerca de <span class="hl">+R$ 38 mil por mês</span> — e o concorrente
+        já anuncia, ela não. <b>Vale ligar hoje.</b>
+      </p>
+      <div class="vmeta">
+        <span class="tag warm"><i class="ti ti-flame" style="font-size:13px"></i> Oportunidade 91/100</span>
+        <span class="tag good">Baixo esforço pra fechar</span>
+        <span class="tag cool">Concorrente vulnerável</span>
+        <label class="rangetog" id="rangetog" title="Mostra a faixa estimada em vez do número fechado">
+          <span class="sw2"></span>Ver como faixa
+        </label>
+      </div>
+    </div>
+
+    <div class="arc" id="arc">
+      <svg viewBox="0 0 188 188" aria-hidden="true">
+        <defs>
+          <linearGradient id="gpot" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="oklch(0.82 0.13 80)"/>
+            <stop offset="1" stop-color="oklch(0.78 0.12 165)"/>
+          </linearGradient>
+        </defs>
+        <!-- arco externo: potencial (R$ 56k de R$ 56k = 100% do teto) -->
+        <circle class="track-c" cx="94" cy="94" r="82" stroke-width="9"/>
+        <circle class="pot-c"  cx="94" cy="94" r="82" stroke-width="9" id="potArc"
+                style="stroke-dasharray:515.2;stroke-dashoffset:0"/>
+        <!-- arco interno: faturamento atual (R$ 18k de R$ 56k = 32% do teto) -->
+        <circle class="track-c" cx="94" cy="94" r="66" stroke-width="9" style="opacity:.6"/>
+        <circle class="now-c"  cx="94" cy="94" r="66" stroke-width="9" id="nowArc"
+                style="stroke-dasharray:414.7;stroke-dashoffset:281.9"/>
+      </svg>
+      <div class="core">
+        <div class="gaplbl">Dinheiro no chão</div>
+        <div class="gapval est-num" id="gapVal">+R$ 38k</div>
+        <div class="gapsuf">por mês, estimado</div>
+        <div class="legend">
+          <span class="lg"><span class="sw pot"></span>Poderia faturar · R$ 56k</span>
+          <span class="lg"><span class="sw now"></span>Fatura hoje · R$ 18k</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- POR QUE E BOA PRESA -->
+  <section class="sec reveal" style="animation-delay:.12s">
+    <div class="sec-h">
+      <div class="ico"><i class="ti ti-target-arrow"></i></div>
+      <h2>Por que é boa presa</h2>
+      <span class="note"><i class="ti ti-circle-check-filled" style="color:var(--good)"></i> Tudo medido</span>
+    </div>
+    <div class="signals">
+      <div class="sig"><div class="si"><i class="ti ti-calendar-stats"></i></div><div class="stx"><b>7 anos de mercado</b><span>Negócio sólido, não vai sumir</span></div></div>
+      <div class="sig"><div class="si"><i class="ti ti-star-filled"></i></div><div class="stx"><b>312 avaliações · 4,8</b><span>Clientes gostam, falta volume</span></div></div>
+      <div class="sig"><div class="si"><i class="ti ti-users"></i></div><div class="stx"><b>Movimento alto</b><span>Loja cheia, pico fim de semana</span></div></div>
+      <div class="sig"><div class="si warm"><i class="ti ti-world-off"></i></div><div class="stx"><b>Não tem site</b><span>Perde quem busca pela internet</span></div></div>
+      <div class="sig"><div class="si warm"><i class="ti ti-brand-google"></i></div><div class="stx"><b>Some no Google</b><span>Não aparece em "pet shop Cuiabá"</span></div></div>
+      <div class="sig"><div class="si warm"><i class="ti ti-swords"></i></div><div class="stx"><b>Concorrente anuncia, ela não</b><span>Está cedendo clientes de graça</span></div></div>
+    </div>
+  </section>
+
+  <!-- O QUE FALTA VS O CONCORRENTE -->
+  <section class="sec reveal" style="animation-delay:.16s">
+    <div class="sec-h">
+      <div class="ico"><i class="ti ti-arrows-left-right"></i></div>
+      <h2>O que falta vs o concorrente</h2>
+      <span class="note"><i class="ti ti-info-circle"></i> Líder do bairro: Pet Center Araés</span>
+    </div>
+    <div class="versus">
+      <div class="vs-top">
+        <span class="what">Frente</span>
+        <span class="who">Clube dos Bichos<b>este negócio</b></span>
+        <span class="who them">Pet Center Araés<b>o concorrente</b></span>
+      </div>
+      <div class="vs-row">
+        <span class="item"><i class="ti ti-world"></i>Tem site próprio</span>
+        <div class="vs-cell"><span class="mark no"><i class="ti ti-x"></i>Não tem</span></div>
+        <div class="vs-cell"><span class="mark yes"><i class="ti ti-check"></i>Tem</span></div>
+      </div>
+      <div class="vs-row">
+        <span class="item"><i class="ti ti-brand-google"></i>Aparece no Google</span>
+        <div class="vs-cell"><span class="mark no"><i class="ti ti-x"></i>Quase invisível</span></div>
+        <div class="vs-cell"><span class="mark yes"><i class="ti ti-check"></i>1º lugar</span></div>
+      </div>
+      <div class="vs-row">
+        <span class="item"><i class="ti ti-speakerphone"></i>Faz anúncios pagos</span>
+        <div class="vs-cell"><span class="mark no"><i class="ti ti-x"></i>Nunca fez</span></div>
+        <div class="vs-cell"><span class="mark yes"><i class="ti ti-check"></i>Investe todo mês</span></div>
+      </div>
+      <div class="vs-row">
+        <span class="item"><i class="ti ti-brand-instagram"></i>Redes sociais ativas</span>
+        <div class="vs-cell"><span class="mark partial"><i class="ti ti-minus"></i>Posta pouco</span></div>
+        <div class="vs-cell"><span class="mark yes"><i class="ti ti-check"></i>Ativo</span></div>
+      </div>
+      <div class="vs-row">
+        <span class="item"><i class="ti ti-star"></i>Reputação dos clientes</span>
+        <div class="vs-cell"><span class="mark yes"><i class="ti ti-check"></i>4,8 · melhor</span></div>
+        <div class="vs-cell"><span class="mark partial"><i class="ti ti-minus"></i>4,3</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- O QUE DA PRA OFERECER -->
+  <section class="sec reveal" style="animation-delay:.2s">
+    <div class="sec-h">
+      <div class="ico"><i class="ti ti-gift"></i></div>
+      <h2>O que dá pra oferecer</h2>
+      <span class="note"><i class="ti ti-hand-click"></i> Marque o que vai propor — o ganho atualiza</span>
+    </div>
+    <div class="levers" id="levers">
+      <div class="lever on" data-who="vuecra" data-gain="14">
+        <div class="lcheck"><i class="ti ti-check"></i></div>
+        <div class="ltx"><b>Montar o site do negócio</b><span>Site pronto pra vender, com WhatsApp e mapa</span></div>
+        <span class="lwho">Vuecra</span>
+        <span class="lval">+R$ 14k</span>
+      </div>
+      <div class="lever on" data-who="geronimo" data-gain="13">
+        <div class="lcheck"><i class="ti ti-check"></i></div>
+        <div class="ltx"><b>Fazer aparecer no Google</b><span>Subir nas buscas de "pet shop" do bairro</span></div>
+        <span class="lwho">Geronimo</span>
+        <span class="lval">+R$ 13k</span>
+      </div>
+      <div class="lever on" data-who="geronimo" data-gain="11">
+        <div class="lcheck"><i class="ti ti-check"></i></div>
+        <div class="ltx"><b>Rodar anúncios pagos</b><span>Atacar onde o concorrente já tira clientes dela</span></div>
+        <span class="lwho">Geronimo</span>
+        <span class="lval">+R$ 11k</span>
+      </div>
+      <div class="lever" data-who="vuecra" data-gain="6">
+        <div class="lcheck"><i class="ti ti-check"></i></div>
+        <div class="ltx"><b>Loja online simples</b><span>Vender ração e produtos com entrega</span></div>
+        <span class="lwho">Vuecra</span>
+        <span class="lval">+R$ 6k</span>
+      </div>
+    </div>
+
+    <div class="upshot">
+      <div>
+        <div class="uk">Ganho com o que está marcado</div>
+        <div class="uv est-num" id="upVal">+R$ 38k</div>
+        <span class="unote" id="upNote">por mês · de R$ 18k para R$ 56k</span>
+      </div>
+      <div class="track">
+        <div class="now" style="width:24%"></div>
+        <div class="gain" id="upGain" style="left:24%;width:51%"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- nota de honestidade -->
+  <div class="honesty reveal" style="animation-delay:.24s">
+    <span class="hk"><span class="sw solid"></span>Número firme = medido (Google, redes, avaliações)</span>
+    <span class="hk"><span class="est-num" style="color:var(--tx3)">Número pontilhado</span> = estimado (faturamento e ganho projetados)</span>
+    <span class="hk" style="margin-left:auto"><i class="ti ti-database" style="font-size:13px"></i> Fonte: Google Maps + porte do negócio · auditado há 2 dias</span>
+  </div>
+
+  <!-- barra de fechamento -->
+  <div class="closebar">
+    <div class="summary">Pronto pra fechar: <b>site + Google + anúncios</b> · ganho de <b>+R$ 38k/mês</b></div>
+    <button class="act" data-tip="Compara em detalhe com o líder e mostra cada brecha"><i class="ti ti-swords"></i>Por que o concorrente ganha</button>
+    <button class="act" data-tip="Marca este negócio como já contatado"><i class="ti ti-circle-check"></i>Já falei</button>
+    <button class="act primary" data-tip="Gera a proposta com o que está marcado e envia pro WhatsApp"><i class="ti ti-send"></i>Montar proposta</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-check"></i><span></span></div>
+
+<script>
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NOW = 18;                 // fatura hoje (R$ k/mes) — estimado
+const POT_MAX = 56;             // teto potencial com tudo (R$ k/mes)
+const toast = document.getElementById('toast');
+
+/* ---- anel duplo: define os arcos pelo stroke-dasharray (base inline-safe) ---- */
+function setArc(el, r, pct){
+  const c = 2*Math.PI*r;
+  el.style.strokeDasharray = c;
+  el.style.strokeDashoffset = c*(1-pct);
+}
+const potArc = document.getElementById('potArc');
+const nowArc = document.getElementById('nowArc');
+
+function selectedGain(){
+  let g=0; document.querySelectorAll('.lever.on').forEach(l=>g+=+l.dataset.gain); return g;
+}
+function pot(){ return NOW + selectedGain(); }
+
+function paintArcs(){
+  // potencial maximo possivel define a escala do anel (teto = POT_MAX)
+  setArc(potArc, 82, pot()/POT_MAX);
+  setArc(nowArc, 66, NOW/POT_MAX);
+}
+
+/* ---- range toggle: numero fechado vs faixa estimada ---- */
+let asRange=false;
+function fmtMoney(v){ return asRange ? `+R$ ${Math.round(v*0.82)}–${Math.round(v*1.12)}k` : `+R$ ${v}k`; }
+
+function render(){
+  const gain = selectedGain();
+  const p = pot();
+  document.getElementById('gapVal').textContent = fmtMoney(gain);
+  document.getElementById('upVal').textContent  = fmtMoney(gain);
+  document.getElementById('upNote').textContent = `por mês · de R$ ${NOW}k para R$ ${p}k`;
+  // barra: now ate p sobre escala POT_MAX
+  const nowPct = Math.round(NOW/POT_MAX*100);
+  const gainPct = Math.round(gain/POT_MAX*100);
+  document.getElementById('upGain').style.left = nowPct+'%';
+  document.getElementById('upGain').style.width = gainPct+'%';
+  paintArcs();
+  // legenda do anel
+  document.querySelector('.legend').children[0].textContent='';
+  document.querySelector('.legend').innerHTML =
+    `<span class="lg"><span class="sw pot"></span>Poderia faturar · R$ ${p}k</span>`+
+    `<span class="lg"><span class="sw now"></span>Fatura hoje · R$ ${NOW}k</span>`;
+}
+
+/* alavancas */
+document.getElementById('levers').addEventListener('click', e=>{
+  const l = e.target.closest('.lever'); if(!l) return;
+  l.classList.toggle('on');
+  render();
+});
+
+/* range toggle */
+const rt = document.getElementById('rangetog');
+rt.addEventListener('click', ()=>{ asRange=!asRange; rt.classList.toggle('on',asRange); render(); });
+
+/* count-up do gap (enhancement apenas — base ja escrita inline) */
+function countUp(){
+  if(RM) return;
+  const el = document.getElementById('gapVal');
+  if(asRange) return;
+  const to = selectedGain(); let s=null; const dur=800;
+  function step(t){ if(!s)s=t; const p=Math.min(1,(t-s)/dur); const e=1-Math.pow(1-p,3);
+    el.textContent='+R$ '+Math.round(to*e)+'k'; if(p<1)requestAnimationFrame(step); }
+  requestAnimationFrame(step);
+}
+
+/* acoes -> toast */
+document.body.addEventListener('click', e=>{
+  const a = e.target.closest('.act'); if(!a || !a.dataset.tip) return;
+  const txt = a.textContent.trim();
+  const map = {
+    'Montar proposta':'Montando proposta · Clube dos Bichos',
+    'Já falei':'Marcado como contatado · Clube dos Bichos',
+    'Por que o concorrente ganha':'Comparando com Pet Center Araés'
+  };
+  if(map[txt]) showToast(map[txt]);
+});
+function showToast(msg){ toast.querySelector('span').textContent=msg; toast.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>toast.classList.remove('show'),2200); }
+
+/* init — base visivel ja no HTML; isto so refina + anima */
+render();
+countUp();
+</script>
+</body>
+</html>

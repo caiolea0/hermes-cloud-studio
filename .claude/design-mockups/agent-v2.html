@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes 2.0 — Caçador de negócios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="design-system-v2.css">
+<style>
+/* ---- screen-local: agent detail. tudo herdado do design-system-v2.css ---- */
+.wrap{max-width:940px}
+.back{display:inline-flex;align-items:center;gap:7px;color:var(--tx3);text-decoration:none;font-size:12.5px;padding:7px 0 0;transition:color .2s var(--ease)}
+.back:hover{color:var(--tx2)}
+.back i{font-size:15px}
+
+/* hero: identidade do agente */
+.hero{display:flex;align-items:flex-start;gap:20px;padding:18px 0 26px;border-bottom:0.5px solid var(--line)}
+.face{width:64px;height:64px;border-radius:18px;flex-shrink:0;position:relative;
+  background:radial-gradient(circle at 32% 26%,var(--surface-2),var(--bg-2));
+  border:0.5px solid var(--line-2);display:grid;place-items:center;color:var(--accent-2);font-size:30px;
+  box-shadow:0 0 28px -10px var(--accent)}
+.face .live{position:absolute;right:-3px;bottom:-3px;width:18px;height:18px;border-radius:50%;
+  background:var(--good);border:3px solid var(--bg);box-shadow:0 0 0 0 var(--good)}
+@media(prefers-reduced-motion:no-preference){.face .live{animation:beat 2.4s var(--ease) infinite}}
+.hid{flex:1;min-width:0}
+.hid h1{font-size:25px;font-weight:600;letter-spacing:-0.03em;line-height:1.1;display:flex;align-items:center;gap:11px}
+.state{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:var(--good);
+  background:var(--good-soft);border:0.5px solid var(--good-soft);padding:4px 9px;border-radius:7px;letter-spacing:.01em}
+.state .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}
+.hid .role{color:var(--tx2);font-size:14px;margin-top:8px;line-height:1.5;max-width:60ch}
+.hid .now{color:var(--tx3);font-size:12.5px;margin-top:10px;display:flex;align-items:center;gap:7px}
+.hid .now i{font-size:14px;color:var(--accent-2)}
+.hero-cta{display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0}
+
+/* glance metrics discretos */
+.glance{margin-top:2px;align-items:flex-start}
+.glance .n.tnum{font-variant-numeric:tabular-nums}
+.glance .m.proj .n{color:var(--warm)}
+.glance .m .l{display:flex;align-items:center;gap:6px}
+/* toggle faixa/numero — discreto, so no item projetado */
+.rng{appearance:none;border:0.5px solid var(--line-2);background:transparent;color:var(--tx4);
+  font-family:inherit;font-size:10px;letter-spacing:.04em;text-transform:uppercase;
+  padding:2px 7px;border-radius:6px;cursor:pointer;transition:color .2s,border-color .2s}
+.rng:hover{color:var(--tx2);border-color:var(--accent)}
+.rng[data-tip]{position:relative}
+.rng[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 9px);left:50%;
+  transform:translateX(-50%);background:var(--surface-2);color:var(--tx);border:0.5px solid var(--line-2);
+  padding:8px 11px;border-radius:9px;font-size:11px;white-space:nowrap;box-shadow:0 12px 30px -10px oklch(0 0 0 /.8);
+  z-index:40;pointer-events:none;font-weight:400;letter-spacing:0;text-transform:none}
+
+/* secao title */
+.sec{padding:30px 0 0}
+.sec-h{display:flex;align-items:baseline;gap:10px;padding:0 2px 14px}
+.sec-h h2{font-size:13px;font-weight:600;letter-spacing:-0.01em}
+.sec-h .hint{font-size:11.5px;color:var(--tx4)}
+
+/* o que ele sabe fazer — capacidades (lista calma, hover-expand) */
+.skills{display:flex;flex-direction:column;gap:8px}
+.skill{padding:0 16px;cursor:default}
+.skill .hd{display:flex;align-items:center;gap:14px;padding:14px 0}
+.skico{width:38px;height:38px;border-radius:11px;flex-shrink:0;display:grid;place-items:center;
+  background:var(--bg-2);border:0.5px solid var(--line);color:var(--tx2);font-size:18px;transition:color .3s,border-color .3s}
+.skill.h:hover .skico{color:var(--accent-2);border-color:var(--line-2)}
+.sktx{flex:1;min-width:0}
+.sktx b{font-weight:500;font-size:14px;display:block;line-height:1.25}
+.sktx span{color:var(--tx3);font-size:12.5px;display:block;margin-top:2px}
+.skchev{color:var(--tx4);font-size:17px;transition:transform .35s var(--ease),color .3s;flex-shrink:0}
+.skill.h:hover .skchev{transform:rotate(90deg);color:var(--tx2)}
+.skbody{padding:0 0 16px 52px}
+.skbody p{color:var(--tx2);font-size:12.5px;line-height:1.6;max-width:64ch}
+.skbody .ex{margin-top:9px;display:flex;gap:7px;flex-wrap:wrap}
+
+/* historico — timeline calma */
+.tl{position:relative;padding:2px 0 0 6px}
+.tl::before{content:'';position:absolute;left:13px;top:14px;bottom:14px;width:0.5px;background:var(--line-2)}
+.run{position:relative;padding:0 0 0 38px;cursor:default}
+.run .node{position:absolute;left:7px;top:15px;width:13px;height:13px;border-radius:50%;
+  background:var(--surface);border:2px solid var(--tx4);z-index:1;transition:border-color .3s,box-shadow .3s}
+.run.ok .node{border-color:var(--good)}
+.run.win .node{border-color:var(--warm);box-shadow:0 0 8px -1px var(--warm)}
+.run.run-now .node{border-color:var(--accent);box-shadow:0 0 9px -1px var(--accent)}
+.run .card{border-radius:13px;margin:5px 0;overflow:hidden}
+.run .rhd{display:flex;align-items:center;gap:13px;padding:13px 16px}
+.rico{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;
+  background:var(--bg-2);border:0.5px solid var(--line);color:var(--tx3);font-size:15px}
+.rtx{flex:1;min-width:0}
+.rtx b{font-weight:450;font-size:13.5px;display:block;line-height:1.3}
+.rtx .when{color:var(--tx4);font-size:11.5px;margin-top:2px}
+.rres{font-size:12px;color:var(--tx2);background:var(--bg-2);border:0.5px solid var(--line);
+  padding:5px 10px;border-radius:8px;white-space:nowrap;flex-shrink:0}
+.rres.win{color:var(--warm);border-color:var(--warm-soft);background:var(--warm-soft)}
+.rres.good{color:var(--good);border-color:var(--good-soft);background:var(--good-soft)}
+.rchev{color:var(--tx4);font-size:16px;transition:transform .35s var(--ease),color .3s;flex-shrink:0}
+.run.h:hover .rchev,.run.pinned .rchev{transform:rotate(90deg);color:var(--tx2)}
+.rbody{padding:0 16px 15px 59px}
+.rbody>.in{overflow:hidden;min-height:0}
+.rbody p{color:var(--tx2);font-size:12.5px;line-height:1.6;max-width:62ch}
+.rsteps{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.rstep{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--tx2)}
+.rstep i{font-size:14px;color:var(--good);flex-shrink:0}
+.rstep.doing i{color:var(--accent-2)}
+.rstep .t{color:var(--tx4);margin-left:auto;font-variant-numeric:tabular-nums}
+
+/* loader gira so como enhancement; parado e visivel sob reduced-motion */
+@media(prefers-reduced-motion:no-preference){
+  .spin{animation:spin 1.1s linear infinite}
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* acoes — radial menu + lista clara */
+.dispatch{display:flex;gap:34px;align-items:flex-start;flex-wrap:wrap}
+.radial{position:relative;width:230px;height:230px;flex-shrink:0;margin:6px auto 0}
+.rcore{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78px;height:78px;border-radius:50%;
+  display:grid;place-items:center;text-align:center;z-index:3;cursor:pointer;color:#fff;
+  background:linear-gradient(180deg,var(--accent-2),var(--accent));border:0.5px solid transparent;
+  box-shadow:0 10px 30px -10px var(--accent);transition:filter .2s,transform .25s var(--ease)}
+.rcore:hover{filter:brightness(1.08);transform:translate(-50%,-50%) scale(1.03)}
+.rcore i{font-size:21px}
+.rcore small{font-size:9.5px;font-weight:500;letter-spacing:.02em;margin-top:1px;line-height:1.1}
+.ray{--x:0px;--y:0px;position:absolute;left:50%;top:50%;width:54px;height:54px;border-radius:50%;z-index:2;
+  display:grid;place-items:center;cursor:pointer;color:var(--tx2);font-size:19px;
+  background:var(--surface);border:0.5px solid var(--line-2);
+  transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y)));
+  transition:background .2s,color .2s,border-color .2s,transform .25s var(--ease)}
+.ray:hover{background:var(--surface-2);color:var(--tx);border-color:var(--accent);
+  transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) scale(1.12)}
+.ray.warm:hover{border-color:var(--warm);color:var(--warm)}
+/* tooltip do raio: explica o que faz, em PT */
+.ray[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 10px);left:50%;
+  transform:translateX(-50%);background:var(--surface-2);color:var(--tx);border:0.5px solid var(--line-2);
+  padding:8px 11px;border-radius:9px;font-size:11px;white-space:nowrap;box-shadow:0 12px 30px -10px oklch(0 0 0 /.8);
+  z-index:40;pointer-events:none;font-weight:400;letter-spacing:0}
+
+.alist{flex:1;min-width:280px;display:flex;flex-direction:column;gap:8px}
+.aitem{display:flex;align-items:center;gap:14px;padding:13px 15px;border-radius:13px;cursor:pointer}
+.aitem .aico{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;
+  background:var(--bg-2);border:0.5px solid var(--line);color:var(--tx2);font-size:16px;transition:color .3s,border-color .3s}
+.aitem.h:hover .aico{color:var(--accent-2);border-color:var(--line-2)}
+.aitem.warm.h:hover .aico{color:var(--warm)}
+.aitem .atx{flex:1;min-width:0}
+.aitem .atx b{font-weight:500;font-size:13.5px;display:block;line-height:1.25}
+.aitem .atx span{color:var(--tx3);font-size:12px;display:block;margin-top:2px;line-height:1.4}
+.aitem .ago{color:var(--tx4);font-size:17px;transition:transform .25s var(--ease),color .3s}
+.aitem.h:hover .ago{transform:translateX(3px);color:var(--tx2)}
+
+@media(max-width:720px){
+  .hero{flex-wrap:wrap}.hero-cta{flex-direction:row;width:100%}
+  .dispatch{justify-content:center}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><i class="ti ti-windmill"></i></div>
+      <b>Hermes</b><span class="dim">· Estúdio</span>
+    </div>
+    <nav class="nav">
+      <a href="cmd-v2.html">Painel</a>
+      <a href="map-v2.html">Mapa</a>
+      <a href="02b-esteira-v2.html">Esteira</a>
+      <a href="dossier-v2.html">Relatório</a>
+      <a href="competitors-v2.html">Concorrentes</a>
+      <a href="agent-v2.html" class="on">Agentes</a>
+      <a href="myday-v2.html">Meu dia</a>
+    </nav>
+    <span class="spacer"></span>
+    <span class="pulse"><span class="d"></span>Trabalhando agora</span>
+  </header>
+
+  <a class="back reveal" href="cmd-v2.html"><i class="ti ti-arrow-left"></i>Voltar ao painel</a>
+
+  <section class="hero reveal">
+    <div class="face"><i class="ti ti-radar-2"></i><span class="live"></span></div>
+    <div class="hid">
+      <h1>Caçador de negócios
+        <span class="state"><span class="dot"></span>Trabalhando</span>
+      </h1>
+      <p class="role">Vasculha Cuiabá e região o dia todo procurando negócios que vendem bem
+        mas não aparecem na internet. Cada um que ele acha já entra na esteira pronto pra você falar.</p>
+      <p class="now"><i class="ti ti-current-location"></i>Agora varrendo: pet shops e clínicas no Jardim das Américas</p>
+    </div>
+    <div class="hero-cta">
+      <button class="act primary" data-act="run" data-tip="Manda ele varrer um bairro agora, sem esperar a rodada do dia">
+        <i class="ti ti-player-play"></i>Caçar agora
+      </button>
+      <button class="act" data-act="pause" data-tip="Ele para de procurar até você ligar de novo">
+        <i class="ti ti-player-pause"></i>Pausar
+      </button>
+    </div>
+  </section>
+
+  <div class="glance reveal" style="margin-top:24px">
+    <div class="m"><span class="n acc tnum" data-cnt="47">47</span><span class="l">negócios achados</span></div>
+    <div class="m"><span class="n good tnum" data-cnt="12">12</span><span class="l">prontos pra falar</span></div>
+    <div class="m proj">
+      <span class="n tnum" id="pot">R$ 1,4M</span>
+      <span class="l">potencial encontrado
+        <button class="rng" id="rng-btn" data-tip="Alterna entre um número e uma faixa honesta">faixa</button>
+      </span>
+    </div>
+    <div class="m"><span class="n tnum">24h</span><span class="l">sem parar · última pausa há 9 dias</span></div>
+  </div>
+
+  <!-- O QUE ELE SABE FAZER -->
+  <section class="sec reveal">
+    <div class="sec-h"><h2>O que ele sabe fazer</h2><span class="hint">passe o mouse pra entender cada coisa</span></div>
+    <div class="skills">
+
+      <div class="card h skill">
+        <div class="hd">
+          <div class="skico"><i class="ti ti-map-search"></i></div>
+          <div class="sktx"><b>Encontrar negócios no mapa</b>
+            <span>Procura por bairro e tipo de negócio em Cuiabá e Várzea Grande</span></div>
+          <i class="ti ti-chevron-right skchev"></i>
+        </div>
+        <div class="disc"><div class="in"><div class="skbody">
+          <p>Ele lê o mapa da cidade quadra por quadra e separa os negócios reais — descarta o que está fechado,
+            duplicado ou fora da sua região. Foca em quem tem movimento e ainda não investe em marketing.</p>
+          <div class="ex"><span class="tag">Por bairro</span><span class="tag">Por tipo de negócio</span><span class="tag">Só quem tem movimento</span></div>
+        </div></div></div>
+      </div>
+
+      <div class="card h skill">
+        <div class="hd">
+          <div class="skico"><i class="ti ti-clipboard-check"></i></div>
+          <div class="sktx"><b>Conferir a presença na internet</b>
+            <span>Vê se o negócio tem site, aparece no Google e usa redes sociais</span></div>
+          <i class="ti ti-chevron-right skchev"></i>
+        </div>
+        <div class="disc"><div class="in"><div class="skbody">
+          <p>Pra cada negócio ele checa o básico: tem site no ar? aparece quando alguém busca no Google?
+            está nas redes? faz anúncios? Onde falta presença, é dinheiro que está ficando no chão — e vira oportunidade pra você.</p>
+          <div class="ex"><span class="tag">Tem site?</span><span class="tag good">Aparece no Google?</span><span class="tag warm">Faz anúncios?</span></div>
+        </div></div></div>
+      </div>
+
+      <div class="card h skill">
+        <div class="hd">
+          <div class="skico"><i class="ti ti-coin"></i></div>
+          <div class="sktx"><b>Estimar quanto pode crescer</b>
+            <span>Calcula quanto o negócio fatura hoje e até onde poderia chegar</span></div>
+          <i class="ti ti-chevron-right skchev"></i>
+        </div>
+        <div class="disc"><div class="in"><div class="skbody">
+          <p>Com base no tamanho, no movimento e no que os concorrentes faturam, ele dá uma faixa realista:
+            quanto o negócio provavelmente fatura hoje e quanto poderia faturar com presença bem feita.
+            Sempre uma faixa honesta, nunca um número inflado.</p>
+          <div class="ex"><span class="tag">Fatura hoje</span><span class="tag good">Poderia faturar</span></div>
+        </div></div></div>
+      </div>
+
+      <div class="card h skill">
+        <div class="hd">
+          <div class="skico"><i class="ti ti-swords"></i></div>
+          <div class="sktx"><b>Olhar o concorrente</b>
+            <span>Mostra quem domina o mercado naquele bairro e por que ganha</span></div>
+          <i class="ti ti-chevron-right skchev"></i>
+        </div>
+        <div class="disc"><div class="in"><div class="skbody">
+          <p>Ele compara o negócio com quem está na frente na mesma região e explica em palavras simples
+            por que o concorrente leva os clientes — e qual a brecha pra virar o jogo.</p>
+          <div class="ex"><span class="tag cool">Quem domina</span><span class="tag warm">Onde tem brecha</span></div>
+        </div></div></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- HISTORICO -->
+  <section class="sec reveal">
+    <div class="sec-h"><h2>O que ele fez ultimamente</h2><span class="hint">passe o mouse pra ver os detalhes de cada rodada</span></div>
+    <div class="tl" id="tl">
+
+      <div class="run run-now h">
+        <span class="node"></span>
+        <div class="card h">
+          <div class="rhd">
+            <div class="rico"><i class="ti ti-loader-2 spin"></i></div>
+            <div class="rtx"><b>Varrendo Jardim das Américas</b><span class="when">agora · começou há 6 min</span></div>
+            <span class="rres good">3 achados</span>
+            <i class="ti ti-chevron-right rchev"></i>
+          </div>
+          <div class="disc"><div class="rbody"><div class="in">
+            <p>Procurando pet shops, clínicas e óticas com movimento alto que ainda não anunciam.
+              Já encontrou 3 candidatos fortes; conferindo a presença na internet de cada um.</p>
+            <div class="rsteps">
+              <div class="rstep"><i class="ti ti-check"></i>23 negócios lidos no mapa<span class="t">há 5 min</span></div>
+              <div class="rstep"><i class="ti ti-check"></i>3 com movimento alto e sem anúncios<span class="t">há 2 min</span></div>
+              <div class="rstep doing"><i class="ti ti-loader-2 spin"></i>Conferindo presença na internet<span class="t">agora</span></div>
+            </div>
+          </div></div></div>
+        </div>
+      </div>
+
+      <div class="run win h">
+        <span class="node"></span>
+        <div class="card h">
+          <div class="rhd">
+            <div class="rico"><i class="ti ti-paw"></i></div>
+            <div class="rtx"><b>Achou o Clube dos Bichos</b><span class="when">hoje · 08:14</span></div>
+            <span class="rres win">R$ 56k de potencial</span>
+            <i class="ti ti-chevron-right rchev"></i>
+          </div>
+          <div class="disc"><div class="rbody"><div class="in">
+            <p>Pet shop com 7 anos de mercado e 312 avaliações no Google, mas sem site e sem anúncios.
+              O concorrente da mesma rua anuncia; ela não. Marcado como quente e mandado pra esteira.</p>
+            <div class="rsteps">
+              <div class="rstep"><i class="ti ti-check"></i>Encontrado no Jardim das Américas<span class="t">08:14</span></div>
+              <div class="rstep"><i class="ti ti-check"></i>Sem site, fora dos anúncios<span class="t">08:15</span></div>
+              <div class="rstep"><i class="ti ti-check"></i>Potencial estimado: R$ 18k → R$ 56k/mês<span class="t">08:16</span></div>
+            </div>
+          </div></div></div>
+        </div>
+      </div>
+
+      <div class="run ok h">
+        <span class="node"></span>
+        <div class="card h">
+          <div class="rhd">
+            <div class="rico"><i class="ti ti-bread"></i></div>
+            <div class="rtx"><b>Achou a Padaria Trigo Dourado</b><span class="when">hoje · 07:52</span></div>
+            <span class="rres good">pronta pra falar</span>
+            <i class="ti ti-chevron-right rchev"></i>
+          </div>
+          <div class="disc"><div class="rbody"><div class="in">
+            <p>Padaria grande em Goiabeiras, muito movimento, 5 km sem concorrente forte e que nunca anunciou.
+              Tudo conferido — entrou na esteira como pronta pra falar.</p>
+            <div class="rsteps">
+              <div class="rstep"><i class="ti ti-check"></i>Movimento alto confirmado<span class="t">07:52</span></div>
+              <div class="rstep"><i class="ti ti-check"></i>Nunca fez anúncios<span class="t">07:53</span></div>
+            </div>
+          </div></div></div>
+        </div>
+      </div>
+
+      <div class="run ok h">
+        <span class="node"></span>
+        <div class="card h">
+          <div class="rhd">
+            <div class="rico"><i class="ti ti-map-2"></i></div>
+            <div class="rtx"><b>Varredura da madrugada · Centro e Quilombo</b><span class="when">hoje · 02:00 — 06:30</span></div>
+            <span class="rres">8 achados</span>
+            <i class="ti ti-chevron-right rchev"></i>
+          </div>
+          <div class="disc"><div class="rbody"><div class="in">
+            <p>Rodada automática enquanto você dormia. Leu 140 negócios em dois bairros e separou 8 com boa oportunidade.
+              Os outros foram descartados por já terem presença forte ou pouco movimento.</p>
+            <div class="rsteps">
+              <div class="rstep"><i class="ti ti-check"></i>140 negócios lidos<span class="t">02:00</span></div>
+              <div class="rstep"><i class="ti ti-check"></i>8 entraram na esteira<span class="t">06:30</span></div>
+            </div>
+          </div></div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ACOES -->
+  <section class="sec reveal">
+    <div class="sec-h"><h2>O que você pode mandar ele fazer</h2><span class="hint">cada botão diz exatamente o que acontece</span></div>
+    <div class="dispatch">
+
+      <div class="radial" id="radial">
+        <button class="rcore" data-act="run" data-tip="Manda ele varrer um bairro agora">
+          <i class="ti ti-bolt"></i><small>Mandar<br>fazer</small>
+        </button>
+        <button class="ray" data-act="run-bairro" data-tip="Escolher um bairro e varrer agora"><i class="ti ti-map-pin-search"></i></button>
+        <button class="ray" data-act="run-tipo" data-tip="Caçar só um tipo de negócio (ex: pet shop)"><i class="ti ti-category"></i></button>
+        <button class="ray warm" data-act="reaudit" data-tip="Auditar de novo o que ele já achou"><i class="ti ti-refresh"></i></button>
+        <button class="ray" data-act="why" data-tip="Por que o concorrente ganha em cada bairro"><i class="ti ti-swords"></i></button>
+        <button class="ray" data-act="report" data-tip="Resumo do que ele achou hoje"><i class="ti ti-file-text"></i></button>
+        <button class="ray" data-act="schedule" data-tip="Definir os horários em que ele caça sozinho"><i class="ti ti-clock"></i></button>
+      </div>
+
+      <div class="alist" id="alist">
+        <div class="card h aitem" data-act="run-bairro">
+          <div class="aico"><i class="ti ti-map-pin-search"></i></div>
+          <div class="atx"><b>Caçar em um bairro</b><span>Você escolhe o bairro e ele varre agora, sem esperar a rodada do dia.</span></div>
+          <i class="ti ti-chevron-right ago"></i>
+        </div>
+        <div class="card h aitem" data-act="run-tipo">
+          <div class="aico"><i class="ti ti-category"></i></div>
+          <div class="atx"><b>Caçar um tipo de negócio</b><span>Foca num ramo só — tipo pet shop, padaria ou clínica — na cidade inteira.</span></div>
+          <i class="ti ti-chevron-right ago"></i>
+        </div>
+        <div class="card h aitem warm" data-act="reaudit">
+          <div class="aico"><i class="ti ti-refresh"></i></div>
+          <div class="atx"><b>Auditar de novo</b><span>Reconfere a presença na internet dos negócios já achados — bom depois de uns dias.</span></div>
+          <i class="ti ti-chevron-right ago"></i>
+        </div>
+        <div class="card h aitem" data-act="why">
+          <div class="aico"><i class="ti ti-swords"></i></div>
+          <div class="atx"><b>Por que o concorrente ganha</b><span>Mostra quem domina cada bairro e qual a brecha pra você entrar.</span></div>
+          <i class="ti ti-chevron-right ago"></i>
+        </div>
+        <div class="card h aitem" data-act="schedule">
+          <div class="aico"><i class="ti ti-clock"></i></div>
+          <div class="atx"><b>Definir horários de caça</b><span>Escolhe quando ele trabalha sozinho — por padrão, o dia todo.</span></div>
+          <i class="ti ti-chevron-right ago"></i>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"><i class="ti ti-check"></i><span></span></div>
+
+<script>
+const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const toast = document.getElementById('toast');
+function showToast(msg){ toast.querySelector('span').textContent=msg; toast.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>toast.classList.remove('show'),2300); }
+
+/* count-up — apenas enhancement, base ja visivel no HTML */
+function countUp(){
+  if(RM) return;
+  document.querySelectorAll('[data-cnt]').forEach(el=>{
+    const to=+el.dataset.cnt; let s=null; const dur=800;
+    el.textContent='0';
+    requestAnimationFrame(function step(t){ if(!s)s=t; const p=Math.min(1,(t-s)/dur); const e=1-Math.pow(1-p,3); el.textContent=Math.round(to*e); if(p<1)requestAnimationFrame(step); });
+  });
+}
+countUp();
+
+/* toggle numero <-> faixa honesta (potencial encontrado) */
+(function rangeToggle(){
+  const el=document.getElementById('pot'), btn=document.getElementById('rng-btn');
+  if(!el||!btn) return;
+  const states=[['R$ 1,4M','faixa'],['R$ 1,1M – 1,7M','número']];
+  let i=0;
+  btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    i^=1; el.textContent=states[i][0]; btn.textContent=states[i][1];
+  });
+})();
+
+/* radial menu — distribui os raios em circulo (so layout via JS, conteudo ja existe).
+   Se o JS falhar, a lista .alist ao lado tem TODAS as acoes — tela continua util. */
+(function layoutRadial(){
+  const rays=[...document.querySelectorAll('.radial .ray')];
+  if(!rays.length) return;
+  const R=85, n=rays.length, start=-90;
+  rays.forEach((r,i)=>{
+    const a=(start + i*(360/n))*Math.PI/180;
+    r.style.setProperty('--x', (Math.cos(a)*R).toFixed(1)+'px');
+    r.style.setProperty('--y', (Math.sin(a)*R).toFixed(1)+'px');
+  });
+})();
+
+/* progressive disclosure por clique (alem do hover) — skills e runs */
+document.querySelectorAll('.skill, .run').forEach(el=>{
+  const hd = el.querySelector('.hd, .rhd');
+  if(hd) hd.style.cursor='pointer';
+  el.addEventListener('click',e=>{
+    if(e.target.closest('.act,.ray,.aitem,a')) return;
+    el.classList.toggle('pinned');
+    const d=el.querySelector('.disc');
+    if(d) d.classList.toggle('disc-open', el.classList.contains('pinned'));
+  });
+});
+
+/* acoes -> toast em PT plano dizendo o que aconteceu */
+const MSG = {
+  run:'Caçando agora — vou varrer um bairro pra você',
+  pause:'Caçador pausado — não vai procurar até você ligar de novo',
+  'run-bairro':'Escolha o bairro e eu varro agora',
+  'run-tipo':'Escolha o tipo de negócio e eu foco nele',
+  reaudit:'Auditando de novo os negócios já achados',
+  why:'Montando a comparação com os concorrentes',
+  report:'Abrindo o resumo do que achei hoje',
+  schedule:'Abrindo os horários de caça'
+};
+document.body.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');
+  if(!b) return;
+  if(b.closest('.skill, .run')) return; /* esses sao disclosure, nao acao */
+  e.stopPropagation();
+  showToast(MSG[b.dataset.act] || 'Feito');
+});
+</script>
+</body>
+</html>

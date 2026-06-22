@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente · Cartógrafo de Varredura — Hermes Cloud Studio</title>
+
+<link rel="stylesheet" href="design-system.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-sans@5/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5/index.css">
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/countup.js@2.10.0/dist/countUp.umd.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@tsparticles/slim@3.5.0/tsparticles.slim.bundle.min.js" defer></script>
+
+<style>
+  /* ===== Page-local layout (uses ONLY design-system tokens) ===== */
+  .shell { position: relative; z-index: var(--z-content); }
+
+  /* ---- top bar ---- */
+  .topbar {
+    position: sticky; top: 0; z-index: var(--z-sticky);
+    display: flex; align-items: center; gap: var(--sp-4);
+    padding: var(--sp-3) clamp(var(--sp-4), 3vw, var(--sp-6));
+  }
+  .crumb { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--text-dim); font-size: var(--fs-sm); }
+  .crumb a { color: var(--text-mid); transition: color var(--d-fast); }
+  .crumb a:hover { color: var(--text-hi); }
+  .crumb svg { width: 14px; height: 14px; opacity: .6; }
+
+  .page {
+    width: min(1520px, 100% - var(--sp-6)); margin-inline: auto;
+    padding: var(--sp-3) 0 calc(var(--sp-9) + 40px);
+    display: grid; gap: var(--sp-5);
+    grid-template-columns: 1.18fr 0.82fr;
+    grid-template-areas:
+      "hero    hero"
+      "stage   side"
+      "metrics side"
+      "timeline io";
+  }
+  @media (max-width: 1080px){
+    .page { grid-template-columns: 1fr; grid-template-areas: "hero" "stage" "metrics" "side" "timeline" "io"; }
+  }
+
+  /* ---- HERO ---- */
+  .hero { grid-area: hero; padding: var(--sp-5) var(--sp-6); display: grid; gap: var(--sp-4);
+          grid-template-columns: auto 1fr auto; align-items: center; overflow: hidden; }
+  @media (max-width: 720px){ .hero { grid-template-columns: 1fr; text-align: left; } .hero-cta { align-items: stretch; } }
+  .hero .pool { position: absolute; inset: -40% -10% auto -10%; height: 320px; z-index: -1; }
+  .agent-glyph {
+    position: relative; width: 96px; height: 96px; border-radius: var(--r-xl);
+    display: grid; place-items: center; flex: none; overflow: hidden;
+    background: radial-gradient(130% 130% at 30% 18%, oklch(0.38 0.13 295 / .95), oklch(0.16 0.03 292 / .96));
+    border: 1px solid var(--line-purple);
+    box-shadow: var(--elev-2), inset 0 1px 0 oklch(0.99 0.01 292 / 0.18);
+  }
+  .agent-glyph::before { /* slow rotating sheen */
+    content:""; position:absolute; inset:-40%; background: conic-gradient(from 0deg, transparent 0 65%, oklch(0.85 0.18 118 / .14) 78%, transparent 88%);
+    animation: spin-slow 9s linear infinite;
+  }
+  .agent-glyph svg { position: relative; width: 44px; height: 44px; color: var(--lime); filter: drop-shadow(0 0 12px oklch(0.92 0.21 118 / .65)); }
+  @keyframes spin-slow { to { transform: rotate(360deg); } }
+
+  .hero h1 { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+  .hero-sub { margin-top: 8px; max-width: 58ch; }
+  .hero-meta { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-4); }
+  .meta-pill { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-2xs); font-family: var(--font-mono);
+    color: var(--text-mid); padding: 5px 11px; border-radius: var(--r-pill); border: 1px solid var(--line);
+    background: oklch(0.5 .03 292 / .12); transition: border-color var(--d-fast), color var(--d-fast), background var(--d-fast); }
+  .meta-pill:hover { border-color: var(--line-strong); color: var(--text-hi); }
+  .meta-pill svg { width: 12px; height: 12px; opacity: .8; }
+  .meta-pill b { color: var(--text-hi); }
+  .hero-cta { display: flex; flex-direction: column; gap: var(--sp-2); align-items: stretch; }
+  .hero-cta .btn { justify-content: center; }
+  kbd { font-family: var(--font-mono); font-size: 10px; opacity: .7; padding: 1px 5px; border:1px solid currentColor; border-radius: 4px; opacity:.6; }
+
+  /* ---- STAGE / radial ---- */
+  .stage { grid-area: stage; position: relative; min-height: 600px; display: grid; place-items: center; overflow: hidden; padding: var(--sp-5); }
+  .stage .pool { position: absolute; inset: 0; z-index: 0; }
+  .stage::after { /* subtle vignette to deepen the dive-in */
+    content:""; position:absolute; inset:0; pointer-events:none; z-index: 2;
+    background: radial-gradient(70% 70% at 50% 46%, transparent 52%, oklch(0.11 0.02 292 / .55) 100%);
+  }
+  .stage-cap { position: absolute; top: var(--sp-4); left: var(--sp-5); right: var(--sp-5); z-index: 5;
+    display:flex; align-items:center; justify-content:space-between; gap: var(--sp-3); }
+  .stage-cap .t-label { display:flex; align-items:center; gap:7px; }
+  .stage-cap .t-label svg { width:14px; height:14px; color: var(--lime); }
+
+  .radial-wrap { position: relative; width: 100%; max-width: 540px; aspect-ratio: 1; z-index: 3; }
+  .radial-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; overflow: visible; }
+
+  .node-core {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 140px; height: 140px; border-radius: 50%; z-index: 4; display: grid; place-items: center; text-align: center;
+    background:
+      radial-gradient(circle at 36% 28%, oklch(0.46 0.15 295 / .98), oklch(0.16 0.03 292 / .99));
+    border: 1.5px solid var(--line-purple); cursor: pointer;
+    box-shadow: var(--elev-3), inset 0 1px 0 oklch(0.99 0.02 292 / .25);
+    transition: transform var(--d-base) var(--ease-spring), box-shadow var(--d-base);
+  }
+  .node-core::before { /* inner conic energy rim */
+    content:""; position:absolute; inset:-2px; border-radius:50%; padding:2px; z-index:-1;
+    background: conic-gradient(from var(--angle), var(--purple-hot), var(--lime), var(--purple-hot));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; opacity:.55;
+    animation: spin 7s linear infinite;
+  }
+  .node-core:hover { transform: translate(-50%,-50%) scale(1.05); box-shadow: var(--elev-4); }
+  .node-core .ico { width: 38px; height: 38px; color: var(--lime); filter: drop-shadow(0 0 10px oklch(0.92 .21 118 / .65)); }
+  .node-core .lbl { font-size: var(--fs-2xs); letter-spacing: .14em; text-transform: uppercase; color: var(--text-mid); margin-top: 7px; }
+  .node-core .lbl b { color: var(--lime); font-family: var(--font-mono); }
+
+  .node-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); border-radius: 50%; pointer-events: none; }
+  .node-ring--1 { width: 210px; height: 210px; border: 1px dashed oklch(0.7 .1 295 / .3); animation: spin-slow 26s linear infinite; }
+  .node-ring--2 { width: 318px; height: 318px; border: 1px solid oklch(0.6 .08 295 / .16); }
+  .node-ring--3 { width: 318px; height: 318px; border: 1px solid transparent;
+    background: conic-gradient(from 0deg, transparent 0 70%, oklch(0.92 0.21 118 / .5) 80%, transparent 92%);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+    animation: spin-slow 4.5s linear infinite; }
+
+  /* capability node */
+  .cap {
+    position: absolute; top: 50%; left: 50%; z-index: 3;
+    width: 120px; margin-left: -60px; margin-top: -38px;
+    padding: 11px 12px 12px; border-radius: var(--r-md); text-align: center; cursor: pointer;
+    background: var(--glass-tint-deep);
+    backdrop-filter: blur(12px) saturate(var(--glass-sat)); -webkit-backdrop-filter: blur(12px) saturate(var(--glass-sat));
+    border: 1px solid var(--glass-border); box-shadow: var(--elev-2), inset 0 1px 0 oklch(0.99 0.01 292 / .12);
+    transition: box-shadow var(--d-fast), border-color var(--d-fast);
+    opacity: 0; will-change: transform, opacity;
+  }
+  .cap::before { /* faint top sheen */
+    content:""; position:absolute; inset:0; border-radius:inherit; padding:1px; pointer-events:none;
+    background: linear-gradient(160deg, oklch(0.99 0.02 292 / .35), transparent 45%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+  }
+  .cap:hover { box-shadow: var(--elev-3), 0 0 24px oklch(0.92 .21 118 / .3); border-color: var(--line-lime); z-index: 6; }
+  .cap:hover .cap__ico { transform: scale(1.12); color: var(--lime); }
+  .cap__ico { width: 26px; height: 26px; margin-inline: auto; color: var(--lime-soft); transition: transform var(--d-base) var(--ease-spring), color var(--d-fast);
+    filter: drop-shadow(0 0 6px oklch(0.8 .18 118 / .35)); }
+  .cap__name { font-size: var(--fs-xs); font-weight: 650; color: var(--text-hi); margin-top: 7px; line-height: 1.2; }
+  .cap__meta { font-size: var(--fs-2xs); font-family: var(--font-mono); color: var(--text-dim); margin-top: 4px; }
+  .cap--primary { border-color: var(--line-lime); }
+  .cap--primary .cap__ico { color: var(--lime); }
+  .cap--primary::after { content:"primária"; position:absolute; top:-9px; left:50%; transform:translateX(-50%);
+    font-size:9px; font-family:var(--font-mono); letter-spacing:.08em; text-transform:uppercase; color: var(--lime-ink);
+    background: var(--lime); padding:1px 8px; border-radius: var(--r-pill); box-shadow: 0 0 12px oklch(0.92 .21 118 / .5); }
+  .cap.armed { border-color: var(--line-lime); box-shadow: var(--elev-3), 0 0 30px oklch(0.92 .21 118 / .45); }
+  .cap.armed .cap__ico { color: var(--lime); }
+
+  .stage-hint { position: absolute; bottom: var(--sp-4); left: 50%; transform: translateX(-50%);
+    font-size: var(--fs-2xs); color: var(--text-dim); display: flex; align-items: center; gap: 8px; z-index: 5;
+    padding: 5px 12px; border-radius: var(--r-pill); border:1px solid var(--line); background: oklch(0.16 0.02 292 / .6);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .stage-hint svg { width:13px; height:13px; color: var(--lime-soft); }
+
+  /* ---- SIDE health ---- */
+  .side { grid-area: side; display: grid; gap: var(--sp-5); align-content: start; }
+  .panel { padding: var(--sp-5); }
+  .panel h3 { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-4); }
+  .panel h3 svg { width: 18px; height: 18px; color: var(--purple-hot); }
+
+  .ring-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+  .ring-cell { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+  .big-ring { --pct:0; --ring-color: var(--lime); --ring-bleed: var(--lime-bleed);
+    position: relative; width: 104px; height: 104px; border-radius: 50%; display: grid; place-items: center;
+    background: conic-gradient(var(--ring-color) calc(var(--pct)*1%), oklch(0.3 .02 292 / .5) 0);
+    box-shadow: 0 0 26px -4px var(--ring-bleed); }
+  .big-ring::before { content:""; position:absolute; inset:8px; border-radius:50%; background: var(--bg-2);
+    box-shadow: inset 0 1px 2px oklch(0 0 0 / .5); }
+  .big-ring::after { content:""; position:absolute; inset:0; border-radius:50%; pointer-events:none;
+    box-shadow: inset 0 0 14px -2px var(--ring-bleed); }
+  .big-ring__v { position: relative; font-family: var(--font-mono); font-weight:600; font-size: var(--fs-lg); color: var(--text-hi);
+    font-variant-numeric: tabular-nums; }
+
+  .spark { width: 100%; height: 90px; }
+  .gaugebox { width: 100%; height: 158px; }
+
+  /* ---- metrics strip ---- */
+  .metrics { grid-area: metrics; display: grid; grid-template-columns: repeat(4,1fr); gap: var(--sp-4); }
+  @media (max-width: 720px){ .metrics { grid-template-columns: repeat(2,1fr); } }
+  .mcard { padding: var(--sp-4); position: relative; overflow: hidden; }
+  .mcard::after { content:""; position:absolute; left:0; right:0; bottom:0; height:2px; opacity:.5;
+    background: linear-gradient(90deg, transparent, var(--accent, var(--purple)), transparent); }
+  .mcard--hot::after { --accent: var(--lime); opacity:.8; }
+  .mcard .stat__label { display:flex; align-items:center; gap:6px; }
+  .mcard .stat__label svg { width:12px; height:12px; opacity:.7; }
+  .mcard .stat__value { font-size: var(--fs-h3); margin-top: 2px; }
+  .mcard .stat__delta { margin-top: 3px; display:inline-flex; align-items:center; gap:3px; }
+  .mcard .stat__delta svg { width:11px; height:11px; }
+  .mcard .mini { width: 100%; height: 40px; margin-top: 6px; }
+
+  /* ---- TIMELINE ---- */
+  .timeline { grid-area: timeline; padding: var(--sp-5) var(--sp-6); }
+  .tl { position: relative; margin-top: var(--sp-4); padding-left: 30px; }
+  .tl::before { content:""; position:absolute; left: 8px; top: 6px; bottom: 6px; width: 2px;
+    background: linear-gradient(180deg, var(--lime) 0%, var(--purple-hot) 45%, oklch(0.5 .04 292 / .35) 100%);
+    opacity:.7; box-shadow: 0 0 10px oklch(0.66 .18 295 / .35); }
+  .tl-item { position: relative; padding: 0 0 var(--sp-5) 0; }
+  .tl-item:last-child { padding-bottom: 0; }
+  .tl-dot { position: absolute; left: -30px; top: 2px; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--bg-2); border: 2px solid var(--text-faint); display:grid; place-items:center; z-index:1; }
+  .tl-dot svg { width: 10px; height: 10px; }
+  .tl-item--ok .tl-dot { border-color: var(--lime); box-shadow: 0 0 14px oklch(0.92 .21 118 / .55); color: var(--lime); }
+  .tl-item--run .tl-dot { border-color: var(--purple-hot); color: var(--purple-hot); box-shadow:0 0 16px oklch(.66 .2 295 /.6); animation: blink-dot 1.6s infinite; }
+  .tl-item--run::before { content:""; position:absolute; left:-30px; top:2px; width:18px; height:18px; border-radius:50%;
+    border:2px solid var(--purple-hot); animation: ping 1.8s var(--ease-out) infinite; }
+  @keyframes ping { 0%{transform:scale(1);opacity:.7} 100%{transform:scale(2.2);opacity:0} }
+  .tl-item--fail .tl-dot { border-color: var(--danger); color: var(--danger); box-shadow: 0 0 12px oklch(0.66 .22 25 / .45); }
+  .tl-card { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md);
+    background: oklch(0.5 .03 292 / .07); border: 1px solid var(--line); transition: border-color var(--d-fast), background var(--d-fast), transform var(--d-fast); }
+  .tl-item:hover .tl-card { border-color: var(--line-strong); background: oklch(0.5 .03 292 / .12); transform: translateX(2px); }
+  .tl-item--run .tl-card { border-color: var(--line-purple); background: oklch(0.55 .12 295 / .08); }
+  .tl-head { display:flex; align-items:center; justify-content:space-between; gap: var(--sp-3); flex-wrap: wrap; }
+  .tl-title { font-weight: 650; color: var(--text-hi); font-size: var(--fs-sm); }
+  .tl-time { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--text-dim); white-space:nowrap; }
+  .tl-body { font-size: var(--fs-xs); color: var(--text-mid); margin-top: 5px; }
+  .tl-prog { height: 4px; border-radius: var(--r-pill); background: oklch(0.3 .02 292 / .6); margin-top: 9px; overflow:hidden; }
+  .tl-prog__fill { height:100%; border-radius: inherit; width: 0%;
+    background: linear-gradient(90deg, var(--purple-hot), var(--lime));
+    box-shadow: 0 0 10px oklch(0.92 .21 118 / .5); transition: width .6s var(--ease-out); position:relative; }
+  .tl-prog__fill::after { content:""; position:absolute; inset:0; background: linear-gradient(90deg, transparent, oklch(1 0 0 / .35), transparent);
+    transform: translateX(-100%); animation: sweep-line 1.4s var(--ease-inout) infinite; }
+  .tl-stats { display:flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: 9px; }
+  .tl-stat { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--text-mid);
+    background: oklch(0.5 .03 292 /.14); border:1px solid var(--line); border-radius: var(--r-pill); padding: 3px 9px; }
+  .tl-stat b { color: var(--lime); font-weight: 600; }
+  .tl-item--fail .tl-stat b { color: var(--danger); }
+
+  /* ---- IO panel ---- */
+  .io { grid-area: io; padding: var(--sp-5); display:grid; gap: var(--sp-4); align-content: start; }
+  .io-grid { display:grid; grid-template-columns: 1fr auto 1fr; gap: var(--sp-3); align-items: stretch; }
+  @media (max-width: 480px){ .io-grid { grid-template-columns: 1fr; } .io-flow { display:none; } }
+  .io-col h4 { font-size: var(--fs-2xs); letter-spacing:.12em; text-transform:uppercase; color: var(--text-dim); margin-bottom: 10px; display:flex; align-items:center; gap:6px; }
+  .io-col h4 svg { width:13px; height:13px; }
+  .io-out h4 svg { color: var(--lime); }
+  .io-pill { display:flex; align-items:center; gap:8px; padding:9px 11px; border-radius: var(--r-sm);
+    background: var(--bg-inset); border:1px solid var(--line); margin-bottom: 8px; font-size: var(--fs-xs);
+    transition: border-color var(--d-fast), transform var(--d-fast); }
+  .io-pill:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+  .io-pill:last-child { margin-bottom:0; }
+  .io-pill svg { width:14px; height:14px; color: var(--purple-hot); flex:none; }
+  .io-pill .k { color: var(--text-mid); }
+  .io-pill .v { margin-left:auto; font-family: var(--font-mono); color: var(--text-hi); font-size: var(--fs-2xs); }
+  .io-out .io-pill svg { color: var(--lime); }
+  .io-flow { display:flex; align-items:center; justify-content:center; }
+  .io-flow svg { width:34px; height:120px; }
+
+  /* drawer trigger detail */
+  .drawer { display:flex; flex-direction:column; }
+  .drawer h3 { display:flex; align-items:center; gap: var(--sp-2); }
+  .drawer h3 svg { width:20px; height:20px; color: var(--lime); }
+  .drawer-glyph { width:40px; height:40px; border-radius: var(--r-md); display:grid; place-items:center; flex:none;
+    background: radial-gradient(120% 120% at 30% 20%, oklch(0.40 0.13 295 / .9), oklch(0.18 0.03 292 / .95));
+    border:1px solid var(--line-lime); }
+  .drawer-glyph svg { width:20px; height:20px; color: var(--lime); }
+  .field { margin-top: var(--sp-4); }
+  .field label { display:flex; align-items:center; gap:6px; font-size: var(--fs-2xs); letter-spacing:.1em; text-transform:uppercase; color: var(--text-dim); margin-bottom: 7px; }
+  .field label svg { width:12px; height:12px; opacity:.7; }
+  .field input, .field select { width:100%; padding:11px 12px; border-radius: var(--r-sm); background: var(--bg-inset);
+    border:1px solid var(--line); color: var(--text-hi); font-size: var(--fs-sm); transition: border-color var(--d-fast); }
+  .field select:hover, .field input:hover { border-color: var(--line-strong); }
+  .depth-row { display:flex; align-items:center; gap: var(--sp-3); }
+  .depth-row input[type=range] { flex:1; accent-color: var(--lime); }
+  .depth-val { font-family:var(--font-mono); font-size:var(--fs-xs); color: var(--lime); min-width: 88px; text-align:right; }
+  .est { display:flex; justify-content:space-between; align-items:center; padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md);
+    margin-top: var(--sp-5); }
+  .est .num { color: var(--text-hi); font-family:var(--font-mono); font-size: var(--fs-sm); }
+  .drawer-foot { margin-top: auto; padding-top: var(--sp-5); }
+
+  .toast-host { position: fixed; right: var(--sp-5); bottom: var(--sp-5); z-index: var(--z-toast); display:flex; flex-direction:column; gap: var(--sp-2); pointer-events:none; }
+  .toast-host .toast { position: static; pointer-events:auto; display:flex; align-items:center; gap:8px; }
+  .toast .ic { width:16px; height:16px; flex:none; }
+</style>
+</head>
+<body>
+<a href="#main" class="sr-only">Pular para conteúdo</a>
+
+<div class="bg-base"></div>
+<div class="bg-mesh"></div>
+<div class="bg-particles" id="particles"></div>
+<div class="bg-grain"></div>
+
+<div class="shell">
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="glass" style="display:flex;align-items:center;gap:var(--sp-3);padding:8px 14px;border-radius:var(--r-pill);">
+      <span class="crumb">
+        <a href="06-command-center.html">Command Center</a>
+        <i data-lucide="chevron-right"></i>
+        <a href="06-command-center.html">40 Agentes</a>
+        <i data-lucide="chevron-right"></i>
+        <span style="color:var(--text-hi);font-weight:600;">Cartógrafo de Varredura</span>
+      </span>
+    </div>
+    <span class="grow"></span>
+    <span class="meta-pill"><span class="live-dot"></span> ATIVO · ciclo <b>#2.184</b></span>
+    <button class="btn btn-ghost btn-sm" id="perfBtn" title="Modo leve"><i data-lucide="zap"></i> Performance</button>
+    <button class="btn btn-icon btn-ghost" title="Configurar agente"><i data-lucide="settings-2"></i></button>
+  </header>
+
+  <main id="main" class="page">
+
+    <!-- ===== HERO ===== -->
+    <section class="hero glass glass-spec text-scrim anim-reveal">
+      <div class="pool pool-purple"></div>
+      <div class="agent-glyph">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
+      </div>
+      <div>
+        <h1 class="t-h1">Cartógrafo de Varredura <span class="badge badge--ready">prioridade alta</span></h1>
+        <p class="hero-sub t-lead">Varre bairros de Cuiabá e Várzea Grande, classifica zonas por densidade de oportunidade e dispara auditorias automáticas nos negócios encontrados.</p>
+        <div class="hero-meta">
+          <span class="meta-pill"><i data-lucide="cpu"></i> v3.2 · Patchright</span>
+          <span class="meta-pill"><i data-lucide="git-branch"></i> alimenta · <b>Conveyor</b></span>
+          <span class="meta-pill"><i data-lucide="map-pin"></i> <b>41</b> zonas mapeadas</span>
+          <span class="meta-pill"><i data-lucide="timer"></i> p95 <b>4.2 min</b>/zona</span>
+          <span class="meta-pill"><i data-lucide="server"></i> VM Contabo · $0 API</span>
+        </div>
+      </div>
+      <div class="hero-cta">
+        <button class="btn btn-energy btn-lg" id="runPrimary"><i data-lucide="radar"></i> Varrer agora</button>
+        <button class="btn btn-ghost" id="palBtn"><i data-lucide="command"></i> Ações <kbd>⌘K</kbd></button>
+      </div>
+    </section>
+
+    <!-- ===== STAGE: radial action menu ===== -->
+    <section class="stage glass glass-spec anim-reveal-scale" aria-label="Menu radial de capacidades">
+      <div class="pool pool-lime"></div>
+      <div class="stage-cap">
+        <span class="t-label"><i data-lucide="orbit"></i> Capacidades</span>
+        <span class="meta-pill"><span class="live-dot"></span> núcleo ativo</span>
+      </div>
+      <div class="radial-wrap" id="radial">
+        <div class="node-ring node-ring--2"></div>
+        <div class="node-ring node-ring--3"></div>
+        <div class="node-ring node-ring--1"></div>
+        <svg class="radial-svg" id="radialLines" viewBox="0 0 540 540" preserveAspectRatio="xMidYMid meet"></svg>
+
+        <button class="node-core" id="coreNode" aria-label="Capacidades do agente">
+          <svg class="ico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>
+          <span class="lbl"><b>8</b> capacidades</span>
+        </button>
+        <!-- capability nodes injected by JS -->
+      </div>
+      <div class="stage-hint"><i data-lucide="mouse-pointer-click"></i> Clique numa capacidade para armar e disparar</div>
+    </section>
+
+    <!-- ===== SIDE: health / gauges ===== -->
+    <aside class="side">
+      <div class="panel glass glass-spec anim-reveal">
+        <h3 class="t-h3"><i data-lucide="activity"></i> Saúde do agente</h3>
+        <div class="ring-row">
+          <div class="ring-cell">
+            <div class="big-ring" data-pct="96"><span class="big-ring__v" data-count="96" data-suffix="%">0</span></div>
+            <span class="t-xs t-dim">Taxa de sucesso</span>
+          </div>
+          <div class="ring-cell">
+            <div class="big-ring big-ring--purple" data-pct="78"><span class="big-ring__v" data-count="78" data-suffix="%">0</span></div>
+            <span class="t-xs t-dim">Carga / CPU VPS</span>
+          </div>
+        </div>
+        <hr class="divider">
+        <div class="row-between" style="margin-bottom:8px;"><span class="t-xs t-dim">Latência por execução (24h)</span><span class="t-xs t-mono tglow-energy">4.2 min</span></div>
+        <div class="spark" id="sparkLatency"></div>
+      </div>
+
+      <div class="panel glass glass-spec anim-reveal is-measured">
+        <h3 class="t-h3"><i data-lucide="gauge"></i> Confiança da varredura</h3>
+        <div style="display:grid;place-items:center;">
+          <div class="gaugebox" id="confGauge"></div>
+        </div>
+        <p class="t-xs t-dim" style="text-align:center;margin-top:-12px;"><span class="tag-measured">sólido</span> medido nesta semana · <span class="tag-projected">translúcido</span> projeção do modelo</p>
+      </div>
+    </aside>
+
+    <!-- ===== METRICS strip ===== -->
+    <section class="metrics">
+      <div class="mcard glass glass-spec anim-pop">
+        <div class="stat"><span class="stat__label"><i data-lucide="map"></i> Zonas varridas</span><span class="stat__value" data-count="41">0</span>
+          <span class="stat__delta stat__delta--up"><i data-lucide="trending-up"></i> +6 esta semana</span></div>
+        <div class="mini" id="mini1"></div>
+      </div>
+      <div class="mcard glass glass-spec anim-pop">
+        <div class="stat"><span class="stat__label"><i data-lucide="building-2"></i> Negócios achados</span><span class="stat__value" data-count="1287">0</span>
+          <span class="stat__delta stat__delta--up"><i data-lucide="trending-up"></i> +124</span></div>
+        <div class="mini" id="mini2"></div>
+      </div>
+      <div class="mcard glass glass-spec anim-pop mcard--hot">
+        <div class="stat"><span class="stat__label"><i data-lucide="flame"></i> Oportunidades</span><span class="stat__value tglow-energy" data-count="318">0</span>
+          <span class="stat__delta stat__delta--up"><i data-lucide="trending-up"></i> 24.7% do total</span></div>
+        <div class="mini" id="mini3"></div>
+      </div>
+      <div class="mcard glass glass-spec anim-pop is-projected">
+        <div class="stat"><span class="stat__label"><i data-lucide="banknote"></i> Receita projetada</span><span class="stat__value revenue" data-count="2.84" data-prefix="R$ " data-suffix="M">0</span>
+          <span class="stat__delta t-dim"><i data-lucide="sparkles"></i> projeção do modelo</span></div>
+        <div class="mini" id="mini4"></div>
+      </div>
+    </section>
+
+    <!-- ===== TIMELINE ===== -->
+    <section class="timeline glass glass-spec anim-reveal">
+      <div class="row-between">
+        <h3 class="t-h3"><i data-lucide="history" style="width:18px;height:18px;color:var(--lime);vertical-align:-3px;"></i> Execuções recentes</h3>
+        <span class="meta-pill"><span class="live-dot"></span> stream ao vivo</span>
+      </div>
+      <div class="tl" id="timeline"></div>
+    </section>
+
+    <!-- ===== IO ===== -->
+    <section class="io glass glass-spec anim-reveal">
+      <h3 class="t-h3"><i data-lucide="arrow-left-right" style="width:18px;height:18px;color:var(--purple-hot);vertical-align:-3px;"></i> Entradas &amp; Saídas</h3>
+      <div class="io-grid">
+        <div class="io-col">
+          <h4><i data-lucide="log-in"></i> Recebe</h4>
+          <div class="io-pill"><i data-lucide="map"></i><span class="k">Polígono de zona</span><span class="v">GeoJSON</span></div>
+          <div class="io-pill"><i data-lucide="sliders-horizontal"></i><span class="k">Filtros de nicho</span><span class="v">12</span></div>
+          <div class="io-pill"><i data-lucide="layers"></i><span class="k">Profundidade</span><span class="v">city→st</span></div>
+        </div>
+        <div class="io-flow" aria-hidden="true">
+          <svg viewBox="0 0 34 120" fill="none" preserveAspectRatio="xMidYMid meet">
+            <path class="flow-line flow-line--active" d="M2 14 H20 V58 H32" />
+            <path class="flow-line flow-line--active" d="M2 60 H32" />
+            <path class="flow-line flow-line--active" d="M2 106 H20 V62 H32" />
+            <circle cx="32" cy="60" r="3" fill="var(--lime)" />
+          </svg>
+        </div>
+        <div class="io-col io-out">
+          <h4><i data-lucide="log-out"></i> Entrega</h4>
+          <div class="io-pill"><i data-lucide="building-2"></i><span class="k">Negócios brutos</span><span class="v">→ Conveyor</span></div>
+          <div class="io-pill"><i data-lucide="flame"></i><span class="k">Score de zona</span><span class="v">0–100</span></div>
+          <div class="io-pill"><i data-lucide="file-search"></i><span class="k">Fila de auditoria</span><span class="v">auto</span></div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="row wrap">
+        <button class="btn btn-primary grow" id="sendConveyor"><i data-lucide="send"></i> Enviar lote ao Conveyor</button>
+        <button class="btn btn-ghost" id="retrain"><i data-lucide="refresh-cw"></i> Recalibrar</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===== Trigger drawer ===== -->
+<aside class="drawer glass closed" id="drawer" aria-hidden="true" aria-label="Disparar capacidade">
+  <div class="row" style="justify-content:space-between;">
+    <div class="row">
+      <span class="drawer-glyph"><i data-lucide="zap" id="drIco"></i></span>
+      <div>
+        <h3 class="t-h3" style="margin:0;"><span id="drName">Capacidade</span></h3>
+        <span class="t-2xs t-dim" style="font-family:var(--font-mono);">disparo manual · owner</span>
+      </div>
+    </div>
+    <button class="btn btn-icon btn-ghost" id="drClose" aria-label="Fechar"><i data-lucide="x"></i></button>
+  </div>
+  <p class="t-sm t-dim" id="drDesc" style="margin-top:var(--sp-4);"></p>
+
+  <div class="field"><label><i data-lucide="target"></i> Alvo</label>
+    <select id="drTarget">
+      <option>Bairro Goiabeiras — Cuiabá</option>
+      <option>Centro-Sul — Cuiabá</option>
+      <option>Jardim das Américas — Cuiabá</option>
+      <option>Cristo Rei — Várzea Grande</option>
+      <option>Estado de Mato Grosso (todas as cidades)</option>
+    </select>
+  </div>
+  <div class="field"><label><i data-lucide="tag"></i> Nicho prioritário</label>
+    <select id="drNiche">
+      <option>Todos os nichos</option><option>Clínicas &amp; Estética</option><option>Restaurantes &amp; Bares</option>
+      <option>Construção &amp; Imóveis</option><option>Pet &amp; Veterinária</option><option>Academias</option>
+    </select>
+  </div>
+  <div class="field"><label><i data-lucide="layers"></i> Profundidade</label>
+    <div class="depth-row">
+      <input id="drDepth" type="range" min="1" max="3" value="2">
+      <span class="depth-val" id="drDepthLbl">cidade</span>
+    </div>
+  </div>
+
+  <div class="est is-projected">
+    <span class="t-xs t-dim"><i data-lucide="sparkles" style="width:12px;height:12px;vertical-align:-2px;"></i> Estimativa <span class="tag-projected">projeção</span></span>
+    <span class="num" id="drEst">~ 32 negócios · 4.2 min</span>
+  </div>
+
+  <div class="drawer-foot">
+    <div class="divider"></div>
+    <button class="btn btn-energy btn-lg" id="drFire" style="width:100%;justify-content:center;"><i data-lucide="rocket"></i> Disparar capacidade</button>
+    <p class="t-2xs t-dim" style="text-align:center;margin-top:var(--sp-3);">Roda na VM Contabo · sem custo de API · cancelável a qualquer momento</p>
+  </div>
+</aside>
+
+<!-- ===== Command palette ===== -->
+<div class="scrim" id="palScrim" hidden style="z-index:var(--z-palette);">
+  <div class="palette" role="dialog" aria-label="Paleta de comandos">
+    <input class="palette__input" id="palInput" placeholder="Disparar capacidade do agente…" autocomplete="off">
+    <div id="palList"></div>
+  </div>
+</div>
+
+<div class="toast-host" id="toasts"></div>
+
+<script>
+(() => {
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const ready = (fn)=> document.readyState!=='loading'?fn():document.addEventListener('DOMContentLoaded',fn);
+
+  // ---- Capabilities data (Cuiaba/Brazil flavored) ----
+  const CAPS = [
+    { id:'sweep',   name:'Varrer zona',   ico:'radar',       meta:'~4 min', primary:true,  desc:'Mapeia todos os negócios de um polígono via Google Maps + diretórios locais e classifica a densidade de oportunidade.' },
+    { id:'audit',   name:'Auto-auditar',  ico:'file-search', meta:'18/lote', desc:'Dispara auditoria digital (site, redes, anúncios) em cada negócio encontrado e calcula o gap.' },
+    { id:'score',   name:'Score de zona', ico:'flame',       meta:'0–100',   desc:'Recalcula o índice de oportunidade da zona combinando tempo de mercado, reviews e ausência digital.' },
+    { id:'geocode', name:'Geolocalizar',  ico:'map-pin',     meta:'exato',   desc:'Resolve coordenadas exatas de cada negócio para visualização no mapa de varredura.' },
+    { id:'dedupe',  name:'Deduplicar',    ico:'copy-check',  meta:'limpa',   desc:'Remove negócios duplicados entre fontes antes de empurrar pro Conveyor.' },
+    { id:'enrich',  name:'Enriquecer',    ico:'sparkles',    meta:'+canais', desc:'Anexa redes sociais, estimativa de anúncios e porte da empresa aos registros.' },
+    { id:'flagniche',name:'Marcar nicho', ico:'tag',         meta:'auto',    desc:'Identifica nicho-oportunidade (alta densidade, baixa concorrência digital) e prioriza.' },
+    { id:'export',  name:'Empurrar lote', ico:'send',        meta:'→ B',     desc:'Envia o lote varrido e enriquecido direto pro Lead Conveyor (Surface B).' },
+  ];
+  const DEPTHS = [['bairro',18,2.1],['cidade',32,4.2],['estado',140,11.5]];
+
+  ready(() => {
+    if (window.lucide) lucide.createIcons();
+
+    /* ---------- particles (subtle) ---------- */
+    if (!REDUCED && window.tsParticles) {
+      tsParticles.load({ id:'particles', options:{
+        fpsLimit:45, fullScreen:{enable:false},
+        particles:{
+          number:{value:42,density:{enable:true,area:900}},
+          color:{value:['#d1fe17','#7c3aed','#9b6bff']},
+          opacity:{value:{min:0.05,max:0.35}},
+          size:{value:{min:0.5,max:2}},
+          move:{enable:true,speed:0.35,direction:'none',outModes:'out'},
+          links:{enable:true,distance:130,color:'#7c3aed',opacity:0.12,width:1}
+        },
+        detectRetina:true
+      }}).catch(()=>{});
+    }
+
+    /* ---------- radial menu ---------- */
+    const wrap = document.getElementById('radial');
+    const svg  = document.getElementById('radialLines');
+    const VB = 540, C = VB/2;
+    const n = CAPS.length, R = 0.345; // fraction of wrap (label ring)
+    const items = [];
+
+    CAPS.forEach((c,i) => {
+      const ang = (-90 + i*(360/n)) * Math.PI/180;
+      const x = 50 + Math.cos(ang)*R*100;       // percent within wrap
+      const y = 50 + Math.sin(ang)*R*100;
+      const ex = x/100*VB, ey = y/100*VB;        // svg coords (endpoint)
+      const coreR = 70;                          // node-core radius in svg units (~140px / 2 within 540 box ≈ keeps gap)
+      const sx = C + Math.cos(ang)*coreR, sy = C + Math.sin(ang)*coreR; // start at core edge
+
+      // conduit: glow underlay + dashed flow line + endpoint pip
+      const glow = document.createElementNS('http://www.w3.org/2000/svg','line');
+      glow.setAttribute('x1',sx); glow.setAttribute('y1',sy); glow.setAttribute('x2',ex); glow.setAttribute('y2',ey);
+      glow.setAttribute('stroke', c.primary?'var(--lime)':'var(--purple)');
+      glow.setAttribute('stroke-width', c.primary?6:4);
+      glow.setAttribute('stroke-opacity', c.primary?.18:.10);
+      glow.setAttribute('stroke-linecap','round');
+      glow.style.filter = 'blur(3px)';
+      svg.appendChild(glow);
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1',sx); line.setAttribute('y1',sy); line.setAttribute('x2',ex); line.setAttribute('y2',ey);
+      line.setAttribute('stroke', c.primary?'var(--lime)':'var(--purple-hot)');
+      line.setAttribute('stroke-width', c.primary?1.6:1.1);
+      line.setAttribute('stroke-opacity', c.primary?.7:.4);
+      line.setAttribute('stroke-dasharray','3 7');
+      line.setAttribute('stroke-linecap','round');
+      line.dataset.cap = c.id;
+      if (!REDUCED){ line.style.animation = `flow-dash ${c.primary?0.9:1.4}s linear infinite`; }
+      svg.appendChild(line);
+
+      const pip = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      pip.setAttribute('cx',sx); pip.setAttribute('cy',sy); pip.setAttribute('r', c.primary?2.6:1.8);
+      pip.setAttribute('fill', c.primary?'var(--lime)':'var(--purple-hot)');
+      svg.appendChild(pip);
+
+      const el = document.createElement('button');
+      el.className = 'cap'+(c.primary?' cap--primary':'');
+      el.style.left = x+'%'; el.style.top = y+'%';
+      el.dataset.fx = (x-50); el.dataset.fy = (y-50);
+      el.dataset.cap = c.id;
+      el.setAttribute('aria-label', c.name + ' — ' + c.meta);
+      el.innerHTML = `<div class="cap__ico"><i data-lucide="${c.ico}"></i></div>
+        <div class="cap__name">${c.name}</div><div class="cap__meta">${c.meta}</div>`;
+      el.addEventListener('click', ()=> openDrawer(c));
+      el.addEventListener('mouseenter', ()=> highlightLine(c.id,true));
+      el.addEventListener('mouseleave', ()=> highlightLine(c.id,false));
+      wrap.appendChild(el);
+      items.push(el);
+    });
+    if (window.lucide) lucide.createIcons();
+
+    function highlightLine(id,on){
+      const ln = svg.querySelector(`line[data-cap="${id}"]`);
+      if(!ln) return;
+      ln.setAttribute('stroke','var(--lime)');
+      ln.setAttribute('stroke-opacity', on?.95:(CAPS.find(c=>c.id===id)?.primary?.7:.4));
+      ln.setAttribute('stroke-width', on?2:(CAPS.find(c=>c.id===id)?.primary?1.6:1.1));
+      ln.style.filter = on?'drop-shadow(0 0 4px var(--lime))':'';
+    }
+
+    // fan-out reveal (GSAP if available for a real spring; CSS fallback)
+    function fanOut(){
+      items.forEach((el)=>{ el.style.opacity=0; el.style.transform = `translate(0,0) scale(.35)`; });
+      items.forEach((el,i)=>{
+        const tx = `calc(${el.dataset.fx}% )`, ty = `calc(${el.dataset.fy}%)`;
+        if (REDUCED){ el.style.opacity=1; el.style.transform=`translate(${tx},${ty}) scale(1)`; return; }
+        if (window.gsap){
+          gsap.fromTo(el, {opacity:0, scale:.35, x:0, y:0},
+            {opacity:1, scale:1, duration:.7, delay:.1+i*.06, ease:'back.out(1.7)',
+             onStart:()=>{ el.style.transform=''; },
+             // GSAP sets x/y in px relative to the cap's own anchored center — we instead drive via transform string
+            });
+          // GSAP can't easily do calc(% ) so animate a progress var and set transform manually
+          const obj={p:0};
+          gsap.to(obj,{p:1,duration:.7,delay:.1+i*.06,ease:'back.out(1.7)',onUpdate:()=>{
+            const s=.35+obj.p*.65;
+            el.style.opacity=obj.p;
+            el.style.transform=`translate(calc(${el.dataset.fx*obj.p}% ),calc(${el.dataset.fy*obj.p}%)) scale(${s})`;
+          }});
+        } else {
+          el.style.transition='transform .6s var(--ease-spring), opacity .5s';
+          setTimeout(()=>{ el.style.opacity=1; el.style.transform=`translate(${tx},${ty}) scale(1)`; }, 120+i*55);
+        }
+      });
+    }
+    setTimeout(fanOut, 280);
+
+    document.getElementById('coreNode').addEventListener('click', ()=> fanOut());
+
+    /* ---------- count ups ---------- */
+    const cu = (elsel) => document.querySelectorAll(elsel).forEach(el=>{
+      const end = parseFloat(el.dataset.count);
+      const opts = { duration: REDUCED?0:1.6, prefix: el.dataset.prefix||'', suffix: el.dataset.suffix||'',
+                     decimalPlaces: (el.dataset.count.includes('.')?2:0), separator:'.' };
+      if (window.countUp && window.countUp.CountUp){ const c = new countUp.CountUp(el, end, opts); if(!c.error) c.start(); else el.textContent = (opts.prefix+end+opts.suffix); }
+      else el.textContent = opts.prefix+end+opts.suffix;
+    });
+    cu('[data-count]');
+
+    /* ---------- score rings ---------- */
+    document.querySelectorAll('.big-ring').forEach(r=>{
+      const p = +r.dataset.pct;
+      if (r.classList.contains('big-ring--purple')) { r.style.setProperty('--ring-color','var(--purple-hot)'); r.style.setProperty('--ring-bleed','var(--purple-bleed)'); }
+      let cur=0; const step=()=>{ cur+=Math.max(.6,(p-cur)*0.10); if(cur>=p)cur=p; r.style.setProperty('--pct',cur.toFixed(1)); if(cur<p)requestAnimationFrame(step); };
+      REDUCED ? r.style.setProperty('--pct',p) : requestAnimationFrame(step);
+    });
+
+    /* ---------- ECharts ---------- */
+    const css = (v)=> getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const lime = '#d1fe17', purple = '#7c3aed';
+    const charts = [];
+
+    if (window.echarts) {
+      // latency sparkline (area)
+      const sp = echarts.init(document.getElementById('sparkLatency'), null, {renderer:'canvas'});
+      const lat = Array.from({length:30}, (_,i)=> +(3.4 + Math.sin(i/3)*0.7 + (i%5===0?0.5:0) + Math.random()*0.5).toFixed(1));
+      sp.setOption({ grid:{left:2,right:2,top:8,bottom:2}, xAxis:{type:'category',show:false,data:lat.map((_,i)=>i),boundaryGap:false},
+        yAxis:{type:'value',show:false,min:2},
+        tooltip:{trigger:'axis',formatter:p=>p[0].data+' min',backgroundColor:'rgba(20,16,28,.94)',borderColor:'rgba(124,58,237,.4)',textStyle:{color:'#eee',fontSize:11},padding:[4,8]},
+        series:[{type:'line',data:lat,smooth:true,symbol:'none',
+          lineStyle:{color:lime,width:2,shadowColor:'rgba(209,254,23,.6)',shadowBlur:12},
+          areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(209,254,23,.38)'},{offset:1,color:'rgba(209,254,23,0)'}])}}]});
+      charts.push(sp);
+
+      // gauge — confidence (measured arc + projected ghost)
+      const g = echarts.init(document.getElementById('confGauge'), null, {renderer:'canvas'});
+      g.setOption({ series:[
+        { // projected ghost ring (translucent = projeção)
+          type:'gauge', startAngle:200, endAngle:-20, min:0, max:100, radius:'118%', center:['50%','78%'],
+          progress:{show:true, width:14, roundCap:true, itemStyle:{color:'rgba(209,254,23,.16)'}},
+          axisLine:{lineStyle:{width:14,color:[[1,'rgba(120,120,140,.16)']]}},
+          axisTick:{show:false}, splitLine:{show:false}, axisLabel:{show:false}, pointer:{show:false}, anchor:{show:false},
+          detail:{show:false}, title:{show:false}, data:[{value:92}], silent:true, z:1 },
+        { // measured arc (solid = medido)
+          type:'gauge', startAngle:200, endAngle:-20, min:0, max:100, radius:'118%', center:['50%','78%'],
+          progress:{show:true,width:14,roundCap:true,itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:purple},{offset:1,color:lime}]),shadowColor:'rgba(209,254,23,.4)',shadowBlur:10}},
+          axisLine:{lineStyle:{width:14,color:[[1,'rgba(0,0,0,0)']]}},
+          axisTick:{show:false}, splitLine:{show:false}, axisLabel:{show:false}, pointer:{show:false}, anchor:{show:false},
+          detail:{valueAnimation:true,fontSize:32,fontFamily:'Geist Mono',color:'#f4f1fa',offsetCenter:[0,'-6%'],formatter:'{value}%'},
+          title:{show:true,offsetCenter:[0,'26%'],color:(css('--text-dim')||'#8a85a0'),fontSize:11,fontWeight:600,fontFamily:'Geist Mono'},
+          data:[{value:84,name:'CONFIANÇA MEDIDA'}], z:2 }
+      ]});
+      charts.push(g);
+
+      // mini bars in metric cards
+      const mkMini = (id,color,base)=>{
+        const node = document.getElementById(id); if(!node) return;
+        const c = echarts.init(node, null, {renderer:'canvas'});
+        const d = Array.from({length:14},(_,i)=> base*(0.45+Math.random()*0.55)*(1+i*0.02));
+        c.setOption({grid:{left:0,right:0,top:3,bottom:0},xAxis:{type:'category',show:false,data:d.map((_,i)=>i)},yAxis:{show:false},
+          series:[{type:'bar',data:d,itemStyle:{color,borderRadius:[2,2,0,0]},barWidth:'56%'}]});
+        charts.push(c);
+      };
+      mkMini('mini1','rgba(155,107,255,.5)',8);
+      mkMini('mini2','rgba(155,107,255,.5)',30);
+      mkMini('mini3', lime, 14);
+      mkMini('mini4','rgba(209,254,23,.55)', 10);
+
+      window.addEventListener('resize', ()=> charts.forEach(c=>{ try{c.resize();}catch(e){} }));
+    }
+
+    /* ---------- timeline ---------- */
+    const RUNS = [
+      {st:'run', t:'agora', title:'Varredura · Jardim das Américas', body:'Coletando negócios via Maps + diretórios.', prog:62, stats:[['encontrados','41'],['novos','12']]},
+      {st:'ok',  t:'há 14 min', title:'Auto-auditoria · lote #2.183', body:'18 negócios auditados, 6 marcados como oportunidade alta.', stats:[['oport.','6'],['gap médio','73']]},
+      {st:'ok',  t:'há 38 min', title:'Varredura · Bairro Goiabeiras', body:'Zona consolidada — score 34. Empurrado pro Conveyor.', stats:[['negócios','27'],['score','34']]},
+      {st:'fail',t:'há 1 h',   title:'Geocode · Centro-Sul', body:'3 endereços ambíguos pulados. Re-fila agendada.', stats:[['ok','19'],['falhas','3']]},
+      {st:'ok',  t:'há 2 h',   title:'Enriquecimento · 54 registros', body:'Redes sociais + estimativa de anúncios anexadas.', stats:[['canais','+88'],['ads est.','R$ 1.2k']]},
+    ];
+    const tl = document.getElementById('timeline');
+    const icon = {run:'loader',ok:'check',fail:'x'};
+    const renderItem = (r)=> `
+      <div class="tl-item tl-item--${r.st}">
+        <div class="tl-dot"><i data-lucide="${icon[r.st]}"></i></div>
+        <div class="tl-card">
+          <div class="tl-head"><span class="tl-title">${r.title}</span><span class="tl-time">${r.t}</span></div>
+          <div class="tl-body">${r.body}</div>
+          ${r.st==='run'?`<div class="tl-prog"><div class="tl-prog__fill" style="width:${r.prog}%"></div></div>`:''}
+          <div class="tl-stats">${r.stats.map(s=>`<span class="tl-stat">${s[0]} <b>${s[1]}</b></span>`).join('')}</div>
+        </div>
+      </div>`;
+    tl.innerHTML = RUNS.map(renderItem).join('');
+    if (window.lucide) lucide.createIcons();
+
+    /* ---------- drawer ---------- */
+    const drawer = document.getElementById('drawer');
+    let armedEl = null;
+    const setIco = (sel,name)=>{ const host=document.getElementById(sel); if(!host) return; host.outerHTML = `<i data-lucide="${name}" id="${sel}"></i>`; if(window.lucide)lucide.createIcons(); };
+    function openDrawer(c){
+      document.getElementById('drName').textContent = c.name;
+      document.getElementById('drDesc').textContent = c.desc;
+      setIco('drIco', c.ico);
+      drawer.classList.remove('closed'); drawer.setAttribute('aria-hidden','false');
+      if(armedEl) armedEl.classList.remove('armed');
+      armedEl = items.find(el=> el.dataset.cap===c.id);
+      if(armedEl) armedEl.classList.add('armed');
+      updateEst();
+      setTimeout(()=> document.getElementById('drFire').focus(), 320);
+    }
+    function closeDrawer(){ drawer.classList.add('closed'); drawer.setAttribute('aria-hidden','true'); if(armedEl)armedEl.classList.remove('armed'); }
+    document.getElementById('drClose').addEventListener('click', closeDrawer);
+
+    function updateEst(){
+      const d = +document.getElementById('drDepth').value;
+      const [lbl,biz,mins] = DEPTHS[d-1]||DEPTHS[1];
+      document.getElementById('drDepthLbl').textContent = lbl;
+      document.getElementById('drEst').textContent = `~ ${biz} negócios · ${mins} min`;
+    }
+    document.getElementById('drDepth').addEventListener('input', updateEst);
+
+    document.getElementById('drFire').addEventListener('click', ()=>{
+      const name = document.getElementById('drName').textContent;
+      const tgt = document.getElementById('drTarget').value;
+      closeDrawer();
+      toast('rocket', `<b>${name}</b> disparada em ${tgt.split('—')[0].trim()}`, 'energy');
+      pushRun(name, tgt);
+    });
+
+    /* ---------- run buttons ---------- */
+    document.getElementById('runPrimary').addEventListener('click', ()=> openDrawer(CAPS[0]));
+    document.getElementById('sendConveyor').addEventListener('click', ()=> toast('send','<b>Lote enviado</b> ao Lead Conveyor · 41 negócios', 'purple'));
+    document.getElementById('retrain').addEventListener('click', ()=> toast('refresh-cw','Recalibração de score agendada', 'purple'));
+
+    function pushRun(name, tgt){
+      const node = document.createElement('div');
+      node.className = 'tl-item tl-item--run';
+      node.innerHTML = `<div class="tl-dot"><i data-lucide="loader"></i></div>
+        <div class="tl-card">
+          <div class="tl-head"><span class="tl-title">${name} · ${tgt.split('—')[0].trim()}</span><span class="tl-time">agora</span></div>
+          <div class="tl-body">Disparada manualmente pelo owner. Inicializando na VM…</div>
+          <div class="tl-prog"><div class="tl-prog__fill" style="width:6%"></div></div>
+          <div class="tl-stats"><span class="tl-stat">status <b>na fila</b></span></div>
+        </div>`;
+      tl.prepend(node);
+      if(window.lucide)lucide.createIcons();
+      if(window.gsap && !REDUCED){ gsap.from(node,{height:0,opacity:0,marginBottom:0,duration:.5,ease:'power2.out',clearProps:'all'}); }
+    }
+
+    /* ---------- toasts ---------- */
+    function toast(ic, html, kind){
+      const t = document.createElement('div');
+      t.className = 'toast'; if(kind==='energy') t.classList.add('glow-energy'); if(kind==='purple') t.classList.add('glow-purple');
+      t.innerHTML = `<i data-lucide="${ic}" class="ic" style="color:${kind==='energy'?'var(--lime)':'var(--purple-hot)'}"></i><span>${html}</span>`;
+      document.getElementById('toasts').appendChild(t);
+      if(window.lucide)lucide.createIcons();
+      setTimeout(()=>{ t.style.transition='opacity .4s, transform .4s'; t.style.opacity=0; t.style.transform='translateY(8px)'; setTimeout(()=>t.remove(),400); }, 3600);
+    }
+
+    /* ---------- command palette ---------- */
+    const scrim = document.getElementById('palScrim'), list = document.getElementById('palList'), inp = document.getElementById('palInput');
+    let palSel = 0;
+    function renderPal(q=''){
+      const f = CAPS.filter(c=> c.name.toLowerCase().includes(q.toLowerCase()));
+      palSel = 0;
+      list.innerHTML = f.map((c,i)=>`<div class="palette__item" data-id="${c.id}" ${i===0?'aria-selected="true"':''}>
+        <i data-lucide="${c.ico}"></i><span>${c.name}</span><span style="color:var(--text-dim);font-size:11px;margin-left:8px;">${c.meta}</span><kbd>↵</kbd></div>`).join('')
+        || `<div class="palette__item" style="color:var(--text-dim)">Nenhuma capacidade</div>`;
+      if(window.lucide)lucide.createIcons();
+      list.querySelectorAll('.palette__item[data-id]').forEach(it=> it.addEventListener('click',()=>{ const c=CAPS.find(x=>x.id===it.dataset.id); closePal(); openDrawer(c); }));
+    }
+    function moveSel(d){
+      const all=[...list.querySelectorAll('.palette__item[data-id]')]; if(!all.length)return;
+      all[palSel]?.removeAttribute('aria-selected');
+      palSel=(palSel+d+all.length)%all.length;
+      all[palSel].setAttribute('aria-selected','true');
+      all[palSel].scrollIntoView({block:'nearest'});
+    }
+    function openPal(){ scrim.hidden=false; renderPal(); inp.value=''; setTimeout(()=>inp.focus(),30); }
+    function closePal(){ scrim.hidden=true; }
+    document.getElementById('palBtn').addEventListener('click', openPal);
+    inp.addEventListener('input', ()=>renderPal(inp.value));
+    inp.addEventListener('keydown', e=>{
+      if(e.key==='ArrowDown'){ e.preventDefault(); moveSel(1); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); moveSel(-1); }
+      else if(e.key==='Enter'){ const sel=list.querySelector('[aria-selected="true"]')||list.querySelector('[data-id]'); if(sel){const c=CAPS.find(x=>x.id===sel.dataset.id); closePal(); openDrawer(c);} }
+    });
+    scrim.addEventListener('click', e=>{ if(e.target===scrim) closePal(); });
+    document.addEventListener('keydown', e=>{
+      if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); scrim.hidden?openPal():closePal(); }
+      if(e.key==='Escape'){ closePal(); closeDrawer(); }
+    });
+
+    /* ---------- perf toggle ---------- */
+    document.getElementById('perfBtn').addEventListener('click', ()=>{
+      document.body.classList.toggle('perf-lite');
+      toast('zap', document.body.classList.contains('perf-lite')?'Modo performance <b>ativado</b>':'Modo performance desligado','purple');
+    });
+
+    /* ---------- live: simulate running progress ---------- */
+    if(!REDUCED){
+      setInterval(()=>{
+        const fill = tl.querySelector('.tl-item--run .tl-prog__fill');
+        if(fill){ let p=parseFloat(fill.style.width)||6; p=Math.min(99,p+Math.round(Math.random()*4+1)); fill.style.width=p+'%';
+          const body = fill.closest('.tl-card')?.querySelector('.tl-body');
+          if(body && body.textContent.indexOf('VM')<0){ /* keep body */ }
+        }
+      }, 2200);
+    }
+  });
+})();
+</script>
+</body>
+</html>
