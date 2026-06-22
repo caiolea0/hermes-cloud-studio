@@ -16,12 +16,18 @@ services:
       FEATURE_LINKEDIN: "off"     # 2.0: LinkedIn congelado
       HERMES_STRICT_MCP: "0"      # gateway MCP não sobe no H2-F0 (fail-open p/ não travar boot)
       PYTHONUNBUFFERED: "1"
+      # H2-F2: hermes-postgres acessível pelo nome do container (geronimo-net)
+      HERMES_PG_HOST: hermes-postgres
+      HERMES_PG_PORT: "5432"
     ports:
       # Bind SÓ na interface Tailscale da VPS (HERMES_BIND_IP no .env) — privado, nunca público.
       # docker-proxy fura o ufw → NUNCA usar 0.0.0.0. Default 127.0.0.1 se a var faltar.
       - "${HERMES_BIND_IP:-127.0.0.1}:8800:8420"
     volumes:
       - hermes_data:/var/lib/hermes
+    depends_on:
+      hermes-postgres:
+        condition: service_healthy
     networks: [geronimo-net]
 
   hermes-daemon:
@@ -35,8 +41,13 @@ services:
     environment:
       HERMES_HOME: /var/lib/hermes
       HERMES_VM_API: http://hermes-api:8420
+      HERMES_LOCAL_API: http://hermes-api:8420   # daemon chama hermes-api, não server.py PC
+      OVERPASS_URL: http://hermes-overpass:80     # Overpass via rede docker (geronimo-net)
       FEATURE_LINKEDIN: "off"
       PYTHONUNBUFFERED: "1"
+      # H2-F2: hermes-postgres acessível pelo nome do container (geronimo-net)
+      HERMES_PG_HOST: hermes-postgres
+      HERMES_PG_PORT: "5432"
     command: ["python", "-m", "daemon.orchestrator"]
     healthcheck:
       disable: true     # daemon é worker (não escuta porta) — o healthcheck curl:8420 do Dockerfile não se aplica
@@ -45,7 +56,77 @@ services:
     depends_on:
       hermes-api:
         condition: service_healthy
+      hermes-postgres:
+        condition: service_healthy
     networks: [geronimo-net]
+
+  # H2-F1: Overpass self-hosted — backbone de discovery $0/24-7
+  # Extract: mato-grosso-latest.osm.pbf (Geofabrik). Init ~20-30min.
+  # Porta SÓ interna: 127.0.0.1:12345 (host) + hermes-overpass:80 (rede docker).
+  # mem_limit: 8g conservador para VPS compartilhada (MT extract usa ~1-2GB real).
+  hermes-overpass:
+    image: wiktorn/overpass-api
+    container_name: hermes-overpass
+    restart: unless-stopped
+    mem_limit: 8g
+    environment:
+      OVERPASS_MODE: "init"
+      OVERPASS_META: "no"
+      OVERPASS_PLANET_URL: "https://download.geofabrik.de/south-america/brazil/centro-oeste-latest.osm.pbf"
+      OVERPASS_DIFF_URL: "https://download.geofabrik.de/south-america/brazil/centro-oeste-updates/"
+      # init_osm3s.sh usa bunzip2 hardcoded; osmium converte PBF→osm.bz2 antes do init
+      OVERPASS_PLANET_PREPROCESS: "osmium cat --input-format=pbf /db/planet.osm.bz2 -o /tmp/planet_real.osm.bz2 && mv /tmp/planet_real.osm.bz2 /db/planet.osm.bz2"
+      OVERPASS_RULES_LOAD: "10"
+      OVERPASS_TIME: "1000S"
+      OVERPASS_SPACE: "2000000000"
+      OVERPASS_RATE_LIMIT: "20"
+      OVERPASS_MAX_TIMEOUT: "1000"
+      OVERPASS_ALLOW_DUPLICATE_QUERIES: "yes"
+    ports:
+      - "127.0.0.1:12345:80"
+    volumes:
+      - overpass_data:/db
+    networks: [geronimo-net]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/api/status || exit 1"]
+      interval: 60s
+      timeout: 30s
+      retries: 60
+      start_period: 30m
+
+  # H2-F2: Postgres dedicado Hermes — CNPJ authority + enrichment store
+  # Instância SEPARADA do Geronimo (container postgres + DB events_audit = intocados).
+  # Host bind: 127.0.0.1:5433 (nunca 0.0.0.0). Schema: cnpj.estabelecimentos + pg_trgm + unaccent.
+  # Senha gerada na VPS: openssl rand -hex 24 > /opt/hermes/.pg_secret; chmod 600.
+  hermes-postgres:
+    image: postgres:16
+    container_name: hermes-postgres
+    restart: unless-stopped
+    mem_limit: 2g
+    shm_size: 256m
+    environment:
+      POSTGRES_USER: ${HERMES_PG_USER:-hermes}
+      POSTGRES_PASSWORD: ${HERMES_PG_PASSWORD}
+      POSTGRES_DB: ${HERMES_PG_DB:-hermes}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    command: >
+      postgres
+        -c shared_buffers=256MB
+        -c work_mem=8MB
+        -c max_connections=20
+        -c effective_cache_size=512MB
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - hermes_pg_data:/var/lib/postgresql/data
+      - ./docker/pg_init:/docker-entrypoint-initdb.d:ro
+    networks: [geronimo-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${HERMES_PG_USER:-hermes} -d ${HERMES_PG_DB:-hermes}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 networks:
   geronimo-net:
@@ -53,3 +134,5 @@ networks:
 
 volumes:
   hermes_data:
+  overpass_data:
+  hermes_pg_data:

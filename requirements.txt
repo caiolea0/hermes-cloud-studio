@@ -34,3 +34,5 @@ jinja2>=3.1
 # cron triggers BRT timezone. tzdata required (Windows).
 apscheduler>=3.11.0,<4.0
 tzdata>=2024.1
+# H2-F2 — CNPJ authority + enrich: PostgreSQL client (hermes-postgres dedicado)
+psycopg2-binary>=2.9.0

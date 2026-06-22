@@ -18,6 +18,21 @@ gateway:
 # F.5.2 entrega: 3 custom MCPs ACTIVE com command/args wired
 # R7 2026-06-18: hermes-hunter added (Hunter.io email verifier via gateway)
 upstream_mcps:
+  - name: hermes-enrich
+    status: active            # H2-F2 — 2 tools CNPJ lookup+validate (pg_trgm + BrasilAPI)
+    kind: custom
+    chapter_owner: H2-F2
+    required_by_dc: [H2-F2.done, H2-F3.done]
+    transport: stdio
+    command: python3
+    args: ["mcps/hermes-enrich/server.py"]
+    cwd: "/opt/hermes"
+    auth_env: HERMES_PG_PASSWORD
+    scope_notes: "H2-F2 CNPJ authority enrichment. cnpj_lookup usa hermes-postgres pg_trgm (SIM>=0.45 + bairro/phone corroboration). cnpj_validate usa BrasilAPI gratuito (polite 1.2s). Confidence='low' nao sobrescreve campos. hermes-postgres bind 127.0.0.1:5433 (host) / hermes-postgres:5432 (docker)."
+    tools_preview:
+      - cnpj_lookup
+      - cnpj_validate
+
   - name: hermes-hunter
     status: active            # R7 — 4 tools Hunter.io v2 (verify_email, domain_search, email_count, check_account_usage)
     kind: custom

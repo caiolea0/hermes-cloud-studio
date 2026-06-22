@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-20 03:21 UTC
+- **last_updated**: 2026-06-22 17:52 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 239 (189 PC + 50 VM, 5 internal-only excluded)
 - **consumed**: 141 (60.3% of public)
@@ -107,34 +107,34 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/brain/intents` | pc | `api/brain.py:353` | token |
 | `GET` | `/api/brain/runs/{run_id}` | pc | `api/brain.py:218` | token |
 | `GET` | `/api/linkedin/visited` | pc | `api/linkedin.py:445` | token |
-| `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1528` | token |
-| `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:701` | token |
+| `GET` | `/api/linkedin/visited` | vm | `vm_api/routes.py:1554` | token |
+| `POST` | `/api/audit/batch` | vm | `vm_api/routes.py:727` | token |
 | `POST` | `/api/channels/configure` | pc | `api/onboarding.py:131` | token |
 | `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:425` | token |
 | `POST` | `/api/cobaia/verify-email` | pc | `api/cobaia.py:749` | token |
 | `POST` | `/api/icp/profile` | pc | `api/icp.py:85` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | pc | `api/linkedin.py:411` | token |
-| `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1216` | token |
+| `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1242` | token |
 | `POST` | `/api/linkedin/campaigns/engage` | pc | `api/linkedin.py:399` | token |
-| `POST` | `/api/linkedin/campaigns/engage` | vm | `vm_api/routes.py:1107` | token |
+| `POST` | `/api/linkedin/campaigns/engage` | vm | `vm_api/routes.py:1133` | token |
 | `POST` | `/api/linkedin/cobaia/today-queue/{item_id}/skip` | pc | `api/cobaia.py:819` | token |
 | `POST` | `/api/linkedin/connection/refresh` | pc | `api/linkedin.py:483` | token |
-| `POST` | `/api/linkedin/connection/refresh` | vm | `vm_api/routes.py:1708` | token |
+| `POST` | `/api/linkedin/connection/refresh` | vm | `vm_api/routes.py:1734` | token |
 | `POST` | `/api/linkedin/detect-account-type` | pc | `api/linkedin.py:463` | token |
-| `POST` | `/api/linkedin/detect-account-type` | vm | `vm_api/routes.py:1489` | token |
+| `POST` | `/api/linkedin/detect-account-type` | vm | `vm_api/routes.py:1515` | token |
 | `POST` | `/api/linkedin/health/clear` | pc | `_health_ep.py:15` | token |
 | `POST` | `/api/linkedin/health/clear` | pc | `api/linkedin.py:478` | token |
-| `POST` | `/api/linkedin/health/clear` | vm | `vm_api/routes.py:1516` | token |
+| `POST` | `/api/linkedin/health/clear` | vm | `vm_api/routes.py:1542` | token |
 | `POST` | `/api/mcp/coverage/publish` | vm | `vm_api/mcp_coverage.py:80` | token |
 | `POST` | `/api/observability/errors/{error_id}/resolve` | pc | `api/observability.py:402` | token |
-| `POST` | `/api/outreach/batch` | vm | `vm_api/routes.py:777` | token |
+| `POST` | `/api/outreach/batch` | vm | `vm_api/routes.py:803` | token |
 | `DELETE` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:269` | token |
 | `PUT` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:219` | token |
 | `POST` | `/api/pipeline-studio/drafts/{draft_id}/clone` | pc | `api/pipeline_studio.py:601` | token |
 | `POST` | `/api/pipeline-studio/drafts/{draft_id}/execute` | pc | `api/pipeline_studio.py:459` | token |
 | `POST` | `/api/pipeline-studio/runs/{run_id}/abort` | pc | `api/pipeline_studio.py:748` | token |
-| `POST` | `/api/pipeline/execute` | vm | `vm_api/routes.py:824` | token |
-| `POST` | `/api/prospects/{prospect_id}/outreach` | vm | `vm_api/routes.py:738` | token |
+| `POST` | `/api/pipeline/execute` | vm | `vm_api/routes.py:850` | token |
+| `POST` | `/api/prospects/{prospect_id}/outreach` | vm | `vm_api/routes.py:764` | token |
 | `DELETE` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:203` | token |
 | `PUT` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:173` | token |
 | `POST` | `/api/sequences/{seq_id}/dry-run` | pc | `api/sequences.py:336` | token |
@@ -155,7 +155,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `PUT` | `/api/templates/{template_id}` | pc | `api/templates.py:216` | token |
 | `GET` | `/api/lab/runs/{run_id}/artifacts/{filename}` | pc | `api/lab.py:479` | token |
 | `GET` | `/api/stats` | pc | `api/stats.py:11` | token |
-| `GET` | `/api/stats` | vm | `vm_api/routes.py:330` | token |
+| `GET` | `/api/stats` | vm | `vm_api/routes.py:356` | token |
 | `GET` | `/` | pc | `api/dashboard.py:14` | token |
 | `GET` | `/api/_ping` | vm | `hermes_api_v2.py:157` | token |
 | `GET` | `/api/channels/{channel}/test` | pc | `api/onboarding.py:146` | token |
@@ -170,8 +170,8 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/icp/presets` | pc | `api/icp.py:92` | token |
 | `GET` | `/api/icp/profile` | pc | `api/icp.py:78` | token |
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:457` | token |
-| `GET` | `/api/linkedin/companies/lookup` | vm | `vm_api/routes.py:1586` | token |
-| `GET` | `/api/linkedin/session-check` | vm | `vm_api/routes.py:1400` | token |
+| `GET` | `/api/linkedin/companies/lookup` | vm | `vm_api/routes.py:1612` | token |
+| `GET` | `/api/linkedin/session-check` | vm | `vm_api/routes.py:1426` | token |
 | `GET` | `/api/mcp/coverage/jobs/{job_id}` | vm | `vm_api/mcp_jobs.py:26` | token |
 | `GET` | `/api/observability/_debug/explain_cost_plan` | pc | `api/observability.py:668` | token |
 | `GET` | `/api/observability/credits` | pc | `api/observability.py:166` | token |
@@ -180,7 +180,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/pipeline-studio/drafts/{draft_id}` | pc | `api/pipeline_studio.py:199` | token |
 | `GET` | `/api/pipeline-studio/runs/{run_id}` | pc | `api/pipeline_studio.py:529` | token |
 | `GET` | `/api/scraper/history` | pc | `api/scraper.py:123` | token |
-| `GET` | `/api/scraper/history` | vm | `vm_api/routes.py:530` | token |
+| `GET` | `/api/scraper/history` | vm | `vm_api/routes.py:556` | token |
 | `GET` | `/api/sequences/{seq_id}` | pc | `api/sequences.py:150` | token |
 | `GET` | `/api/skills/health` | pc | `api/skills.py:335` | token |
 | `GET` | `/api/skills/proposals-pending-verify` | pc | `api/skills.py:485` | token |

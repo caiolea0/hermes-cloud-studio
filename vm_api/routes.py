@@ -191,22 +191,48 @@ async def create_prospect(p: ProspectCreate):
     conn = get_db()
     try:
         has_website = 1 if p.website else 0
+        source_type = p.source_type or p.source or "google_maps"
+
+        # Pre-check existence so we can skip duplicate activity on re-discovery
+        is_new = True
+        existing_id = None
+        if p.osm_id:
+            row = conn.execute(
+                "SELECT id FROM prospects WHERE osm_id = ?", (p.osm_id,)
+            ).fetchone()
+            if row:
+                is_new = False
+                existing_id = row[0]
+
         cur = conn.execute(
             """INSERT INTO prospects (name, business_name, category, phone, email,
                address, city, state, website, has_website, google_maps_url,
-               google_rating, google_reviews, photo_ref, source)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               google_rating, google_reviews, photo_ref, source,
+               source_type, osm_id, lat, lng, opening_hours)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(osm_id) WHERE osm_id IS NOT NULL
+               DO UPDATE SET
+                   name=excluded.name, phone=excluded.phone,
+                   website=excluded.website, has_website=excluded.has_website,
+                   opening_hours=excluded.opening_hours,
+                   lat=excluded.lat, lng=excluded.lng,
+                   version=version+1, updated_at=CURRENT_TIMESTAMP""",
             (p.name, p.business_name, p.category, p.phone, p.email,
              p.address, p.city, p.state, p.website, has_website,
-             p.google_maps_url, p.google_rating, p.google_reviews, p.photo_ref, p.source)
+             p.google_maps_url, p.google_rating, p.google_reviews, p.photo_ref, p.source,
+             source_type, p.osm_id, p.lat, p.lng, p.opening_hours)
         )
         conn.commit()
-        conn.execute(
-            "INSERT INTO activities (type, title, prospect_id) VALUES (?, ?, ?)",
-            ("discovery", f"Novo prospect: {p.business_name or p.name}", cur.lastrowid)
-        )
-        conn.commit()
-        return {"id": cur.lastrowid, "status": "created"}
+
+        new_id = cur.lastrowid if is_new else existing_id
+        if is_new:
+            conn.execute(
+                "INSERT INTO activities (type, title, prospect_id) VALUES (?, ?, ?)",
+                ("discovery", f"Novo prospect: {p.business_name or p.name}", new_id)
+            )
+            conn.commit()
+
+        return {"id": new_id, "status": "created" if is_new else "updated"}
     finally:
         conn.close()
 

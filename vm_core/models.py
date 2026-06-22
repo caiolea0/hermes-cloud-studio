@@ -21,6 +21,18 @@ class ProspectCreate(BaseModel):
     google_reviews: int = 0
     photo_ref: Optional[str] = None
     source: str = "google_maps"
+    # H2-F1 OSM/Overpass fields
+    source_type: Optional[str] = None   # 'osm', 'google_maps', 'cnpj', etc.
+    osm_id: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    opening_hours: Optional[str] = None
+    # H2-F2 CNPJ authority fields
+    cnpj: Optional[str] = None
+    razao_social: Optional[str] = None
+    cnae: Optional[str] = None
+    situacao_cadastral: Optional[str] = None
+    cnpj_match_confidence: Optional[str] = None  # 'high', 'low', None
 
 
 class ProspectUpdate(BaseModel):
@@ -37,6 +49,12 @@ class ProspectUpdate(BaseModel):
     audit_summary: Optional[str] = None
     outreach_message: Optional[str] = None
     outreach_status: Optional[str] = None
+    # H2-F2 CNPJ authority fields
+    cnpj: Optional[str] = None
+    razao_social: Optional[str] = None
+    cnae: Optional[str] = None
+    situacao_cadastral: Optional[str] = None
+    cnpj_match_confidence: Optional[str] = None
 
 
 class TaskCreate(BaseModel):

@@ -43,6 +43,11 @@ DB_PATH = Path(__file__).parent.parent / "hermes_local.db"
 # Rate limit safety margins (stop at 80% of limit)
 RATE_LIMIT_BUFFER = 0.80
 
+# Discovery cooldown: mínimo de horas entre runs OSM para a mesma área/cidade.
+# Evita loop infinito quando _pipeline_needs_fuel() < 50 e prospects não migram
+# para hermes_local.db entre ciclos (daemon container ↔ hermes-api são DBs distintos).
+DISCOVERY_COOLDOWN_HOURS: float = float(os.environ.get("HERMES_DISCOVERY_COOLDOWN_H", "6"))
+
 # Error circuit breaker
 MAX_CONSECUTIVE_ERRORS = 5
 ERROR_PAUSE_SECONDS = 600  # 10 minutes
@@ -137,6 +142,10 @@ class HermesDaemon:
         self.paused_until: Optional[datetime] = None
         self._running = False
 
+        # Discovery cooldown: evita re-run dentro de DISCOVERY_COOLDOWN_HOURS
+        # (in-memory; reset no restart — intencional, 1 run por boot é OK)
+        self._last_discovery_at: Optional[datetime] = None
+
         # Channel states
         self.channels: dict[str, ChannelState] = {
             "linkedin": ChannelState(name="linkedin", daily_limit=70, warmup_day=14, warmup_complete=True),
@@ -148,10 +157,12 @@ class HermesDaemon:
         # Decision log (last 100 decisions for dashboard)
         self.decision_log: list[dict] = []
 
-        # Pipeline runner compartilhado (core/pipeline.py) — usado em P3/P5
+        # Pipeline runner compartilhado (core/pipeline.py) — usado em P3/P4/P5.
+        # Em container usa VM_API_URL (hermes-api:8420); fora do container usa LOCAL_API_URL.
+        _pipeline_api = VM_API_URL if os.environ.get("HERMES_LOCAL_API") else LOCAL_API_URL
         self.pipeline = PipelineRunner(
-            api_url=LOCAL_API_URL,
-            auth_token=os.environ.get("HERMES_AUTH_TOKEN", ""),
+            api_url=_pipeline_api,
+            auth_token=os.environ.get("HERMES_VM_AUTH_TOKEN", os.environ.get("HERMES_AUTH_TOKEN", "")),
         )
 
         self._init_db()
@@ -479,8 +490,15 @@ class HermesDaemon:
                 )
 
         # PRIORITY 4: Discovery (off-peak: 0-6, or anytime if pipeline empty)
+        # Cooldown guard: impede re-run dentro de DISCOVERY_COOLDOWN_HOURS mesmo
+        # que _pipeline_needs_fuel() retorne True (daemon DB ≠ hermes-api DB no container).
         if not is_subsystem_paused("scraper"):
-            if 0 <= hour <= 6 or await self._pipeline_needs_fuel():
+            cooldown_ok = (
+                self._last_discovery_at is None
+                or (datetime.now(timezone.utc) - self._last_discovery_at).total_seconds()
+                >= DISCOVERY_COOLDOWN_HOURS * 3600
+            )
+            if cooldown_ok and (0 <= hour <= 6 or await self._pipeline_needs_fuel()):
                 if self._should_scrape_today(weekday):
                     config = self._get_scraper_config(weekday)
                     return Task(
@@ -681,17 +699,35 @@ class HermesDaemon:
         return {"enriched": enriched_count, "total": len(data)}
 
     async def _exec_discovery(self, config: dict) -> dict:
-        """Run discovery scraper."""
+        """Discovery multi-source: Overpass (OSM) primário, scraper API como fallback."""
+        overpass_url = os.environ.get("OVERPASS_URL", "http://localhost:12345")
         await self.log_event(
             "info", "discovery",
-            f"Starting discovery: {config.get('category', '?')} in {config.get('city', '?')}",
-            visual_event={"type": "discovery_started", "category": config.get("category")}
+            f"Discovery OSM (Overpass): {overpass_url}",
+            visual_event={"type": "discovery_started", "source": "osm"}
         )
 
-        # Call scraper API
+        # Fonte primária: Overpass self-hosted (H2-F1+)
+        try:
+            result = await self.pipeline.discovery_osm(overpass_url=overpass_url)
+            found = result.get("new", 0)
+            if found > 0 or result.get("total_found", 0) > 0:
+                self.stats_today.discovered += found
+                self._last_discovery_at = datetime.now(timezone.utc)
+                await self.log_event(
+                    "info", "discovery",
+                    f"OSM: {found} novos prospects de {result.get('total_found', 0)} POIs — próximo run em {DISCOVERY_COOLDOWN_HOURS}h",
+                )
+                return {"found": found, "source": "osm", "total_osm": result.get("total_found", 0)}
+        except Exception as exc:
+            logger.warning("_exec_discovery OSM falhou: %s — tentando scraper fallback", exc)
+
+        # Fallback: scraper API (gosom/Google Maps — legado)
+        # Usa HERMES_VM_AUTH_TOKEN pois VM_API_URL aponta pra hermes-api no container.
+        await self.log_event("info", "discovery", "Fallback: scraper API (legado)")
         async with httpx.AsyncClient(timeout=300) as client:
             resp = await client.post(
-                f"{LOCAL_API_URL}/api/scraper/start",
+                f"{VM_API_URL}/api/scraper/start",
                 json=config,
                 headers=self._auth_headers()
             )
@@ -699,7 +735,8 @@ class HermesDaemon:
                 result = resp.json()
                 found = result.get("found", 0)
                 self.stats_today.discovered += found
-                return {"found": found}
+                self._last_discovery_at = datetime.now(timezone.utc)
+                return {"found": found, "source": "scraper_fallback"}
             else:
                 raise Exception(f"Scraper start failed: {resp.status_code}")
 
@@ -1076,19 +1113,39 @@ class HermesDaemon:
             conn.close()
 
     async def _get_unenriched_prospects(self, limit: int = 5) -> list:
-        """Get prospects missing key fields (email, linkedin, etc)."""
-        conn = sqlite3.connect(str(DB_PATH))
-        rows = conn.execute("""
-            SELECT id, business_name, name, phone, website, city, category
-            FROM prospects
-            WHERE (email IS NULL OR email = '')
-            AND stage IN ('discovered', 'qualified')
-            AND score > 0
-            ORDER BY score DESC
-            LIMIT ?
-        """, (limit,)).fetchall()
-        conn.close()
-        return [dict(r) for r in rows]
+        """Get prospects missing CNPJ data via VM API (primary) ou local DB (fallback)."""
+        # Primary: query VM API — funciona em container e standalone
+        try:
+            res = await self.pipeline._request("GET", f"/api/prospects?limit={limit * 3}&stage=discovered")
+            all_p = res.get("prospects", [])
+            # Filtra os sem CNPJ (API não tem filtro nativo ainda)
+            unenriched = [p for p in all_p if not p.get("cnpj")][:limit]
+            if unenriched or not all_p:
+                return unenriched
+        except Exception as exc:
+            logger.debug("_get_unenriched_prospects API failed: %s", exc)
+
+        # Fallback: DB local (útil quando rodando fora do container)
+        try:
+            conn = sqlite3.connect(str(DB_PATH))
+            try:
+                rows = conn.execute("""
+                    SELECT id, business_name, name, phone, website, city, category, address
+                    FROM prospects
+                    WHERE cnpj IS NULL
+                      AND stage IN ('discovered', 'qualified')
+                    ORDER BY score DESC
+                    LIMIT ?
+                """, (limit,)).fetchall()
+                return [dict(r) for r in rows]
+            except sqlite3.OperationalError:
+                # Coluna cnpj ainda não existe (pré-migração) — retorna vazio graciosamente
+                return []
+            finally:
+                conn.close()
+        except Exception as exc:
+            logger.debug("_get_unenriched_prospects local DB failed: %s", exc)
+            return []
 
     async def _get_unaudited_prospects(self, limit: int = 20) -> list:
         """Get prospects with website but no audit."""
@@ -1150,9 +1207,34 @@ class HermesDaemon:
         return False
 
     async def _enrich_single(self, prospect: dict) -> dict:
-        """Enrich a single prospect via waterfall providers."""
-        # intelligence/enrichment.py not implemented (F.future)
-        return {"fields_filled": 0, "code": 501, "reason": "intelligence/enrichment not implemented"}
+        """Enrich a single prospect via waterfall providers.
+
+        Stage 1: CNPJ lookup via hermes-postgres trigram (H2-F2).
+        Stage 2 (F.3+): website scrape.
+        """
+        # Stage 1: CNPJ authority (hermes-postgres)
+        try:
+            from scripts.enrich_cnpj import enrich_prospect_cnpj
+            result = await asyncio.to_thread(enrich_prospect_cnpj, prospect)
+            fields_filled = result.get("fields_filled", 0)
+            if result.get("cnpj"):
+                patch = {k: v for k, v in result.items()
+                         if k in ("cnpj", "razao_social", "cnae",
+                                  "situacao_cadastral", "cnpj_match_confidence")
+                         and v is not None}
+                if patch:
+                    await self.pipeline._request(
+                        "PATCH", f"/api/prospects/{prospect['id']}", json=patch
+                    )
+                logger.debug(
+                    "enrich_single cnpj=%s confidence=%s fields=%d",
+                    result.get("cnpj"), result.get("cnpj_match_confidence"), fields_filled,
+                )
+            return {"fields_filled": fields_filled, "code": 200}
+        except Exception as exc:
+            # hermes-postgres indisponível ou outro erro — falha graciosa, não trava daemon
+            logger.info("enrich_single cnpj skip (prospect %s): %s", prospect.get("id"), exc)
+            return {"fields_filled": 0, "code": 503, "reason": str(exc)}
 
     # --- Intelligence ---
 
@@ -1269,8 +1351,8 @@ class HermesDaemon:
             logger.warning(f"Telegram notification failed: {e}")
 
     def _auth_headers(self) -> dict:
-        """Get auth headers for local API calls."""
-        token = os.environ.get("HERMES_AUTH_TOKEN", "")
+        """Auth headers para VM API. Prefere HERMES_VM_AUTH_TOKEN (daemon roda no mesmo host que a API)."""
+        token = os.environ.get("HERMES_VM_AUTH_TOKEN") or os.environ.get("HERMES_AUTH_TOKEN", "")
         return {"X-Hermes-Token": token} if token else {}
 
     # --- Public Control API ---

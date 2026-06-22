@@ -388,6 +388,35 @@ def init_db() -> None:
         conn.commit()
         logger.info("Migration: added version/last_synced_version/conflict_at to prospects (MERGED-006)")
 
+    # H2-F1 — OSM/Overpass multi-source fields
+    try:
+        conn.execute("SELECT source_type FROM prospects LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE prospects ADD COLUMN source_type TEXT DEFAULT 'google_maps'")
+        conn.execute("ALTER TABLE prospects ADD COLUMN osm_id TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN lat REAL")
+        conn.execute("ALTER TABLE prospects ADD COLUMN lng REAL")
+        conn.execute("ALTER TABLE prospects ADD COLUMN opening_hours TEXT")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_prospects_osm_id ON prospects(osm_id) WHERE osm_id IS NOT NULL")
+        conn.commit()
+        logger.info("Migration H2-F1: added OSM columns to prospects (source_type, osm_id, lat, lng, opening_hours)")
+
+    # H2-F2 — CNPJ authority + enrichment fields
+    try:
+        conn.execute("SELECT cnpj FROM prospects LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE prospects ADD COLUMN cnpj TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN razao_social TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN cnae TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN situacao_cadastral TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN cnpj_match_confidence TEXT")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_prospects_cnpj ON prospects(cnpj) "
+            "WHERE cnpj IS NOT NULL"
+        )
+        conn.commit()
+        logger.info("Migration H2-F2: added CNPJ columns to prospects")
+
     # H6 B15 — caller_chapter traceability column (idempotent; mcp_calls may not exist yet)
     try:
         conn.execute("SELECT caller_chapter FROM mcp_calls LIMIT 1")

@@ -82,7 +82,7 @@ class PipelineRunner:
     def _headers(self) -> dict:
         h = {"Content-Type": "application/json"}
         if self.auth_token:
-            h["Authorization"] = f"Bearer {self.auth_token}"
+            h["X-Hermes-Token"] = self.auth_token
         return h
 
     async def _request(self, method: str, path: str, **kwargs) -> dict:
@@ -125,18 +125,90 @@ class PipelineRunner:
 
     # --- Stages ---
 
+    async def discovery_osm(
+        self,
+        overpass_url: Optional[str] = None,
+    ) -> dict:
+        """Discovery via Overpass (OSM) self-hosted — fonte primária H2-F1+.
+
+        Idempotente: dedup por osm_id (unique index) e por name+city.
+        """
+        import os as _os
+        from scripts.discovery_overpass import discover_cuiaba
+
+        url = overpass_url or _os.environ.get("OVERPASS_URL", "http://localhost:12345")
+        logger.info("DISCOVERY OSM — overpass_url=%s", url)
+        await self._log_activity("discovery", "Iniciando discovery OSM (Overpass)", f"url={url}")
+
+        result = discover_cuiaba(overpass_url=url)
+        for err in result.get("errors") or []:
+            logger.warning("discovery_osm error: %s", err)
+
+        if not result.get("prospects"):
+            logger.warning("discovery_osm: sem prospects (Overpass indisponível ou sem dados)")
+            return {"new": 0, "total_found": 0, "ids": [], "source": "osm"}
+
+        # Dedup: busca osm_ids já existentes para evitar duplicação sem varrer todos
+        existing_keys = await self._existing_prospects_keys()
+
+        created_ids: list[int] = []
+        skipped = 0
+        for p in result["prospects"]:
+            key = ((p.get("business_name") or "").lower(), (p.get("city") or "").lower())
+            if key in existing_keys:
+                skipped += 1
+                continue
+            resp = await self._request(
+                "POST",
+                "/api/prospects",
+                json={
+                    "name": p["name"],
+                    "business_name": p["business_name"],
+                    "category": p["category"],
+                    "phone": p.get("phone"),
+                    "address": p.get("address"),
+                    "city": p.get("city", "Cuiabá"),
+                    "state": p.get("state", "MT"),
+                    "website": p.get("website"),
+                    "source": "overpass_osm",
+                    "source_type": "osm",
+                    "osm_id": p.get("osm_id"),
+                    "lat": p.get("lat"),
+                    "lng": p.get("lng"),
+                    "opening_hours": p.get("opening_hours"),
+                },
+            )
+            if "id" in resp:
+                created_ids.append(resp["id"])
+                existing_keys.add(key)  # previne dups dentro do mesmo batch
+
+        prospects = result["prospects"]
+        com_site = sum(1 for p in prospects if p.get("has_website"))
+        sem_site = len(prospects) - com_site
+        await self._log_activity(
+            "discovery",
+            f"{len(created_ids)} novos negócios OSM (Cuiabá)",
+            f"total_osm={result['total_found']} criados={len(created_ids)} skip={skipped} "
+            f"com_site={com_site} sem_site={sem_site}",
+        )
+        return {
+            "new": len(created_ids),
+            "total_found": result["total_found"],
+            "ids": created_ids,
+            "source": "osm",
+        }
+
     async def discovery(
         self,
         city: str,
         categories: Optional[Iterable[str]] = None,
         only_no_website: bool = False,
     ) -> dict:
-        """Discovery via google_maps_scraper. Filtra duplicatas e cria prospects via API."""
-        # Import tardio: scraper so importa quando rodar (evita dep no daemon se nao usar)
+        """Discovery via google_maps_scraper (legado — H2-F1 usa discovery_osm como primária)."""
         from scripts.google_maps_scraper import CATEGORIES, discover_businesses
 
         cats = list(categories) if categories else list(CATEGORIES)
-        logger.info("DISCOVERY %s — %d categorias", city, len(cats))
+        logger.info("DISCOVERY Google Maps %s — %d categorias", city, len(cats))
         await self._log_activity("discovery", f"Iniciando busca em {city}", f"{len(cats)} categorias")
 
         result = discover_businesses(city, cats, only_no_website=only_no_website)
@@ -168,6 +240,7 @@ class PipelineRunner:
                     "google_rating": p.get("google_rating"),
                     "google_reviews": p.get("google_reviews", 0),
                     "source": "google_maps",
+                    "source_type": "google_maps",
                 },
             )
             if "id" in resp:
@@ -262,7 +335,12 @@ class PipelineRunner:
         start = time.monotonic()
         await self._log_activity("task", "Pipeline iniciado", f"city={city} mode=full")
 
-        discovery = await self.discovery(city, categories)
+        # H2-F1: discovery_osm como fonte primária; fallback Google Maps se Overpass indisponível
+        discovery = await self.discovery_osm()
+        if discovery.get("total_found", 0) == 0 and discovery.get("new", 0) == 0:
+            logger.info("run_full: Overpass sem dados, tentando Google Maps como fallback")
+            discovery = await self.discovery(city, categories)
+
         audit = await self.audit_pending()
         outreach = await self.outreach_ready()
 

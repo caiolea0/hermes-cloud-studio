@@ -134,6 +134,23 @@ class HermesSettings(BaseSettings):
         validation_alias="HERMES_PC_EVENT_URL",
     )
 
+    # --- Hermes Postgres dedicado (H2-F2 CNPJ authority) ---
+    # Senha gerada na VPS via openssl rand -hex 24 — NUNCA no git.
+    # Em container: hermes_pg_host=hermes-postgres (docker network), port 5432.
+    # No host VPS: host=127.0.0.1, port=5433.
+    hermes_pg_host: str = Field(default="hermes-postgres", validation_alias="HERMES_PG_HOST")
+    hermes_pg_port: int = Field(default=5432, validation_alias="HERMES_PG_PORT")
+    hermes_pg_user: str = Field(default="hermes", validation_alias="HERMES_PG_USER")
+    hermes_pg_password: str = Field(default="", validation_alias="HERMES_PG_PASSWORD")
+    hermes_pg_db: str = Field(default="hermes", validation_alias="HERMES_PG_DB")
+
+    @property
+    def hermes_pg_dsn(self) -> str:
+        return (
+            f"postgresql://{self.hermes_pg_user}:{self.hermes_pg_password}"
+            f"@{self.hermes_pg_host}:{self.hermes_pg_port}/{self.hermes_pg_db}"
+        )
+
     @property
     def vm_api_url_resolved(self) -> str:
         """Retorna vm_api_url explícito OU computa de vm_host/vm_api_port."""
