@@ -158,14 +158,14 @@ def cnpj_lookup(
                     cnpj, razao_social, nome_fantasia, cnae_principal,
                     situacao_cadastral, telefone1, bairro, cep,
                     GREATEST(
-                        similarity(unaccent(lower(nome_fantasia)),  unaccent(lower(%s))),
-                        similarity(unaccent(lower(razao_social)),   unaccent(lower(%s)))
+                        similarity(public.immutable_unaccent(lower(nome_fantasia)),  public.immutable_unaccent(lower(%s))),
+                        similarity(public.immutable_unaccent(lower(razao_social)),   public.immutable_unaccent(lower(%s)))
                     ) AS sim
                 FROM cnpj.estabelecimentos
                 WHERE municipio_rf = %s
                   AND (
-                    unaccent(lower(nome_fantasia)) %% unaccent(lower(%s))
-                    OR unaccent(lower(razao_social)) %% unaccent(lower(%s))
+                    public.immutable_unaccent(lower(nome_fantasia)) %% public.immutable_unaccent(lower(%s))
+                    OR public.immutable_unaccent(lower(razao_social)) %% public.immutable_unaccent(lower(%s))
                   )
                 ORDER BY sim DESC
                 LIMIT 5

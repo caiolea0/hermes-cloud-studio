@@ -103,6 +103,14 @@ def _ensure_schema(conn) -> None:
     """Cria schema cnpj + tabela estabelecimentos + indexes GIN trigram."""
     with conn.cursor() as cur:
         cur.execute("CREATE SCHEMA IF NOT EXISTS cnpj")
+        # immutable_unaccent: wrapper IMMUTABLE (unaccent() do contrib e STABLE e nao pode
+        # entrar em index expression). Idempotente — garante a funcao mesmo se o pg_init
+        # nao rodou (volume ja inicializado). Espelha docker/pg_init/01_ext.sql.
+        cur.execute(
+            "CREATE OR REPLACE FUNCTION public.immutable_unaccent(text) "
+            "RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS "
+            "$func$ SELECT public.unaccent('public.unaccent'::regdictionary, $1) $func$"
+        )
         cur.execute("""
             CREATE TABLE IF NOT EXISTS cnpj.estabelecimentos (
                 cnpj        CHAR(14) PRIMARY KEY,
@@ -129,13 +137,13 @@ def _ensure_schema(conn) -> None:
         cur.execute("""
             CREATE INDEX IF NOT EXISTS idx_estab_fantasia_trgm
             ON cnpj.estabelecimentos
-            USING gin (unaccent(lower(nome_fantasia)) gin_trgm_ops)
+            USING gin (public.immutable_unaccent(lower(nome_fantasia)) gin_trgm_ops)
             WHERE nome_fantasia IS NOT NULL
         """)
         cur.execute("""
             CREATE INDEX IF NOT EXISTS idx_estab_razao_trgm
             ON cnpj.estabelecimentos
-            USING gin (unaccent(lower(razao_social)) gin_trgm_ops)
+            USING gin (public.immutable_unaccent(lower(razao_social)) gin_trgm_ops)
             WHERE razao_social IS NOT NULL
         """)
         cur.execute("""
