@@ -3,11 +3,13 @@
 Baixa dumps trimestrais da Receita Federal (dados abertos, zero custo),
 filtra apenas Cuiabá por código RF (NÃO IBGE), carrega em cnpj.estabelecimentos.
 
+Fonte: share publico Nextcloud da RF (arquivos.receitafederal.gov.br). Auto-detecta
+o mes mais recente via PROPFIND. Token via env HERMES_RF_SHARE_TOKEN (rotacionavel).
+
 Uso:
-    python scripts/load_cnpj_cuiaba.py
-    python scripts/load_cnpj_cuiaba.py --year-month 2025-05
-    python scripts/load_cnpj_cuiaba.py --base-url https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/2025-05/
-    python scripts/load_cnpj_cuiaba.py --dry-run   # conta linhas sem inserir
+    python scripts/load_cnpj_cuiaba.py                 # auto-detecta mes mais recente
+    python scripts/load_cnpj_cuiaba.py --year-month 2026-06
+    python scripts/load_cnpj_cuiaba.py --dry-run       # conta linhas sem inserir
 
 Conexão Postgres: vars HERMES_PG_* (lidas do .env ou ambiente).
 No host VPS use: HERMES_PG_HOST=127.0.0.1 HERMES_PG_PORT=5433
@@ -17,10 +19,12 @@ Coluna `version` not bumped: load é full-replace idempotente (UPSERT on cnpj PK
 from __future__ import annotations
 
 import argparse
+import base64
 import csv
 import io
 import logging
 import os
+import re
 import sys
 import time
 import zipfile
@@ -39,9 +43,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger("hermes.load_cnpj")
 
-# Caminho base RF — URL mais recente deve ser passada via --base-url
-RF_BASE = "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj"
+# Fonte RF: a Receita migrou os dados abertos pra Nextcloud em
+# arquivos.receitafederal.gov.br (share publico). O host legado
+# dadosabertos.rfb.gov.br da timeout de IP estrangeiro (VPS Contabo).
+# Acesso via WebDAV publico do share. Token e rotacionavel -> env override
+# (HERMES_RF_SHARE_TOKEN). Estrutura: {RF_BASE}/{YYYY-MM}/{Arquivo}.zip
+RF_DAV_HOST = os.environ.get("HERMES_RF_DAV_HOST", "https://arquivos.receitafederal.gov.br")
+RF_SHARE_TOKEN = os.environ.get("HERMES_RF_SHARE_TOKEN", "YggdBLfdninEJX9")
+RF_BASE = f"{RF_DAV_HOST}/public.php/dav/files/{RF_SHARE_TOKEN}"
 NUM_SHARDS = 10  # Estabelecimentos0..9 e Empresas0..9
+
+
+def _dav_headers(extra: Optional[dict] = None) -> dict:
+    """Header Basic-auth do share publico Nextcloud (user=token, senha vazia)."""
+    tok = base64.b64encode(f"{RF_SHARE_TOKEN}:".encode()).decode()
+    h = {"Authorization": f"Basic {tok}", "User-Agent": "HermesBot/2.0 (dados abertos RF)"}
+    if extra:
+        h.update(extra)
+    return h
 
 # Mapeamento colunas no CSV RF (0-indexed, sem header)
 # Estabelecimentos: CNPJ_BASICO|CNPJ_ORDEM|CNPJ_DV|IDENTIFICADOR|NOME_FANTASIA|
@@ -161,7 +180,7 @@ def _ensure_schema(conn) -> None:
 def _download_stream(url: str) -> bytes:
     """Baixa URL inteira, loggando progresso a cada 50MB."""
     logger.info("Baixando %s", url)
-    req = Request(url, headers={"User-Agent": "HermesBot/2.0 (dados abertos RF)"})
+    req = Request(url, headers=_dav_headers())
     chunks = []
     total = 0
     try:
@@ -394,40 +413,37 @@ def run(base_url: str, dry_run: bool = False) -> int:
 
 
 def _latest_base_url() -> str:
-    """Tenta detectar o dump mais recente (últimos 12 meses, mais recente primeiro)."""
-    from datetime import datetime, timedelta
-    today = datetime.utcnow()
-    for delta_months in range(0, 12):
-        year = today.year
-        month = today.month - delta_months
-        while month <= 0:
-            month += 12
-            year -= 1
-        candidate = f"{RF_BASE}/{year:04d}-{month:02d}/"
-        try:
-            req = Request(
-                candidate + "Municipios.zip",
-                headers={"User-Agent": "HermesBot/2.0"},
-                method="HEAD",
-            )
-            with urlopen(req, timeout=15) as resp:
-                if resp.status < 400:
-                    logger.info("Dump RF detectado: %s", candidate)
-                    return candidate
-        except Exception:
-            pass
-    raise RuntimeError("Nenhum dump RF acessível nos últimos 12 meses. Passe --base-url manualmente.")
+    """Detecta o dump mais recente via PROPFIND no share Nextcloud (lista pastas YYYY-MM)."""
+    req = Request(
+        RF_BASE + "/",
+        headers=_dav_headers({"Depth": "1"}),
+        method="PROPFIND",
+    )
+    try:
+        with urlopen(req, timeout=60) as resp:
+            body = resp.read().decode("utf-8", "replace")
+    except URLError as exc:
+        raise RuntimeError(
+            f"PROPFIND no share RF falhou ({exc}). Token/host podem ter mudado "
+            f"(HERMES_RF_SHARE_TOKEN). Ou passe --base-url manualmente."
+        ) from exc
+    months = sorted(set(re.findall(r"(\d{4}-\d{2})/", body)))
+    if not months:
+        raise RuntimeError("Nenhuma pasta YYYY-MM no share RF — verificar token/host do share.")
+    base = f"{RF_BASE}/{months[-1]}/"
+    logger.info("Dump RF mais recente (Nextcloud): %s (de %d meses)", base, len(months))
+    return base
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ingestão RF CNPJ → hermes-postgres (Cuiabá)")
     parser.add_argument(
         "--base-url",
-        help="URL base do dump RF (ex: https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/2025-05/)",
+        help="URL base WebDAV do dump RF (override; default = share Nextcloud + mes auto-detectado)",
     )
     parser.add_argument(
         "--year-month",
-        help="Ano-mês do dump (ex: 2025-05). Alternativa a --base-url.",
+        help="Ano-mes do dump (ex: 2026-06). Alternativa a --base-url.",
     )
     parser.add_argument("--dry-run", action="store_true", help="Contar linhas sem inserir no Postgres")
     args = parser.parse_args()
