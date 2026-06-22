@@ -109,6 +109,11 @@ class HermesSettings(BaseSettings):
     linkedin_proxy_user: Optional[str] = Field(default=None, validation_alias="LINKEDIN_PROXY_USER")
     linkedin_proxy_pass: Optional[str] = Field(default=None, validation_alias="LINKEDIN_PROXY_PASS")
 
+    # --- Feature flags (Hermes 2.0) ---
+    # FEATURE_LINKEDIN=off congela cobaia/warmup/stealth + sequence-send (daemon P0/P2).
+    # Default True preserva o comportamento 1.x (GCP) até o cutover; VPS/2.0 seta "off".
+    feature_linkedin: bool = Field(default=True, validation_alias="FEATURE_LINKEDIN")
+
     # --- Hermes paths (HERMES_HOME default ~/.hermes; honra env var) ---
     hermes_home: Path = Field(
         default_factory=lambda: Path.home() / ".hermes",

@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "hermes",
+      "name": "design-mockups",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "55001", "--reload"],
-      "port": 55001
+      "runtimeArgs": ["-m", "http.server", "8777", "--directory", "D:/dev-projects/main/hermes-cloud-studio/.claude/design-mockups"],
+      "port": 8777
     }
   ]
 }

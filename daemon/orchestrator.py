@@ -28,6 +28,7 @@ load_dotenv(_ROOT / ".env")
 
 from core.pipeline import PipelineRunner
 from core.state import is_subsystem_paused
+from config import settings
 from linkedin.ollama_router import router as ollama_router, OllamaUnavailable
 
 logger = logging.getLogger("hermes.daemon")
@@ -453,7 +454,8 @@ class HermesDaemon:
                 )
 
         # PRIORITY 2: Sequence steps due (business hours only)
-        if 8 <= hour <= 18 and not is_holiday and not is_weekend:
+        # Hermes 2.0: congelado quando FEATURE_LINKEDIN=off (vira handoff push em F6)
+        if settings.feature_linkedin and 8 <= hour <= 18 and not is_holiday and not is_weekend:
             due_steps = await self._get_due_sequence_steps()
             if due_steps:
                 return Task(
@@ -737,6 +739,8 @@ class HermesDaemon:
           - outside working hours (07h-22h Cuiaba, no weekends)
           - today's caps already reached
         """
+        if not settings.feature_linkedin:
+            return None  # Hermes 2.0: LinkedIn congelado (FEATURE_LINKEDIN=off)
         try:
             from linkedin.cobaia_warmup import CobaiaWarmupManager
             from linkedin.config import CobaiaConfig
@@ -1326,6 +1330,14 @@ async def main():
             logging.FileHandler("daemon.log", encoding="utf-8"),
         ]
     )
+
+    # Garante as tabelas do core.state (runtime_state etc) no DB do daemon.
+    # No PC isso era feito pelo server.py; no container/VM o daemon roda sem ele.
+    try:
+        import core.state as _cs
+        _cs.init_db()
+    except Exception:
+        logger.exception("core.state.init_db() no boot do daemon falhou")
 
     daemon = HermesDaemon()
 

@@ -1,0 +1,55 @@
+# Hermes 2.0 — stack da VPS Contabo. Mora em /opt/hermes (separado de /opt/geronimo).
+# COABITAÇÃO: usa geronimo-net como EXTERNAL. NUNCA derrubar/alterar containers do Geronimo.
+name: hermes
+
+services:
+  hermes-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hermes:latest
+    container_name: hermes-api
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      HERMES_HOME: /var/lib/hermes
+      FEATURE_LINKEDIN: "off"     # 2.0: LinkedIn congelado
+      HERMES_STRICT_MCP: "0"      # gateway MCP não sobe no H2-F0 (fail-open p/ não travar boot)
+      PYTHONUNBUFFERED: "1"
+    ports:
+      # Bind SÓ na interface Tailscale da VPS (HERMES_BIND_IP no .env) — privado, nunca público.
+      # docker-proxy fura o ufw → NUNCA usar 0.0.0.0. Default 127.0.0.1 se a var faltar.
+      - "${HERMES_BIND_IP:-127.0.0.1}:8800:8420"
+    volumes:
+      - hermes_data:/var/lib/hermes
+    networks: [geronimo-net]
+
+  hermes-daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hermes:latest
+    container_name: hermes-daemon
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      HERMES_HOME: /var/lib/hermes
+      HERMES_VM_API: http://hermes-api:8420
+      FEATURE_LINKEDIN: "off"
+      PYTHONUNBUFFERED: "1"
+    command: ["python", "-m", "daemon.orchestrator"]
+    healthcheck:
+      disable: true     # daemon é worker (não escuta porta) — o healthcheck curl:8420 do Dockerfile não se aplica
+    volumes:
+      - hermes_data:/var/lib/hermes
+    depends_on:
+      hermes-api:
+        condition: service_healthy
+    networks: [geronimo-net]
+
+networks:
+  geronimo-net:
+    external: true
+
+volumes:
+  hermes_data:
