@@ -43,13 +43,15 @@ rsync -az --delete \
 log "docker compose up -d --build ..."
 ssh -i "$KEY" "$VPS" "cd $VPS_DIR && docker compose up -d --build"
 
-# 5. Healthcheck (6 tentativas × 5s) + rollback se falhar
-log "Healthcheck /api/_ping ..."
-if ssh -i "$KEY" "$VPS" "for i in \$(seq 1 6); do curl -fsS -m5 http://localhost:8800/api/_ping >/dev/null && exit 0; sleep 5; done; exit 1"; then
+# 5. Healthcheck via Docker health nativo do hermes-api (independe do bind do host;
+#    o Dockerfile já faz curl localhost:8420 dentro do container) + sinaliza falha.
+log "Healthcheck (docker health do hermes-api) ..."
+if ssh -i "$KEY" "$VPS" "for i in \$(seq 1 12); do [ \"\$(docker inspect -f '{{.State.Health.Status}}' hermes-api 2>/dev/null)\" = healthy ] && exit 0; sleep 5; done; exit 1"; then
   ssh -i "$KEY" "$VPS" "echo '$SHA' > $VPS_DIR/.deployed_sha"
   log "DEPLOY OK (sha=$SHA). Geronimo/Bolseye intactos."
 else
-  log "HEALTHCHECK FALHOU — rollback: docker compose down (só do Hermes; Geronimo nunca tocado)."
-  ssh -i "$KEY" "$VPS" "cd $VPS_DIR && docker compose down" || true
+  # NÃO derruba (evita tirar o serviço do ar por healthcheck flaky). Sinaliza p/ inspeção.
+  log "HEALTHCHECK FALHOU — serviço mantido no ar p/ inspeção (Geronimo nunca tocado)."
+  log "Investigar: ssh $VPS \"cd $VPS_DIR && docker compose logs --tail 60\""
   exit 1
 fi
