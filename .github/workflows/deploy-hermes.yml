@@ -1,0 +1,38 @@
+name: Deploy Hermes -> Contabo
+
+# Auto-deploy a cada push na master (exceto docs). Roda scripts/deploy-hermes-vps.sh
+# (rsync + docker compose up -d --build + healthcheck + rollback). NUNCA toca /opt/geronimo.
+# Guard: só roda quando a repo variable HERMES_AUTODEPLOY == 'true' (owner habilita após
+# configurar o secret HERMES_VPS_SSH_KEY). Até lá o job é pulado (sem falha vermelha).
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - '.claude/**'
+      - '**/*.md'
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-hermes
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ vars.HERMES_AUTODEPLOY == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.HERMES_VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H 207.180.240.208 >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy (rsync + build + healthcheck + rollback)
+        env:
+          HERMES_VPS_HOST: root@207.180.240.208
+          HERMES_VPS_KEY: /home/runner/.ssh/deploy_key
+        run: bash scripts/deploy-hermes-vps.sh
