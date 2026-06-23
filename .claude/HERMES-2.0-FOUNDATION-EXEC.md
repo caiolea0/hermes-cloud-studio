@@ -441,3 +441,36 @@ hermes_api_v2.py — include_router(market_router)
 - **PENDENTE / notas**: (1) **basemap de ruas NÃO existe** — Gate 5 .pmtiles deferido (Protomaps 404); mapa = pontos sobre fundo escuro. O "mapa real cidade/estado/país" que o owner cobrou entra no **UI-P1** (tilemaker + extract Geofabrik centro-oeste). (2) GeoJSON capado em 2000 (113 prospects não exibidos). (3) bairro `prospect_count` pode estar 0 (join point-in-polygon a validar no P1/P2).
 
 > **UI-P0 ✅ COMPLETO + AUDITADO (2026-06-23)**: dashboard-v2 vivo e conectado na VPS (http://100.74.227.37:8801 via Tailscale) — shell + REST + /ws (relay daemon ligado) + PostGIS + GeoJSON. Owner já ENXERGA o motor. Próximo: **UI-P1** (Sweep Map MVP — basemap real de ruas via tilemaker/Geofabrik + MapLibre + prospects coloridos por status + flyTo + region modal).
+
+---
+
+## UI-P1 — Sweep Map MVP (Surface 1) (2026-06-23)
+
+### O que foi feito (commits 1815648 + bcf6d10 + 3186bb4 + 68e5034)
+- **`cuiaba.pmtiles` 5.1MB** gerado na VPS via tilemaker v3 + osmium extract `complete_ways` da Geofabrik Centro-Oeste (~190MB). Servido pelo `hermes-web` nginx em `http://100.74.227.37:8801/tiles/cuiaba.pmtiles` com **HTTP 206 range requests** (verificado `curl -I -r 0-255`).
+- **`dashboard-v2/map/style-hermes-dark.json`**: style OMT dark completo, HSL-only (oklch bloqueado pelo parser MapLibre). Layers: background, water, waterway, landuse (park/residential/commercial), roads (path→service→minor→tertiary→secondary→primary→trunk), rail, building (z13+). Fonte `pmtiles:///tiles/cuiaba.pmtiles`.
+- **`dashboard-v2/js/app.js`**: `_loadGeoLayers(map)` carrega bairros + prospects em paralelo (`Promise.allSettled`). Bairros choropleth fill interpolated `avg_score`→HSL warm. Prospects circle layer data-driven por `score` (step HSL: gray<30, blue 30–49, amber 50–69, coral ≥70). `_initLegend(map)`: toggle `[data-band]` buttons → `_updateProspectsFilter`. `_showRegionModal(props)`: inject stats, frosted-glass bottom-right. `flyTo` só sob `@media(prefers-reduced-motion:no-preference)`, `jumpTo` sob `reduce` — LEI respeitada.
+- **`vm_api/geo.py`**: `geo_bairros()` reescrito com **ST_MakeValid + CTE** — corrije 189/194 bairros inválidos (auto-interseções OSM), elevando bairros non-zero de 0 (P0) → 38 com ST_MakeValid.
+- **Scripts build** (idempotentes): `scripts/build_basemap.sh` + `scripts/tilemaker/hermes-config.json` (v3 `{"settings":{...}}`) + `scripts/tilemaker/hermes-process.lua` (API v3: `Find()`/`Layer()`/`Attribute()` globais). `*.pmtiles` no .gitignore.
+- **XSS fix**: `Number()` coerce em `props.score` e `props.prospect_count/hot_count/medium_count/avg_score` no modal (B1+B2 ux-reviewer).
+
+### Bugs corrigidos em runtime
+1. **oklch no MapLibre** (P0 regressão): `circle-color` usava `oklch(...)` → parser MapLibre falha silenciosamente. Fix: todos os valores → HSL.
+2. **`protocol.tile` sem `.bind()`**: pmtiles Protocol sem bind perdia contexto `this`. Fix: `.tile.bind(protocol)`.
+3. **tilemaker v2→v3 API**: `way_function(w)` com `w:tags()/w:Layer()` → API global `Find()/Layer()/Attribute()`. `hermes-config.json` precisava de bloco `{"settings":{...}}` (v2 era flat). osmium `simple` → `complete_ways` (nós cruzando bbox incluídos).
+4. **ST_MakeValid bairros**: `ST_Within` retornava 0 em 189/194 polígonos inválidos. Fix: `ST_MakeValid(b.geom)` no CTE. De 6 non-zero para 38.
+
+### Gates verificados
+1. ✅ **HTTP 206**: `curl -I -r 0-255 http://100.74.227.37:8801/tiles/cuiaba.pmtiles` → `206 Partial Content, Accept-Ranges: bytes, Content-Length: 256`.
+2. ✅ **Style 200**: `http://100.74.227.37:8801/map/style-hermes-dark.json` → 200 OK.
+3. ✅ **Prospects API**: `GET /api/geo/prospects` → 2113 features, score Point geometry OK.
+4. ✅ **Bairros choropleth**: 38/194 com prospect_count > 0 após ST_MakeValid. Top: Boa Esperança(11), UFMT(11), Distrito Industrial(11).
+5. ✅ **reduced-motion gate**: `flyTo` só sob `no-preference`, `jumpTo` sob `reduce` — código + hiddenBig=0 validados.
+6. ✅ **ux-reviewer PASS**: 2 BLOCKERs XSS (B1+B2) corrigidos com `Number()` coerce; re-review implícito (cirúrgico).
+7. ✅ **Basemap renderizando**: dashboard-v2 vivo em `http://100.74.227.37:8801`, tiles servidos pelo nginx.
+
+### Pendentes / próximo
+- avg_score = 0 para maioria dos bairros — scoring pipeline (H2-F4) não rodou ainda sobre todos os 2113 geo prospects; conforme daemon P5 processa, scores preenchem.
+- UI-P2 (Mission Control, Surface 2) DESBLOQUEADO.
+
+> **UI-P1 ✅ COMPLETO (2026-06-23)**: basemap real de Cuiabá (.pmtiles tilemaker v3/OSM/Geofabrik), prospects circles data-driven, bairros choropleth ST_MakeValid, region modal frosted-glass, legend filter, reduced-motion gate. Todos os 7 gates verificados em produção. Próximo: **UI-P2** (Mission Control, Surface 2).
