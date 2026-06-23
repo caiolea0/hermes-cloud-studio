@@ -9,6 +9,8 @@
 
 O projeto pivotou pra **Hermes 2.0** (lead-discovery + market-intelligence $0, 24/7; LinkedIn FROZEN). Docs canônicos:
 
+- 🧭 **`HERMES-2.0-ORCHESTRATOR-ROLE.md`** — SE você é a sessão ORQUESTRADORA (auditor + prompt-provider), LEIA ISTO PRIMEIRO. Define seu papel, o fluxo (entrega prompt → owner roda executora → você audita no DB real → persiste → próximo), regra cardinal (nunca confiar no "COMPLETO" do executor), ambiente (VPS/Tailscale/DBs/auth), gotchas e estado do roadmap.
+- 📊 **`HERMES-2.0-FOUNDATION-EXEC.md`** — ESTADO REAL por fase (fonte da verdade do que foi feito/auditado: H2-F0..F7 motor + UI-P0/P1 frontend). Cada fase tem bloco "Auditoria independente" = exemplo do padrão.
 - `HERMES-2.0-PLAN.md` — plano mestre (pivô, arquitetura, fontes $0, contratos Geronimo/Vuecra, **migração Contabo §5**, roadmap H2-F0..F8).
 - `HERMES-2.0-UIUX-PLAN.md` — plano de UI/UX (4 superfícies, stack, 8 decisões).
 - `HERMES-2.0-DESIGN-STATE.md` — **estado do design v2 (minimalismo robusto, APROVADO)** + telas em `design-mockups/` + lições (reduced-motion!).
