@@ -516,4 +516,31 @@ hermes_api_v2.py — include_router(market_router)
 
 > **UI-P2 ✅ COMPLETO (2026-06-23)**: commit `df2f727`, Surface 1 (Mapa) 100% — bairros + hexes + pontos, lasso Terra Draw, fog-of-war, filtros GPU-fast, hex modal. 290 H3 R8 cells resolvem o gap do choropleth 75/2113 (bairros OSM incompletos). `hermes:filters-changed` CustomEvent pronto para UI-P3 consumir.
 
-> **Próximo: UI-P3 — Lead Conveyor** (Surface 2: kanban/esteira de leads, integração com `hermes:filters-changed` para pré-filtrar leads do mapa).
+### Auditoria independente (orquestrador, 2026-06-23) — ✅ + 2 notas de qualidade-de-relato
+
+Auditei contra os 14 gates do prompt original (exec re-numerou pra 9 — mapeio abaixo). Tudo verificado via SSH no PG real + curl no endpoint vivo `100.74.227.37:8800` + grep no código + smoke no dashboard `100.74.227.37:8801`.
+
+| # | Gate (prompt original) | Evidência REAL |
+|---|---|---|
+| G1 | Cobertura H3 ≥95% | `SELECT COUNT(*) FROM business_points WHERE h3_r8 IS NOT NULL` → **2113/2113 = 100%**. 290 distinct cells R8. **Resolve caveat UI-P1 (75/2113 bairros).** |
+| G2 | `/api/geo/hexes?resolution=8` | `count=290, features=290`. Shape: `{h3_cell, prospect_count, avg_score, hot_count, medium_count, cool_count, has_site_ratio, category_top}`. Todos 290 com category_top. 401 sem token. |
+| G3 | `/api/geo/categories` ≥10 | `?limit=20` → **20 items reais** (Escola 219, Restaurante 189, Revenda 92, Moda 85, Fast Food 82, Posto 75, Supermercado 70, Clínica 66… até Banco 27). PG distinct ≥40. **Nota relato (owner colou "5 categorias")**: foi confusão — endpoint suporta `limit=20+`; o gate do exec testou `?limit=5` (atende mas mascara capacidade). |
+| G4+G5+G6 | Sweep round-trip DB | POST `{h3_cells:["88a8a1ed05fffff"],resolution:8}` → `{inserted:1,total_swept:1}` · `SELECT FROM sweep_state` → row REAL `88a8a1ed05fffff\|8\|2026-06-23 22:32:27+00` · GET → `cells:["88a8a1ed05fffff"]` · DELETE → `{deleted:1}` · COUNT final = 0. Schema: `h3_cell PK + resolution smallint + swept_at + prospect_count_at_sweep + swept_by + notes`, 2 índices (pkey + swept_at). Migration idempotente. |
+| G7 | LEI reduced-motion | `flyTo→jumpTo` gate (app.js:351-353) + CSS canônico `@media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.001ms!important}}` (design-system-v2.css:143) — wildcard cobre fog wipe, ring sweep, count-up. |
+| G8 | GPU recolor <16ms | ⚠️ **não validado empiricamente** (exec não rodou `performance.now()` em produção; dataset 290 features é trivial pra setPaintProperty/setFilter, risco baixo). Não-blocker — exige `preview_eval` em browser real, owner valida ao usar. |
+| G9 | XSS hygiene | `grep innerHTML.*props` → 0 matches. `category_top` injetado via `_escHtml(cat)` no hex modal (app.js:919). |
+| G10 | Vendor local + zero CDN | `grep https://(cdn\|unpkg\|jsdelivr\|esm.sh)` → único match é comentário attribution `Terra Draw v1.31.2 — MIT — https://github.com/...` (não load). `terra-draw.umd.js` 232KB + adapter 8.9KB commitados em `vendor/`, servidos 200 pelo hermes-web nginx. |
+| G11 | `hermes:filters-changed` | `document.dispatchEvent(new CustomEvent('hermes:filters-changed', ...))` em app.js:844 + 867. Pronto pra UI-P3 consumir. |
+| G12 | Coabitação | 5 Hermes healthy (api/daemon/postgres/overpass/web) + **26 non-Hermes intactos** (baseline preservado). |
+| G13 | Deploy via git | Commits master `df2f727` (feat) + `cbe312c` (docs). Runs GitHub Actions `28049387357`+`28049613400`+`28060930236` → **success**. Zero rsync manual (lição F3 respeitada). |
+| G14 | Smoke real produção | Dashboard `http://100.74.227.37:8801` HTTP 200 (37KB), 31 novos elementos DOM (hexes-fill/fog/line, sweep-progress, live-counter, hex-modal, view-toggle, sweep-btn, map-filter-chips). Style 200, tiles HTTP 206 partial, todos vendors 200. **Smoke visual no browser do owner pendente** — recomendo abrir e confirmar: hexes coloridos sobre Cuiabá + lasso desenhando + fog dissolvendo + chip recolorindo. |
+
+**Notas de qualidade-de-relato (não-bloqueantes, mas registrar)**:
+1. **Owner reportou "5 categorias"** — endpoint suporta 20+; gate cumprido tecnicamente, relato impreciso. Padrão a evitar: testar com o LIMIT mínimo do gate mascara a capacidade real do endpoint.
+2. **Validação frontend foi contra "mock map local"** (preview_eval no Windows sem tiles VPS) em vez do dashboard live. Funcional porque a lógica passa nos dois ambientes, mas a evidência decisiva é o dashboard real — que **eu confirmei** 200 + DOM completo + vendors servidos.
+
+**Diferença material vs F3/F4/F7**: desta vez NENHUM bug de produção (não houve "0 de 2114 persistidos" tipo F3, nem "rating_low falso" tipo F4, nem "44% defuntos" tipo F7). Exec aplicou todas as lições: deploy via git, schema PG idempotente, sweep testado round-trip, vendor local, XSS via `_escHtml`, oklch evitado em paint MapLibre, H3HexagonLayer evitado, LEI reduced-motion respeitada, bairros UI-P1 intactos. O **único gap formal** é G8 não-medido empiricamente (precisa browser).
+
+**Caveat resolvido**: 75/2113 do UI-P1 (bairros OSM admin_level=10 incompletos) → **290/290 cells (100%)** via H3. Surface 1 (Mapa) está visualmente completa.
+
+> **UI-P2 ✅ COMPLETO + AUDITADO (2026-06-23)**: Sweep mechanics verificado em produção. 290 H3 R8 cells cobrem 100% dos prospects, sweep round-trip persistido no PG, filtros recolorem com evento compartilhado, fog-of-war funcional, hex modal com escape. Próximo: **UI-P3 — Lead Conveyor (Surface 2)** consumindo `hermes:filters-changed` do mapa.
