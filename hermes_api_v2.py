@@ -31,6 +31,7 @@ import time
 from vm_api.routes import router as vm_router
 from vm_api.mcp_coverage import router as mcp_coverage_router
 from vm_api.vuecra import router as vuecra_router  # H2-F5 — Vuecra Handoff HI2
+from vm_api.market import router as market_router  # H2-F7 — Market Intelligence
 from api.brain import router as brain_router  # F.6.1 — Brain orchestrator scaffold (shared PC/VM)
 
 
@@ -169,6 +170,7 @@ async def vm_ping():
 app.include_router(vm_router)
 app.include_router(mcp_coverage_router)
 app.include_router(vuecra_router)  # H2-F5 — /api/vuecra/* (Vuecra Handoff HI2)
+app.include_router(market_router)  # H2-F7 — /api/market/* (Market Intelligence)
 app.include_router(brain_router)  # F.6.1 — /api/brain/* (Brain orchestrator scaffold)
 
 

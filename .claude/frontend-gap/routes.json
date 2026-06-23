@@ -1,8 +1,8 @@
 {
-  "generated_at": 1782197857.220955,
-  "total": 243,
+  "generated_at": 1782201752.9699855,
+  "total": 245,
   "pc_count": 189,
-  "vm_count": 54,
+  "vm_count": 56,
   "ws_count": 1,
   "internal_count": 5,
   "routes": [
@@ -1900,7 +1900,7 @@
       "method": "GET",
       "path": "/api/_ping",
       "file": "hermes_api_v2.py",
-      "line": 161,
+      "line": 162,
       "function": "vm_ping",
       "side": "vm",
       "internal_only": false,
@@ -2212,6 +2212,26 @@
       "file": "vm_api/routes.py",
       "line": 1554,
       "function": "vm_linkedin_visited",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/market/heatmap",
+      "file": "vm_api/market.py",
+      "line": 113,
+      "function": "market_heatmap",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/market/signals",
+      "file": "vm_api/market.py",
+      "line": 39,
+      "function": "market_signals",
       "side": "vm",
       "internal_only": false,
       "rate_limited": false

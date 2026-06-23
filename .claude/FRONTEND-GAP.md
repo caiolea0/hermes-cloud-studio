@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-23 06:57 UTC
+- **last_updated**: 2026-06-23 08:02 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 243 (189 PC + 54 VM, 5 internal-only excluded)
-- **consumed**: 141 (59.2% of public)
-- **orphans**: 97
+- **routes_total**: 245 (189 PC + 56 VM, 5 internal-only excluded)
+- **consumed**: 141 (58.8% of public)
+- **orphans**: 99
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **243** rotas FastAPI (189 PC, 54 VM)
+- Total: **245** rotas FastAPI (189 PC, 56 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -48,6 +48,7 @@
 | `api/mcp_coverage.py` | 2 |
 | `api/tunnel.py` | 2 |
 | `api/user_prefs.py` | 2 |
+| `vm_api/market.py` | 2 |
 | `vm_api/mcp_coverage.py` | 2 |
 | `api/bootstrap.py` | 1 |
 | `api/claude.py` | 1 |
@@ -90,7 +91,7 @@
 | `/api/hermes/skills/{param}` | 2 | app.js |
 | `/api/hermes/status` | 2 | app.js |
 
-## §3 Órfãos — 97 endpoints sem UI
+## §3 Órfãos — 99 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -161,7 +162,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/stats` | pc | `api/stats.py:11` | token |
 | `GET` | `/api/stats` | vm | `vm_api/routes.py:356` | token |
 | `GET` | `/` | pc | `api/dashboard.py:14` | token |
-| `GET` | `/api/_ping` | vm | `hermes_api_v2.py:161` | token |
+| `GET` | `/api/_ping` | vm | `hermes_api_v2.py:162` | token |
 | `GET` | `/api/channels/{channel}/test` | pc | `api/onboarding.py:146` | token |
 | `GET` | `/api/cobaia/autotune-history` | pc | `api/cobaia.py:367` | token |
 | `GET` | `/api/cobaia/autotune-status` | pc | `api/cobaia.py:399` | token |
@@ -176,6 +177,8 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:457` | token |
 | `GET` | `/api/linkedin/companies/lookup` | vm | `vm_api/routes.py:1612` | token |
 | `GET` | `/api/linkedin/session-check` | vm | `vm_api/routes.py:1426` | token |
+| `GET` | `/api/market/heatmap` | vm | `vm_api/market.py:113` | token |
+| `GET` | `/api/market/signals` | vm | `vm_api/market.py:39` | token |
 | `GET` | `/api/mcp/coverage/jobs/{job_id}` | vm | `vm_api/mcp_jobs.py:26` | token |
 | `GET` | `/api/observability/_debug/explain_cost_plan` | pc | `api/observability.py:668` | token |
 | `GET` | `/api/observability/credits` | pc | `api/observability.py:166` | token |

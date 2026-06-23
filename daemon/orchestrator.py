@@ -78,7 +78,8 @@ class TaskCategory(str, Enum):
     SCORING = "scoring"
     REPORTING = "reporting"
     SYSTEM = "system"
-    COBAIA = "cobaia"  # F.7 C2 — P0 absolute override
+    COBAIA = "cobaia"        # F.7 C2 — P0 absolute override
+    MARKET_INTEL = "market_intel"  # H2-F7 — market signals
 
 
 @dataclass
@@ -552,6 +553,15 @@ class HermesDaemon:
                 )
             )
 
+        # PRIORITY 6c: Compute market signals (H2-F7) — once daily at ~23h
+        if hour == 23 and not self._market_signals_computed_today():
+            return Task(
+                type="compute_market_signals",
+                category=TaskCategory.MARKET_INTEL,
+                priority=6,
+                description="Compute CNAE market signals (density, churn, new-reg, opportunity)",
+            )
+
         # PRIORITY 7: Weekly report (Sunday evening)
         if weekday == 6 and 19 <= hour <= 21 and not self._reported_this_week():
             return Task(
@@ -578,6 +588,7 @@ class HermesDaemon:
                 "weekly_report": self._exec_weekly_report,
                 "cobaia_warmup_action": self._exec_cobaia_warmup,  # F.7 C2
                 "mark_site_ready": self._exec_mark_site_ready,    # H2-F5
+                "compute_market_signals": self._exec_compute_market_signals,  # H2-F7
             }
 
             handler = handlers.get(task.type)
@@ -1390,6 +1401,43 @@ class HermesDaemon:
             marked, errors, len(data),
         )
         return {"marked": marked, "errors": errors, "total": len(data)}
+
+    # --- H2-F7: Market Intelligence ---
+
+    def _market_signals_computed_today(self) -> bool:
+        """True if market signals were already computed in the current calendar day (UTC)."""
+        ts = getattr(self, "_last_market_signals_at", None)
+        if ts is None:
+            return False
+        today = datetime.now(timezone.utc).date()
+        return ts.date() == today
+
+    async def _exec_compute_market_signals(self, data) -> dict:
+        """H2-F7: compute CNAE market signals and persist to cnpj.market_signals.
+
+        Graceful: if hermes-postgres is down, logs warning and continues (does not crash daemon).
+        Deterministic: running twice produces identical result.
+        """
+        try:
+            from brain.market_analyzer import run_market_analysis
+            result = await asyncio.to_thread(run_market_analysis)
+            self._last_market_signals_at = datetime.now(timezone.utc)
+            logger.info(
+                "daemon P6c: market signals computed total=%d "
+                "(density=%d churn=%d new_reg=%d opportunity=%d)",
+                result.get("total_signals", 0),
+                result.get("density_count", 0),
+                result.get("churn_velocity_count", 0),
+                result.get("new_reg_velocity_count", 0),
+                result.get("opportunity_count", 0),
+            )
+            return result
+        except Exception as exc:
+            # Graceful: PG down must not stop daemon
+            logger.warning(
+                "daemon P6c: compute_market_signals failed (PG unavailable?): %s — skipping", exc
+            )
+            return {"error": str(exc), "total_signals": 0}
 
     # --- Channel Adapters ---
 
