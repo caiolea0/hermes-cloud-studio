@@ -109,7 +109,7 @@ services:
       - hermes_tiles:/www/tiles:ro
     networks: [geronimo-net]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8801/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8801/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
