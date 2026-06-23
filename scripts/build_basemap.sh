@@ -68,7 +68,7 @@ osmium extract \
   --bbox="$CUIABA_BBOX" \
   "$PBF" -o "$CUIABA_PBF" \
   --overwrite \
-  --strategy=simple
+  --strategy=complete_ways
 CUIABA_SIZE=$(du -h "$CUIABA_PBF" | cut -f1)
 echo "[4/5] Cuiabá extract: $CUIABA_SIZE ✓"
 
