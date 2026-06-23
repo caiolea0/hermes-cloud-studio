@@ -117,25 +117,28 @@ def _ensure_market_signals_table(conn) -> None:
 # ---------------------------------------------------------------------------
 
 def compute_density(conn, limit: int = 50) -> List[Dict]:
-    """Top CNAEs by total count in Cuiabá.
+    """Top CNAEs by ATIVAS count in Cuiabá (mercado vivo, não defuntos).
 
-    High density = saturated (competition).
-    Low density  = whitespace (subatendido) — opportunity.
-    Returns rank ascending (rank=1 is highest density).
+    Rankeia por estabelecimentos ATIVOS (situacao='02') — o RF dump tem ~44%
+    baixadas/inaptas que NÃO são mercado real pra prospecção. Exclui CNAE
+    placeholder '8888888' (sem CNAE definido). `total` fica no meta p/ referência.
+    High density (ativas) = saturado (competição). Low = whitespace = oportunidade.
     """
     with conn.cursor() as cur:
         cur.execute("""
             SELECT
                 cnae_principal                                        AS cnae,
-                COUNT(*)                                              AS total,
                 COUNT(*) FILTER (WHERE situacao_cadastral = '02')    AS ativas,
-                RANK() OVER (ORDER BY COUNT(*) DESC)::int            AS rank
+                COUNT(*)                                              AS total,
+                RANK() OVER (
+                    ORDER BY COUNT(*) FILTER (WHERE situacao_cadastral = '02') DESC
+                )::int                                                AS rank
             FROM cnpj.estabelecimentos
             WHERE municipio_rf = %s
               AND cnae_principal IS NOT NULL
-              AND cnae_principal <> '0000000'
+              AND cnae_principal NOT IN ('0000000', '8888888')
             GROUP BY cnae_principal
-            ORDER BY total DESC
+            ORDER BY ativas DESC
             LIMIT %s
         """, (CUIABA_RF_CODE, limit))
         cols = [d[0] for d in cur.description]
@@ -160,7 +163,7 @@ def compute_churn_velocity(conn, months: int = 24, limit: int = 50) -> List[Dict
             FROM cnpj.estabelecimentos
             WHERE municipio_rf = %s
               AND cnae_principal IS NOT NULL
-              AND cnae_principal <> '0000000'
+              AND cnae_principal NOT IN ('0000000', '8888888')
               AND situacao_cadastral = ANY(%s)
               AND data_situacao >= %s
             GROUP BY cnae_principal
@@ -189,7 +192,7 @@ def compute_new_reg_velocity(conn, months: int = 12, limit: int = 50) -> List[Di
             FROM cnpj.estabelecimentos
             WHERE municipio_rf = %s
               AND cnae_principal IS NOT NULL
-              AND cnae_principal <> '0000000'
+              AND cnae_principal NOT IN ('0000000', '8888888')
               AND situacao_cadastral = '02'
               AND data_abertura >= %s
             GROUP BY cnae_principal
@@ -211,7 +214,8 @@ def compute_heatmap(conn) -> List[Dict]:
             SELECT cnae_principal FROM cnpj.estabelecimentos
             WHERE municipio_rf = %s
               AND cnae_principal IS NOT NULL
-              AND cnae_principal <> '0000000'
+              AND cnae_principal NOT IN ('0000000', '8888888')
+              AND situacao_cadastral = '02'
             GROUP BY cnae_principal
             ORDER BY COUNT(*) DESC
             LIMIT 20
@@ -228,6 +232,7 @@ def compute_heatmap(conn) -> List[Dict]:
             FROM cnpj.estabelecimentos
             WHERE municipio_rf = %s
               AND cnae_principal = ANY(%s)
+              AND situacao_cadastral = '02'
               AND bairro IS NOT NULL
               AND bairro <> ''
             GROUP BY cnae_principal, bairro
@@ -409,7 +414,7 @@ def run_market_analysis(limit_per_signal: int = 50) -> Dict[str, Any]:
         new_reg = compute_new_reg_velocity(conn, limit=limit_per_signal)
         opportunity = compute_opportunity_scores(density, new_reg, churn, limit=limit_per_signal)
 
-        n_den = _upsert_signals(conn, density, "density", "total")
+        n_den = _upsert_signals(conn, density, "density", "ativas")
         n_chu = _upsert_signals(conn, churn, "churn_velocity", "churn_count")
         n_new = _upsert_signals(conn, new_reg, "new_reg_velocity", "new_count")
         n_opp = _upsert_signals(conn, opportunity, "opportunity", "opportunity_score")
