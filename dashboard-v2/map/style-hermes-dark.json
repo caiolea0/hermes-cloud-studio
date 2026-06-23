@@ -6,7 +6,7 @@
       "id": "background",
       "type": "background",
       "paint": {
-        "background-color": "oklch(0.155 0.008 265)"
+        "background-color": "hsl(265, 4%, 7%)"
       }
     }
   ]
