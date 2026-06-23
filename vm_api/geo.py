@@ -8,12 +8,18 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter()
 logger = logging.getLogger("hermes_api_v2")
+
+# Cache bairros (PostGIS spatial join é custoso — 5min TTL)
+_bairros_cache: dict | None = None
+_bairros_cache_ts: float = 0.0
+_BAIRROS_TTL = 300.0
 
 
 def _pg_conn():
@@ -118,32 +124,46 @@ def geo_prospects(
 
 @router.get("/api/geo/bairros")
 def geo_bairros():
-    """FeatureCollection de bairros de Cuiabá (polígonos OSM admin_level=9/10).
+    """FeatureCollection de bairros de Cuiabá com contagens de oportunidade (PostGIS join).
 
-    Propriedades: id, name, admin_level, prospect_count.
-    Fallback gracioso se geo.bairros ainda não existe.
+    Propriedades: id, name, admin_level, prospect_count, avg_score, hot_count.
+    Resultado cacheado por 5 minutos (join espacial PostGIS é custoso).
     """
+    global _bairros_cache, _bairros_cache_ts
+
+    if _bairros_cache is not None and time.time() - _bairros_cache_ts < _BAIRROS_TTL:
+        return _bairros_cache
+
     try:
         conn = _pg_conn()
     except Exception as exc:
         logger.warning("geo/bairros: falha conectar PG: %s", exc)
+        if _bairros_cache is not None:
+            return _bairros_cache
         return {"type": "FeatureCollection", "features": [], "note": str(exc)}
 
     try:
         cur = conn.cursor()
+        # PostGIS spatial join: conta prospects dentro de cada bairro (GIST indexes garantem performance)
         cur.execute("""
             SELECT
-                b.id, b.name, b.admin_level, b.prospect_count,
-                ST_AsGeoJSON(b.geom)::json AS geometry
+                b.id, b.name, b.admin_level,
+                COUNT(bp.id)::int                                       AS prospect_count,
+                COALESCE(ROUND(AVG(bp.score) FILTER (WHERE bp.score > 0)), 0)::int AS avg_score,
+                COUNT(bp.id) FILTER (WHERE bp.score >= 70)::int         AS hot_count,
+                COUNT(bp.id) FILTER (WHERE bp.score >= 50 AND bp.score < 70)::int AS medium_count,
+                ST_AsGeoJSON(b.geom)::json                               AS geometry
             FROM geo.bairros b
+            LEFT JOIN geo.business_points bp ON ST_Within(bp.geom, b.geom)
             WHERE b.geom IS NOT NULL
+            GROUP BY b.id, b.name, b.admin_level, b.geom
             ORDER BY b.name
         """)
         rows = cur.fetchall()
 
         features = []
         for row in rows:
-            bid, name, admin_level, prospect_count, geom = row
+            bid, name, admin_level, prospect_count, avg_score, hot_count, medium_count, geom = row
             features.append({
                 "type": "Feature",
                 "geometry": geom,
@@ -151,11 +171,17 @@ def geo_bairros():
                     "id": bid,
                     "name": name,
                     "admin_level": admin_level,
-                    "prospect_count": prospect_count or 0,
+                    "prospect_count": prospect_count,
+                    "avg_score": avg_score,
+                    "hot_count": hot_count,
+                    "medium_count": medium_count,
                 },
             })
 
-        return {"type": "FeatureCollection", "features": features, "count": len(features)}
+        result = {"type": "FeatureCollection", "features": features, "count": len(features)}
+        _bairros_cache = result
+        _bairros_cache_ts = time.time()
+        return result
 
     except Exception as exc:
         if "geo.bairros" in str(exc) or 'does not exist' in str(exc):

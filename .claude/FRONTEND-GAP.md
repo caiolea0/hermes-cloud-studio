@@ -1,6 +1,6 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-23 17:30 UTC
+- **last_updated**: 2026-06-23 18:52 UTC
 - **phase_baseline**: post F.7
 - **routes_total**: 250 (189 PC + 61 VM, 5 internal-only excluded)
 - **consumed**: 142 (58.0% of public)
@@ -176,8 +176,8 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:775` | token |
 | `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:494` | token |
 | `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:351` | token |
-| `GET` | `/api/geo/bairros` | vm | `vm_api/geo.py:119` | token |
-| `GET` | `/api/geo/prospects` | vm | `vm_api/geo.py:36` | token |
+| `GET` | `/api/geo/bairros` | vm | `vm_api/geo.py:125` | token |
+| `GET` | `/api/geo/prospects` | vm | `vm_api/geo.py:42` | token |
 | `GET` | `/api/icp/presets` | pc | `api/icp.py:92` | token |
 | `GET` | `/api/icp/profile` | pc | `api/icp.py:78` | token |
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:457` | token |

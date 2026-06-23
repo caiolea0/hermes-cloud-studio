@@ -92,5 +92,8 @@ dashboard/dev-bootstrap.html
 # Schedule lock
 .claude/scheduled_tasks.lock
 
+# Map tiles (large binary, built on VPS via scripts/build_basemap.sh)
+*.pmtiles
+
 # F.4.4 — quarantine dir (C2 scope)
 skills/_quarantine/*

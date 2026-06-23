@@ -1,12 +1,160 @@
 {
   "version": 8,
   "name": "hermes-dark",
+  "sources": {
+    "hermes": {
+      "type": "vector",
+      "url": "pmtiles:///tiles/cuiaba.pmtiles"
+    }
+  },
   "layers": [
     {
       "id": "background",
       "type": "background",
+      "paint": { "background-color": "hsl(265,4%,7%)" }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "hermes",
+      "source-layer": "water",
+      "paint": { "fill-color": "hsl(213,28%,10%)" }
+    },
+    {
+      "id": "waterway",
+      "type": "line",
+      "source": "hermes",
+      "source-layer": "waterway",
       "paint": {
-        "background-color": "hsl(265, 4%, 7%)"
+        "line-color": "hsl(213,30%,13%)",
+        "line-width": [
+          "interpolate", ["linear"], ["zoom"],
+          10, 1, 14, 2.5
+        ]
+      }
+    },
+    {
+      "id": "landuse-green",
+      "type": "fill",
+      "source": "hermes",
+      "source-layer": "landuse",
+      "filter": ["==", ["get", "class"], "park"],
+      "paint": { "fill-color": "hsl(140,16%,9%)" }
+    },
+    {
+      "id": "landuse-residential",
+      "type": "fill",
+      "source": "hermes",
+      "source-layer": "landuse",
+      "filter": ["==", ["get", "class"], "residential"],
+      "paint": { "fill-color": "hsl(265,4%,9%)" }
+    },
+    {
+      "id": "landuse-commercial",
+      "type": "fill",
+      "source": "hermes",
+      "source-layer": "landuse",
+      "filter": ["in", ["get", "class"], ["literal", ["commercial", "industrial"]]],
+      "paint": { "fill-color": "hsl(265,5%,10%)" }
+    },
+    {
+      "id": "road-path",
+      "type": "line",
+      "source": "hermes",
+      "source-layer": "transportation",
+      "filter": ["in", ["get", "class"], ["literal", ["path", "track"]]],
+      "paint": {
+        "line-color": "hsl(265,5%,12%)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 0.4, 17, 1]
+      }
+    },
+    {
+      "id": "road-service",
+      "type": "line",
+      "source": "hermes",
+      "source-layer": "transportation",
+      "filter": ["==", ["get", "class"], "service"],
+      "paint": {
+        "line-color": "hsl(265,5%,13%)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 0.5, 17, 1.5]
+      }
+    },
+    {
+      "id": "road-minor",
+      "type": "line",
+      "source": "hermes",
+      "source-layer": "transportation",
+      "filter": ["==", ["get", "class"], "minor"],
+      "paint": {
+        "line-color": "hsl(265,6%,15%)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.8, 16, 2.5]
+      }
+    },
+    {
+      "id": "road-tertiary",
+      "type": "line",
+      "source": "hermes",
+      "source-layer": "transportation",
+      "filter": ["==", ["get", "class"], "tertiary"],
+      "paint": {
+        "line-color": "hsl(265,7%,17%)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1, 15, 3]
+      }
+    },
+    {
+      "id": "road-secondary",
+      "type": "line",
+      "source": "hermes",
+      "source-layer": "transportation",
+      "filter": ["==", ["get", "class"], "secondary"],
+      "paint": {
+        "line-color": "hsl(265,8%,20%)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.2, 15, 4]
+      }
+    },
+    {
+      "id": "road-primary",
+      "type": "line",
+      "source": "hermes",
+      "source-layer": "transportation",
+      "filter": ["==", ["get", "class"], "primary"],
+      "paint": {
+        "line-color": "hsl(265,9%,23%)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.5, 15, 5]
+      }
+    },
+    {
+      "id": "road-trunk",
+      "type": "line",
+      "source": "hermes",
+      "source-layer": "transportation",
+      "filter": ["in", ["get", "class"], ["literal", ["trunk", "motorway"]]],
+      "paint": {
+        "line-color": "hsl(265,10%,27%)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1.5, 14, 6]
+      }
+    },
+    {
+      "id": "rail",
+      "type": "line",
+      "source": "hermes",
+      "source-layer": "transportation",
+      "filter": ["==", ["get", "class"], "rail"],
+      "paint": {
+        "line-color": "hsl(265,6%,18%)",
+        "line-width": 1,
+        "line-dasharray": [3, 3]
+      }
+    },
+    {
+      "id": "building",
+      "type": "fill",
+      "source": "hermes",
+      "source-layer": "building",
+      "minzoom": 13,
+      "paint": {
+        "fill-color": "hsl(265,5%,11%)",
+        "fill-outline-color": "hsl(265,6%,16%)"
       }
     }
   ]

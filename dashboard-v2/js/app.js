@@ -157,8 +157,8 @@
     return `
       <div class="lead-inner" style="padding:16px 18px">
         <div class="row" style="gap:14px">
-          <div class="ring" style="--val:${p.score};--col:var(--${scoreColor});--sz:42px" aria-label="Score ${p.score}">
-            <b>${p.score}</b>
+          <div class="ring" style="--val:${Number(p.score)||0};--col:var(--${scoreColor});--sz:42px" aria-label="Score ${Number(p.score)||0}">
+            <b>${Number(p.score)||0}</b>
           </div>
           <div class="grow">
             <div style="font-weight:600;font-size:14px;line-height:1.3">${_escHtml(p.name || '—')}</div>
@@ -207,12 +207,19 @@
 
   // ── Surface: Mapa ────────────────────────────────────────────────────────
 
+  // Score bands para filtro da legenda
+  const SCORE_BANDS = {
+    hot:    { min: 70, max: 100, label: 'Quente (≥70)',      color: 'hsl(25,80%,58%)' },
+    medium: { min: 50, max: 69,  label: 'Oportunidade (50–69)', color: 'hsl(40,72%,55%)' },
+    cool:   { min: 0,  max: 49,  label: 'Consolidado (<50)', color: 'hsl(215,40%,48%)' },
+  };
+  const _activeBands = { hot: true, medium: true, cool: true };
+
   function _initMap() {
     _mapInitialized = true;
     const container = document.getElementById('map-container');
     if (!container) return;
 
-    // MapLibre deve estar disponível (pmtiles é opcional — estilo P0 usa fundo plano)
     if (typeof maplibregl === 'undefined') {
       container.innerHTML = `
         <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
@@ -224,10 +231,9 @@
     }
 
     try {
-      // Registra protocolo pmtiles se disponível (P1: basemap vector)
       if (typeof pmtiles !== 'undefined') {
         const protocol = new pmtiles.Protocol();
-        maplibregl.addProtocol('pmtiles', protocol.tile);
+        maplibregl.addProtocol('pmtiles', protocol.tile.bind(protocol));
       }
 
       const map = new maplibregl.Map({
@@ -241,9 +247,11 @@
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
       map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 
-      map.on('load', () => _loadGeoLayer(map));
+      map.on('load', () => _loadGeoLayers(map));
       map.on('error', (e) => {
-        console.warn('[map] erro MapLibre:', e);
+        // Source errors (pmtiles não existe ainda) são esperados — não exibir ao usuário
+        if (e.sourceId === 'hermes') return;
+        console.warn('[map] erro MapLibre:', e.error?.message || e);
       });
 
       window._hermesMap = map;
@@ -256,50 +264,270 @@
     }
   }
 
-  async function _loadGeoLayer(map) {
+  async function _loadGeoLayers(map) {
     try {
-      const fc = await hermesAPI.getGeoProspects();
-      if (!fc || fc.features.length === 0) return;
+      // Carrega bairros + prospects em paralelo
+      const [bairros, fc] = await Promise.allSettled([
+        hermesAPI.getGeoBairros(),
+        hermesAPI.getGeoProspects(),
+      ]);
 
-      map.addSource('prospects', { type: 'geojson', data: fc });
+      // ── Camada 1: Choropleth de bairros ─────────────────────────────────
+      const bairrosData = bairros.status === 'fulfilled' ? bairros.value : null;
+      if (bairrosData && bairrosData.features && bairrosData.features.length > 0) {
+        map.addSource('bairros', { type: 'geojson', data: bairrosData });
 
-      // Layer de pontos — cor por status_color (sem H3 hexes em P0)
-      map.addLayer({
-        id: 'prospects-circles',
-        type: 'circle',
-        source: 'prospects',
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 3, 15, 6],
-          'circle-color': [
-            'match', ['get', 'status_color'],
-            'warm', 'oklch(0.82 0.13 80)',
-            'good', 'oklch(0.78 0.12 165)',
-            'cool', 'oklch(0.66 0.11 240)',
-            'oklch(0.55 0.009 265)',
-          ],
-          'circle-opacity': 0.85,
-          'circle-stroke-width': 0.5,
-          'circle-stroke-color': 'oklch(1 0 0 / 0.15)',
-        },
-      });
+        // Fill: cor por avg_score (calor de oportunidade)
+        map.addLayer({
+          id: 'bairros-fill',
+          type: 'fill',
+          source: 'bairros',
+          paint: {
+            'fill-color': [
+              'interpolate', ['linear'], ['coalesce', ['get', 'avg_score'], 0],
+              0,  'hsl(265,4%,9%)',
+              20, 'hsl(265,5%,11%)',
+              50, 'hsl(30,20%,13%)',
+              70, 'hsl(25,35%,17%)',
+            ],
+            'fill-opacity': [
+              'interpolate', ['linear'], ['coalesce', ['get', 'prospect_count'], 0],
+              0, 0,
+              1, 0.45,
+              10, 0.65,
+            ],
+          },
+        });
 
-      // Tooltip on click
-      map.on('click', 'prospects-circles', (e) => {
-        const props = e.features[0]?.properties;
-        if (!props) return;
-        new maplibregl.Popup({ closeButton: false, className: 'map-popup' })
-          .setLngLat(e.lngLat)
-          .setHTML(`<strong>${_escHtml(props.name)}</strong><br>
-            <span class="muted" style="font-size:12px">${_escHtml(props.category || '—')} · score ${props.score}</span>`)
-          .addTo(map);
-      });
+        // Border: sempre visível
+        map.addLayer({
+          id: 'bairros-line',
+          type: 'line',
+          source: 'bairros',
+          paint: {
+            'line-color': 'hsl(265,8%,24%)',
+            'line-width': 0.5,
+            'line-opacity': 0.5,
+          },
+        });
 
-      map.on('mouseenter', 'prospects-circles', () => { map.getCanvas().style.cursor = 'pointer'; });
-      map.on('mouseleave', 'prospects-circles', () => { map.getCanvas().style.cursor = ''; });
+        // Border selecionado (feature-state highlight)
+        map.addLayer({
+          id: 'bairros-selected',
+          type: 'line',
+          source: 'bairros',
+          filter: ['==', ['id'], ''],
+          paint: {
+            'line-color': 'hsl(265,60%,65%)',
+            'line-width': 1.5,
+            'line-opacity': 0.9,
+          },
+        });
+
+        // Click → flyTo + modal
+        let _selectedBairroId = null;
+        map.on('click', 'bairros-fill', (e) => {
+          const feat = e.features[0];
+          if (!feat) return;
+          const props = feat.properties;
+          const id = props.id;
+
+          // Highlight selected
+          if (_selectedBairroId !== null) {
+            map.setFilter('bairros-selected', ['==', ['id'], '']);
+          }
+          _selectedBairroId = id;
+          map.setFilter('bairros-selected', ['==', ['get', 'id'], id]);
+
+          // Desatura bairros não-focados
+          map.setPaintProperty('bairros-fill', 'fill-opacity', [
+            'case',
+            ['==', ['get', 'id'], id], 0.75,
+            ['interpolate', ['linear'], ['coalesce', ['get', 'prospect_count'], 0],
+              0, 0, 1, 0.25, 10, 0.35],
+          ]);
+
+          // Camera: flyTo sob no-preference, jumpTo sob reduce
+          const prefersReduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          const target = { center: [e.lngLat.lng, e.lngLat.lat], zoom: 14 };
+          if (prefersReduce) {
+            map.jumpTo(target);
+          } else {
+            map.flyTo({ ...target, curve: 1.42, duration: 1600, essential: true });
+          }
+
+          _showRegionModal(props, map.project(target.center));
+        });
+
+        map.on('mouseenter', 'bairros-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', 'bairros-fill', () => { map.getCanvas().style.cursor = ''; });
+      }
+
+      // ── Camada 2: Prospects circles (data-driven por score) ─────────────
+      const fcData = fc.status === 'fulfilled' ? fc.value : null;
+      if (fcData && fcData.features && fcData.features.length > 0) {
+        map.addSource('prospects', { type: 'geojson', data: fcData });
+
+        map.addLayer({
+          id: 'prospects-circles',
+          type: 'circle',
+          source: 'prospects',
+          paint: {
+            // Raio cresce com zoom e com score
+            'circle-radius': [
+              'interpolate', ['linear'], ['zoom'],
+              10, ['step', ['get', 'score'], 2.5, 50, 3.5, 70, 5],
+              14, ['step', ['get', 'score'], 5,   50, 7,   70, 10],
+            ],
+            // Cor por score (hsl — MapLibre não aceita oklch)
+            'circle-color': [
+              'step', ['get', 'score'],
+              'hsl(265,5%,38%)',    // < 30: cinza neutro
+              30, 'hsl(215,40%,48%)', // 30–49: azul/consolidado
+              50, 'hsl(40,72%,55%)',  // 50–69: âmbar/oportunidade
+              70, 'hsl(25,80%,58%)',  // ≥70: coral/quente
+            ],
+            // Opacidade aumenta com score
+            'circle-opacity': [
+              'step', ['get', 'score'],
+              0.5,
+              30, 0.65,
+              50, 0.80,
+              70, 0.92,
+            ],
+            // Brilho (stroke) só nos mais quentes
+            'circle-stroke-width': ['step', ['get', 'score'], 0, 70, 1.5],
+            'circle-stroke-color': 'hsl(25,90%,78%)',
+            'circle-stroke-opacity': 0.6,
+          },
+        });
+
+        // Popup/tooltip on click
+        map.on('click', 'prospects-circles', (e) => {
+          const props = e.features[0]?.properties;
+          if (!props) return;
+          // Fecha modal de bairro se aberto
+          _hideRegionModal();
+          const stageLabel = {
+            discovered: 'Descoberto', qualified: 'Qualificado',
+            audited: 'Auditado', contacted: 'Contactado',
+          }[props.stage] || props.stage;
+          new maplibregl.Popup({ closeButton: true, closeOnClick: true, className: 'map-popup' })
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div style="min-width:180px">
+                <div style="font-weight:600;font-size:13px;margin-bottom:4px">${_escHtml(props.name)}</div>
+                <div style="font-size:11px;color:var(--tx3);margin-bottom:6px">${_escHtml(props.category || '—')}</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:hsl(265,6%,14%);color:var(--tx2)">
+                    Score ${Number(props.score) || 0}
+                  </span>
+                  <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:hsl(265,6%,14%);color:var(--tx3)">
+                    ${_escHtml(stageLabel)}
+                  </span>
+                </div>
+              </div>`)
+            .addTo(map);
+        });
+
+        map.on('mouseenter', 'prospects-circles', () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', 'prospects-circles', () => { map.getCanvas().style.cursor = ''; });
+      }
+
+      // Inicializa legenda depois de carregar camadas
+      _initLegend(map);
 
     } catch (err) {
-      console.warn('[map] falha carregar camada geo:', err);
+      console.warn('[map] falha carregar camadas geo:', err);
     }
+  }
+
+  // ── Legenda + filtro ────────────────────────────────────────────────────────
+
+  function _initLegend(map) {
+    const legend = document.getElementById('map-legend');
+    if (!legend) return;
+    legend.hidden = false;
+    legend.setAttribute('aria-hidden', 'false');
+
+    legend.querySelectorAll('[data-band]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const band = btn.dataset.band;
+        _activeBands[band] = !_activeBands[band];
+        btn.classList.toggle('legend-inactive', !_activeBands[band]);
+        btn.setAttribute('aria-pressed', String(_activeBands[band]));
+        _updateProspectsFilter(map);
+      });
+    });
+  }
+
+  function _updateProspectsFilter(map) {
+    if (!map.getLayer('prospects-circles')) return;
+    const active = Object.entries(_activeBands)
+      .filter(([, on]) => on)
+      .map(([k]) => SCORE_BANDS[k]);
+
+    if (active.length === 0) {
+      map.setFilter('prospects-circles', ['==', ['get', 'score'], -1]);
+      return;
+    }
+    if (active.length === 3) {
+      map.setFilter('prospects-circles', null);
+      return;
+    }
+    const conditions = active.map(b =>
+      ['all', ['>=', ['get', 'score'], b.min], ['<=', ['get', 'score'], b.max]]
+    );
+    map.setFilter('prospects-circles', ['any', ...conditions]);
+  }
+
+  // ── Region modal ───────────────────────────────────────────────────────────
+
+  function _showRegionModal(props, _screenPos) {
+    const modal = document.getElementById('region-modal');
+    if (!modal) return;
+
+    const name = document.getElementById('region-modal-name');
+    const stats = document.getElementById('region-modal-stats');
+    if (name) name.textContent = props.name || 'Região';
+    if (stats) {
+      const total = Number(props.prospect_count) || 0;
+      const hot   = Number(props.hot_count)     || 0;
+      const med   = Number(props.medium_count)  || 0;
+      const avg   = Number(props.avg_score)     || 0;
+      // Valores sempre visíveis (reduced-motion: sem count-up)
+      stats.innerHTML = `
+        <div class="region-stat">
+          <span class="region-stat-n">${total}</span>
+          <span class="region-stat-l">prospects</span>
+        </div>
+        <div class="region-stat">
+          <span class="region-stat-n hot">${hot}</span>
+          <span class="region-stat-l">quentes (≥70)</span>
+        </div>
+        <div class="region-stat">
+          <span class="region-stat-n med">${med}</span>
+          <span class="region-stat-l">oportunidade</span>
+        </div>
+        <div class="region-stat">
+          <span class="region-stat-n">${avg}</span>
+          <span class="region-stat-l">score médio</span>
+        </div>`;
+    }
+
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+
+    // Foco trap: botão de fechar
+    const closeBtn = document.getElementById('region-close-btn');
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function _hideRegionModal() {
+    const modal = document.getElementById('region-modal');
+    if (!modal) return;
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
   }
 
   // ── ⌘K Palette ─────────────────────────────────────────────────────────
@@ -378,6 +606,15 @@
     // Hash routing
     window.addEventListener('hashchange', _route);
 
+    // Region modal close
+    const regionClose = document.getElementById('region-close-btn');
+    if (regionClose) regionClose.addEventListener('click', _hideRegionModal);
+    const regionCta = document.getElementById('region-cta-btn');
+    if (regionCta) regionCta.addEventListener('click', () => {
+      hermesToast.info('Envio à esteira — disponível em UI-P3');
+      _hideRegionModal();
+    });
+
     // ⌘K
     window.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -386,7 +623,10 @@
         if (pal && !pal.hidden) _closePalette();
         else _openPalette();
       }
-      if (e.key === 'Escape') _closePalette();
+      if (e.key === 'Escape') {
+        _closePalette();
+        _hideRegionModal();
+      }
     });
 
     const palBtn = document.getElementById('pal-btn');
