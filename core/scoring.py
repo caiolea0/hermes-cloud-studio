@@ -113,7 +113,10 @@ def _detect_rating_low(prospect: dict, schema: dict) -> Optional[bool]:
             rating = float(prospect["google_rating"])
         except (TypeError, ValueError):
             rating = None
-    if reviews is None and prospect.get("google_reviews") is not None:
+    # google_reviews default = 0. Em Hermes 2.0 Google Maps foi dropado, entao
+    # 0 = SEM DADO (nao "poucas reviews"). Truthy-check ignora 0 -> rating fica
+    # missing/NA em vez de somar +10 falso em todo prospect. >0 = dado real (legado).
+    if reviews is None and prospect.get("google_reviews"):
         try:
             reviews = int(prospect["google_reviews"])
         except (TypeError, ValueError):
