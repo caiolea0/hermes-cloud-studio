@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8777", "--directory", "D:/dev-projects/main/hermes-cloud-studio/.claude/design-mockups"],
       "port": 8777
+    },
+    {
+      "name": "dashboard-v2",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8778", "--directory", "D:/dev-projects/main/hermes-cloud-studio/dashboard-v2"],
+      "port": 8778
     }
   ]
 }

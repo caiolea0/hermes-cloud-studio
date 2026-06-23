@@ -5,6 +5,7 @@ pipeline status, scraper control, and photo references to the dashboard.
 
 Routes movidas para vm_api/routes.py. Helpers compartilhados em vm_core/state.py.
 """
+import asyncio
 import os
 import secrets
 import sys
@@ -12,7 +13,7 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -33,6 +34,8 @@ from vm_api.mcp_coverage import router as mcp_coverage_router
 from vm_api.vuecra import router as vuecra_router  # H2-F5 — Vuecra Handoff HI2
 from vm_api.market import router as market_router  # H2-F7 — Market Intelligence
 from api.brain import router as brain_router  # F.6.1 — Brain orchestrator scaffold (shared PC/VM)
+from vm_api.broadcast import router as broadcast_router  # UI-P0 A4 — daemon→WS relay
+from vm_api.geo import router as geo_router  # UI-P0 B5 — GeoJSON endpoints
 
 
 async def _f5_strict_mcp_gate() -> None:
@@ -172,6 +175,40 @@ app.include_router(mcp_coverage_router)
 app.include_router(vuecra_router)  # H2-F5 — /api/vuecra/* (Vuecra Handoff HI2)
 app.include_router(market_router)  # H2-F7 — /api/market/* (Market Intelligence)
 app.include_router(brain_router)  # F.6.1 — /api/brain/* (Brain orchestrator scaffold)
+app.include_router(broadcast_router)  # UI-P0 A4 — /api/daemon/broadcast (daemon→WS relay)
+app.include_router(geo_router)  # UI-P0 B5 — /api/geo/* (GeoJSON para mapa v2)
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    """WebSocket /ws?token= para dashboard-v2 (UI-P0 A4).
+
+    Auth via query param ?token= (browsers não enviam custom headers em WS).
+    Fecha com 1008 se token ausente ou inválido.
+    Emite daemon.connected + daemon.ping (keepalive 25s).
+    Eventos do daemon chegam via POST /api/daemon/broadcast → ws_manager.broadcast().
+    """
+    from vm_core.ws import ws_manager
+
+    token = ws.query_params.get("token", "")
+    if not token or not secrets.compare_digest(token, VM_AUTH_TOKEN):
+        await ws.close(code=1008, reason="Token inválido ou ausente")
+        return
+
+    await ws_manager.connect(ws)
+    try:
+        await ws.send_json({"event_type": "daemon.connected", "ts": time.time()})
+        while True:
+            try:
+                await asyncio.wait_for(ws.receive_text(), timeout=25.0)
+            except asyncio.TimeoutError:
+                await ws.send_json({"event_type": "daemon.ping", "ts": time.time()})
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception("websocket_endpoint error")
+    finally:
+        await ws_manager.disconnect(ws)
 
 
 if __name__ == "__main__":

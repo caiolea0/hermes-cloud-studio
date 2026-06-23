@@ -6,5 +6,6 @@
 ## New orphans (regressões / backend novo sem UI)
 
 - 🆕 `GET /`
-- 🆕 `GET /api/market/heatmap`
-- 🆕 `GET /api/market/signals`
+- 🆕 `GET /api/daemon/ws_stats`
+- 🆕 `GET /api/geo/bairros`
+- 🆕 `GET /api/geo/prospects`

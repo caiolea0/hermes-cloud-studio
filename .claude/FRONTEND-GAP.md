@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-23 08:02 UTC
+- **last_updated**: 2026-06-23 17:30 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 245 (189 PC + 56 VM, 5 internal-only excluded)
-- **consumed**: 141 (58.8% of public)
-- **orphans**: 99
+- **routes_total**: 250 (189 PC + 61 VM, 5 internal-only excluded)
+- **consumed**: 142 (58.0% of public)
+- **orphans**: 103
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.
@@ -13,8 +13,8 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **245** rotas FastAPI (189 PC, 56 VM)
-- WS endpoints: 1
+- Total: **250** rotas FastAPI (189 PC, 61 VM)
+- WS endpoints: 2
 - Internal-only (loopback): 5 (excluídos do gap)
 
 | Arquivo | Rotas |
@@ -48,6 +48,9 @@
 | `api/mcp_coverage.py` | 2 |
 | `api/tunnel.py` | 2 |
 | `api/user_prefs.py` | 2 |
+| `hermes_api_v2.py` | 2 |
+| `vm_api/broadcast.py` | 2 |
+| `vm_api/geo.py` | 2 |
 | `vm_api/market.py` | 2 |
 | `vm_api/mcp_coverage.py` | 2 |
 | `api/bootstrap.py` | 1 |
@@ -58,12 +61,11 @@
 | `api/skills_webhook.py` | 1 |
 | `api/stats.py` | 1 |
 | `server.py` | 1 |
-| `hermes_api_v2.py` | 1 |
 | `vm_api/mcp_jobs.py` | 1 |
 
 ## §2 Mapa consumo (app.js + 59 components)
 
-- Endpoints únicos consumidos: **141**
+- Endpoints únicos consumidos: **142**
 - Total fetch/api calls: 170
 - Fontes escaneadas: 60 arquivos (app.js + components/*.js + HTML inline)
 - Hash routes (páginas SPA): audit, claude, cobaia, control, dashboard, lab, linkedin, mcp-gateway, memory, missions, observability, pipeline-studio, proposals, prospects, sequences, skill-proposals, skills, tasks
@@ -91,15 +93,17 @@
 | `/api/hermes/skills/{param}` | 2 | app.js |
 | `/api/hermes/status` | 2 | app.js |
 
-## §3 Órfãos — 99 endpoints sem UI
+## §3 Órfãos — 103 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
 | Method | Path | Side | File | Auth |
 |---|---|---|---|---|
 | `POST` | `/api/daemon/broadcast` | pc | `api/daemon.py:256` | token |
+| `POST` | `/api/daemon/broadcast` | vm | `vm_api/broadcast.py:15` | token |
 | `POST` | `/api/daemon/pause` | pc | `api/daemon.py:73` | token |
 | `POST` | `/api/daemon/resume` | pc | `api/daemon.py:84` | token |
+| `GET` | `/api/daemon/ws_stats` | vm | `vm_api/broadcast.py:28` | token |
 | `POST` | `/api/agent-zero/chat` | pc | `api/agent_zero.py:43` | token |
 | `POST` | `/api/brain/confirm/{run_id}` | pc | `api/brain.py:242` | token |
 | `POST` | `/api/brain/decide` | pc | `api/brain.py:189` | token |
@@ -162,7 +166,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/stats` | pc | `api/stats.py:11` | token |
 | `GET` | `/api/stats` | vm | `vm_api/routes.py:356` | token |
 | `GET` | `/` | pc | `api/dashboard.py:14` | token |
-| `GET` | `/api/_ping` | vm | `hermes_api_v2.py:162` | token |
+| `GET` | `/api/_ping` | vm | `hermes_api_v2.py:165` | token |
 | `GET` | `/api/channels/{channel}/test` | pc | `api/onboarding.py:146` | token |
 | `GET` | `/api/cobaia/autotune-history` | pc | `api/cobaia.py:367` | token |
 | `GET` | `/api/cobaia/autotune-status` | pc | `api/cobaia.py:399` | token |
@@ -172,6 +176,8 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:775` | token |
 | `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:494` | token |
 | `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:351` | token |
+| `GET` | `/api/geo/bairros` | vm | `vm_api/geo.py:119` | token |
+| `GET` | `/api/geo/prospects` | vm | `vm_api/geo.py:36` | token |
 | `GET` | `/api/icp/presets` | pc | `api/icp.py:92` | token |
 | `GET` | `/api/icp/profile` | pc | `api/icp.py:78` | token |
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:457` | token |
@@ -204,28 +210,28 @@ Ranking: owner_pain_score (5=tail/decisions live) → method (write > read) → 
 | Rank | Endpoint | Método | Side | Chapter destino | WS needed | CLI hoje | Owner pain (1-5) |
 |---|---|---|---|---|---|---|---|
 | 1 | `/api/daemon/broadcast` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/broadcast` | 5 |
-| 2 | `/api/daemon/pause` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/pause` | 5 |
-| 3 | `/api/daemon/resume` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/resume` | 5 |
-| 4 | `/api/agent-zero/chat` | `POST` | pc | F.6 | ✅ | `curl POST + parse stream manual` | 4 |
-| 5 | `/api/brain/confirm/{run_id}` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/confirm/{run_id}` | 4 |
-| 6 | `/api/brain/decide` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/decide` | 4 |
-| 7 | `/api/brain/replay/{run_id}` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/replay/{run_id}` | 4 |
-| 8 | `/api/prospects/{prospect_id}/resolve-conflict` | `POST` | pc | F.6 | — | `curl -X POST /api/prospects/{prospect_id}/resolve-conflict` | 4 |
-| 9 | `/api/agent-zero/status` | `GET` | pc | F.6 | — | `curl + parse JSON em PowerShell` | 4 |
-| 10 | `/api/brain/intents` | `GET` | pc | F.6 | ✅ | `curl /api/brain/intents` | 4 |
+| 2 | `/api/daemon/broadcast` | `POST` | vm | F.2 | — | `curl -X POST /api/daemon/broadcast` | 5 |
+| 3 | `/api/daemon/pause` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/pause` | 5 |
+| 4 | `/api/daemon/resume` | `POST` | pc | F.2 | — | `curl -X POST /api/daemon/resume` | 5 |
+| 5 | `/api/daemon/ws_stats` | `GET` | vm | F.2 | — | `curl /api/daemon/ws_stats` | 5 |
+| 6 | `/api/agent-zero/chat` | `POST` | pc | F.6 | ✅ | `curl POST + parse stream manual` | 4 |
+| 7 | `/api/brain/confirm/{run_id}` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/confirm/{run_id}` | 4 |
+| 8 | `/api/brain/decide` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/decide` | 4 |
+| 9 | `/api/brain/replay/{run_id}` | `POST` | pc | F.6 | ✅ | `curl -X POST /api/brain/replay/{run_id}` | 4 |
+| 10 | `/api/prospects/{prospect_id}/resolve-conflict` | `POST` | pc | F.6 | — | `curl -X POST /api/prospects/{prospect_id}/resolve-conflict` | 4 |
 
 **Justificativa por linha**:
 
 1. **`POST /api/daemon/broadcast`** — Trigger broadcast WS arbitrário (devtool) — escondido pra owner, expose só em modo debug
-2. **`POST /api/daemon/pause`** — Botão pause daemon (timeout N min) no header Mission Control
-3. **`POST /api/daemon/resume`** — Botão resume daemon junto do pause
-4. **`POST /api/agent-zero/chat`** — Chat AI no dashboard — substitui CLI Agent Zero
-5. **`POST /api/brain/confirm/{run_id}`** — /api/brain/confirm/{run_id}
-6. **`POST /api/brain/decide`** — /api/brain/decide
-7. **`POST /api/brain/replay/{run_id}`** — /api/brain/replay/{run_id}
-8. **`POST /api/prospects/{prospect_id}/resolve-conflict`** — Botão dismiss conflict no row de prospect
-9. **`GET /api/agent-zero/status`** — Status Agent Zero (model, context_id, last_invoked)
-10. **`GET /api/brain/intents`** — /api/brain/intents
+2. **`POST /api/daemon/broadcast`** — Trigger broadcast WS arbitrário (devtool) — escondido pra owner, expose só em modo debug
+3. **`POST /api/daemon/pause`** — Botão pause daemon (timeout N min) no header Mission Control
+4. **`POST /api/daemon/resume`** — Botão resume daemon junto do pause
+5. **`GET /api/daemon/ws_stats`** — /api/daemon/ws_stats
+6. **`POST /api/agent-zero/chat`** — Chat AI no dashboard — substitui CLI Agent Zero
+7. **`POST /api/brain/confirm/{run_id}`** — /api/brain/confirm/{run_id}
+8. **`POST /api/brain/decide`** — /api/brain/decide
+9. **`POST /api/brain/replay/{run_id}`** — /api/brain/replay/{run_id}
+10. **`POST /api/prospects/{prospect_id}/resolve-conflict`** — Botão dismiss conflict no row de prospect
 
 ## §5 Quick Wins UX (1 fetch + 1 toast / 1 botão)
 

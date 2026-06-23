@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hermes 2.0</title>
+  <meta name="description" content="Hermes Command Center — prospecção B2B autônoma">
+
+  <!-- Geist self-hosted (vendor/fonts/) — fallback: system-ui -->
+  <style>
+    @font-face{font-family:'Geist';font-style:normal;font-weight:400;font-display:swap;
+      src:url('fonts/geist-regular.woff2') format('woff2')}
+    @font-face{font-family:'Geist';font-style:normal;font-weight:500;font-display:swap;
+      src:url('fonts/geist-medium.woff2') format('woff2')}
+    @font-face{font-family:'Geist';font-style:normal;font-weight:600;font-display:swap;
+      src:url('fonts/geist-semibold.woff2') format('woff2')}
+  </style>
+
+  <!-- Tabler Icons webfont -->
+  <link rel="stylesheet" href="vendor/tabler-icons.min.css">
+  <!-- MapLibre GL CSS -->
+  <link rel="stylesheet" href="vendor/maplibre-gl.css">
+  <!-- Design system (canônico — não editar tokens aqui) -->
+  <link rel="stylesheet" href="css/design-system-v2.css">
+
+  <style>
+    /* ── Shell layout ──────────────────────────────────────────────────── */
+    body{display:flex;height:100vh;overflow:hidden}
+
+    /* Dock: coluna esquerda compacta */
+    .dock{
+      width:64px;flex-shrink:0;
+      display:flex;flex-direction:column;align-items:center;
+      padding:16px 0;gap:4px;
+      background:var(--bg-2);border-right:0.5px solid var(--line);
+      position:relative;z-index:20;
+    }
+    .dock-logo{
+      width:36px;height:36px;border-radius:10px;
+      background:linear-gradient(145deg,var(--accent-soft),transparent);
+      border:0.5px solid var(--line-2);
+      display:grid;place-items:center;
+      color:var(--accent-2);font-size:18px;
+      margin-bottom:12px;
+      box-shadow:0 0 16px -6px var(--accent);
+    }
+    .dock-nav{flex:1;display:flex;flex-direction:column;gap:2px;width:100%;padding:0 8px}
+    .dock-item{
+      display:flex;flex-direction:column;align-items:center;gap:3px;
+      padding:8px 4px;border-radius:10px;cursor:pointer;
+      background:transparent;border:none;color:var(--tx3);
+      font-family:inherit;font-size:10px;letter-spacing:0;
+      transition:background .18s var(--ease),color .18s var(--ease);
+      text-decoration:none;width:100%;
+    }
+    .dock-item:hover{background:var(--surface);color:var(--tx2)}
+    .dock-item.on{background:var(--accent-soft);color:var(--tx);box-shadow:0 0 0 0.5px var(--accent) inset}
+    .dock-item i{font-size:20px;line-height:1}
+    .dock-item span{font-size:9.5px;line-height:1;font-weight:500}
+    .dock-bottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 8px}
+
+    /* WS badge */
+    .ws-badge{
+      font-size:9px;padding:3px 6px;border-radius:6px;
+      background:var(--surface);border:0.5px solid var(--line);
+      color:var(--tx4);white-space:nowrap;text-align:center;
+      width:100%;
+    }
+    .ws-connected{color:var(--good);border-color:var(--good-soft)}
+    .ws-disconnected{color:var(--danger);border-color:oklch(0.66 0.17 25 / 0.35)}
+    .ws-connecting{color:var(--warm)}
+
+    /* ⌘K dock button */
+    .pal-trigger{
+      width:100%;display:flex;align-items:center;justify-content:center;gap:4px;
+      padding:7px 4px;border-radius:8px;border:0.5px solid var(--line);
+      background:var(--surface);color:var(--tx3);
+      font-family:inherit;font-size:10px;cursor:pointer;
+      transition:all .18s var(--ease);
+    }
+    .pal-trigger:hover{border-color:var(--accent);color:var(--accent-2)}
+    .pal-trigger kbd{font-size:9px;background:var(--bg-2);padding:1px 4px;border-radius:4px;border:0.5px solid var(--line-2)}
+
+    /* ── Main content ──────────────────────────────────────────────────── */
+    .main-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+    /* Topbar slim */
+    .topbar{
+      height:52px;flex-shrink:0;
+      display:flex;align-items:center;gap:12px;padding:0 20px;
+      border-bottom:0.5px solid var(--line);
+      background:linear-gradient(var(--bg-2) 60%,transparent);
+    }
+    .topbar h1{font-size:14px;font-weight:600;color:var(--tx)}
+    .topbar .sub{font-size:12px;color:var(--tx3);margin-left:4px}
+
+    /* Glance strip */
+    .glance-bar{
+      display:flex;gap:28px;padding:10px 20px;
+      border-bottom:0.5px solid var(--line);
+      background:var(--bg-2);flex-shrink:0;
+    }
+    .glance-bar .m{display:flex;flex-direction:column;gap:1px}
+    .glance-bar .n{font-size:20px;font-weight:600;letter-spacing:-0.025em}
+    .glance-bar .l{font-size:11px;color:var(--tx3)}
+
+    /* Surface area */
+    .surface-wrap{flex:1;overflow:auto;position:relative}
+    .surface{height:100%;overflow:auto;padding:20px}
+    .surface[hidden]{display:none}
+
+    /* ── Esteira ───────────────────────────────────────────────────────── */
+    .esteira-controls{
+      display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;
+    }
+    #esteira-count{font-size:12px;color:var(--tx3);margin-left:auto}
+    .esteira-select{
+      background:var(--surface);border:0.5px solid var(--line);border-radius:8px;
+      color:var(--tx2);font-family:inherit;font-size:12.5px;
+      padding:6px 10px;cursor:pointer;outline:none;
+    }
+    .esteira-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+    .esteira-search{
+      display:flex;align-items:center;gap:8px;
+      background:var(--surface);border:0.5px solid var(--line);border-radius:8px;
+      padding:0 10px;height:33px;min-width:200px;
+    }
+    .esteira-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+    .esteira-search input{background:none;border:0;outline:0;color:var(--tx);font-family:inherit;font-size:13px;width:100%}
+    .esteira-search input::placeholder{color:var(--tx4)}
+    #esteira-list{display:flex;flex-direction:column;gap:6px}
+    .lead-card{cursor:default}
+    .esteira-loading{padding:24px;text-align:center;font-size:13px}
+
+    /* ── Mapa ──────────────────────────────────────────────────────────── */
+    #map-container{height:100%;min-height:400px;border-radius:var(--r);overflow:hidden;background:var(--surface)}
+    .maplibregl-popup-content{
+      background:var(--surface-2)!important;color:var(--tx)!important;
+      border:0.5px solid var(--line-2)!important;border-radius:10px!important;
+      padding:10px 13px!important;font-size:13px!important;box-shadow:var(--shadow-sm)!important;
+    }
+    .maplibregl-popup-tip{display:none!important}
+
+    /* ── Dossier / Comando stubs ───────────────────────────────────────── */
+    .surface-stub{
+      height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:12px;color:var(--tx3);
+    }
+    .surface-stub i{font-size:48px;color:var(--tx4)}
+    #comando-daemon{margin-bottom:16px}
+
+    /* ── Login modal ───────────────────────────────────────────────────── */
+    .modal-backdrop{
+      position:fixed;inset:0;background:oklch(0 0 0 / 0.7);z-index:60;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .modal-backdrop[hidden]{display:none}
+    .modal-box{
+      background:var(--surface-2);border:0.5px solid var(--line-2);border-radius:var(--r-lg);
+      padding:32px;width:100%;max-width:400px;box-shadow:var(--shadow);
+    }
+    .modal-box h2{font-size:18px;font-weight:600;margin-bottom:6px}
+    .modal-box p{font-size:13px;color:var(--tx3);margin-bottom:20px}
+    .modal-input{
+      width:100%;background:var(--bg);border:0.5px solid var(--line-2);
+      border-radius:10px;color:var(--tx);font-family:inherit;font-size:14px;
+      padding:12px 14px;outline:none;margin-bottom:12px;
+    }
+    .modal-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+    .modal-submit{
+      width:100%;padding:12px;border-radius:10px;border:none;cursor:pointer;
+      background:linear-gradient(180deg,var(--accent-2),var(--accent));
+      color:white;font-family:inherit;font-size:14px;font-weight:600;
+      box-shadow:0 6px 18px -8px var(--accent);
+    }
+    .modal-submit:hover{filter:brightness(1.08)}
+
+    /* ── ⌘K Palette ────────────────────────────────────────────────────── */
+    #cmdpalette{
+      position:fixed;inset:0;background:oklch(0 0 0 / 0.6);z-index:55;
+      display:flex;align-items:flex-start;justify-content:center;padding-top:80px;
+    }
+    #cmdpalette[hidden]{display:none}
+    .pal-box{
+      background:var(--surface-2);border:0.5px solid var(--line-2);border-radius:var(--r-lg);
+      width:100%;max-width:520px;box-shadow:var(--shadow);overflow:hidden;
+    }
+    .pal-search{
+      display:flex;align-items:center;gap:10px;padding:14px 16px;
+      border-bottom:0.5px solid var(--line);
+    }
+    .pal-search i{color:var(--tx3);font-size:18px;flex-shrink:0}
+    #pal-input{
+      flex:1;background:none;border:0;outline:0;
+      color:var(--tx);font-family:inherit;font-size:15px;
+    }
+    #pal-input::placeholder{color:var(--tx4)}
+    .pal-close-btn{
+      background:none;border:0;cursor:pointer;color:var(--tx3);
+      font-family:inherit;font-size:12px;padding:4px 8px;border-radius:6px;
+    }
+    .pal-close-btn:hover{background:var(--surface);color:var(--tx)}
+    .pal-hint{padding:20px 16px;color:var(--tx3);font-size:13px;text-align:center}
+    .pal-shortcuts{padding:12px 16px;display:flex;flex-direction:column;gap:2px}
+    .pal-shortcut{
+      display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+      cursor:pointer;
+    }
+    .pal-shortcut:hover{background:var(--surface)}
+    .pal-shortcut i{font-size:16px;color:var(--tx3)}
+    .pal-shortcut span{font-size:13px;flex:1}
+    .pal-shortcut kbd{font-size:11px;background:var(--bg-2);padding:2px 6px;border-radius:5px;border:0.5px solid var(--line);color:var(--tx3)}
+
+    /* ── Responsive ────────────────────────────────────────────────────── */
+    @media(max-width:600px){
+      .dock{width:56px}
+      .dock-item span{display:none}
+      .glance-bar{gap:16px;padding:8px 12px}
+      .surface{padding:12px}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Nav Dock ──────────────────────────────────────────────────────── -->
+  <nav class="dock" role="navigation" aria-label="Navegação principal">
+    <div class="dock-logo" aria-hidden="true">
+      <i class="ti ti-topology-star-ring-3"></i>
+    </div>
+
+    <div class="dock-nav" role="list">
+      <a class="dock-item" href="#mapa" data-surface="mapa"
+         role="listitem" aria-label="Superfície Mapa" aria-current="false" tabindex="0">
+        <i class="ti ti-map-2" aria-hidden="true"></i>
+        <span>Mapa</span>
+      </a>
+      <a class="dock-item on" href="#esteira" data-surface="esteira"
+         role="listitem" aria-label="Superfície Esteira de Leads" aria-current="page" tabindex="0">
+        <i class="ti ti-layout-kanban" aria-hidden="true"></i>
+        <span>Esteira</span>
+      </a>
+      <a class="dock-item" href="#dossier" data-surface="dossier"
+         role="listitem" aria-label="Superfície Dossiê" aria-current="false" tabindex="0">
+        <i class="ti ti-file-description" aria-hidden="true"></i>
+        <span>Dossiê</span>
+      </a>
+      <a class="dock-item" href="#comando" data-surface="comando"
+         role="listitem" aria-label="Superfície Comando" aria-current="false" tabindex="0">
+        <i class="ti ti-cpu" aria-hidden="true"></i>
+        <span>Comando</span>
+      </a>
+    </div>
+
+    <div class="dock-bottom">
+      <!-- WS status badge -->
+      <div id="ws-badge" class="ws-badge" aria-label="WebSocket: conectando…" role="status">
+        conectando…
+      </div>
+      <!-- ⌘K button -->
+      <button class="pal-trigger" id="pal-btn" aria-label="Abrir paleta de comandos (Ctrl+K)" type="button">
+        <i class="ti ti-command" aria-hidden="true" style="font-size:12px"></i>
+        <kbd>K</kbd>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── Main ──────────────────────────────────────────────────────────── -->
+  <div class="main-wrap" role="main">
+
+    <!-- Topbar -->
+    <header class="topbar" role="banner">
+      <span id="surface-title" class="topbar h1" aria-live="polite">Esteira de Leads</span>
+      <span class="spacer"></span>
+      <span class="pulse" aria-label="Sistema ativo">
+        <span class="d" aria-hidden="true"></span>
+        <span>Hermes 2.0</span>
+      </span>
+    </header>
+
+    <!-- Glance strip — sempre visível (sem animação) -->
+    <div class="glance-bar" role="region" aria-label="Métricas rápidas">
+      <div class="m">
+        <span class="n acc" id="glance-total">—</span>
+        <span class="l">prospects</span>
+      </div>
+      <div class="m">
+        <span class="n warm" id="glance-signals">—</span>
+        <span class="l">sinais de mercado</span>
+      </div>
+    </div>
+
+    <!-- Surface wrapper -->
+    <div class="surface-wrap">
+
+      <!-- Surface 1: Mapa -->
+      <section id="surface-mapa" class="surface" hidden aria-hidden="true" aria-label="Mapa de prospects">
+        <div id="map-container" role="img" aria-label="Mapa de Cuiabá com pontos de prospects"></div>
+      </section>
+
+      <!-- Surface 2: Esteira de Leads (default) -->
+      <section id="surface-esteira" class="surface" aria-label="Esteira de leads">
+        <div class="esteira-controls">
+          <label for="esteira-stage" class="sr-only">Filtrar por estágio</label>
+          <select id="esteira-stage" class="esteira-select" aria-label="Filtrar por estágio">
+            <option value="">Todos os estágios</option>
+            <option value="discovered">Descobertos</option>
+            <option value="qualified">Qualificados</option>
+            <option value="audited">Auditados</option>
+            <option value="contacted">Contactados</option>
+          </select>
+
+          <div class="esteira-search" role="search">
+            <i class="ti ti-search" aria-hidden="true" style="color:var(--tx3);font-size:15px"></i>
+            <label for="esteira-search" class="sr-only">Buscar leads</label>
+            <input id="esteira-search" type="search" placeholder="Buscar nome ou categoria…"
+                   autocomplete="off" spellcheck="false" aria-label="Buscar leads">
+          </div>
+
+          <span id="esteira-count" aria-live="polite" aria-atomic="true"></span>
+        </div>
+
+        <div id="esteira-list" role="list" aria-label="Lista de leads">
+          <div class="esteira-loading muted" aria-live="polite">Carregando leads…</div>
+        </div>
+      </section>
+
+      <!-- Surface 3: Dossiê -->
+      <section id="surface-dossier" class="surface" hidden aria-hidden="true" aria-label="Dossiê de prospect">
+        <div class="surface-stub">
+          <i class="ti ti-file-description" aria-hidden="true"></i>
+          <p>Dossiê — selecione um lead na Esteira</p>
+          <p class="muted2" style="font-size:12px">P1</p>
+        </div>
+      </section>
+
+      <!-- Surface 4: Comando -->
+      <section id="surface-comando" class="surface" hidden aria-hidden="true" aria-label="Centro de comando">
+        <div id="comando-daemon" aria-live="polite">
+          <div class="muted" style="font-size:13px">Carregando estado do daemon…</div>
+        </div>
+        <div class="surface-stub" style="height:auto;margin-top:48px">
+          <i class="ti ti-cpu" aria-hidden="true"></i>
+          <p class="muted">Centro de Comando</p>
+          <p class="muted2" style="font-size:12px">Eventos daemon em tempo real via WebSocket</p>
+        </div>
+      </section>
+
+    </div><!-- /surface-wrap -->
+  </div><!-- /main-wrap -->
+
+  <!-- ── Login Modal ─────────────────────────────────────────────────── -->
+  <div id="login-modal" class="modal-backdrop" hidden aria-hidden="true"
+       role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <div class="modal-box">
+      <h2 id="login-title">Hermes 2.0</h2>
+      <p>Insira o token de acesso (HERMES_VM_AUTH_TOKEN) para continuar.</p>
+      <form id="login-form" novalidate>
+        <label for="login-token-input" class="sr-only">Token de acesso</label>
+        <input id="login-token-input" class="modal-input" type="password"
+               placeholder="Token de acesso…" autocomplete="current-password"
+               required aria-required="true">
+        <button class="modal-submit" type="submit">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── ⌘K Palette ────────────────────────────────────────────────────── -->
+  <div id="cmdpalette" hidden aria-hidden="true"
+       role="dialog" aria-modal="true" aria-label="Paleta de comandos">
+    <div class="pal-box">
+      <div class="pal-search">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input id="pal-input" type="search" placeholder="Navegar ou buscar…"
+               autocomplete="off" spellcheck="false" aria-label="Buscar comando">
+        <button class="pal-close-btn" id="pal-close" aria-label="Fechar paleta" type="button">
+          <kbd>Esc</kbd>
+        </button>
+      </div>
+      <div class="pal-shortcuts" role="listbox" aria-label="Ações disponíveis">
+        <div class="pal-shortcut" role="option" tabindex="0"
+             onclick="location.hash='mapa';document.getElementById('cmdpalette').hidden=true"
+             onkeydown="if(event.key==='Enter'){this.click()}">
+          <i class="ti ti-map-2" aria-hidden="true"></i>
+          <span>Ir para Mapa</span>
+          <kbd>G M</kbd>
+        </div>
+        <div class="pal-shortcut" role="option" tabindex="0"
+             onclick="location.hash='esteira';document.getElementById('cmdpalette').hidden=true"
+             onkeydown="if(event.key==='Enter'){this.click()}">
+          <i class="ti ti-layout-kanban" aria-hidden="true"></i>
+          <span>Ir para Esteira</span>
+          <kbd>G E</kbd>
+        </div>
+        <div class="pal-shortcut" role="option" tabindex="0"
+             onclick="location.hash='dossier';document.getElementById('cmdpalette').hidden=true"
+             onkeydown="if(event.key==='Enter'){this.click()}">
+          <i class="ti ti-file-description" aria-hidden="true"></i>
+          <span>Ir para Dossiê</span>
+          <kbd>G D</kbd>
+        </div>
+        <div class="pal-shortcut" role="option" tabindex="0"
+             onclick="location.hash='comando';document.getElementById('cmdpalette').hidden=true"
+             onkeydown="if(event.key==='Enter'){this.click()}">
+          <i class="ti ti-cpu" aria-hidden="true"></i>
+          <span>Ir para Comando</span>
+          <kbd>G C</kbd>
+        </div>
+      </div>
+      <p class="pal-hint muted2">Mais ações em breve — P1</p>
+    </div>
+  </div>
+
+  <!-- Utilitário a11y: sr-only -->
+  <style>.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}</style>
+
+  <!-- ── Vendors (order matters) ─────────────────────────────────────── -->
+  <script src="vendor/purify.min.js"></script>
+  <script src="vendor/maplibre-gl.js"></script>
+  <script src="vendor/pmtiles.js"></script>
+
+  <!-- App -->
+  <script src="config.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ws.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

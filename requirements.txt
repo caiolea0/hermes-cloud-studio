@@ -41,3 +41,6 @@ curl_cffi>=0.7
 selectolax>=0.3.21
 # H2-F4 — Dedup/merge golden-record fuzzy match (graceful fallback se ausente)
 rapidfuzz>=3.0
+# UI-P0 B4 — H3 spatial indexing para geo.business_points (Python side; h3-pg requer build custom)
+# Rationale: h3 PyPI (~Uber) calcula res8/9 cells no load_geo_data.py, evitando extensão PG custom.
+h3>=3.7.6

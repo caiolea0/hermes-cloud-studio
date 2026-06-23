@@ -1,0 +1,112 @@
+{
+  "version": 8,
+  "name": "hermes-dark",
+  "glyphs": "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
+  "sprite": "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
+  "sources": {
+    "protomaps": {
+      "type": "vector",
+      "url": "pmtiles:///tiles/cuiaba.pmtiles",
+      "attribution": "© OpenStreetMap"
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "oklch(0.155 0.008 265)"
+      }
+    },
+    {
+      "id": "earth",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "earth",
+      "paint": {
+        "fill-color": "oklch(0.172 0.009 265)"
+      }
+    },
+    {
+      "id": "landuse_park",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "landuse",
+      "filter": ["in", "pmap:kind", "park", "forest", "nature_reserve"],
+      "paint": {
+        "fill-color": "oklch(0.22 0.03 165)"
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "oklch(0.24 0.05 240)"
+      }
+    },
+    {
+      "id": "roads_minor",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": ["in", "pmap:kind", "residential", "service", "track"],
+      "paint": {
+        "line-color": "oklch(0.238 0.012 265)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 0.5, 16, 2]
+      }
+    },
+    {
+      "id": "roads_major",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": ["in", "pmap:kind", "primary", "secondary", "tertiary", "trunk"],
+      "paint": {
+        "line-color": "oklch(0.28 0.012 265)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1, 16, 5]
+      }
+    },
+    {
+      "id": "roads_highway",
+      "type": "line",
+      "source": "protomaps",
+      "source-layer": "roads",
+      "filter": ["==", "pmap:kind", "highway"],
+      "paint": {
+        "line-color": "oklch(0.32 0.015 265)",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1, 16, 8]
+      }
+    },
+    {
+      "id": "buildings",
+      "type": "fill",
+      "source": "protomaps",
+      "source-layer": "buildings",
+      "minzoom": 14,
+      "paint": {
+        "fill-color": "oklch(0.215 0.010 265)",
+        "fill-opacity": 0.8
+      }
+    },
+    {
+      "id": "labels_places",
+      "type": "symbol",
+      "source": "protomaps",
+      "source-layer": "places",
+      "filter": ["in", "pmap:kind", "city", "town", "village", "suburb"],
+      "layout": {
+        "text-field": ["get", "name"],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 8, 10, 14, 13],
+        "text-anchor": "center"
+      },
+      "paint": {
+        "text-color": "oklch(0.73 0.008 265)",
+        "text-halo-color": "oklch(0.155 0.008 265)",
+        "text-halo-width": 1.5
+      }
+    }
+  ]
+}

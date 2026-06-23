@@ -1,9 +1,9 @@
 {
-  "generated_at": 1782201752.9699855,
-  "total": 245,
+  "generated_at": 1782235856.6028647,
+  "total": 250,
   "pc_count": 189,
-  "vm_count": 56,
-  "ws_count": 1,
+  "vm_count": 61,
+  "ws_count": 2,
   "internal_count": 5,
   "routes": [
     {
@@ -1900,7 +1900,7 @@
       "method": "GET",
       "path": "/api/_ping",
       "file": "hermes_api_v2.py",
-      "line": 162,
+      "line": 165,
       "function": "vm_ping",
       "side": "vm",
       "internal_only": false,
@@ -1967,11 +1967,51 @@
       "rate_limited": false
     },
     {
+      "method": "POST",
+      "path": "/api/daemon/broadcast",
+      "file": "vm_api/broadcast.py",
+      "line": 15,
+      "function": "daemon_broadcast",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/daemon/ws_stats",
+      "file": "vm_api/broadcast.py",
+      "line": 28,
+      "function": "ws_stats",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
       "method": "GET",
       "path": "/api/dashboard",
       "file": "vm_api/routes.py",
       "line": 108,
       "function": "get_dashboard",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/geo/bairros",
+      "file": "vm_api/geo.py",
+      "line": 119,
+      "function": "geo_bairros",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/geo/prospects",
+      "file": "vm_api/geo.py",
+      "line": 36,
+      "function": "geo_prospects",
       "side": "vm",
       "internal_only": false,
       "rate_limited": false
@@ -2452,6 +2492,16 @@
       "file": "vm_api/vuecra.py",
       "line": 315,
       "function": "vuecra_failed",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "WS",
+      "path": "/ws",
+      "file": "hermes_api_v2.py",
+      "line": 182,
+      "function": "websocket_endpoint",
       "side": "vm",
       "internal_only": false,
       "rate_limited": false

@@ -94,12 +94,35 @@ services:
       retries: 60
       start_period: 30m
 
+  # UI-P0 A2: nginx server para dashboard-v2 SPA + pmtiles com HTTP 206 (range requests).
+  # Bind: Tailscale IP only (HERMES_BIND_IP). Port 8801. Nunca 0.0.0.0/público.
+  # Volume hermes_tiles: montado em /www/tiles, populado por scripts/fetch_pmtiles.sh.
+  hermes-web:
+    image: nginx:1.27-alpine
+    container_name: hermes-web
+    restart: unless-stopped
+    ports:
+      - "${HERMES_BIND_IP:-127.0.0.1}:8801:8801"
+    volumes:
+      - ./docker/nginx-web.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./dashboard-v2:/www/app:ro
+      - hermes_tiles:/www/tiles:ro
+    networks: [geronimo-net]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8801/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   # H2-F2: Postgres dedicado Hermes — CNPJ authority + enrichment store
   # Instância SEPARADA do Geronimo (container postgres + DB events_audit = intocados).
   # Host bind: 127.0.0.1:5433 (nunca 0.0.0.0). Schema: cnpj.estabelecimentos + pg_trgm + unaccent.
   # Senha gerada na VPS: openssl rand -hex 24 > /opt/hermes/.pg_secret; chmod 600.
+  # UI-P0 B4: imagem trocada postgres:16 → postgis/postgis:16-3.4 (mesmo PG major, volume reutilizado).
+  # CREATE EXTENSION postgis roda via scripts/load_geo_data.py (init scripts não re-rodam em DB existente).
   hermes-postgres:
-    image: postgres:16
+    image: postgis/postgis:16-3.4
     container_name: hermes-postgres
     restart: unless-stopped
     mem_limit: 2g
@@ -136,3 +159,4 @@ volumes:
   hermes_data:
   overpass_data:
   hermes_pg_data:
+  hermes_tiles:    # UI-P0 B2: pmtiles de Cuiabá (populado por scripts/fetch_pmtiles.sh)
