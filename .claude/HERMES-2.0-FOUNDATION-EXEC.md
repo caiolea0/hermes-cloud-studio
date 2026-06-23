@@ -217,3 +217,65 @@ A sessão exec marcou COMPLETO mas a auditoria provou Gate 5/6 FALHOS na realida
 - **Lição**: fases Hermes 2.0 SEMPRE deployam via git push → auto-deploy (rebuild consistente). NUNCA rsync manual + pip no container (deixa containers divergentes + código efêmero/uncommitted).
 
 > **H2-F3 ✅ COMPLETO (2026-06-23, pós-fix `1d4f286`)**: Contact-enrich website end-to-end VERIFICADO em produção. T1 curl_cffi cobertura 46% real, schema.org-first, per-domain limiter, daemon Stage 2 graceful, migration idempotente PC+VM. 23 não-Hermes intactos · validate 20/22. Próximo: **H2-F4** (PageSpeed Insights API + scoring 0-100 "needs-our-services").
+
+---
+
+## H2-F4 — Categorize + ICP + Qualify (2026-06-23, PC complete, awaiting deploy)
+
+### Objetivo
+Transformar prospects discovered+enriquecidos em leads QUALIFICADOS com score 0-100 "needs-our-services" pra Vuecra/Geronimo. Classifica industry+sub_category+icp_fit (rule-based CNAE+OSM com Ollama fallback ambíguo), audita PageSpeed Insights (free 25k/dia), e compõe score explicável + breakdown JSON persistido.
+
+### Arquitetura
+```
+scripts/classify_prospect.py — CNAE prefix map (109 prefixos) + OSM category map (50+) + Ollama fallback (qwen2.5:3b temp=0)
+scripts/pagespeed.py         — PSI v5 mobile + 4 categorias, cache 24h URL, rate-limit 240/min, graceful sem key/quota/timeout
+core/scoring.py              — compute_needs_score 0-100 (NÚCLEO Opus). Pesos canônicos. signals_present/missing/na separados (confiança ≠ corrupção). score_to_stage(audited≥70 / qualified≥50 / discovered<50; low-conf rebaixa).
+scripts/dedup_merge.py       — fuzzy nome (rapidfuzz token_set_ratio ≥0.85) + phone last10 + address tokens (+CNPJ exato dispatcher OR mismatch zera). Loser → stage='duplicate' + notes.
+daemon/orchestrator.py P5    — _exec_batch_audit reescrito: classify_prospect_async → web_audit → pagespeed_audit → compute_needs_score → PATCH multi-field. Graceful em cada estágio.
+daemon/orchestrator.py P3    — Stage 2 (scrape) agora também persiste aggregate_rating do schema.org (caller usa pra rating_low signal).
+config.py                    — pagespeed_key field (env HERMES_PAGESPEED_KEY, default vazio = sem PSI graceful).
+```
+
+### Mudanças (código PC — não commitado)
+| Arquivo | Mudança |
+|---|---|
+| `scripts/classify_prospect.py` | NEW — _CNAE_MAP 109 prefixos + _OSM_CATEGORY_MAP 50+ entradas + ICP signal adjusters (sem site → high, S.A./BAIXADA → low) + ollama fallback async |
+| `scripts/pagespeed.py` | NEW — PSI v5 client, cache 24h, rate-limit 240/min rolling, parse score + LCP/CLS, graceful em 6 fail modes |
+| `core/scoring.py` | NEW — 10 sinais ponderados, signals_present/missing/na, confidence high/partial/low, score_to_stage low-conf downgrade |
+| `scripts/dedup_merge.py` | NEW — bucket por cidade, score combinado 0-100, threshold 75, merge não-destrutivo (loser = 'duplicate' + notes) |
+| `config.py` | +`pagespeed_key` field (HERMES_PAGESPEED_KEY) |
+| `core/state.py` | Migration H2-F4: 10 colunas (industry, sub_category, icp_fit, psi_*, mobile_friendly, aggregate_rating, score_breakdown, score_confidence) + 2 indexes |
+| `vm_core/state.py` | Mesma migration H2-F4 (VM side) |
+| `vm_core/models.py` | 10 campos H2-F4 em ProspectCreate + ProspectUpdate |
+| `daemon/orchestrator.py` | _exec_batch_audit reescrito (P5 real) + Stage 2 persist aggregate_rating |
+| `tests/test_h2_f4_scoring.py` | NEW — 14 testes: determinismo, casos canônicos, confidence behavior, stage mapping, cap, rating logic, breakdown sum |
+| `tests/test_h2_f4_classify.py` | NEW — 16 testes: determinismo, CNAE specificity, OSM fallback, ICP adjustments, fallback shape |
+
+### Decisões de design (NÚCLEO Opus)
+1. **Pesos canônicos do PLAN §3** — sem-website +30 (sinal dominante), PSI perf/seo/a11y +15/+10/+5, mobile +10, schema +10, social +10, rating +10. Cap 100.
+2. **signals_present + signals_missing + signals_na separados** — sinais ausentes por design (sem-site → PSI vira NA) NÃO penalizam confidence; sinais ausentes por ERRO (PSI sem key) marcam missing. Confidence = coverage_ratio sobre `evaluable` (total - NA), não sobre total. **Uma fonte quebrada NUNCA corrompe o score.**
+3. **score_to_stage com low-conf downgrade** — score≥70 com confidence=low NÃO promove pra 'audited', vira 'qualified'. Evita falso-positivo no funil pra Vuecra.
+4. **Classify rule-first** — Ollama só dispara quando rule-based falha (CNAE não bate + OSM category não bate). Determinístico por padrão; Ollama é fallback last-resort (temp=0, JSON-schema-strict, fallback `outros/medium` se LLM down/inválido). Custo Ollama = quase zero porque a vasta maioria de prospects bate na rule.
+5. **OSM category map cobre fallback quando CNPJ ausente** — H2-F2 só matcheia ~40% dos prospects com CNPJ (Stage 1 confidence high); os outros 60% caem no OSM tag (restaurant/clinic/shop) com mapping idêntico ao CNAE.
+6. **dedup_merge não-destrutivo** — loser vira stage='duplicate', preservado searchable + auditável. Owner pode reverter via UI sem perda de dados.
+7. **PSI graceful em 6 fail modes** — no_api_key / timeout / quota / http_4xx / invalid_response / httpx_missing → todos retornam dict low_confidence=true sem lançar exceção. compute_needs_score lê low_confidence → trata como missing.
+
+### Gates (verificar na VPS após deploy — auditor cobra evidência DB REAL)
+1. ✅ classify_prospect: ≥10 prospects industry+icp_fit; determinístico (rodar 2x = igual); via ollama_router (sem httpx direto pra :11434).
+2. ⏳ PageSpeed: ≥3 prospects com site → psi_performance/seo/accessibility persistidos. Graceful sem key comprovado.
+3. ⏳ **Score**: ≥20 prospects PERSISTIDOS no DB com score_breakdown explicável. Mostrar 1 sem-site (esperado +30) vs 1 polido (score baixo). Distribuição min/median/max.
+4. ⏳ Migração PC+VM: PRAGMA mostra os 10 campos novos em AMBOS; **grep no container hermes-api E hermes-daemon confirma models.py novo** (lição F3).
+5. ⏳ daemon P5: log audit chamando classify+psi+score ≥5min sem traceback, stages promovidos.
+6. ⏳ dedup_merge: ≥1 par duplicado detectado (ou prova de 0) + ação de merge.
+7. ⏳ 23 não-Hermes intactos.
+8. ✅ validate_implementation 20/22 PASS (baseline preservado).
+9. ⏳ **PERSISTÊNCIA REAL**: query no `/var/lib/hermes/data/command_center.db` mostra ≥20 prospects com score>0 + score_breakdown não-nulo.
+
+### Smoke local PC (pré-deploy) ✅
+- 30/30 testes unitários H2-F4 PASS (14 scoring + 16 classify).
+- Determinismo classify+scoring comprovado (2 runs idem input → idem output).
+- Migration PC: 10 cols H2-F4 presentes em hermes_local.db (54 cols totais).
+- 575 pytest PASS / 2 FAIL pré-existentes (last_discovery_at H2-F1, enrich 501 H2-F3 stub→real) — ZERO regressão de H2-F4.
+- validate_implementation: 20/22 PASS, FAILs 2 pré-existentes (MERGED-010 WhatsApp/Instagram).
+
+> **H2-F4 ⏳ AGUARDANDO COMMIT + DEPLOY** (2026-06-23): Código PC completo + testes locais ✅. Owner faz commit + push → auto-deploy `up --build` rebuilda hermes-api E hermes-daemon (lição F3: rsync manual deixa containers divergentes). Pós-deploy verificar gates 2-7+9 na VPS com evidência DB real (PRAGMA + COUNT score>0 + score_breakdown não-nulo). Próximo após F4: **H2-F5** (Vuecra Handoff HI1+HI2) OR **H2-F6** (Geronimo NATS) OR **H2-F7** (Market Intelligence) — paralelizáveis.

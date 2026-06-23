@@ -748,8 +748,121 @@ class HermesDaemon:
                 raise Exception(f"Scraper start failed: {resp.status_code}")
 
     async def _exec_batch_audit(self, data: list) -> dict:
-        """Run website audit batch via PipelineRunner (shared core/pipeline.py)."""
-        return await self.pipeline.audit_pending(limit=len(data) if data else None)
+        """H2-F4 — audit real: classify_prospect + PSI + compute_needs_score.
+
+        Pipeline por prospect (graceful em cada estágio):
+          1. classify_prospect_async → industry/sub_category/icp_fit
+          2. web_audit.audit_website (existente, sync via to_thread) → ssl/mobile/issues
+          3. pagespeed_audit (se tem website) → psi_perf/seo/a11y + mobile_friendly
+          4. compute_needs_score → score 0-100 + breakdown
+          5. PATCH com todos os campos novos + stage promovido
+
+        Sinal ausente (PSI sem key, scrape falhou) NUNCA derruba o run —
+        compute_needs_score marca low/partial confidence e segue.
+        """
+        from scripts.classify_prospect import classify_prospect_async
+        from scripts.web_audit import audit_website
+        from scripts.pagespeed import pagespeed_audit
+        from core.scoring import compute_needs_score, score_to_stage
+
+        if not data:
+            return {"audited": 0}
+
+        audited = 0
+        for p in data:
+            try:
+                # 1. Classify (Ollama-aware, async)
+                cls = await classify_prospect_async(p)
+
+                # 2. Web audit (existente — sync)
+                wa = await asyncio.to_thread(audit_website, p.get("website") or "")
+
+                # 3. PSI (sync) — só roda se site existe e responde
+                psi: dict = {}
+                if wa.get("exists"):
+                    psi = await asyncio.to_thread(pagespeed_audit, p["website"])
+
+                # 4. schema.org já foi capturado em Stage 2 do enrich (H2-F3).
+                #    Reconstituímos pelos campos persistidos no prospect.
+                schema: dict = {}
+                if p.get("aggregate_rating") is not None:
+                    schema["aggregate_rating"] = p["aggregate_rating"]
+                    schema["has_schema_org"] = True
+                elif p.get("contact_source") == "website":
+                    schema["has_schema_org"] = False  # scrape rodou mas sem schema
+
+                # 5. Score
+                score_res = compute_needs_score(
+                    p, web_signals=wa, psi=psi, schema=schema,
+                )
+                score = score_res["score"]
+                confidence = score_res["confidence"]
+                stage = score_to_stage(score, confidence)
+
+                # 6. Audit summary curto (legível)
+                summary_lines = [
+                    f"H2-F4 audit: {p.get('business_name') or p.get('name')}",
+                    f"- ICP: {cls['icp_fit']} ({cls['industry']}/{cls['sub_category']})",
+                ]
+                if not wa.get("exists"):
+                    summary_lines.append("- Sem website / inacessível")
+                else:
+                    summary_lines.append(
+                        f"- Site: SSL={wa.get('ssl')} mobile={wa.get('has_mobile_viewport')} "
+                        f"resp={wa.get('response_time_ms')}ms"
+                    )
+                if psi and not psi.get("low_confidence"):
+                    summary_lines.append(
+                        f"- PSI: perf={psi.get('psi_performance')} seo={psi.get('psi_seo')} "
+                        f"a11y={psi.get('psi_accessibility')} mobile_ok={psi.get('mobile_friendly')}"
+                    )
+                elif psi:
+                    summary_lines.append(f"- PSI: indisponível ({psi.get('reason')})")
+                summary_lines.append(
+                    f"- Score: {score}/100 ({confidence}) → stage={stage}"
+                )
+                if score_res.get("signals_present"):
+                    summary_lines.append(f"- Sinais: {', '.join(score_res['signals_present'])}")
+                audit_summary = "\n".join(summary_lines)
+
+                # 7. PATCH
+                patch = {
+                    "industry": cls["industry"],
+                    "sub_category": cls["sub_category"],
+                    "icp_fit": cls["icp_fit"],
+                    "score": score,
+                    "stage": stage,
+                    "audit_summary": audit_summary,
+                    "score_breakdown": json.dumps(score_res["breakdown"], ensure_ascii=False),
+                    "score_confidence": confidence,
+                }
+                if psi and not psi.get("low_confidence"):
+                    if isinstance(psi.get("psi_performance"), int):
+                        patch["psi_performance"] = psi["psi_performance"]
+                    if isinstance(psi.get("psi_seo"), int):
+                        patch["psi_seo"] = psi["psi_seo"]
+                    if isinstance(psi.get("psi_accessibility"), int):
+                        patch["psi_accessibility"] = psi["psi_accessibility"]
+                    if psi.get("mobile_friendly") is not None:
+                        patch["mobile_friendly"] = 1 if psi["mobile_friendly"] else 0
+
+                await self.pipeline._request(
+                    "PATCH", f"/api/prospects/{p['id']}", json=patch
+                )
+
+                await self.log_event(
+                    "info", "audit",
+                    f"H2-F4 audit: {p.get('business_name') or p.get('name')} → score={score} stage={stage}",
+                    metadata={"prospect_id": p["id"], "score": score,
+                              "confidence": confidence, "icp_fit": cls["icp_fit"]},
+                    visual_event={"type": "audit_done", "score": score, "stage": stage},
+                )
+                audited += 1
+                await asyncio.sleep(1)  # rate-limit polite
+            except Exception as exc:
+                logger.warning("batch_audit prospect=%s falhou: %s", p.get("id"), exc)
+
+        return {"audited": audited}
 
     async def _exec_recalculate_scores(self, _) -> dict:
         """Trigger ML score recalculation for all prospects."""
@@ -1279,6 +1392,11 @@ class HermesDaemon:
                     v = scrape_result.get(field_name)
                     if v:
                         scrape_patch[field_name] = v
+
+                # H2-F4: persiste aggregate_rating do schema.org quando disponível
+                agg = scrape_result.get("aggregate_rating")
+                if isinstance(agg, (int, float)):
+                    scrape_patch["aggregate_rating"] = float(agg)
 
                 if scrape_patch:
                     scrape_patch["contact_source"] = "website"

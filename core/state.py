@@ -427,6 +427,31 @@ def init_db() -> None:
         conn.commit()
         logger.info("Migration H2-F3: added website scrape columns to prospects")
 
+    # H2-F4 — Categorize + ICP + Qualify (PageSpeed + score breakdown)
+    try:
+        conn.execute("SELECT industry FROM prospects LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE prospects ADD COLUMN industry TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN sub_category TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN icp_fit TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN psi_performance INTEGER")
+        conn.execute("ALTER TABLE prospects ADD COLUMN psi_seo INTEGER")
+        conn.execute("ALTER TABLE prospects ADD COLUMN psi_accessibility INTEGER")
+        conn.execute("ALTER TABLE prospects ADD COLUMN mobile_friendly INTEGER")
+        conn.execute("ALTER TABLE prospects ADD COLUMN aggregate_rating REAL")
+        conn.execute("ALTER TABLE prospects ADD COLUMN score_breakdown TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN score_confidence TEXT")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_prospects_industry ON prospects(industry) "
+            "WHERE industry IS NOT NULL"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_prospects_icp_fit ON prospects(icp_fit) "
+            "WHERE icp_fit IS NOT NULL"
+        )
+        conn.commit()
+        logger.info("Migration H2-F4: added categorize+ICP+PSI+score_breakdown columns to prospects")
+
     # H6 B15 — caller_chapter traceability column (idempotent; mcp_calls may not exist yet)
     try:
         conn.execute("SELECT caller_chapter FROM mcp_calls LIMIT 1")

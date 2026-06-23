@@ -39,3 +39,5 @@ psycopg2-binary>=2.9.0
 # H2-F3 — Website contact scraping: curl_cffi (TLS/JA3 chrome fingerprint) + selectolax (fast HTML parse)
 curl_cffi>=0.7
 selectolax>=0.3.21
+# H2-F4 — Dedup/merge golden-record fuzzy match (graceful fallback se ausente)
+rapidfuzz>=3.0

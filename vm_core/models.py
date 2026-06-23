@@ -39,6 +39,17 @@ class ProspectCreate(BaseModel):
     scraped_at: Optional[str] = None       # ISO timestamp
     social_instagram: Optional[str] = None
     social_facebook: Optional[str] = None
+    # H2-F4 categorize + ICP + qualify fields
+    industry: Optional[str] = None
+    sub_category: Optional[str] = None
+    icp_fit: Optional[str] = None              # 'high' | 'medium' | 'low'
+    psi_performance: Optional[int] = None
+    psi_seo: Optional[int] = None
+    psi_accessibility: Optional[int] = None
+    mobile_friendly: Optional[int] = None      # 0/1 (sqlite bool)
+    aggregate_rating: Optional[float] = None
+    score_breakdown: Optional[str] = None      # JSON-string {sinal_id: pontos}
+    score_confidence: Optional[str] = None     # 'high' | 'partial' | 'low'
 
 
 class ProspectUpdate(BaseModel):
@@ -67,6 +78,17 @@ class ProspectUpdate(BaseModel):
     scraped_at: Optional[str] = None
     social_instagram: Optional[str] = None
     social_facebook: Optional[str] = None
+    # H2-F4 categorize + ICP + qualify fields
+    industry: Optional[str] = None
+    sub_category: Optional[str] = None
+    icp_fit: Optional[str] = None
+    psi_performance: Optional[int] = None
+    psi_seo: Optional[int] = None
+    psi_accessibility: Optional[int] = None
+    mobile_friendly: Optional[int] = None
+    aggregate_rating: Optional[float] = None
+    score_breakdown: Optional[str] = None
+    score_confidence: Optional[str] = None
 
 
 class TaskCreate(BaseModel):
