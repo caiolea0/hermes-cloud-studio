@@ -422,3 +422,22 @@ hermes_api_v2.py — include_router(market_router)
 - **Fix `d1d3fcb`**: density rankeia por `COUNT FILTER situacao='02'` (ativas), heatmap filtra ativos, todas as queries excluem `8888888`, opportunity usa densidade-ativa. Re-rodado no PG real: TOP density agora publicidade(7319002, 4611 ativas) #1, 8219999 sobe #8→#4; `8888888` count=0; determinístico (200 signals). Tests 20/20.
 
 > **H2-F7 ✅ COMPLETO + AUDITADO (2026-06-23, fix `d1d3fcb`)**: Market Intelligence verificado em produção, signals refletem mercado VIVO (ativos). Motor Hermes 2.0 COMPLETO end-to-end: descobre→enriquece→pontua→handoff Vuecra→market-intel. Próximo: **H2-F8** (Hardening + Observability) · **frontend v2** (UI-P0..P6) · **H2-F6** (Geronimo NATS, bloqueado no time Geronimo).
+
+---
+
+## UI-P0 — Frontend v2 Foundation (shell + conexão + map-data) (2026-06-23)
+
+### O que foi feito (commits a56f3c8 + 4 fixes; deploy via git)
+- **Shell `dashboard-v2/`** servido por novo container **hermes-web** (nginx:1.27-alpine, :8801 bind Tailscale 100.74.227.37, geronimo-net, NÃO público). design-system-v2.css canônico + nav dock + ⌘K stub + libs vendoradas local (Motion One, culori, DOMPurify, MapLibre, etc.).
+- **WebSocket `/ws`** em hermes_api_v2.py: auth `?token=` (close 1008 sem), `vm_core/ws.py` ws_manager, emite daemon.connected + ping 25s.
+- **`vm_api/broadcast.py`** NOVO: `POST /api/daemon/broadcast` → ws_manager.broadcast() → fecha o relay daemon→WS (e **resolve o não-blocker F2/F3 do 404**; daemon agora 200 OK).
+- **PostGIS**: hermes-postgres → image `postgis/postgis:16-3.4`, `geo.bairros` (194 polígonos IBGE Cuiabá) + `geo.business_points` (2113 dos prospects, H3 precompute via lib python).
+- **`vm_api/geo.py`**: `GET /api/geo/prospects` (FeatureCollection, capado 2000 feats) + `/api/geo/bairros` (194), auth X-Hermes-Token.
+- **Map render**: MapLibre-pure, estilo dark hsl auto-contido (sem CDN). **.pmtiles DEFERIDO** (URLs Protomaps 404).
+
+### Auditoria independente (orquestrador, 2026-06-23) — ✅
+- Verifiquei real: shell 200 Tailscale não-público; **LEI reduced-motion CUMPRIDA** (CSS servido: `.reveal` opacity:0 só sob `@media no-preference`; `reduce` mata animação; só `.toast` tem opacity:0 naked = transitório correto; hiddenBig=0); `/ws` auth+relay com broadcast **200** (eventos daemon reais fluem); GeoJSON /prospects 2000 feats + /bairros 194; PostGIS 3.4.3 + 194 + 2113; 5 Hermes healthy + 26 não-Hermes intactos; UX-reviewer READY-TO-MERGE.
+- Exec corrigiu 3 bugs in-flight: requests→httpx (load_geo), oklch→hsl (parser MapLibre não aceita oklch), wget→curl (healthcheck busybox Alpine).
+- **PENDENTE / notas**: (1) **basemap de ruas NÃO existe** — Gate 5 .pmtiles deferido (Protomaps 404); mapa = pontos sobre fundo escuro. O "mapa real cidade/estado/país" que o owner cobrou entra no **UI-P1** (tilemaker + extract Geofabrik centro-oeste). (2) GeoJSON capado em 2000 (113 prospects não exibidos). (3) bairro `prospect_count` pode estar 0 (join point-in-polygon a validar no P1/P2).
+
+> **UI-P0 ✅ COMPLETO + AUDITADO (2026-06-23)**: dashboard-v2 vivo e conectado na VPS (http://100.74.227.37:8801 via Tailscale) — shell + REST + /ws (relay daemon ligado) + PostGIS + GeoJSON. Owner já ENXERGA o motor. Próximo: **UI-P1** (Sweep Map MVP — basemap real de ruas via tilemaker/Geofabrik + MapLibre + prospects coloridos por status + flyTo + region modal).
