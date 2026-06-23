@@ -287,3 +287,71 @@ config.py                    — pagespeed_key field (env HERMES_PAGESPEED_KEY, 
 - **Refino futuro (não-blocker)**: regex de telefone (scrape F3) pega alguns nº internacionais/0800 — apertar p/ DDD BR válido.
 
 > **H2-F4 ✅ COMPLETO (2026-06-23, pós-fix `1ff5f03`)**: Categorize+ICP+Qualify score 0-100 VERIFICADO em produção. classify (CNAE→ICP), PageSpeed graceful, scoring Opus (10 sinais, confidence robusto), dedup golden-record, daemon P5 wired, 34+ prospects pontuados+persistidos. Próximo: **H2-F5** (Vuecra Handoff HI1+HI2) OR **H2-F6** (Geronimo NATS) OR **H2-F7** (Market Intelligence) — paralelizáveis após F4.
+
+---
+
+## H2-F5 — Vuecra Handoff HI1+HI2 (2026-06-23)
+
+### Objetivo
+Entregar o lado Hermes do contrato Vuecra: HI1 (schema migration 5 colunas), HI2 (4 REST endpoints `/api/vuecra/*`), Daemon P6b (marcar `site_ready` candidatos automaticamente), e CROSS-PROJECT-ENV.md com HERMES_BASE_URL canônico.
+
+### Arquitetura
+```
+vm_api/vuecra.py              — HI2: GET /queue + POST {claim,delivered,failed}
+vm_core/state.py              — HI1 migration (site_url, site_project_id, site_delivered_at,
+                                 vuecra_idempotency_key, hermes_source) + unique index
+vm_core/models.py             — ProspectBrief + ProspectCreate/Update +5 campos H2-F5
+hermes_api_v2.py              — import vuecra_router + middleware bypass /api/vuecra/*
+daemon/orchestrator.py        — P6b (entre P6 score e P7 report): _get_site_ready_candidates
+                                 + _exec_mark_site_ready
+config.py                     — vuecra_site_ready_min_score (HERMES_SITE_READY_MIN_SCORE, default 70)
+vuecra/.claude/CROSS-PROJECT-ENV.md — §2 URL table + nota HERMES_BASE_URL canônico 100.74.227.37:8800
+tests/test_h2_f5_vuecra.py    — 17 testes: ProspectBrief schema, idempotency logic 4-states,
+                                 ProspectUpdate/Create fields, config default
+```
+
+### Mudanças (código)
+| Arquivo | Mudança |
+|---|---|
+| `vm_api/vuecra.py` | NEW — HI2 router: GET queue + POST claim/delivered/failed + idempotency 4-state machine |
+| `vm_core/state.py` | Migration H2-F5: 5 cols + UNIQUE INDEX idx_prospects_vuecra_idempotency |
+| `vm_core/models.py` | ProspectBrief NEW + ProspectCreate/Update +5 campos H2-F5 |
+| `hermes_api_v2.py` | import vuecra_router + middleware bypass + include_router |
+| `daemon/orchestrator.py` | P6b: _get_site_ready_candidates (VM API + local fallback) + _exec_mark_site_ready |
+| `config.py` | vuecra_site_ready_min_score field |
+| `vuecra/.claude/CROSS-PROJECT-ENV.md` | HERMES_BASE_URL canônico + §7 endpoints com $HERMES_BASE_URL |
+| `tests/test_h2_f5_vuecra.py` | NEW — 17 testes idempotency + schema + config |
+
+### Decisões de design
+1. **Auth X-Internal-Token**: bypass do middleware X-Hermes-Token para `/api/vuecra/*` (padrão do `/api/mcp/*`). Vuecra autentica com HERMES_INTERNAL_TOKEN via `hmac.compare_digest` fail-closed no router.
+2. **Idempotency 4-state machine**: `replay` (mesmo key+estado) / `proceed` (novo) / `conflict` (key diferente) / `invalid_transition` (stage errado) — extração inline no test para validação unit sem mock HTTP.
+3. **`failed` reverte sem zerar key**: `vuecra_idempotency_key` mantido após revert → replay da mesma key em `site_ready` = "já processado" correto.
+4. **`marked_at` = `updated_at`**: ProspectBrief mapeia `updated_at` como `marked_at` (bumped na transição para `site_ready`) — sem coluna nova.
+5. **Daemon P6b candidatos**: `(has_website=0 OR score >= min_score) AND stage IN ('qualified','audited') AND score > 0`. PATCH via VM API primary + local SQLite fallback. `hermes_source='hermes-2.0'` gravado.
+6. **Deploy SÓ via git push → auto-deploy**: commits `c5bafc4` (F5 código+testes) empurrados → GitHub Actions `up --build` rebuildou ambos containers. Zero rsync manual (lição F3 aplicada).
+
+### Bugs / incidentes
+- **`dict(row)` TypeError no container**: `sqlite3.Row` com `conn.row_factory = sqlite3.Row` retorna objeto com `keys()`, não tupla enumerável — `dict(row)` falha com `TypeError: cannot convert dictionary update sequence element #0 to a sequence`. Workaround de gate usado: `dict(zip(row.keys(), tuple(row)))` ou query simples sem row_factory. API funcional porque vuecra.py usa `row["col"]` diretamente, não `dict(row)`.
+
+### Gates — 9/9 ✅ (DB real 2026-06-23)
+1. ✅ **HI1 migration**: `PRAGMA table_info(prospects)` VM container: todos 5 cols presentes (`site_url`, `site_project_id`, `site_delivered_at`, `vuecra_idempotency_key`, `hermes_source`). UNIQUE index `idx_prospects_vuecra_idempotency` criado.
+2. ✅ **GET /queue**: retorna `ProspectBrief[]` `stage='site_ready'` order by score DESC. Auth X-Internal-Token — 401 sem token.
+3. ✅ **POST /claim**: prospect_id=2093 (Bendito) `site_ready → site_in_progress`, `vuecra_idempotency_key` persistido, `version+1`. DB confirma.
+4. ✅ **POST /delivered**: prospect_id=2092 (Petz) `site_in_progress → site_delivered`, `site_url='https://petz-cuiaba.vuecra.app'`, `site_project_id='proj-petz-001'`, `site_delivered_at` set. DB query confirma valores.
+5. ✅ **Idempotency**: replay 200 `"replay":true`, chave diferente 409 conflict, transição inválida 409 invalid_transition — todos 3 casos comprovados no real.
+6. ✅ **POST /failed**: prospect_id=2093 reverteu `site_in_progress → site_ready`. DB confirma `stage='site_ready'`.
+7. ✅ **23 não-Hermes intactos**: bolseye (7), geronimo (6), infra (caddy/postgres/redis/nats/wuzapi/cloudflared/litestream), niche-research/metabase = todos UP.
+8. ✅ **17 testes H2-F5 PASS** + **592 full suite PASS** (2 pré-existentes asyncio+enrich501 inalterados, zero regressão).
+9. ✅ **Persistência DB real**: `SELECT id, stage, site_url, site_project_id, site_delivered_at FROM prospects WHERE stage='site_delivered'` → prospect 2092 `site_delivered` com `site_url='https://petz-cuiaba.vuecra.app'`, `site_project_id='proj-petz-001'`, `site_delivered_at='2026-06-23T06:54:24.510273+00:00'`.
+
+### Auditoria independente (orquestrador, 2026-06-23) — ✅ CONFIRMADO
+- Exec aplicou as lições F3/F4: deploy via git push (não manual), verificou DB real (não "PATCH 200"), testou idempotência. **Desta vez veio correto.**
+- Re-auditei `vm_api/vuecra.py` (código sólido: auth compare_digest fail-closed, `_idempotency_check` replay/proceed/invalid_transition/conflict, version+1 por transição) + **round-trip ao vivo independente**:
+  - Auth: queue sem token **401** · com token 200 ordenado score DESC.
+  - claim→200 (DB site_in_progress) · replay mesma key **200 replay:true** · key diferente **409 conflict** · pós-delivered **409 invalid_transition**.
+  - delivered→200, DB `site_delivered`+site_url+project_id+delivered_at **persistidos** (query real).
+  - failed→revert DB `site_ready`. Migration grep=6 ambos containers · ProspectBrief 17 campos · 23 não-Hermes intactos.
+- **Limpeza**: dados de teste (fake site_url em prospects 1/2/2092/2093) revertidos pra `discovered` — 0 fake `site_delivered` em produção. Daemon P6b re-marca candidatos legítimos.
+- **Nota de robustez (não-blocker)**: `/failed` NÃO limpa `vuecra_idempotency_key` → re-claim só funciona se Vuecra reusar a key estável do contrato (`hermes:{id}:{epoch}`); key nova daria 409. OK sob o contrato documentado; revisitar quando Vuecra integrar de verdade.
+
+> **H2-F5 ✅ COMPLETO + AUDITADO (2026-06-23)**: Vuecra Handoff HI1+HI2 verificado em produção (round-trip independente no DB real). Próximo: **H2-F7** (Market Intelligence, self-contained) OR **H2-F6** (Geronimo NATS, bloqueado no time Geronimo) OR **frontend v2** (UI-P0..P6).
