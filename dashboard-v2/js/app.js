@@ -212,20 +212,23 @@
     const container = document.getElementById('map-container');
     if (!container) return;
 
-    // MapLibre + pmtiles podem não estar disponíveis (vendor não baixado ou tiles ausentes)
-    if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
+    // MapLibre deve estar disponível (pmtiles é opcional — estilo P0 usa fundo plano)
+    if (typeof maplibregl === 'undefined') {
       container.innerHTML = `
         <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px">
           <i class="ti ti-map-off" style="font-size:48px;color:var(--tx4)" aria-hidden="true"></i>
           <p class="muted">Mapa não disponível</p>
-          <p class="muted2" style="font-size:12px">libs MapLibre/pmtiles ausentes ou tiles não carregados</p>
+          <p class="muted2" style="font-size:12px">lib MapLibre não carregada</p>
         </div>`;
       return;
     }
 
     try {
-      const protocol = new pmtiles.Protocol();
-      maplibregl.addProtocol('pmtiles', protocol.tile);
+      // Registra protocolo pmtiles se disponível (P1: basemap vector)
+      if (typeof pmtiles !== 'undefined') {
+        const protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol('pmtiles', protocol.tile);
+      }
 
       const map = new maplibregl.Map({
         container: 'map-container',

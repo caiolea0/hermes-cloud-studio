@@ -32,13 +32,21 @@ fi
 # pmtiles extract faz HTTP 206 no arquivo remoto — não baixa o planeta inteiro.
 # Source: Protomaps planet build (OpenStreetMap data).
 # Atualizar PLANET_URL conforme última build em https://protomaps.com/downloads/basemaps
-PLANET_URL="${PLANET_URL:-https://build.protomaps.com/downloads/20240101.pmtiles}"
+# NOTA P0: URL 20240101 retorna 404 (Protomaps migrou infraestrutura). Passar PLANET_URL=<nova-url> ao rodar.
+# Alternativa P1: gerar via tilemaker + Geofabrik centro-oeste PBF (https://download.geofabrik.de/south-america/brazil/centro-oeste-latest.osm.pbf)
+PLANET_URL="${PLANET_URL:-}"
 
 if [[ -f "${OUT}" ]]; then
     echo "Arquivo já existe: ${OUT}"
     echo "Para re-extrair, delete o arquivo e rode novamente."
     pmtiles show "${OUT}"
     exit 0
+fi
+
+if [[ -z "${PLANET_URL}" ]]; then
+    echo "ERRO: PLANET_URL não definida. Informe via: PLANET_URL=https://... bash scripts/fetch_pmtiles.sh"
+    echo "Ver comentários no script para alternativas."
+    exit 1
 fi
 
 echo "Extraindo bbox=${BBOX} de ${PLANET_URL}..."
