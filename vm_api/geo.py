@@ -144,8 +144,16 @@ def geo_bairros():
 
     try:
         cur = conn.cursor()
-        # PostGIS spatial join: conta prospects dentro de cada bairro (GIST indexes garantem performance)
+        # PostGIS spatial join: conta prospects dentro de cada bairro.
+        # ST_MakeValid corrige auto-interseções nos polígonos dos bairros (dados OSM brutos).
         cur.execute("""
+            WITH bairros_valid AS (
+                SELECT id, name, admin_level,
+                       ST_MakeValid(geom) AS geom_v,
+                       geom
+                FROM geo.bairros
+                WHERE geom IS NOT NULL
+            )
             SELECT
                 b.id, b.name, b.admin_level,
                 COUNT(bp.id)::int                                       AS prospect_count,
@@ -153,9 +161,8 @@ def geo_bairros():
                 COUNT(bp.id) FILTER (WHERE bp.score >= 70)::int         AS hot_count,
                 COUNT(bp.id) FILTER (WHERE bp.score >= 50 AND bp.score < 70)::int AS medium_count,
                 ST_AsGeoJSON(b.geom)::json                               AS geometry
-            FROM geo.bairros b
-            LEFT JOIN geo.business_points bp ON ST_Within(bp.geom, b.geom)
-            WHERE b.geom IS NOT NULL
+            FROM bairros_valid b
+            LEFT JOIN geo.business_points bp ON ST_Within(bp.geom, b.geom_v)
             GROUP BY b.id, b.name, b.admin_level, b.geom
             ORDER BY b.name
         """)
