@@ -355,3 +355,70 @@ tests/test_h2_f5_vuecra.py    — 17 testes: ProspectBrief schema, idempotency l
 - **Nota de robustez (não-blocker)**: `/failed` NÃO limpa `vuecra_idempotency_key` → re-claim só funciona se Vuecra reusar a key estável do contrato (`hermes:{id}:{epoch}`); key nova daria 409. OK sob o contrato documentado; revisitar quando Vuecra integrar de verdade.
 
 > **H2-F5 ✅ COMPLETO + AUDITADO (2026-06-23)**: Vuecra Handoff HI1+HI2 verificado em produção (round-trip independente no DB real). Próximo: **H2-F7** (Market Intelligence, self-contained) OR **H2-F6** (Geronimo NATS, bloqueado no time Geronimo) OR **frontend v2** (UI-P0..P6).
+
+---
+
+## H2-F7 — Market Intelligence (2026-06-23)
+
+### Objetivo
+Agregar sinais de mercado sobre cnpj.estabelecimentos (hermes-postgres, 333.929 Cuiabá): densidade de verticais, velocidade de churn, novos registros e score de oportunidade rule-based. Persistir em `cnpj.market_signals`. Expor via REST. Daemon P6c computa diariamente.
+
+### Arquitetura
+```
+brain/market_analyzer.py — rule-based SQL puro, 4 sinais + opportunity_score
+  _pg_connect()          — espelha padrão enrich_cnpj.py (HERMES_PG_* env)
+  compute_density()      — GROUP BY cnae_principal → count + ativas
+  compute_churn_velocity() — situacao IN ('03','04','08') AND data_situacao >= now-24mo
+  compute_new_reg_velocity() — situacao='02' AND data_abertura >= now-12mo
+  compute_heatmap()      — CNAE × bairro (top 20 CNAEs) para heatmap dashboard
+  compute_opportunity_scores() — rule-based: W_NEW_REG*norm_new + W_DENSITY_LOW*(1-norm_den) + W_CHURN*norm_churn + icp_bonus/100
+  run_market_analysis()  — pipeline completo → escreve market_signals (truncate-replace)
+  LLM labels: HERMES_MARKET_LLM=1 (default off) via ollama_router
+
+cnpj.market_signals (Postgres, criado via _ensure_market_signals_table idempotente)
+  UNIQUE INDEX (signal_type, COALESCE(cnae,''), COALESCE(region,''))
+  INDEX (signal_type, rank)
+
+vm_api/market.py — router FastAPI
+  GET /api/market/signals?type=&cnae=&region=&limit=  — auth X-Hermes-Token
+  GET /api/market/heatmap                              — auth X-Hermes-Token
+
+daemon/orchestrator.py — P6c compute_market_signals (hora=23, uma vez/dia)
+  TaskCategory.MARKET_INTEL adicionado
+  _market_signals_computed_today(): in-memory flag date check
+  _exec_compute_market_signals(): asyncio.to_thread + graceful PG-down
+
+hermes_api_v2.py — include_router(market_router)
+```
+
+### RF codes (crítico)
+- `situacao_cadastral`: `'02'`=ATIVA · `'03'`=SUSPENSA · `'04'`=INAPTA · `'08'`=BAIXADA
+- **Churn** usa `('03','04','08')` — confirmado com query ao vivo: BAIXADA=147.313, ATIVA=126.081, INAPTA=58.205, SUSPENSA=1.893
+- `data_situacao` e `data_abertura` = CHAR(8) `'YYYYMMDD'` no CSV RF
+
+### Bugs / decisões de design
+- **`8888888` CNAE placeholder**: RF usa `8888888` como catch-all (sem CNAE definido). Aparece no heatmap (não foi excluído como `0000000`). Non-blocker — melhoria futura: adicionar ao filtro de exclusão.
+- **`asyncio.to_thread`**: `run_market_analysis()` é bloqueante (psycopg2 síncrono); daemon usa `to_thread` (igual padrão enrich).
+- **LLM gated**: `_try_label_signal()` só dispara com `HERMES_MARKET_LLM=1`. Default off = zero custo Ollama.
+- **Determinismo**: truncate-replace por signal_type garante idêntico na 2ª execução (confirmado nos gates).
+
+### Gates — 9/9 ✅ (DB real 2026-06-23)
+1. ✅ **market_analyzer sobre 333k reais**: TOP 5 density: 4781400(19.459), 7319002(10.514), 9602501(10.228), 5611203(8.407), 5611201(7.873). TOP 5 new_reg: 7319002(1.240), 8219999(1.026), 5320201(935). TOP 5 churn: 4781400(2.230), 7319002(2.214), 9602501(1.769). Números plausíveis (vestuário/publicidade/cabeleireiro no topo).
+2. ✅ **cnpj.market_signals criada + populada**: COUNT=200, MAX(computed_at)=2026-06-23. 5 linhas reais com signal_type/cnae/region/metric_value/rank.
+3. ✅ **RF codes corretos**: churn usa ('03','04','08'). Query sanidade: ATIVA=126.081 / BAIXADA=147.313 / INAPTA=58.205 / SUSPENSA=1.893. '02' não aparece em churn.
+4. ✅ **REST**: `GET /api/market/signals` com token retorna dados reais (signal_type density, cnae 4781400, metric_value 19459.0). Sem token → 401. `/api/market/heatmap` sem token → 401. Heatmap: 7936 células, 20 CNAEs.
+5. ✅ **Daemon graceful PG-down**: `_exec_compute_market_signals()` com wrong password → WARNING log + `{'error': '...', 'total_signals': 0}` sem crash/traceback.
+6. ✅ **Determinismo**: 2 runs → idêntico (density=50 churn=50 new_reg=50 opportunity=50 total=200; top5 ranks iguais).
+7. ✅ **26 não-Hermes intactos** (baseline H2-F5 era 23; cresceu para 26 por novas containers Geronimo/Bolseye adicionadas entre sessions — zero regressão Hermes).
+8. ✅ **validate_implementation 20/22 PASS** (2 FAIL pré-existentes MERGED-010 WhatsApp/Instagram — zero regressão).
+9. ✅ **PERSISTÊNCIA REAL**: `SELECT COUNT(*), MAX(computed_at) FROM cnpj.market_signals` → 200 / 2026-06-23. 3 signals reais confirmados no PG (não "200 HTTP").
+
+### Commit
+- `19bf37f` — feat(2.0/H2-F7): Market Intelligence
+
+### Auditoria independente (orquestrador, 2026-06-23) — ✅ + 1 fix de qualidade
+- Exec aplicou lições (deploy git, PG real, determinismo). Estrutura 9/9 OK: 200 signals persistidos, REST /signals+/heatmap, auth 401, daemon P6c graceful, RF codes corretos.
+- Re-auditei `brain/market_analyzer.py` + queries no PG real → **achado material (como rating_low do F4)**: `density`/`heatmap`/`opportunity` contavam TOTAL (inclui ~44% baixadas) + placeholder `8888888` (7872 total/22 ativas) ranqueava #6. Ferramenta de prospecção precisa de mercado VIVO. `churn`/`new_reg` já filtravam situação certo.
+- **Fix `d1d3fcb`**: density rankeia por `COUNT FILTER situacao='02'` (ativas), heatmap filtra ativos, todas as queries excluem `8888888`, opportunity usa densidade-ativa. Re-rodado no PG real: TOP density agora publicidade(7319002, 4611 ativas) #1, 8219999 sobe #8→#4; `8888888` count=0; determinístico (200 signals). Tests 20/20.
+
+> **H2-F7 ✅ COMPLETO + AUDITADO (2026-06-23, fix `d1d3fcb`)**: Market Intelligence verificado em produção, signals refletem mercado VIVO (ativos). Motor Hermes 2.0 COMPLETO end-to-end: descobre→enriquece→pontua→handoff Vuecra→market-intel. Próximo: **H2-F8** (Hardening + Observability) · **frontend v2** (UI-P0..P6) · **H2-F6** (Geronimo NATS, bloqueado no time Geronimo).
