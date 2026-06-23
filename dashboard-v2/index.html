@@ -193,9 +193,117 @@
     }
     .region-cta:hover{background:var(--accent);color:#fff}
 
+    /* ── View toggle (Bairros / Hexes / Pontos) ─────────────────────── */
+    .map-view-toggle{
+      position:absolute;top:52px;left:12px;z-index:10;
+      display:flex;gap:3px;
+      background:var(--surface-2);border:0.5px solid var(--line-2);border-radius:10px;
+      padding:3px;box-shadow:var(--shadow-sm);
+    }
+    .map-view-toggle[hidden]{display:none}
+    .view-btn{
+      padding:5px 10px;border-radius:7px;border:none;cursor:pointer;
+      background:transparent;color:var(--tx3);font-family:inherit;font-size:11px;font-weight:500;
+      transition:background .15s,color .15s;
+    }
+    .view-btn.on{background:var(--accent-soft);color:var(--accent-2);border:0.5px solid var(--accent)}
+    .view-btn:hover:not(.on){background:var(--surface);color:var(--tx2)}
+
+    /* ── Sweep toolbar ───────────────────────────────────────────────── */
+    .sweep-toolbar{
+      position:absolute;top:96px;left:12px;z-index:10;
+      display:flex;flex-direction:column;gap:3px;
+    }
+    .sweep-toolbar[hidden]{display:none}
+    .sweep-btn{
+      display:flex;align-items:center;gap:6px;
+      padding:7px 10px;border-radius:9px;border:0.5px solid var(--line-2);
+      background:var(--surface-2);color:var(--tx2);cursor:pointer;
+      font-family:inherit;font-size:11px;font-weight:500;
+      box-shadow:var(--shadow-sm);
+      transition:border-color .15s,background .15s;
+    }
+    .sweep-btn:hover{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-2)}
+    .sweep-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .sweep-btn i{font-size:14px}
+
+    /* ── Progress ring (sup-dir do mapa) ─────────────────────────────── */
+    .sweep-progress{
+      position:absolute;top:52px;right:12px;z-index:10;
+      background:var(--surface-2);border:0.5px solid var(--line-2);border-radius:10px;
+      padding:8px 10px;min-width:72px;text-align:center;
+      box-shadow:var(--shadow-sm);
+      display:flex;flex-direction:column;align-items:center;gap:3px;
+    }
+    .sweep-progress[hidden]{display:none}
+    .sweep-ring{
+      width:44px;height:44px;
+      border-radius:50%;
+      background:conic-gradient(var(--accent) var(--pct,0%), hsl(265,5%,14%) 0%);
+      display:grid;place-items:center;
+      box-shadow:0 0 10px -4px var(--accent);
+    }
+    .sweep-ring b{font-size:11px;font-weight:600;background:var(--surface-2);
+      width:32px;height:32px;border-radius:50%;display:grid;place-items:center}
+    .sweep-progress .sp-label{font-size:9.5px;color:var(--tx3);white-space:nowrap}
+
+    /* ── Live counter (sup-dir area do mapa) ─────────────────────────── */
+    .live-counter{
+      position:absolute;top:12px;right:12px;z-index:10;
+      background:var(--surface-2);border:0.5px solid var(--line-2);border-radius:8px;
+      padding:5px 10px;font-size:11px;color:var(--tx2);
+      box-shadow:var(--shadow-sm);white-space:nowrap;
+    }
+    .live-counter[hidden]{display:none}
+
+    /* ── Filtros/chips (acima da legenda) ────────────────────────────── */
+    .map-filters{
+      position:absolute;bottom:170px;left:12px;z-index:10;
+      background:var(--surface-2);border:0.5px solid var(--line-2);border-radius:10px;
+      padding:10px 12px;min-width:200px;max-width:260px;
+      box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:8px;
+    }
+    .map-filters[hidden]{display:none}
+    .filter-section-title{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em}
+    .filter-chips{display:flex;flex-wrap:wrap;gap:4px}
+    .filter-chip{
+      padding:3px 9px;border-radius:20px;border:0.5px solid var(--line-2);
+      background:var(--surface);color:var(--tx3);cursor:pointer;
+      font-family:inherit;font-size:11px;transition:all .15s;
+    }
+    .filter-chip.on{background:var(--accent-soft);color:var(--accent-2);border-color:var(--accent)}
+    .filter-chip:hover:not(.on){border-color:var(--tx4);color:var(--tx2)}
+    .filter-has-site{display:flex;gap:3px}
+    .filter-chip.missing-mode{background:oklch(0.52 0.18 25 / 0.18);border-color:oklch(0.66 0.17 25 / 0.4);color:var(--warm)}
+    .filter-chip.missing-mode.on{background:var(--warm);color:#fff;border-color:var(--warm)}
+
+    /* ── Hex modal (similar ao region-modal) ─────────────────────────── */
+    .hex-modal{
+      position:absolute;bottom:16px;right:16px;z-index:11;
+      background:var(--surface-2);
+      border:0.5px solid var(--line-2);border-radius:var(--r);
+      padding:16px;min-width:220px;max-width:280px;
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(16px) saturate(1.3);
+      -webkit-backdrop-filter:blur(16px) saturate(1.3);
+    }
+    .hex-modal[hidden]{display:none}
+    .hex-modal-header{display:flex;align-items:flex-start;gap:8px;margin-bottom:12px}
+    .hex-modal-name{font-size:13px;font-weight:600;flex:1;line-height:1.3;font-variant-numeric:tabular-nums}
+    .hex-modal-copy{
+      background:none;border:none;cursor:pointer;color:var(--tx3);padding:0;font-size:13px;
+    }
+    .hex-modal-copy:hover{color:var(--tx)}
+    .hex-close{
+      background:none;border:none;cursor:pointer;color:var(--tx3);
+      padding:0;font-size:16px;line-height:1;flex-shrink:0;margin-top:1px;
+    }
+    .hex-close:hover{color:var(--tx)}
+
     /* Reduced-motion: remove transições e animações de entrada do mapa */
     @media(prefers-reduced-motion:reduce){
-      .region-modal,.map-legend,.legend-swatch{transition:none!important}
+      .region-modal,.map-legend,.legend-swatch,.hex-modal{transition:none!important}
+      .sweep-ring{background:conic-gradient(var(--accent) var(--pct,0%), hsl(265,5%,14%) 0%) !important;transition:none!important}
     }
 
     /* ── Dossier / Comando stubs ───────────────────────────────────────── */
@@ -389,6 +497,114 @@
             </button>
           </div>
 
+          <!-- UI-P2: View toggle (Bairros / Hexes / Pontos) -->
+          <div id="map-view-toggle" class="map-view-toggle" hidden aria-hidden="true"
+               role="group" aria-label="Alternar camada do mapa">
+            <button class="view-btn on" data-view="bairros" type="button" aria-pressed="true">
+              <i class="ti ti-border-all" aria-hidden="true"></i> Bairros
+            </button>
+            <button class="view-btn" data-view="hexes" type="button" aria-pressed="false">
+              <i class="ti ti-hexagon" aria-hidden="true"></i> Hexes
+            </button>
+            <button class="view-btn" data-view="pontos" type="button" aria-pressed="false">
+              <i class="ti ti-point" aria-hidden="true"></i> Pontos
+            </button>
+          </div>
+
+          <!-- UI-P2: Live counter -->
+          <div id="live-counter" class="live-counter" hidden aria-hidden="true"
+               role="status" aria-live="polite" aria-label="Total de prospects visíveis">
+            <span id="live-counter-num">—</span> prospects
+          </div>
+
+          <!-- UI-P2: Sweep toolbar (visível só em view=hexes) -->
+          <div id="sweep-toolbar" class="sweep-toolbar" hidden aria-hidden="true">
+            <button id="sweep-lasso-btn" class="sweep-btn" type="button"
+                    aria-label="Selecionar área com lasso para marcar como visitada"
+                    aria-pressed="false">
+              <i class="ti ti-lasso" aria-hidden="true"></i>
+              <span>Selecionar área</span>
+            </button>
+            <button id="sweep-undo-btn" class="sweep-btn" type="button"
+                    aria-label="Desfazer última seleção de sweep" disabled>
+              <i class="ti ti-arrow-back-up" aria-hidden="true"></i>
+              <span>Desfazer</span>
+            </button>
+          </div>
+
+          <!-- UI-P2: Progress ring (% hexes varridos) -->
+          <div id="sweep-progress" class="sweep-progress" hidden aria-hidden="true"
+               role="meter" aria-label="Percentual de hexágonos varridos">
+            <div class="sweep-ring" style="--pct:0%" aria-hidden="true">
+              <b id="sweep-pct-label">0%</b>
+            </div>
+            <span class="sp-label">varridos</span>
+          </div>
+
+          <!-- UI-P2: Filtros hex (visível só em view=hexes) -->
+          <div id="map-filters" class="map-filters" hidden aria-hidden="true"
+               role="group" aria-label="Filtros de hexágonos">
+            <!-- Score bands -->
+            <div>
+              <div class="filter-section-title">Score</div>
+              <div class="filter-chips" id="filter-score-chips">
+                <button class="filter-chip on" data-filter-score="hot" type="button" aria-pressed="true">
+                  Quentes ≥70
+                </button>
+                <button class="filter-chip on" data-filter-score="medium" type="button" aria-pressed="true">
+                  50–69
+                </button>
+                <button class="filter-chip on" data-filter-score="cool" type="button" aria-pressed="true">
+                  &lt;50
+                </button>
+              </div>
+            </div>
+            <!-- Categorias top (injetado por JS) -->
+            <div id="filter-cats-wrap">
+              <div class="filter-section-title">Categoria</div>
+              <div class="filter-chips" id="filter-cat-chips" aria-live="polite">
+                <!-- JS injeta até 8 botões -->
+              </div>
+            </div>
+            <!-- Has-site + Missing mode -->
+            <div>
+              <div class="filter-section-title">Presença digital</div>
+              <div class="filter-chips filter-has-site">
+                <button class="filter-chip" data-filter="has-site" type="button" aria-pressed="false">
+                  Tem site
+                </button>
+                <button class="filter-chip" data-filter="no-site" type="button" aria-pressed="false">
+                  Sem site
+                </button>
+                <button class="filter-chip missing-mode" data-filter="missing" type="button" aria-pressed="false">
+                  <i class="ti ti-sparkles" aria-hidden="true"></i> Oportunidade
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- UI-P2: Hex modal (frosted glass, bottom-right, por cima do region-modal) -->
+          <div id="hex-modal" class="hex-modal" hidden aria-hidden="true"
+               role="dialog" aria-modal="true" aria-labelledby="hex-modal-name">
+            <div class="hex-modal-header">
+              <span id="hex-modal-name" class="hex-modal-name">—</span>
+              <button class="hex-modal-copy" id="hex-copy-btn" type="button"
+                      aria-label="Copiar ID do hexágono">
+                <i class="ti ti-copy" aria-hidden="true"></i>
+              </button>
+              <button class="hex-close" id="hex-close-btn" type="button"
+                      aria-label="Fechar painel de hexágono">
+                <i class="ti ti-x" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div id="hex-modal-stats" class="region-stats" aria-live="polite">
+              <!-- injetado por JS -->
+            </div>
+            <button class="region-cta" id="hex-sweep-btn" type="button">
+              Marcar como varrido →
+            </button>
+          </div>
+
         </div>
       </section>
 
@@ -512,6 +728,11 @@
   <script src="vendor/purify.min.js"></script>
   <script src="vendor/maplibre-gl.js"></script>
   <script src="vendor/pmtiles.js"></script>
+  <script src="vendor/h3-js.umd.js"></script>
+  <!-- Terra Draw v1.31.2 — MIT — https://github.com/JamesLMilner/terra-draw -->
+  <script src="vendor/terra-draw.umd.js"></script>
+  <!-- terra-draw-maplibre-gl-adapter v1.4.1 — MIT — reads window.terraDraw -->
+  <script src="vendor/terra-draw-maplibre-gl-adapter.umd.js"></script>
 
   <!-- App -->
   <script src="config.js"></script>

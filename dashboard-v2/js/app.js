@@ -434,8 +434,11 @@
         map.on('mouseleave', 'prospects-circles', () => { map.getCanvas().style.cursor = ''; });
       }
 
-      // Inicializa legenda depois de carregar camadas
+      // Inicializa legenda + UI-P2 extras
       _initLegend(map);
+      _initViewToggle(map);
+      _initTerraDraw(map);
+      _initFilterChips(map);
 
     } catch (err) {
       console.warn('[map] falha carregar camadas geo:', err);
@@ -479,6 +482,484 @@
       ['all', ['>=', ['get', 'score'], b.min], ['<=', ['get', 'score'], b.max]]
     );
     map.setFilter('prospects-circles', ['any', ...conditions]);
+  }
+
+  // ── UI-P2 E4–E8: Hex layers + Terra Draw + Filter chips + Hex modal ──────────
+
+  let _hexesLoaded = false;
+  let _hexRawFeats = [];       // raw items from /api/geo/hexes
+  let _sweepedCells = new Set();
+  let _totalHexCells = 0;
+  let _sweepUndoStack = [];    // each entry = Set of cells from one sweep action
+  let _terradraw = null;
+
+  window._hermesFilters = {
+    scoreHot: true, scoreMedium: true, scoreCool: true,
+    categories: [],  // empty = all
+    hasSite: null,   // null=all, true=has-site, false=no-site
+    missing: false,  // true = no-site + score>=50 (oportunidade mode)
+  };
+
+  // ── E4: cellBoundary → GeoJSON ───────────────────────────────────────────
+
+  function _cellsToGeoJSON(rawFeats, sweepSet) {
+    const h3 = window.h3;
+    if (!h3) return { type: 'FeatureCollection', features: [] };
+    const features = [];
+    for (const feat of rawFeats) {
+      const cell = feat.h3_cell;
+      if (!h3.isValidCell(cell)) continue;
+      // cellToBoundary(cell, true) → [lng,lat][] (GeoJSON-friendly, v4 API)
+      const boundary = h3.cellToBoundary(cell, true);
+      const ring = [...boundary, boundary[0]];
+      features.push({
+        type: 'Feature',
+        id: cell,
+        geometry: { type: 'Polygon', coordinates: [ring] },
+        properties: {
+          h3_cell: cell,
+          prospect_count: Number(feat.prospect_count) || 0,
+          avg_score:       Number(feat.avg_score)       || 0,
+          hot_count:       Number(feat.hot_count)       || 0,
+          medium_count:    Number(feat.medium_count)    || 0,
+          cool_count:      Number(feat.cool_count)      || 0,
+          has_site_ratio:  Number(feat.has_site_ratio)  || 0,
+          category_top:    feat.category_top            || '',
+          swept:           sweepSet.has(cell) ? 1 : 0,
+        },
+      });
+    }
+    return { type: 'FeatureCollection', features };
+  }
+
+  function _buildHexFC() { return _cellsToGeoJSON(_hexRawFeats, _sweepedCells); }
+
+  function _addHexLayers(map) {
+    if (map.getLayer('hexes-fog')) return;
+
+    // Fog: swept cells — faint violet overlay
+    map.addLayer({
+      id: 'hexes-fog',
+      type: 'fill',
+      source: 'hexes',
+      filter: ['==', ['get', 'swept'], 1],
+      paint: { 'fill-color': 'hsl(265,60%,65%)', 'fill-opacity': 0.12 },
+    });
+
+    // Main fill — hsl only (MapLibre rejects oklch)
+    map.addLayer({
+      id: 'hexes-fill',
+      type: 'fill',
+      source: 'hexes',
+      paint: {
+        'fill-color': [
+          'step', ['get', 'avg_score'],
+          'hsl(265,5%,14%)',
+          30, 'hsl(215,35%,28%)',
+          50, 'hsl(35,45%,32%)',
+          70, 'hsl(22,50%,36%)',
+        ],
+        'fill-opacity': [
+          'interpolate', ['linear'], ['get', 'prospect_count'],
+          0, 0.15, 5, 0.45, 20, 0.7,
+        ],
+      },
+    });
+
+    // Border
+    map.addLayer({
+      id: 'hexes-line',
+      type: 'line',
+      source: 'hexes',
+      paint: { 'line-color': 'hsl(265,8%,30%)', 'line-width': 0.5, 'line-opacity': 0.4 },
+    });
+  }
+
+  async function _loadHexData(map) {
+    if (_hexesLoaded) return;
+    try {
+      const [hexRes, sweepRes] = await Promise.allSettled([
+        hermesAPI.getGeoHexes({ resolution: 8 }),
+        hermesAPI.getSweep({ resolution: 8 }),
+      ]);
+
+      _hexRawFeats = hexRes.status === 'fulfilled' ? (hexRes.value?.features ?? []) : [];
+      const sweepData = sweepRes.status === 'fulfilled' ? sweepRes.value : null;
+
+      _sweepedCells.clear();
+      if (sweepData?.cells) { for (const c of sweepData.cells) _sweepedCells.add(c); }
+      _totalHexCells = _hexRawFeats.length;
+
+      const fc = _buildHexFC();
+      if (map.getSource('hexes')) {
+        map.getSource('hexes').setData(fc);
+      } else {
+        map.addSource('hexes', { type: 'geojson', data: fc });
+        _addHexLayers(map);
+        _wireHexClick(map);
+      }
+      _hexesLoaded = true;
+      _updateProgressRing();
+    } catch (err) {
+      console.warn('[hex] falha carregar hexes:', err);
+    }
+  }
+
+  // ── E6: progress ring ────────────────────────────────────────────────────
+
+  function _updateProgressRing() {
+    const ring  = document.querySelector('.sweep-ring');
+    const label = document.getElementById('sweep-pct-label');
+    const prog  = document.getElementById('sweep-progress');
+    if (!ring || !label) return;
+    const total = _totalHexCells || 1;
+    const pct   = Math.round((_sweepedCells.size / total) * 100);
+    ring.style.setProperty('--pct', pct + '%');
+    label.textContent = pct + '%';
+    if (prog) { prog.setAttribute('aria-valuenow', pct); }
+  }
+
+  // Rebuild GeoJSON source with updated swept flags
+  function _renderSweepFog(map) {
+    const src = map.getSource('hexes');
+    if (!src) return;
+    src.setData(_buildHexFC());
+    _updateProgressRing();
+  }
+
+  // ── E4: view toggle ──────────────────────────────────────────────────────
+
+  function _setView(map, view) {
+    localStorage.setItem('hermes_map_view', view);
+
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      const active = btn.dataset.view === view;
+      btn.classList.toggle('on', active);
+      btn.setAttribute('aria-pressed', String(active));
+    });
+
+    const showBairros = view === 'bairros';
+    const showHex     = view === 'hexes';
+    const showPts     = view === 'pontos';
+
+    ['bairros-fill', 'bairros-line', 'bairros-selected'].forEach(id => {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', showBairros ? 'visible' : 'none');
+    });
+    ['hexes-fill', 'hexes-line', 'hexes-fog'].forEach(id => {
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', showHex ? 'visible' : 'none');
+    });
+    if (map.getLayer('prospects-circles')) {
+      map.setLayoutProperty('prospects-circles', 'visibility', (showPts || showBairros) ? 'visible' : 'none');
+    }
+
+    // Show/hide hex-specific panels
+    const setPanel = (id, vis) => {
+      const el = document.getElementById(id);
+      if (el) { el.hidden = !vis; el.setAttribute('aria-hidden', String(!vis)); }
+    };
+    setPanel('sweep-toolbar',   showHex);
+    setPanel('map-filters',     showHex);
+    setPanel('sweep-progress',  showHex);
+
+    const counter = document.getElementById('live-counter');
+    if (counter) { counter.hidden = false; counter.setAttribute('aria-hidden', 'false'); }
+
+    if (showHex && !_hexesLoaded) _loadHexData(map);
+    _updateLiveCounter(map, view);
+  }
+
+  function _initViewToggle(map) {
+    const toggle = document.getElementById('map-view-toggle');
+    if (!toggle) return;
+    toggle.hidden = false;
+    toggle.setAttribute('aria-hidden', 'false');
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.addEventListener('click', () => _setView(map, btn.dataset.view));
+    });
+    _setView(map, localStorage.getItem('hermes_map_view') || 'bairros');
+  }
+
+  // ── Live counter ─────────────────────────────────────────────────────────
+
+  function _updateLiveCounter(map, view) {
+    const numEl = document.getElementById('live-counter-num');
+    if (!numEl) return;
+    let count = view === 'hexes' ? _totalHexCells : 0;
+    if (view !== 'hexes') {
+      const src = map.getSource('prospects');
+      if (src) { count = src._data?.features?.length ?? 0; }
+    }
+    numEl.textContent = count.toLocaleString('pt-BR');
+  }
+
+  // ── E5: Terra Draw lasso ─────────────────────────────────────────────────
+
+  function _initTerraDraw(map) {
+    const td  = window.terraDraw;
+    const tda = window.terraDrawMaplibreGlAdapter;
+    if (!td || !tda) {
+      console.warn('[sweep] Terra Draw libs ausentes — lasso desativado');
+      const btn = document.getElementById('sweep-lasso-btn');
+      if (btn) btn.disabled = true;
+      return;
+    }
+    const { TerraDraw, TerraDrawFreehandMode, TerraDrawPolygonMode, TerraDrawSelectMode } = td;
+    const { TerraDrawMapLibreGLAdapter } = tda;
+    try {
+      _terradraw = new TerraDraw({
+        adapter: new TerraDrawMapLibreGLAdapter({ map }),
+        modes: [new TerraDrawFreehandMode(), new TerraDrawPolygonMode(), new TerraDrawSelectMode()],
+      });
+      _terradraw.start();
+      _terradraw.on('finish', (id) => {
+        const snap = _terradraw.getSnapshot();
+        const feat = snap.find(f => f.id === id);
+        if (!feat) { _cancelLasso(); return; }
+        _onSweepFinish(map, feat.geometry);
+      });
+    } catch (err) {
+      console.warn('[sweep] Terra Draw init failed:', err);
+    }
+  }
+
+  function _cancelLasso() {
+    if (!_terradraw) return;
+    try { _terradraw.setMode('static'); } catch { /* ignore */ }
+    const btn = document.getElementById('sweep-lasso-btn');
+    if (btn) { btn.classList.remove('active'); btn.setAttribute('aria-pressed', 'false'); }
+  }
+
+  async function _onSweepFinish(map, geometry) {
+    _cancelLasso();
+    const h3 = window.h3;
+    if (!h3) return;
+    let newCells;
+    try { newCells = h3.polygonToCells(geometry, 8); }
+    catch (err) { console.warn('[sweep] polygonToCells err:', err); return; }
+
+    if (!newCells || newCells.length === 0) {
+      hermesToast.info('Nenhum hexágono dentro da seleção');
+      try { _terradraw.clear(); } catch { /* */ }
+      return;
+    }
+
+    _sweepUndoStack.push(new Set(newCells));
+    newCells.forEach(c => _sweepedCells.add(c));
+
+    hermesAPI.postSweep({ h3Cells: newCells, resolution: 8 }).catch(err => {
+      console.warn('[sweep] postSweep err:', err);
+      hermesToast.error('Erro ao salvar sweep: ' + err.message);
+    });
+
+    _renderSweepFog(map);
+
+    const undoBtn = document.getElementById('sweep-undo-btn');
+    if (undoBtn) undoBtn.disabled = false;
+
+    hermesToast.success(`${newCells.length} hex${newCells.length === 1 ? '' : 'es'} marcado${newCells.length === 1 ? '' : 's'} como varrido`);
+    try { _terradraw.clear(); } catch { /* */ }
+  }
+
+  // ── E7: Filter chips ─────────────────────────────────────────────────────
+
+  async function _initFilterChips(map) {
+    // Inject top-8 category chips
+    try {
+      const data = await hermesAPI.getGeoCategories({ limit: 8 });
+      const items = data?.items ?? [];
+      const container = document.getElementById('filter-cat-chips');
+      if (container && items.length > 0) {
+        container.innerHTML = items.map(it =>
+          `<button class="filter-chip" data-filter-cat="${_escHtml(it.category)}" type="button" aria-pressed="false">
+            ${_escHtml(it.category)}
+            <span class="muted2" style="font-size:10px">${Number(it.count).toLocaleString('pt-BR')}</span>
+          </button>`
+        ).join('');
+        container.querySelectorAll('[data-filter-cat]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const cat = btn.dataset.filterCat;
+            const isOn = btn.classList.toggle('on');
+            btn.setAttribute('aria-pressed', String(isOn));
+            if (isOn) { if (!window._hermesFilters.categories.includes(cat)) window._hermesFilters.categories.push(cat); }
+            else { window._hermesFilters.categories = window._hermesFilters.categories.filter(c => c !== cat); }
+            _applyHexFilters(map);
+          });
+        });
+      }
+    } catch (err) { console.warn('[filter] categories err:', err); }
+
+    // Score band chips
+    document.querySelectorAll('[data-filter-score]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const band = btn.dataset.filterScore;
+        const isOn = btn.classList.toggle('on');
+        btn.setAttribute('aria-pressed', String(isOn));
+        if (band === 'hot')    window._hermesFilters.scoreHot    = isOn;
+        if (band === 'medium') window._hermesFilters.scoreMedium = isOn;
+        if (band === 'cool')   window._hermesFilters.scoreCool   = isOn;
+        _applyHexFilters(map);
+      });
+    });
+
+    // Has-site / missing chips (mutually exclusive: has-site ↔ no-site)
+    document.querySelectorAll('[data-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const f    = btn.dataset.filter;
+        const isOn = btn.classList.toggle('on');
+        btn.setAttribute('aria-pressed', String(isOn));
+        if (f === 'has-site') {
+          window._hermesFilters.hasSite = isOn ? true : null;
+          if (isOn) {
+            const peer = document.querySelector('[data-filter="no-site"]');
+            if (peer) { peer.classList.remove('on'); peer.setAttribute('aria-pressed', 'false'); }
+          }
+        }
+        if (f === 'no-site') {
+          window._hermesFilters.hasSite = isOn ? false : null;
+          if (isOn) {
+            const peer = document.querySelector('[data-filter="has-site"]');
+            if (peer) { peer.classList.remove('on'); peer.setAttribute('aria-pressed', 'false'); }
+          }
+        }
+        if (f === 'missing') window._hermesFilters.missing = isOn;
+        _applyHexFilters(map);
+      });
+    });
+  }
+
+  function _applyHexFilters(map) {
+    const t0 = performance.now();
+    const fl = window._hermesFilters;
+    if (!map.getLayer('hexes-fill')) return;
+
+    const scoreParts = [];
+    if (fl.scoreHot)    scoreParts.push(['all', ['>=', ['get', 'avg_score'], 70]]);
+    if (fl.scoreMedium) scoreParts.push(['all', ['>=', ['get', 'avg_score'], 50], ['<', ['get', 'avg_score'], 70]]);
+    if (fl.scoreCool)   scoreParts.push(['all', ['<',  ['get', 'avg_score'], 50]]);
+
+    if (scoreParts.length === 0) {
+      map.setFilter('hexes-fill', ['==', ['get', 'avg_score'], -1]);
+      map.setFilter('hexes-line', ['==', ['get', 'avg_score'], -1]);
+      _updateLiveCounter(map, 'hexes');
+      document.dispatchEvent(new CustomEvent('hermes:filters-changed', { detail: Object.assign({}, fl) }));
+      return;
+    }
+
+    const conds = [];
+    if (scoreParts.length < 3) conds.push(['any', ...scoreParts]);
+    if (fl.categories.length > 0) conds.push(['in', ['get', 'category_top'], ['literal', fl.categories]]);
+    if (fl.missing) {
+      conds.push(['all', ['<', ['get', 'has_site_ratio'], 0.5], ['>=', ['get', 'avg_score'], 50]]);
+    } else if (fl.hasSite === true) {
+      conds.push(['>=', ['get', 'has_site_ratio'], 0.5]);
+    } else if (fl.hasSite === false) {
+      conds.push(['<',  ['get', 'has_site_ratio'], 0.5]);
+    }
+
+    const filter = conds.length === 0 ? null : conds.length === 1 ? conds[0] : ['all', ...conds];
+    map.setFilter('hexes-fill', filter);
+    map.setFilter('hexes-line', filter);
+
+    const dt = performance.now() - t0;
+    if (dt > 16) console.warn('[filter] slow recolor:', dt.toFixed(1), 'ms');
+
+    _updateLiveCounter(map, 'hexes');
+    document.dispatchEvent(new CustomEvent('hermes:filters-changed', { detail: Object.assign({}, fl) }));
+  }
+
+  // ── E8: Hex modal ─────────────────────────────────────────────────────────
+
+  function _wireHexClick(map) {
+    map.on('click', 'hexes-fill', (e) => {
+      const feat = e.features && e.features[0];
+      if (feat) _showHexModal(feat.properties, map);
+    });
+    map.on('mouseenter', 'hexes-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'hexes-fill', () => { map.getCanvas().style.cursor = ''; });
+  }
+
+  function _showHexModal(props, map) {
+    const modal = document.getElementById('hex-modal');
+    if (!modal) return;
+    _hideRegionModal();
+
+    const cell  = props.h3_cell || '';
+    const total = Number(props.prospect_count) || 0;
+    const hot   = Number(props.hot_count)      || 0;
+    const med   = Number(props.medium_count)   || 0;
+    const avg   = Number(props.avg_score)      || 0;
+    const swept = props.swept === 1;
+    const cat   = props.category_top || '—';
+
+    const nameEl = document.getElementById('hex-modal-name');
+    if (nameEl) nameEl.textContent = cell ? cell.slice(0, 10) + '…' : 'Hex';
+
+    const statsEl = document.getElementById('hex-modal-stats');
+    if (statsEl) {
+      statsEl.innerHTML = `
+        <div class="region-stat">
+          <span class="region-stat-n">${total}</span>
+          <span class="region-stat-l">prospects</span>
+        </div>
+        <div class="region-stat">
+          <span class="region-stat-n hot">${hot}</span>
+          <span class="region-stat-l">quentes</span>
+        </div>
+        <div class="region-stat">
+          <span class="region-stat-n med">${med}</span>
+          <span class="region-stat-l">oportunidade</span>
+        </div>
+        <div class="region-stat">
+          <span class="region-stat-n">${avg}</span>
+          <span class="region-stat-l">score médio</span>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:var(--tx3)">
+          <i class="ti ti-category" aria-hidden="true"></i> ${_escHtml(cat)}
+          ${swept ? ' <span class="tag" style="margin-left:6px;background:hsl(265,30%,20%);color:hsl(265,60%,65%)">varrido</span>' : ''}
+        </div>`;
+    }
+
+    const sweepBtn = document.getElementById('hex-sweep-btn');
+    if (sweepBtn) {
+      sweepBtn.textContent = swept ? 'Remover varrimento' : 'Marcar como varrido →';
+      sweepBtn.onclick = () => _sweepHexFromModal(cell, swept, map);
+    }
+
+    const copyBtn = document.getElementById('hex-copy-btn');
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        navigator.clipboard?.writeText(cell).then(() => hermesToast.success('ID copiado')).catch(() => {});
+      };
+    }
+
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    const closeBtn = document.getElementById('hex-close-btn');
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function _hideHexModal() {
+    const modal = document.getElementById('hex-modal');
+    if (!modal) return;
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  async function _sweepHexFromModal(cell, wasSwept, map) {
+    if (!cell) return;
+    try {
+      if (wasSwept) {
+        await hermesAPI.deleteSweep(cell);
+        _sweepedCells.delete(cell);
+        hermesToast.info('Varrimento removido');
+      } else {
+        await hermesAPI.postSweep({ h3Cells: [cell], resolution: 8 });
+        _sweepedCells.add(cell);
+        hermesToast.success('Hexágono marcado como varrido');
+      }
+      _renderSweepFog(map);
+      _hideHexModal();
+    } catch (err) { hermesToast.error('Erro: ' + err.message); }
   }
 
   // ── Region modal ───────────────────────────────────────────────────────────
@@ -615,6 +1096,36 @@
       _hideRegionModal();
     });
 
+    // Hex modal close
+    const hexClose = document.getElementById('hex-close-btn');
+    if (hexClose) hexClose.addEventListener('click', _hideHexModal);
+
+    // Sweep lasso button
+    const lassoBtn = document.getElementById('sweep-lasso-btn');
+    if (lassoBtn) {
+      lassoBtn.addEventListener('click', () => {
+        if (!_terradraw) { hermesToast.warn('Terra Draw não disponível'); return; }
+        const isActive = lassoBtn.classList.toggle('active');
+        lassoBtn.setAttribute('aria-pressed', String(isActive));
+        try { _terradraw.setMode(isActive ? 'freehand' : 'static'); }
+        catch (err) { console.warn('[sweep] setMode err:', err); }
+      });
+    }
+
+    // Sweep undo button
+    const undoBtn = document.getElementById('sweep-undo-btn');
+    if (undoBtn) {
+      undoBtn.addEventListener('click', () => {
+        const last = _sweepUndoStack.pop();
+        if (!last) return;
+        last.forEach(c => _sweepedCells.delete(c));
+        const map = window._hermesMap;
+        if (map) _renderSweepFog(map);
+        if (_sweepUndoStack.length === 0) undoBtn.disabled = true;
+        hermesToast.info('Seleção desfeita');
+      });
+    }
+
     // ⌘K
     window.addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -626,6 +1137,8 @@
       if (e.key === 'Escape') {
         _closePalette();
         _hideRegionModal();
+        _hideHexModal();
+        _cancelLasso();
       }
     });
 

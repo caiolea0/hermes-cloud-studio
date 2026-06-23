@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-23 19:07 UTC
+- **last_updated**: 2026-06-23 22:29 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 250 (189 PC + 61 VM, 5 internal-only excluded)
-- **consumed**: 142 (58.0% of public)
-- **orphans**: 103
+- **routes_total**: 255 (189 PC + 66 VM, 5 internal-only excluded)
+- **consumed**: 142 (56.8% of public)
+- **orphans**: 108
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **250** rotas FastAPI (189 PC, 61 VM)
+- Total: **255** rotas FastAPI (189 PC, 66 VM)
 - WS endpoints: 2
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -32,6 +32,7 @@
 | `api/hermes.py` | 7 |
 | `api/sequences.py` | 7 |
 | `api/templates.py` | 7 |
+| `vm_api/geo.py` | 7 |
 | `api/onboarding.py` | 5 |
 | `api/lab.py` | 5 |
 | `api/scraper.py` | 5 |
@@ -50,7 +51,6 @@
 | `api/user_prefs.py` | 2 |
 | `hermes_api_v2.py` | 2 |
 | `vm_api/broadcast.py` | 2 |
-| `vm_api/geo.py` | 2 |
 | `vm_api/market.py` | 2 |
 | `vm_api/mcp_coverage.py` | 2 |
 | `api/bootstrap.py` | 1 |
@@ -93,7 +93,7 @@
 | `/api/hermes/skills/{param}` | 2 | app.js |
 | `/api/hermes/status` | 2 | app.js |
 
-## §3 Órfãos — 103 endpoints sem UI
+## §3 Órfãos — 108 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -118,6 +118,8 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/channels/configure` | pc | `api/onboarding.py:131` | token |
 | `POST` | `/api/cobaia/autotune-trigger-manual` | pc | `api/cobaia.py:425` | token |
 | `POST` | `/api/cobaia/verify-email` | pc | `api/cobaia.py:749` | token |
+| `POST` | `/api/geo/sweep` | vm | `vm_api/geo.py:401` | token |
+| `DELETE` | `/api/geo/sweep/{h3_cell}` | vm | `vm_api/geo.py:470` | token |
 | `POST` | `/api/icp/profile` | pc | `api/icp.py:85` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | pc | `api/linkedin.py:411` | token |
 | `POST` | `/api/linkedin/campaigns/discover` | vm | `vm_api/routes.py:1242` | token |
@@ -166,7 +168,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/stats` | pc | `api/stats.py:11` | token |
 | `GET` | `/api/stats` | vm | `vm_api/routes.py:356` | token |
 | `GET` | `/` | pc | `api/dashboard.py:14` | token |
-| `GET` | `/api/_ping` | vm | `hermes_api_v2.py:165` | token |
+| `GET` | `/api/_ping` | vm | `hermes_api_v2.py:166` | token |
 | `GET` | `/api/channels/{channel}/test` | pc | `api/onboarding.py:146` | token |
 | `GET` | `/api/cobaia/autotune-history` | pc | `api/cobaia.py:367` | token |
 | `GET` | `/api/cobaia/autotune-status` | pc | `api/cobaia.py:399` | token |
@@ -176,8 +178,11 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/cobaia/hunter-usage` | pc | `api/cobaia.py:775` | token |
 | `GET` | `/api/cobaia/preflight` | pc | `api/cobaia.py:494` | token |
 | `GET` | `/api/cobaia/sentry-env` | pc | `api/cobaia.py:351` | token |
-| `GET` | `/api/geo/bairros` | vm | `vm_api/geo.py:125` | token |
-| `GET` | `/api/geo/prospects` | vm | `vm_api/geo.py:42` | token |
+| `GET` | `/api/geo/bairros` | vm | `vm_api/geo.py:183` | token |
+| `GET` | `/api/geo/categories` | vm | `vm_api/geo.py:357` | token |
+| `GET` | `/api/geo/hexes` | vm | `vm_api/geo.py:263` | token |
+| `GET` | `/api/geo/prospects` | vm | `vm_api/geo.py:100` | token |
+| `GET` | `/api/geo/sweep` | vm | `vm_api/geo.py:441` | token |
 | `GET` | `/api/icp/presets` | pc | `api/icp.py:92` | token |
 | `GET` | `/api/icp/profile` | pc | `api/icp.py:78` | token |
 | `GET` | `/api/linkedin/companies/lookup` | pc | `api/linkedin.py:457` | token |

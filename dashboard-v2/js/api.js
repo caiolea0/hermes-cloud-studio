@@ -68,7 +68,7 @@
     return _fetch('/api/vuecra/queue');
   }
 
-  // ── Geo (UI-P0 B5) ───────────────────────────────────────────────────────
+  // ── Geo (UI-P0 B5 + UI-P2) ──────────────────────────────────────────────
 
   async function getGeoProspects({ minScore, stage } = {}) {
     const params = new URLSearchParams();
@@ -80,6 +80,36 @@
 
   async function getGeoBairros() {
     return _fetch('/api/geo/bairros');
+  }
+
+  // UI-P2 — Hexes + Categories + Sweep
+
+  async function getGeoHexes({ resolution = 8, minScore, stage, category, missingService } = {}) {
+    const params = new URLSearchParams({ resolution });
+    if (minScore != null) params.set('min_score', minScore);
+    if (stage) params.set('stage', stage);
+    if (category) params.set('category', category);
+    if (missingService) params.set('missing_service', missingService);
+    return _fetch(`/api/geo/hexes?${params}`);
+  }
+
+  async function getGeoCategories({ limit = 20 } = {}) {
+    return _fetch(`/api/geo/categories?limit=${limit}`);
+  }
+
+  async function postSweep({ h3Cells, resolution = 8 }) {
+    return _fetch('/api/geo/sweep', {
+      method: 'POST',
+      body: JSON.stringify({ h3_cells: h3Cells, resolution }),
+    });
+  }
+
+  async function getSweep({ resolution = 8 } = {}) {
+    return _fetch(`/api/geo/sweep?resolution=${resolution}`);
+  }
+
+  async function deleteSweep(h3Cell) {
+    return _fetch(`/api/geo/sweep/${encodeURIComponent(h3Cell)}`, { method: 'DELETE' });
   }
 
   // ── Daemon / Status ──────────────────────────────────────────────────────
@@ -113,6 +143,11 @@
     getVuecraQueue,
     getGeoProspects,
     getGeoBairros,
+    getGeoHexes,
+    getGeoCategories,
+    postSweep,
+    getSweep,
+    deleteSweep,
     ping,
     getDaemonState,
     saveToken,

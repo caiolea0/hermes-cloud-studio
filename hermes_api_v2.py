@@ -35,7 +35,7 @@ from vm_api.vuecra import router as vuecra_router  # H2-F5 — Vuecra Handoff HI
 from vm_api.market import router as market_router  # H2-F7 — Market Intelligence
 from api.brain import router as brain_router  # F.6.1 — Brain orchestrator scaffold (shared PC/VM)
 from vm_api.broadcast import router as broadcast_router  # UI-P0 A4 — daemon→WS relay
-from vm_api.geo import router as geo_router  # UI-P0 B5 — GeoJSON endpoints
+from vm_api.geo import router as geo_router, init_geo_migrations  # UI-P0 B5 + UI-P2
 
 
 async def _f5_strict_mcp_gate() -> None:
@@ -72,6 +72,7 @@ async def _f5_strict_mcp_gate() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    init_geo_migrations()  # UI-P2: cria geo.sweep_state no PG
     await _f5_strict_mcp_gate()
     # Reconciliar campaign_runs: heartbeat parado > 5min = orphaned (MERGED-004)
     db = get_db()
