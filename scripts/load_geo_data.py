@@ -23,7 +23,7 @@ from pathlib import Path
 
 import psycopg2
 import psycopg2.extras
-import requests
+import httpx
 
 # h3 — importado com fallback claro
 try:
@@ -120,9 +120,9 @@ area["name"="Cuiabá"]["admin_level"="8"]["boundary"="administrative"]->.cuiaba;
 out geom;
 """
         try:
-            resp = requests.post(
+            resp = httpx.post(
                 f"{OVERPASS_URL}/api/interpreter",
-                data=query,
+                content=query.encode(),
                 timeout=120,
             )
             resp.raise_for_status()
