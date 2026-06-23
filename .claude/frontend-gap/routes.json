@@ -1,8 +1,8 @@
 {
-  "generated_at": 1782150760.1373086,
-  "total": 239,
+  "generated_at": 1782197857.220955,
+  "total": 243,
   "pc_count": 189,
-  "vm_count": 50,
+  "vm_count": 54,
   "ws_count": 1,
   "internal_count": 5,
   "routes": [
@@ -1900,7 +1900,7 @@
       "method": "GET",
       "path": "/api/_ping",
       "file": "hermes_api_v2.py",
-      "line": 157,
+      "line": 161,
       "function": "vm_ping",
       "side": "vm",
       "internal_only": false,
@@ -2392,6 +2392,46 @@
       "file": "vm_api/routes.py",
       "line": 339,
       "function": "update_task",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/vuecra/queue",
+      "file": "vm_api/vuecra.py",
+      "line": 83,
+      "function": "vuecra_queue",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/vuecra/{prospect_id}/claim",
+      "file": "vm_api/vuecra.py",
+      "line": 138,
+      "function": "vuecra_claim",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/vuecra/{prospect_id}/delivered",
+      "file": "vm_api/vuecra.py",
+      "line": 219,
+      "function": "vuecra_delivered",
+      "side": "vm",
+      "internal_only": false,
+      "rate_limited": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/vuecra/{prospect_id}/failed",
+      "file": "vm_api/vuecra.py",
+      "line": 315,
+      "function": "vuecra_failed",
       "side": "vm",
       "internal_only": false,
       "rate_limited": false

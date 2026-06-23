@@ -50,6 +50,12 @@ class ProspectCreate(BaseModel):
     aggregate_rating: Optional[float] = None
     score_breakdown: Optional[str] = None      # JSON-string {sinal_id: pontos}
     score_confidence: Optional[str] = None     # 'high' | 'partial' | 'low'
+    # H2-F5 Vuecra handoff fields
+    site_url: Optional[str] = None
+    site_project_id: Optional[str] = None
+    site_delivered_at: Optional[str] = None    # ISO timestamp
+    vuecra_idempotency_key: Optional[str] = None
+    hermes_source: Optional[str] = None        # 'hermes-2.0' | 'manual' | 'api'
 
 
 class ProspectUpdate(BaseModel):
@@ -89,6 +95,33 @@ class ProspectUpdate(BaseModel):
     aggregate_rating: Optional[float] = None
     score_breakdown: Optional[str] = None
     score_confidence: Optional[str] = None
+    # H2-F5 Vuecra handoff fields
+    site_url: Optional[str] = None
+    site_project_id: Optional[str] = None
+    site_delivered_at: Optional[str] = None
+    vuecra_idempotency_key: Optional[str] = None
+    hermes_source: Optional[str] = None
+
+
+class ProspectBrief(BaseModel):
+    """Subset of prospect data sent to Vuecra via /api/vuecra/queue."""
+    prospect_id: int
+    business_name: Optional[str] = None
+    category: Optional[str] = None
+    audit_summary: Optional[str] = None
+    score: int = 0
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    has_website: bool = False
+    photo_ref: Optional[str] = None
+    social_instagram: Optional[str] = None
+    social_facebook: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    marked_at: Optional[str] = None   # ISO8601 — updated_at when stage set to site_ready
+    hermes_source: Optional[str] = None
 
 
 class TaskCreate(BaseModel):

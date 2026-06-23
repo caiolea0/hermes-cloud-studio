@@ -352,6 +352,22 @@ def init_db() -> None:
         conn.commit()
         logger.info("Migration H2-F4: added categorize+ICP+PSI+score_breakdown columns to prospects")
 
+    # H2-F5 — Vuecra Handoff (HI1 schema)
+    try:
+        conn.execute("SELECT site_url FROM prospects LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE prospects ADD COLUMN site_url TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN site_project_id TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN site_delivered_at TIMESTAMP")
+        conn.execute("ALTER TABLE prospects ADD COLUMN vuecra_idempotency_key TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN hermes_source TEXT")
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_prospects_vuecra_idempotency "
+            "ON prospects(vuecra_idempotency_key) WHERE vuecra_idempotency_key IS NOT NULL"
+        )
+        conn.commit()
+        logger.info("Migration H2-F5: added Vuecra handoff columns to prospects (HI1)")
+
     conn.close()
 
 

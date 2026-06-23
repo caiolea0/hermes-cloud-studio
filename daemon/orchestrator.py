@@ -538,6 +538,20 @@ class HermesDaemon:
                 description="Recalculate predictive scores with new data"
             )
 
+        # PRIORITY 6b: Mark site_ready candidates for Vuecra handoff (H2-F5)
+        # Runs anytime — low-cost idempotent scan; won't re-mark existing site_* stages.
+        site_ready_candidates = await self._get_site_ready_candidates()
+        if site_ready_candidates:
+            return Task(
+                type="mark_site_ready",
+                category=TaskCategory.REPORTING,
+                data=site_ready_candidates,
+                priority=6,
+                description=(
+                    f"Mark {len(site_ready_candidates)} prospects as site_ready for Vuecra"
+                )
+            )
+
         # PRIORITY 7: Weekly report (Sunday evening)
         if weekday == 6 and 19 <= hour <= 21 and not self._reported_this_week():
             return Task(
@@ -563,6 +577,7 @@ class HermesDaemon:
                 "recalculate_scores": self._exec_recalculate_scores,
                 "weekly_report": self._exec_weekly_report,
                 "cobaia_warmup_action": self._exec_cobaia_warmup,  # F.7 C2
+                "mark_site_ready": self._exec_mark_site_ready,    # H2-F5
             }
 
             handler = handlers.get(task.type)
@@ -1280,6 +1295,101 @@ class HermesDaemon:
         """, (limit,)).fetchall()
         conn.close()
         return [dict(r) for r in rows]
+
+    async def _get_site_ready_candidates(self, limit: int = 50) -> list:
+        """H2-F5: prospects eligible for Vuecra handoff (not yet marked site_*).
+
+        Criteria: (has_website=0 OR score>=threshold) AND stage IN ('qualified','audited')
+                  AND score > 0 AND stage NOT LIKE 'site_%'.
+        Threshold configurable via HERMES_SITE_READY_MIN_SCORE (default 70).
+        Uses VM API primary (container env), local DB fallback.
+        """
+        min_score = settings.vuecra_site_ready_min_score
+        # Primary: VM API (works inside container via hermes-api:8420)
+        try:
+            params = f"limit={limit * 3}"
+            res = await self.pipeline._request("GET", f"/api/prospects?{params}&stage=qualified")
+            qualified = res.get("prospects", [])
+            res2 = await self.pipeline._request("GET", f"/api/prospects?{params}&stage=audited")
+            audited = res2.get("prospects", [])
+            all_p = qualified + audited
+            candidates = [
+                p for p in all_p
+                if p.get("score", 0) > 0
+                and (not p.get("has_website") or p.get("score", 0) >= min_score)
+                and not str(p.get("stage", "")).startswith("site_")
+            ][:limit]
+            if candidates or all_p:
+                return candidates
+        except Exception as exc:
+            logger.debug("_get_site_ready_candidates API failed: %s", exc)
+
+        # Fallback: local DB
+        try:
+            conn = sqlite3.connect(str(DB_PATH))
+            try:
+                rows = conn.execute(
+                    """
+                    SELECT id, business_name, score, has_website, stage
+                    FROM prospects
+                    WHERE stage IN ('qualified', 'audited')
+                      AND score > 0
+                      AND (has_website = 0 OR score >= ?)
+                      AND stage NOT LIKE 'site_%'
+                    ORDER BY score DESC
+                    LIMIT ?
+                    """,
+                    (min_score, limit),
+                ).fetchall()
+                return [dict(r) for r in rows]
+            except sqlite3.OperationalError:
+                return []
+            finally:
+                conn.close()
+        except Exception as exc:
+            logger.debug("_get_site_ready_candidates local DB failed: %s", exc)
+            return []
+
+    async def _exec_mark_site_ready(self, data: list) -> dict:
+        """H2-F5: mark eligible prospects as site_ready for Vuecra.
+
+        Calls PATCH /api/prospects/{id} for each candidate.
+        Idempotent: API UPDATE only affects prospects not already site_*.
+        """
+        marked = 0
+        errors = 0
+        for prospect in data:
+            pid = prospect.get("id")
+            if not pid:
+                continue
+            try:
+                await self.pipeline._request(
+                    "PATCH",
+                    f"/api/prospects/{pid}",
+                    json={
+                        "stage": "site_ready",
+                        "hermes_source": "hermes-2.0",
+                    },
+                )
+                marked += 1
+                logger.info(
+                    "daemon P6b: marked prospect_id=%d as site_ready "
+                    "(score=%s has_website=%s)",
+                    pid,
+                    prospect.get("score", "?"),
+                    prospect.get("has_website", "?"),
+                )
+            except Exception as exc:
+                errors += 1
+                logger.warning(
+                    "daemon P6b: failed to mark prospect_id=%d: %s", pid, exc
+                )
+
+        logger.info(
+            "daemon P6b mark_site_ready done: marked=%d errors=%d total=%d",
+            marked, errors, len(data),
+        )
+        return {"marked": marked, "errors": errors, "total": len(data)}
 
     # --- Channel Adapters ---
 

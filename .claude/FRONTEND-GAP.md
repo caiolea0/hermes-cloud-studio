@@ -1,10 +1,10 @@
 # FRONTEND-GAP — Backend↔Frontend audit
 
-- **last_updated**: 2026-06-22 17:52 UTC
+- **last_updated**: 2026-06-23 06:57 UTC
 - **phase_baseline**: post F.7
-- **routes_total**: 239 (189 PC + 50 VM, 5 internal-only excluded)
-- **consumed**: 141 (60.3% of public)
-- **orphans**: 93
+- **routes_total**: 243 (189 PC + 54 VM, 5 internal-only excluded)
+- **consumed**: 141 (59.2% of public)
+- **orphans**: 97
 - **top_10_priority**: see §4
 
 > Auditoria determinística cruzando AST routes FastAPI com consumo `dashboard/app.js + components/*.js`.
@@ -13,7 +13,7 @@
 
 ## §1 Inventário routes (PC + VM)
 
-- Total: **239** rotas FastAPI (189 PC, 50 VM)
+- Total: **243** rotas FastAPI (189 PC, 54 VM)
 - WS endpoints: 1
 - Internal-only (loopback): 5 (excluídos do gap)
 
@@ -38,6 +38,7 @@
 | `api/tasks.py` | 5 |
 | `api/audit.py` | 4 |
 | `api/server_ctrl.py` | 4 |
+| `vm_api/vuecra.py` | 4 |
 | `api/icp.py` | 3 |
 | `api/internal.py` | 3 |
 | `api/dashboard.py` | 2 |
@@ -89,7 +90,7 @@
 | `/api/hermes/skills/{param}` | 2 | app.js |
 | `/api/hermes/status` | 2 | app.js |
 
-## §3 Órfãos — 93 endpoints sem UI
+## §3 Órfãos — 97 endpoints sem UI
 
 Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 
@@ -153,11 +154,14 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `POST` | `/api/templates/render` | pc | `api/templates.py:259` | token |
 | `DELETE` | `/api/templates/{template_id}` | pc | `api/templates.py:247` | token |
 | `PUT` | `/api/templates/{template_id}` | pc | `api/templates.py:216` | token |
+| `POST` | `/api/vuecra/{prospect_id}/claim` | vm | `vm_api/vuecra.py:138` | token |
+| `POST` | `/api/vuecra/{prospect_id}/delivered` | vm | `vm_api/vuecra.py:219` | token |
+| `POST` | `/api/vuecra/{prospect_id}/failed` | vm | `vm_api/vuecra.py:315` | token |
 | `GET` | `/api/lab/runs/{run_id}/artifacts/{filename}` | pc | `api/lab.py:479` | token |
 | `GET` | `/api/stats` | pc | `api/stats.py:11` | token |
 | `GET` | `/api/stats` | vm | `vm_api/routes.py:356` | token |
 | `GET` | `/` | pc | `api/dashboard.py:14` | token |
-| `GET` | `/api/_ping` | vm | `hermes_api_v2.py:157` | token |
+| `GET` | `/api/_ping` | vm | `hermes_api_v2.py:161` | token |
 | `GET` | `/api/channels/{channel}/test` | pc | `api/onboarding.py:146` | token |
 | `GET` | `/api/cobaia/autotune-history` | pc | `api/cobaia.py:367` | token |
 | `GET` | `/api/cobaia/autotune-status` | pc | `api/cobaia.py:399` | token |
@@ -188,6 +192,7 @@ Backend expõe mas dashboard não consome. Owner depende de CLI/curl/SSH.
 | `GET` | `/api/skills/proposals/{proposal_id}/yaml-preview` | pc | `api/skills.py:150` | token |
 | `GET` | `/api/skills/synthesis-runs/{run_id}` | pc | `api/skills.py:292` | token |
 | `GET` | `/api/templates/{template_id}` | pc | `api/templates.py:203` | token |
+| `GET` | `/api/vuecra/queue` | vm | `vm_api/vuecra.py:83` | token |
 
 ## §4 TOP 10 priorizado
 

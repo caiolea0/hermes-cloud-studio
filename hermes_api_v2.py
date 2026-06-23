@@ -30,6 +30,7 @@ from vm_core.state import (
 import time
 from vm_api.routes import router as vm_router
 from vm_api.mcp_coverage import router as mcp_coverage_router
+from vm_api.vuecra import router as vuecra_router  # H2-F5 — Vuecra Handoff HI2
 from api.brain import router as brain_router  # F.6.1 — Brain orchestrator scaffold (shared PC/VM)
 
 
@@ -120,6 +121,9 @@ async def auth_middleware(request: Request, call_next):
     # F.5.3 — /api/mcp/* gerenciado por oauth_bearer_check (Bearer required, NÃO X-Hermes-Token)
     if request.url.path.startswith("/api/mcp/"):
         return await call_next(request)
+    # H2-F5 — /api/vuecra/* uses X-Internal-Token (checked in vuecra router)
+    if request.url.path.startswith("/api/vuecra/"):
+        return await call_next(request)
     if request.url.path.startswith("/api/"):
         token = request.headers.get("X-Hermes-Token", "")
         if not secrets.compare_digest(token, VM_AUTH_TOKEN):
@@ -164,6 +168,7 @@ async def vm_ping():
 
 app.include_router(vm_router)
 app.include_router(mcp_coverage_router)
+app.include_router(vuecra_router)  # H2-F5 — /api/vuecra/* (Vuecra Handoff HI2)
 app.include_router(brain_router)  # F.6.1 — /api/brain/* (Brain orchestrator scaffold)
 
 

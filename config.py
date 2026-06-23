@@ -125,6 +125,9 @@ class HermesSettings(BaseSettings):
     scrape_min_interval: float = Field(default=4.0, validation_alias="HERMES_SCRAPE_MIN_INTERVAL")
     scrape_max_concurrent: int = Field(default=4, validation_alias="HERMES_SCRAPE_MAX_CONCURRENT")
 
+    # H2-F5 Vuecra handoff settings
+    vuecra_site_ready_min_score: int = Field(default=70, validation_alias="HERMES_SITE_READY_MIN_SCORE")
+
     # --- Hermes paths (HERMES_HOME default ~/.hermes; honra env var) ---
     hermes_home: Path = Field(
         default_factory=lambda: Path.home() / ".hermes",
