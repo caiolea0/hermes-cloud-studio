@@ -114,6 +114,14 @@ class HermesSettings(BaseSettings):
     # Default True preserva o comportamento 1.x (GCP) até o cutover; VPS/2.0 seta "off".
     feature_linkedin: bool = Field(default=True, validation_alias="FEATURE_LINKEDIN")
 
+    # FEATURE_SCRAPE_T2=on habilita Patchright headless como fallback quando T1 retorna vazio.
+    # VPS-only (daemon container). Default off — T1 curl_cffi cobre ~40-70% dos sites.
+    feature_scrape_t2: bool = Field(default=False, validation_alias="FEATURE_SCRAPE_T2")
+
+    # H2-F3 scrape settings
+    scrape_min_interval: float = Field(default=4.0, validation_alias="HERMES_SCRAPE_MIN_INTERVAL")
+    scrape_max_concurrent: int = Field(default=4, validation_alias="HERMES_SCRAPE_MAX_CONCURRENT")
+
     # --- Hermes paths (HERMES_HOME default ~/.hermes; honra env var) ---
     hermes_home: Path = Field(
         default_factory=lambda: Path.home() / ".hermes",

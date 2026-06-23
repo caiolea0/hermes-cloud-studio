@@ -308,6 +308,25 @@ def init_db() -> None:
         conn.commit()
         logger.info("Migration H2-F2: added CNPJ columns to prospects")
 
+    # H2-F3 — Website contact-enrich fields
+    try:
+        conn.execute("SELECT whatsapp FROM prospects LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE prospects ADD COLUMN whatsapp TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN contact_source TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN scraped_at TIMESTAMP")
+        conn.commit()
+        logger.info("Migration H2-F3: added website scrape columns to prospects")
+
+    # H2-F3 — social_instagram / social_facebook (já no CREATE TABLE; migration p/ DBs antigos)
+    try:
+        conn.execute("SELECT social_instagram FROM prospects LIMIT 1")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE prospects ADD COLUMN social_instagram TEXT")
+        conn.execute("ALTER TABLE prospects ADD COLUMN social_facebook TEXT")
+        conn.commit()
+        logger.info("Migration H2-F3: added social columns to prospects (legacy DB)")
+
     conn.close()
 
 

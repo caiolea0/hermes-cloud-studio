@@ -165,6 +165,13 @@ class HermesDaemon:
             auth_token=os.environ.get("HERMES_VM_AUTH_TOKEN", os.environ.get("HERMES_AUTH_TOKEN", "")),
         )
 
+        # H2-F3 — per-domain scrape rate limiter (lazy init, respeita event loop)
+        from core.scrape_limiter import ScrapeLimiter
+        self._scrape_limiter = ScrapeLimiter(
+            min_interval=float(os.environ.get("HERMES_SCRAPE_MIN_INTERVAL", "4.0")),
+            max_concurrent=int(os.environ.get("HERMES_SCRAPE_MAX_CONCURRENT", "4")),
+        )
+
         self._init_db()
 
     def _init_db(self):
@@ -1210,13 +1217,15 @@ class HermesDaemon:
         """Enrich a single prospect via waterfall providers.
 
         Stage 1: CNPJ lookup via hermes-postgres trigram (H2-F2).
-        Stage 2 (F.3+): website scrape.
+        Stage 2: website scrape via curl_cffi T1 (H2-F3).
         """
+        fields_filled = 0
+
         # Stage 1: CNPJ authority (hermes-postgres)
         try:
             from scripts.enrich_cnpj import enrich_prospect_cnpj
             result = await asyncio.to_thread(enrich_prospect_cnpj, prospect)
-            fields_filled = result.get("fields_filled", 0)
+            fields_filled += result.get("fields_filled", 0)
             if result.get("cnpj"):
                 patch = {k: v for k, v in result.items()
                          if k in ("cnpj", "razao_social", "cnae",
@@ -1230,11 +1239,70 @@ class HermesDaemon:
                     "enrich_single cnpj=%s confidence=%s fields=%d",
                     result.get("cnpj"), result.get("cnpj_match_confidence"), fields_filled,
                 )
-            return {"fields_filled": fields_filled, "code": 200}
         except Exception as exc:
-            # hermes-postgres indisponível ou outro erro — falha graciosa, não trava daemon
+            # hermes-postgres indisponível — falha graciosa, avança pro Stage 2
             logger.info("enrich_single cnpj skip (prospect %s): %s", prospect.get("id"), exc)
-            return {"fields_filled": 0, "code": 503, "reason": str(exc)}
+
+        # Stage 2: Website contact scrape (H2-F3)
+        # Só executa se o prospect tem website E ainda está sem phone/email/whatsapp
+        website = prospect.get("website") or ""
+        already_has_contact = bool(
+            prospect.get("phone") or prospect.get("email") or prospect.get("whatsapp")
+        )
+        if website and not already_has_contact:
+            try:
+                from scripts.scrape_website import scrape_website, scrape_website_t2
+                from config import settings as _cfg
+
+                async with self._scrape_limiter.domain_slot(website):
+                    scrape_result = await asyncio.to_thread(scrape_website, website)
+
+                # T2 fallback se T1 retornou vazio e flag ON (VPS-only)
+                if (
+                    _cfg.feature_scrape_t2
+                    and not any(scrape_result.get(k) for k in ("phone", "email", "whatsapp"))
+                ):
+                    try:
+                        scrape_result = await asyncio.to_thread(scrape_website_t2, website)
+                        scrape_result["source_tier"] = "T2"
+                    except NotImplementedError:
+                        pass  # T2 stub — esperado
+                    except Exception as exc_t2:
+                        logger.info("enrich_single t2 skip (prospect %s): %s", prospect.get("id"), exc_t2)
+
+                # Monta patch com apenas campos preenchidos
+                _SCRAPE_FIELDS = ("phone", "email", "whatsapp", "social_instagram",
+                                  "social_facebook", "contact_source", "scraped_at")
+                now_iso = datetime.now(timezone.utc).isoformat()
+                scrape_patch: dict = {}
+                for field_name in _SCRAPE_FIELDS:
+                    v = scrape_result.get(field_name)
+                    if v:
+                        scrape_patch[field_name] = v
+
+                if scrape_patch:
+                    scrape_patch["contact_source"] = "website"
+                    scrape_patch["scraped_at"] = now_iso
+                    await self.pipeline._request(
+                        "PATCH", f"/api/prospects/{prospect['id']}", json=scrape_patch
+                    )
+                    fields_filled += len(scrape_patch)
+                    logger.info(
+                        "enrich_single stage2 prospect=%s site=%s phone=%s email=%s wa=%s schema_org=%s",
+                        prospect.get("id"), website,
+                        bool(scrape_patch.get("phone")),
+                        bool(scrape_patch.get("email")),
+                        bool(scrape_patch.get("whatsapp")),
+                        scrape_result.get("has_schema_org", False),
+                    )
+                else:
+                    logger.debug("enrich_single stage2 prospect=%s site=%s → sem contatos", prospect.get("id"), website)
+
+            except Exception as exc:
+                # Scrape falhou/timeout — log + continua, não trava daemon nem perde Stage 1
+                logger.info("enrich_single stage2 skip (prospect %s): %s", prospect.get("id"), exc)
+
+        return {"fields_filled": fields_filled, "code": 200}
 
     # --- Intelligence ---
 

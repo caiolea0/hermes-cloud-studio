@@ -36,3 +36,6 @@ apscheduler>=3.11.0,<4.0
 tzdata>=2024.1
 # H2-F2 — CNPJ authority + enrich: PostgreSQL client (hermes-postgres dedicado)
 psycopg2-binary>=2.9.0
+# H2-F3 — Website contact scraping: curl_cffi (TLS/JA3 chrome fingerprint) + selectolax (fast HTML parse)
+curl_cffi>=0.7
+selectolax>=0.3.21

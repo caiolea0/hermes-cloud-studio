@@ -33,6 +33,12 @@ class ProspectCreate(BaseModel):
     cnae: Optional[str] = None
     situacao_cadastral: Optional[str] = None
     cnpj_match_confidence: Optional[str] = None  # 'high', 'low', None
+    # H2-F3 website contact-enrich fields
+    whatsapp: Optional[str] = None
+    contact_source: Optional[str] = None   # 'website', 'cnpj', 'osm', etc.
+    scraped_at: Optional[str] = None       # ISO timestamp
+    social_instagram: Optional[str] = None
+    social_facebook: Optional[str] = None
 
 
 class ProspectUpdate(BaseModel):
@@ -55,6 +61,12 @@ class ProspectUpdate(BaseModel):
     cnae: Optional[str] = None
     situacao_cadastral: Optional[str] = None
     cnpj_match_confidence: Optional[str] = None
+    # H2-F3 website contact-enrich fields
+    whatsapp: Optional[str] = None
+    contact_source: Optional[str] = None
+    scraped_at: Optional[str] = None
+    social_instagram: Optional[str] = None
+    social_facebook: Optional[str] = None
 
 
 class TaskCreate(BaseModel):
