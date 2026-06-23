@@ -481,3 +481,39 @@ hermes_api_v2.py — include_router(market_router)
 - **CORREÇÃO de label**: "UI-P2 (Mission Control, Surface 2)" está ERRADO. Pelo UIUX-PLAN §8: **UI-P2 = Sweep mechanics** (Surface 1 cont.: Terra Draw lasso, fog-of-war, filtros-que-recolorem + counter, reverse-filter, H3 hexes). Surface 2 = Lead Conveyor = **UI-P3**. Mission Control/Command Center = Surface 4 = **UI-P5**.
 
 > **Próximo: UI-P2 — Sweep mechanics** (lasso Terra Draw + fog-of-war + filtros-que-recolorem + reverse-filter + **hexes H3** que resolvem a cobertura do choropleth). Surface 1 fica completa. Depois UI-P3 (Lead Conveyor).
+
+## UI-P2 — Sweep mechanics (Surface 1 cont.) (2026-06-23)
+
+### Deliverables (E1–E8)
+- **E1 Backend**: `vm_api/geo.py` — `/api/geo/hexes` (H3 R8 aggregate, 290 cells), `/api/geo/categories`, `/api/geo/sweep` CRUD; `geo.sweep_state` PG table via `init_geo_migrations`; cache TTL 60s hexes / 5min categories. `hermes_api_v2.py` wired.
+- **E2 Vendor**: `terra-draw.umd.js` v1.31.2 + `terra-draw-maplibre-gl-adapter.umd.js` v1.4.1 em `dashboard-v2/vendor/`; carregados antes de `app.js`.
+- **E3 API client**: `api.js` — `getGeoHexes`, `getGeoCategories`, `postSweep`, `getSweep`, `deleteSweep` no `window.hermesAPI`.
+- **E4 Hex layer**: `_cellsToGeoJSON` via `h3.cellToBoundary(cell, true)` (v4 API), camadas `hexes-fill/fog/line` MapLibre-pure (hsl only, sem oklch). View toggle Bairros/Hexes/Pontos + `localStorage hermes_map_view`. Bairros UI-P1 intactos.
+- **E5 Terra Draw**: `TerraDrawFreehandMode` lasso, `_onSweepFinish` → `h3.polygonToCells(geometry, 8)` → `postSweep`, undo stack (Set por ação), Escape cancela.
+- **E6 Fog**: `_renderSweepFog` rebuild GeoJSON + `setData`, progress ring `conic-gradient(--pct)`. Reduced-motion: conteúdo sempre visível, ring atualiza sem animação.
+- **E7 Filtros**: chips score (3 bands) + top-8 categories (injetado async) + has-site/no-site/missing. `_applyHexFilters` GPU-fast via `setFilter`+`setPaintProperty`, `performance.now()` timing + warn >16ms. `window._hermesFilters` shared state + `hermes:filters-changed` CustomEvent. Live counter.
+- **E8 Hex modal**: frosted-glass, stats (total/hot/med/avgScore/category_top), copy cell ID, sweep/unsweep CTA.
+
+### Gates verificados (2026-06-23)
+| Gate | Resultado |
+|------|-----------|
+| G1: `h3_r8 IS NOT NULL` = 2113 | ✅ pré-existente (UI-P1) |
+| G2: `geo.sweep_state` table | ✅ `/api/geo/sweep` 200 |
+| G3: `GET /api/geo/hexes` → 290 features, `h3_cell`+`avg_score`+`prospect_count`+`category_top` | ✅ `count=290, sample: {h3_cell:'888ba65319fffff', avg_score:50, prospect_count:91, category_top:'Restaurante'}` |
+| G4: `GET /api/geo/categories?limit=5` → items | ✅ 5 items (Escola, Restaurante, Revenda Veículos…) |
+| G5: `POST /api/geo/sweep` → `inserted:1, total_swept:1` | ✅ |
+| G6: `GET /api/geo/sweep` → cells array | ✅ cells:['88a8a2a3b3fffff'], total:1 |
+| G7: `DELETE /api/geo/sweep/{cell}` → `deleted:1` | ✅ |
+| G8: vendors carregados — `window.h3.cellToBoundary`, `window.terraDraw.TerraDrawFreehandMode`, `window.terraDrawMaplibreGlAdapter.TerraDrawMapLibreGLAdapter` | ✅ |
+| G9–G14: DOM — viewToggle(3btns), lasso/undo btns, sweepProgress, liveCounter, mapFilters(3score+3site+cats), hexModal(stats+sweepBtn+closeBtn) | ✅ todos presentes |
+
+- Deploy: GitHub Actions `df2f727` → Contabo VPS → `docker compose up --build` → `conclusion: success`.
+- LEI reduced-motion respeitada: conteúdo sempre visível na base; sem animações de entrada; fog wipe = enhancement only.
+- XSS: todo `props.*` via `_escHtml` ou `Number()` coerce; `category_top` escapeado.
+- MapLibre paint: hsl/hex only (oklch rejeitado silenciosamente pelo parser MapLibre).
+- H3HexagonLayer: **NÃO usado** (deck.gl@9 + h3-js = loop infinito) — hexes via h3-js→GeoJSON→MapLibre `type:fill`.
+- Bairros UI-P1 **intactos** — P2 adicionou hexes como nova camada, não substituiu.
+
+> **UI-P2 ✅ COMPLETO (2026-06-23)**: commit `df2f727`, Surface 1 (Mapa) 100% — bairros + hexes + pontos, lasso Terra Draw, fog-of-war, filtros GPU-fast, hex modal. 290 H3 R8 cells resolvem o gap do choropleth 75/2113 (bairros OSM incompletos). `hermes:filters-changed` CustomEvent pronto para UI-P3 consumir.
+
+> **Próximo: UI-P3 — Lead Conveyor** (Surface 2: kanban/esteira de leads, integração com `hermes:filters-changed` para pré-filtrar leads do mapa).
