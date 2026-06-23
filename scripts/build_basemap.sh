@@ -41,7 +41,7 @@ fi
 echo "[1/5] osmium $(osmium --version 2>&1 | head -1) ✓"
 
 # ── Step 2: tilemaker binary ──────────────────────────────────────────────────
-TILEMAKER="$BUILD_DIR/tilemaker"
+TILEMAKER="$BUILD_DIR/build/tilemaker"
 if [ ! -f "$TILEMAKER" ]; then
   echo "[2/5] Downloading tilemaker v3.0.0..."
   curl -fsSL -L \

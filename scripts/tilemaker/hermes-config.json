@@ -1,14 +1,13 @@
 {
-  "areaMaxZoom": 14,
-  "maxzoom": 14,
-  "minzoom": 8,
-  "underzoom": 12,
-  "include_ids": false,
-  "compress": "gzip",
-  "filemetadata": {
-    "name": "hermes-cuiaba",
-    "description": "Cuiabá MT — Hermes 2.0 basemap (OpenStreetMap)",
-    "attribution": "© OpenStreetMap contributors"
+  "settings": {
+    "minzoom": 8,
+    "maxzoom": 14,
+    "basezoom": 14,
+    "include_ids": false,
+    "compress": "gzip",
+    "name": "Hermes Cuiabá Basemap",
+    "version": "1.0",
+    "description": "Cuiabá MT — Hermes 2.0 basemap (OpenStreetMap)"
   },
   "layers": {
     "transportation": { "minzoom": 8, "maxzoom": 14 },
