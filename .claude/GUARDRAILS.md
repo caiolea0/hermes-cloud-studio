@@ -520,3 +520,20 @@ Toda task Fase F que toque `dashboard/*` (app.js, components/*, index.html, styl
 **Re-rodar skill ao fechar QUALQUER chapter F.2-F.9** — `.claude/frontend-gap/diff-vs-known.md` mostra vitórias UX (orphans→consumed) e regressões (consumed→orphans). Sem isso, perde-se termômetro de progresso.
 
 **Baseline F.1 (referência)**: 138 rotas total · 93 consumed (69.9%) · 40 órfãos · 10 priorizados por owner_pain_score. Repetir periodicamente compara contra este baseline.
+
+---
+
+## 🧊 VPS MOTHBALL (2026-07-15)
+
+**Status**: VPS Contabo (`root@207.180.240.208`, host `geronimo-vps`) **cancelada temporariamente** pelo owner. Backup completo capturado + verificado antes do cancelamento manual.
+
+**Endpoints MORTOS** (não tentar conectar):
+- SSH: `root@207.180.240.208` (key `~/.ssh/geronimo_ed25519`)
+- Tailscale: `100.74.227.37`
+- Túnel Cloudflare vinculado (se aplicável)
+
+**Backup local**: `backups/vps-mothball-2026-07-15/` (gitignored, `.gitignore` linha 102). Contém `dumps/` (pg_dump -Fc + SQLite WAL-safe + tiles tar.gz + SHA256SUMS), `secrets/.env.vps`, `infra/` (baseline-counts + infra-snapshot). Cópia adicional em cloud pessoal do owner (regra 3-2-1).
+
+**Restore runbook**: [`docs/RESTORE-VPS.md`](../docs/RESTORE-VPS.md) — 11 seções auto-suficientes para restaurar numa VPS Linux nova. LLM futura pode executar direto lendo apenas o runbook.
+
+**Sessão Claude futura que precisar mexer com VPS Hermes**: ler `docs/RESTORE-VPS.md` **antes** de qualquer ação. Se a pasta `backups/vps-mothball-2026-07-15/` não existir no disco local, pedir pro owner restaurar da cloud pessoal antes de tentar restore.

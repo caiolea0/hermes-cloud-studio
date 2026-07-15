@@ -6,6 +6,18 @@
 
 ---
 
+## 🧊 AVISO — VPS Contabo em mothball desde 2026-07-15
+
+VPS Contabo (`root@207.180.240.208`, Tailscale `100.74.227.37`) foi **cancelada temporariamente** pelo owner. Endpoints MORTOS — não tentar SSH nem conectar. Stack Hermes 2.0 (docker-compose real com hermes-api/daemon/postgres/overpass/web) que vivia lá está congelada em backup.
+
+- **Backup local**: `backups/vps-mothball-2026-07-15/` (gitignored)
+- **Restore runbook**: [`docs/RESTORE-VPS.md`](docs/RESTORE-VPS.md) — 11 seções auto-suficientes pra restaurar numa VPS nova
+- **Guardrail completo**: `.claude/GUARDRAILS.md` seção "🧊 VPS MOTHBALL (2026-07-15)"
+
+Nota: a seção "## 1. Topologia" abaixo descreve a topologia **legacy GCP** (server.py local + VM GCP `136.115.74.69`) — arquitetura anterior ao Hermes 2.0. Preservada por referência histórica. Para stack real da VPS Contabo (a que está em mothball), consultar `docker-compose.yml` na raiz + `.claude/HERMES-2.0-FOUNDATION-EXEC.md`.
+
+---
+
 ## 1. Topologia (3 camadas)
 
 ```

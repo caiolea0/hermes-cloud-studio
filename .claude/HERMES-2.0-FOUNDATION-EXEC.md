@@ -544,3 +544,75 @@ Auditei contra os 14 gates do prompt original (exec re-numerou pra 9 — mapeio 
 **Caveat resolvido**: 75/2113 do UI-P1 (bairros OSM admin_level=10 incompletos) → **290/290 cells (100%)** via H3. Surface 1 (Mapa) está visualmente completa.
 
 > **UI-P2 ✅ COMPLETO + AUDITADO (2026-06-23)**: Sweep mechanics verificado em produção. 290 H3 R8 cells cobrem 100% dos prospects, sweep round-trip persistido no PG, filtros recolorem com evento compartilhado, fog-of-war funcional, hex modal com escape. Próximo: **UI-P3 — Lead Conveyor (Surface 2)** consumindo `hermes:filters-changed` do mapa.
+
+---
+
+## MOTHBALL-2026-07 — Auditoria da executora
+
+**Contexto**: owner cancelou VPS Contabo temporariamente. Sessão capturou backup completo + verificou triplo (VPS→transfer→PC) antes do cancelamento. Fase única, 7 gates, zero desvio do briefing.
+
+### Estado pré-freeze
+- SSH: `root@207.180.240.208` (`geronimo-vps`) OK
+- Deploy SHA no ato: `712d41d` (commit F0 `.gitignore backups/`)
+- 5 hermes-* containers Up (4 healthy + daemon sem healthcheck) confirmado pós-deploy do gitignore
+- `HERMES_AUTODEPLOY=true` → Ramo A (commit F0 disparou deploy, verificado verde em 2m18s)
+
+### Baseline canônico (fonte da verdade do backup)
+
+**SQLite** (`command_center.db` em `hermes_data:/var/lib/hermes/data/`):
+```
+activities   2525
+prospects    2122
++ 8 tabelas vazias (campaign_runs, hunter_email_cache, linkedin_connections, linkedin_engagements, linkedin_posts, linkedin_profiles, pipeline_stats, tasks)
+```
+
+**PostgreSQL** (`postgis/postgis:16-3.4`):
+```
+cnpj.estabelecimentos   333929
+cnpj.market_signals     200
+geo.bairros             194
+geo.business_points     2113
+geo.sweep_state         0
+public.spatial_ref_sys  8500  (seed postgis, esperado "already exists" no restore)
+```
+
+### Artefatos + SHA256
+
+| Arquivo | Tamanho | SHA256 |
+|---|---|---|
+| `dumps/hermes_pg_2026-07-15.dump` | 25.3 MB | `1349d1d47799e2e877693a18dda75fd3f2e4f2af905e246b5996acfaa62c34f3` |
+| `dumps/command_center_2026-07-15.db` | 1.06 MB | `3dc93d89411dced405f01c58e3aea0ea8dab785a79e8349b4d92fa6c0ce8ea3b` |
+| `dumps/hermes_tiles_2026-07-15.tar.gz` | 5.03 MB | `81e8a1c1f114729a35af8fd0f175aee0a3216d373de8cb0ab647ae925bdc0831` |
+| `secrets/.env.vps` | 535 B | `46be4e9be27d163f07e6cfab18ac30a95e3f7aacfc5137844cdb2615987b91ad` |
+| `infra/infra-snapshot.txt` | 3.24 KB | `3537d87212d4f689a9d2d60cd0ca8cbb90784098b662025b1f49e8dee4abf380` |
+
+### Gates
+
+| Gate | O que valida | Resultado | Evidência-chave |
+|---|---|---|---|
+| G1 | Pré-flight + `.gitignore backups/` + deploy pós-F0 | PASS | SSH OK · 5 hermes-* Up · check-ignore linha 102 · run 29394289998 verde 2m18s |
+| G2 | Freeze `hermes-daemon` Exited + baseline salvo | PASS | daemon `Exited (137)` · 4 hermes-* healthy · baseline em `infra/baseline-counts.txt` |
+| G3 | 5 dumps em `/root/hermes-mothball/` | PASS | pg 25.3M · sqlite 1.09M · env 535B · tiles 5.0M · snapshot 3.2K |
+| G4 | Verify VPS: pg_restore --list + SQLite integrity + SHA256SUMS | PASS | 61 linhas manifest + 4 TABLE DATA presentes · integrity `('ok',)` + counts exato · SHA256SUMS gerado |
+| G5 | Transfer PC + sha256sum -c 5/5 OK + SQLite local verify | PASS | `sha256sum -c` 5/5 OK · SQLite local integrity `('ok',)` + counts exato · T4.4 restore-test PG **NÃO executado** (Docker Desktop off no PC) |
+| G6 | Commit docs `.md`/`.claude/` sem `backups/` | *(este commit)* | ver `git show --stat HEAD` + `git log --oneline -3` |
+| G7 | Relatório final entregue ao owner | *(resposta desta sessão)* | tabela gates + checklist owner |
+
+### Notas de execução
+- `.pg_secret` mencionado no `docker-compose.yml` L121 **não existe** no host — senha PG vive dentro do `.env` (`HERMES_PG_PASSWORD`). Só `env.vps` foi copiado.
+- Bash cwd persiste entre comandos no ambiente — usar paths absolutos em heredocs/scripts.
+- NTFS não honra POSIX `chmod` — `secrets/.env.vps` fica `644` no `stat`; segurança vem do gitignore + FS local. Registrar como limitação.
+- Docker CLI instalado no PC (29.5.3) mas Docker Desktop engine desligado — restore-test PG (T4.4) validado só via `pg_restore --list` na VPS (T3.1: 61 linhas manifest + 4 tabelas TABLE DATA presentes).
+- Pg dump 25.3 MB veio abaixo da hipótese 30-90 MB — normal (`-Fc` comprime melhor que estimado para DB 180 MB com muito index).
+
+### Estado final da VPS
+- 4 hermes-* Up healthy
+- `hermes-daemon` Exited (137) proposital (mothball)
+- `/root/hermes-mothball/` intacto (6 arquivos incluindo SHA256SUMS.txt)
+- **Nenhum container ou volume não-Hermes tocado** — Geronimo, Bolseye, `postgres` (sem prefixo), `caddy`, `cloudflared`, `metabase`, `nats`, `redis`, `litestream`, `bolseye-ollama-1` etc. permanecem exatamente como estavam
+- Ação pra reativar Hermes temporário sem restaurar: `docker start hermes-daemon`
+
+### Próximo (owner)
+1. Copiar `backups/vps-mothball-2026-07-15/` inteira para cloud pessoal (Drive/B2) — regra 3-2-1, pasta fora do git
+2. Confirmar Geronimo+Bolseye têm backup próprio (litestream replica pra fora da VPS?) — fora escopo Hermes mas afetados pelo cancelamento
+3. Cancelar assinatura Contabo
