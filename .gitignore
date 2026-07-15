@@ -97,3 +97,6 @@ dashboard/dev-bootstrap.html
 
 # F.4.4 — quarantine dir (C2 scope)
 skills/_quarantine/*
+
+# VPS mothball backups (secrets + dumps — NEVER commit)
+backups/
